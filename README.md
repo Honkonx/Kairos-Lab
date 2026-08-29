@@ -108,7 +108,11 @@ correr programas de Windows directamente en Android.
 
 ## Capturas
 
-_Próximamente._
+<p align="center">
+  <img src="./art/screenshots/modulos.jpg" width="260" alt="Pantalla de módulos">
+  <img src="./art/screenshots/chat-ia.jpg" width="260" alt="Chat IA - elegir motor">
+  <img src="./art/screenshots/mas.jpg" width="260" alt="Menú Más">
+</p>
 
 ## ¿Sigue siendo Termux? 🖥️
 
