@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+
+    <!-- Fondo negro. -->
+    <rect x="0" y="0" width="108" height="108" fill="#000"/>
+
+    <!-- Marca Kairos: "K" en 3 trazos (mantener en sync con drawable/ic_foreground.xml). -->
+
+    <!-- Trazo vertical (espina). -->
+    <path fill="#007AFF"
+          d="M38,30
+             h8
+             v48
+             h-8
+             z"
+    />
+
+    <!-- Brazo superior. -->
+    <path fill="#34C759"
+          d="M46,58
+             L46,46
+             L70,28
+             L70,40
+             z"
+    />
+
+    <!-- Brazo inferior. -->
+    <path fill="#FF3B30"
+          d="M46,50
+             L46,62
+             L70,80
+             L70,68
+             z"
+    />
+
+</svg>
