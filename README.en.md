@@ -108,7 +108,11 @@ programs directly on Android.
 
 ## Screenshots
 
-_Coming soon._
+<p align="center">
+  <img src="./art/screenshots/modulos.jpg" width="260" alt="Modules screen">
+  <img src="./art/screenshots/chat-ia.jpg" width="260" alt="AI Chat - engine picker">
+  <img src="./art/screenshots/mas.jpg" width="260" alt="More menu">
+</p>
 
 ## Third-party credits 🙏
 
