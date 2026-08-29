@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Ícono genérico neutral para módulos sin artwork propio (2026-08-22, ver
+         docs/humano/humano187.md) — antes 25/57 módulos (44%) caían silenciosamente en el logo
+         específico de Ollama como fallback (ModuleIcons.forModule()), lo cual es confuso:
+         módulos sin relación con Ollama (Freebuff, Entornos de Prueba, Verificación, etc.)
+         mostraban su marca. Un simple ícono de "caja/paquete" (representa "módulo" de forma
+         abstracta) es más honesto que reusar la marca de otro módulo real. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 12 2 L 20 6.5 L 20 15.5 L 12 20 L 4 15.5 L 4 6.5 Z M 12 4.311 L 6 7.735 L 12 11.156 L 18 7.735 Z M 5 9.578 L 5 14.922 L 11 18.344 L 11 13 Z M 13 13 L 13 18.344 L 19 14.922 L 19 9.578 Z"/>
+</vector>

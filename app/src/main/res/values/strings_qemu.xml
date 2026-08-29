@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- QemuFragment.kt -->
+    <string name="qemu_card_status_title">ESTADO</string>
+    <string name="qemu_status_user_mode">qemu-user (x86_64/arm)</string>
+    <string name="qemu_status_system_mode">qemu-system (headless)</string>
+    <string name="qemu_info_kvm_label">Aceleración KVM</string>
+    <string name="qemu_info_kvm_value">No disponible sin root</string>
+
+    <string name="qemu_card_run_binary_title">EJECUTAR BINARIO DE OTRA ARQUITECTURA</string>
+    <string name="qemu_binary_path_hint">Ruta al binario (ej. ~/mi_binario_x86_64)</string>
+    <string name="qemu_btn_run_x86_64">▶ Ejecutar como x86_64 (terminal)</string>
+    <string name="qemu_btn_run_arm">▶ Ejecutar como arm (terminal)</string>
+
+    <string name="qemu_card_disk_images_title">IMÁGENES DE DISCO (qemu-img)</string>
+    <string name="qemu_info_folder_label">Carpeta</string>
+    <string name="qemu_btn_create_image">＋ Crear imagen de disco</string>
+    <string name="qemu_btn_list_images">☰ Listar imágenes</string>
+    <string name="qemu_btn_image_ops">🛠 Info / redimensionar / convertir imagen</string>
+
+    <string name="qemu_card_download_images_title">IMÁGENES PARA DESCARGAR</string>
+    <string name="qemu_download_images_desc">Guest x86_64 — corren sin KVM (TCG software, lento). Alpine bootea directo a login; las cloud images de Debian/Ubuntu están pensadas para cloud-init (pueden pedir configurar usuario/contraseña aparte para loguear por consola).</string>
+
+    <string name="qemu_image_alpine_name">Alpine Linux 3.24 (virt, x86_64)</string>
+    <string name="qemu_image_alpine_desc">ISO oficial minimal de Alpine — bootea directo a login root sin cloud-init, ideal para probar la VM headless rápido.</string>
+    <string name="qemu_image_debian_name">Debian 12 (Bookworm) cloud, amd64</string>
+    <string name="qemu_image_debian_desc">Imagen cloud oficial de Debian (qcow2, lista para -drive). Pensada para cloud-init — puede necesitar un ISO de semilla con usuario/contraseña para loguear por consola.</string>
+    <string name="qemu_image_ubuntu_name">Ubuntu 22.04 LTS (Jammy) cloud, amd64</string>
+    <string name="qemu_image_ubuntu_desc">Imagen cloud oficial de Ubuntu Server. Igual que Debian: pensada para cloud-init, puede pedir semilla aparte para loguear por consola.</string>
+
+    <string name="qemu_card_vm_headless_title">VM HEADLESS (sin KVM — TCG software, lento)</string>
+    <string name="qemu_vm_image_path_hint">Ruta a imagen .qcow2/.img o .iso</string>
+    <string name="qemu_vm_ram_hint">RAM en MB (por defecto 512)</string>
+    <string name="qemu_btn_pick_image">📂 Elegir imagen de la lista</string>
+    <string name="qemu_btn_boot_vm">▶ Arrancar VM…</string>
+
+    <string name="qemu_status_installed">Instalado</string>
+    <string name="qemu_status_not_available">No disponible</string>
+
+    <string name="qemu_binary_missing_title">%1$s no disponible</string>
+    <string name="qemu_binary_missing_message">El paquete no quedó instalado en este dispositivo — puede ser un fallo temporal de red/mirror durante la instalación, o que el paquete no esté disponible para tu arquitectura. Podés reintentar la instalación (fuerza reinstalación completa) o revisar ~/kairos_logs/install_qemu.log para ver el error real.</string>
+    <string name="qemu_retry_install">Reintentar instalación</string>
+    <string name="qemu_toast_reinstalling">Reinstalando QEMU…</string>
+    <string name="qemu_toast_reinstall_done">Reinstalación terminada — revisá el estado</string>
+    <string name="qemu_toast_reinstall_failed">Falló — revisá el log</string>
+    <string name="qemu_close">Cerrar</string>
+
+    <string name="qemu_toast_binary_path_required">Escribí la ruta al binario primero</string>
+    <string name="qemu_what_user_mode">qemu-user (%1$s)</string>
+    <string name="qemu_what_system_mode">qemu-system (VM headless)</string>
+
+    <string name="qemu_create_image_name_hint">Nombre (ej. disco1.qcow2)</string>
+    <string name="qemu_create_image_size_hint">Tamaño (ej. 4G, 512M) — también acepta 4gb/4GB</string>
+    <string name="qemu_create_image_title">Crear imagen de disco</string>
+    <string name="qemu_create">Crear</string>
+    <string name="qemu_toast_name_size_required">Completá nombre y tamaño</string>
+    <string name="qemu_cancel">Cancelar</string>
+    <string name="qemu_toast_creating_image">Creando imagen…</string>
+    <string name="qemu_toast_image_created">Imagen creada: %1$s</string>
+    <string name="qemu_error_could_not_create">no se pudo crear</string>
+    <string name="qemu_error_prefix">Error: %1$s</string>
+
+    <string name="qemu_toast_no_images">No hay imágenes en %1$s todavía</string>
+    <string name="qemu_images_dialog_title">Imágenes (%1$d)</string>
+    <string name="qemu_choose_image_title">Elegí una imagen</string>
+
+    <string name="qemu_option_info">ℹ Info (qemu-img info)</string>
+    <string name="qemu_option_resize">↔ Redimensionar (resize)</string>
+    <string name="qemu_option_convert">🔄 Convertir formato</string>
+
+    <string name="qemu_toast_reading_info">Leyendo info de %1$s…</string>
+    <string name="qemu_info_dialog_title">Info: %1$s</string>
+    <string name="qemu_no_output">(sin salida)</string>
+    <string name="qemu_unknown_error_message">Error desconocido</string>
+
+    <string name="qemu_resize_hint">Nuevo tamaño (ej. +2G para agrandar, -1G para achicar, u 8G absoluto)</string>
+    <string name="qemu_resize_title">Redimensionar %1$s</string>
+    <string name="qemu_resize_warning">El achicado (-) puede destruir datos si el sistema de archivos de adentro no encoge también — solo agrandar (+) es siempre seguro.</string>
+    <string name="qemu_resize_button">Redimensionar</string>
+    <string name="qemu_toast_empty_size">Tamaño vacío</string>
+    <string name="qemu_toast_resizing">Redimensionando %1$s…</string>
+    <string name="qemu_toast_resize_done">%1$s redimensionada a %2$s</string>
+    <string name="qemu_error_could_not_resize">no se pudo redimensionar</string>
+
+    <string name="qemu_convert_title">Convertir %1$s (origen: %2$s)</string>
+    <string name="qemu_toast_already_format">Ya está en formato %1$s</string>
+    <string name="qemu_toast_converting">Convirtiendo a %1$s…</string>
+    <string name="qemu_toast_convert_done">Convertida: %1$s</string>
+    <string name="qemu_error_could_not_convert">no se pudo convertir</string>
+
+    <string name="qemu_mode_console">Consola / SSH (por defecto — abre una terminal con la consola serie del guest)</string>
+    <string name="qemu_mode_vnc">VNC (abre el visor gráfico nativo de Kairos)</string>
+    <string name="qemu_display_mode_title">Modo de visualización</string>
+    <string name="qemu_toast_pick_image_first">Elegí o escribí la ruta de una imagen primero</string>
+
+    <string name="qemu_toast_booting_console">Arrancando sin KVM — el boot va a tardar (TCG software)</string>
+    <string name="qemu_toast_booting_vnc">Arrancando sin KVM (modo VNC) — puede tardar unos minutos, sin aceleración…</string>
+    <string name="qemu_toast_boot_failed">No se pudo arrancar QEMU: %1$s</string>
+    <string name="qemu_error_unknown_lower">error desconocido</string>
+
+    <string name="qemu_vnc_timeout_title">El servidor VNC no respondió</string>
+    <string name="qemu_vnc_timeout_message">QEMU no llegó a levantar el puerto %1$d tras %2$ds. Sin KVM (TCG software) el boot puede tardar más — podés reintentar abrir el visor manualmente desde el módulo Mini PC apuntando al puerto %1$d, o revisar el log real:\n\n%3$s</string>
+    <string name="qemu_vnc_log_empty">(log vacío o sin permisos — ~/kairos_logs/qemu_vm_vnc.log)</string>
+    <string name="qemu_retry">Reintentar</string>
+
+    <string name="qemu_vnc_boot_hint_title">Consejo — prompt de arranque</string>
+    <string name="qemu_vnc_boot_hint_message">Si la pantalla queda en un prompt de texto tipo \"boot:\" (ISOLINUX, sin disco duro conectado), es normal — tocá la pantalla y presioná Enter en el teclado para que la VM continúe.</string>
+    <string name="qemu_vnc_boot_hint_button">Entendido</string>
+
+    <string name="qemu_downloaded">✓ Descargada</string>
+    <string name="qemu_download">Descargar</string>
+    <string name="qemu_toast_already_exists">Ya existe: %1$s</string>
+    <string name="qemu_download_progress_title">Descargando %1$s</string>
+    <string name="qemu_connecting">Conectando…</string>
+    <string name="qemu_could_not_save_file">No se pudo guardar %1$s</string>
+    <string name="qemu_http_error">HTTP %1$d</string>
+    <string name="qemu_download_cut_off">La descarga se cortó a mitad de camino (%1$d MB de %2$d MB esperados)</string>
+    <string name="qemu_toast_image_downloaded">%1$s descargada</string>
+    <string name="qemu_notify_image_downloaded">Imagen descargada</string>
+    <string name="qemu_download_error_title">Error descargando %1$s</string>
+    <string name="qemu_session_name_arch">QEMU (%1$s)</string>
+    <string name="qemu_session_name_vm">QEMU (VM)</string>
+
+    <string name="qemu_card_terminal_title">TERMINAL</string>
+    <string name="qemu_terminal_desc">Para usuarios avanzados — abre una terminal ya ubicada en la carpeta de imágenes, para correr qemu-system-x86_64 a mano (ej. con -monitor stdio), inspeccionar archivos o revisar logs.</string>
+    <string name="qemu_btn_open_terminal">💻 Abrir terminal</string>
+    <string name="qemu_session_name_terminal">QEMU (Terminal)</string>
+
+    <!-- SSH host→VM (hostfwd tcp::2222-:22, ver run_vm.sh) + X11 forwarding por app (ssh -X),
+         ver comentario sobre connectSsh() en QemuFragment.kt -->
+    <string name="qemu_btn_connect_ssh">🔑 Conectar por SSH…</string>
+    <string name="qemu_ssh_dialog_title">Conectar por SSH a la VM</string>
+    <string name="qemu_ssh_dialog_message">Usuario del guest (ej. root en Alpine; debian/ubuntu en las cloud images, si cloud-init ya configuró la contraseña/clave). El puerto %1$d del host reenvía al 22 de la VM. Se conecta con \"-X\" — esto habilita X11 forwarding por app: si la VM tiene un servidor X propio, podés abrir programas gráficos individuales de la VM sin necesitar todo el escritorio por VNC.</string>
+    <string name="qemu_ssh_username_hint">Usuario (ej. root)</string>
+    <string name="qemu_ssh_connect_button">Conectar</string>
+    <string name="qemu_ssh_port_closed_title">Todavía no responde en el puerto %1$d</string>
+    <string name="qemu_ssh_port_closed_message">No se detectó nada escuchando en 127.0.0.1:%1$d — la VM puede seguir arrancando (TCG sin KVM tarda), o el guest todavía no tiene sshd activo/instalado. Podés intentar igual (el cliente ssh reintentará la conexión real) o esperar a que termine de bootear.</string>
+    <string name="qemu_ssh_try_anyway">Intentar igual</string>
+    <string name="qemu_session_name_ssh">QEMU (SSH)</string>
+</resources>

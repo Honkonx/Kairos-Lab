@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de identidad Manjaro (2026-08-27, ver docs/humano259.md) — interpretación vectorial
+     simplificada de un solo color (barra separada + 3 barras agrupadas, mismo patrón que el
+     logo real). Fondo circular color de marca (#35BF5C). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#FFFFFF" android:pathData="M3,4 H6 V20 H3 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M10,4 H13 V20 H10 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M15,4 H18 V20 H15 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M20,4 H23 V20 H20 Z" />
+</vector>

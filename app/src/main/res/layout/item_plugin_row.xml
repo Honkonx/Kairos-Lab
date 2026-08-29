@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="8dp">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/plugin_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:attr/selectableItemBackground"
+        app:cardBackgroundColor="?attr/kairosBg2"
+        app:cardCornerRadius="14dp"
+        app:cardElevation="0dp"
+        app:contentPadding="0dp"
+        app:strokeColor="?attr/kairosBorder"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Badge de estado superpuesto (esquina inferior-derecha, patrón Proxmox VE
+                     — ver docs/humano/humano194.md): mismo mecanismo que item_module_row.xml, ver
+                     ese comentario para el detalle. -->
+                <FrameLayout
+                    android:layout_width="42dp"
+                    android:layout_height="42dp">
+
+                    <ImageView
+                        android:id="@+id/plugin_icon"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:padding="9dp"
+                        android:scaleType="fitCenter"
+                        android:background="?attr/kairosBg3"
+                        android:importantForAccessibility="no"
+                        app:tint="@android:color/white"
+                        tools:src="@drawable/ic_module_ollama" />
+
+                    <View
+                        android:id="@+id/plugin_status_badge"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_gravity="bottom|end"
+                        android:importantForAccessibility="no" />
+
+                </FrameLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/plugin_name"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/kairosText"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        tools:text="Ollama" />
+
+                    <LinearLayout
+                        android:id="@+id/plugin_badges"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:orientation="horizontal" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/plugin_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:textColor="?attr/kairosGreen"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    tools:text="Instalar" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/plugin_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textColor="?attr/kairosText2"
+                android:textSize="12sp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="Motor de IA local. Corre modelos LLM en ARM64 sin internet." />
+
+            <TextView
+                android:id="@+id/plugin_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textColor="?attr/kairosText3"
+                android:textSize="12sp"
+                tools:text="— No instalado · catálogo 0.8.x" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

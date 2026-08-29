@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Contenido del drawer izquierdo — explorador de archivos del proyecto abierto. Ancho fijo
+     típico de sidebar de IDE (300dp), NO NavigationView (esto es un árbol de archivos real vía
+     SAF, no un menú de navegación). -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="300dp"
+    android:layout_height="match_parent"
+    android:layout_gravity="start"
+    android:orientation="vertical"
+    android:background="@color/ide_sidebar_bg"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/ide_sidebar_header_bg"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="14dp"
+        android:paddingBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/sidebar_title"
+                android:textAllCaps="true"
+                android:textStyle="bold"
+                android:textSize="11sp"
+                android:letterSpacing="0.08"
+                android:textColor="@color/ide_text_secondary" />
+
+            <ImageView
+                android:id="@+id/sidebar_new_file_root"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:padding="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/filetree_new_file"
+                android:src="@drawable/studio_ic_add" />
+
+            <ImageView
+                android:id="@+id/sidebar_new_folder_root"
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_marginStart="2dp"
+                android:padding="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/filetree_new_folder"
+                android:src="@drawable/studio_ic_folder" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/sidebar_project_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="14sp"
+            android:singleLine="true"
+            android:ellipsize="middle"
+            android:textColor="@color/ide_text_primary"
+            android:text="@string/sidebar_no_project" />
+
+        <EditText
+            android:id="@+id/sidebar_filter_input"
+            android:layout_width="match_parent"
+            android:layout_height="34dp"
+            android:layout_marginTop="8dp"
+            android:paddingHorizontal="10dp"
+            android:background="@color/ide_surface"
+            android:hint="@string/sidebar_filter_hint"
+            android:textColor="@color/ide_text_primary"
+            android:textColorHint="@color/ide_text_secondary"
+            android:textSize="12sp"
+            android:singleLine="true"
+            android:imeOptions="actionSearch"
+            android:inputType="text" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/ide_divider" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/file_tree_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingVertical="4dp"
+            android:clipToPadding="false" />
+
+        <TextView
+            android:id="@+id/sidebar_empty_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:padding="24dp"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:textColor="@color/ide_text_secondary"
+            android:text="@string/sidebar_open_folder_hint" />
+
+    </FrameLayout>
+
+</LinearLayout>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HermesFragment.kt -->
+    <string name="hermes_card_estado">ESTADO</string>
+    <string name="hermes_toast_installed">Hermes instalado</string>
+    <string name="hermes_toast_install_failed">Falló — revisá ~/kairos_logs/install_hermes.log</string>
+    <string name="hermes_label_version">Versión</string>
+    <string name="hermes_label_gateway">Gateway</string>
+    <string name="hermes_label_provider">Proveedor IA</string>
+    <string name="hermes_label_terminal_tui">Terminal TUI</string>
+    <string name="hermes_dash">—</string>
+    <string name="hermes_status_active">● Activo</string>
+    <string name="hermes_status_stopped">○ Detenido</string>
+
+    <string name="hermes_btn_open_tui">🤖 Abrir Hermes (TUI)</string>
+    <string name="hermes_btn_chat">💬 Chat (hermes chat)</string>
+    <string name="hermes_btn_gateway">📡 Gateway</string>
+    <string name="hermes_btn_manage_projects">🗂 Gestionar proyectos</string>
+    <string name="hermes_btn_command_reference">📖 Comandos — referencia</string>
+    <string name="hermes_btn_choose_model">🔀 Elegir modelo/proveedor (hermes model)</string>
+    <string name="hermes_btn_configure_provider_quick">🔌 Configurar proveedor IA (rápido, sin terminal)</string>
+    <string name="hermes_label_local_provider">Proveedor IA local</string>
+    <string name="hermes_option_ollama_local">Ollama local</string>
+    <string name="hermes_option_llama_server_local">llama-server local</string>
+    <string name="hermes_btn_configure_local_provider">🔌 Configurar proveedor IA local</string>
+    <string name="hermes_btn_send_message">📤 Enviar mensaje (hermes send)</string>
+    <string name="hermes_btn_direct_prompt">🤖 Prompt directo al agente (hermes -z)</string>
+    <string name="hermes_btn_stop_gateway">⏹ Detener gateway</string>
+    <string name="hermes_toast_gateway_stopped">Gateway detenido</string>
+    <string name="hermes_toast_could_not_stop">No se pudo detener</string>
+    <string name="hermes_btn_status_diagnostics">🔍 Estado y diagnóstico</string>
+    <string name="hermes_btn_full_wizard">⚙ Wizard completo (hermes setup)</string>
+    <string name="hermes_btn_doctor">🩺 Diagnóstico (hermes doctor)</string>
+    <string name="hermes_btn_kanban">📋 Tablero de tareas (kanban)</string>
+    <string name="hermes_btn_cron">⏰ Tareas programadas (hermes cron)</string>
+    <string name="hermes_btn_update">↑ Actualizar Hermes (hermes update)</string>
+    <string name="hermes_btn_install_reinstall">↑ Instalar / reinstalar</string>
+    <string name="hermes_btn_connect_engram">🔗 Conectar memoria de Engram (skill)</string>
+    <string name="hermes_card_maintenance">MANTENIMIENTO</string>
+    <string name="hermes_btn_uninstall">🗑 Desinstalar</string>
+
+    <string name="hermes_toast_engram_not_installed">Engram no está instalado — instalalo desde su módulo primero</string>
+    <string name="hermes_toast_engram_skill_installed">Skill de Engram instalada — Hermes la usa sola cuando aplica</string>
+    <string name="hermes_error_format">Error: %1$s</string>
+    <string name="hermes_error_unknown">desconocido</string>
+
+    <string name="hermes_dialog_commands_title">Comandos de Hermes</string>
+    <string name="hermes_dialog_commands_body">hermes\n  Abre el REPL clásico\n\nhermes --tui\n  TUI moderna (Node/Ink)\n\nhermes chat\n  Chat interactivo dedicado\n\nhermes model\n  Selector interactivo de proveedor/modelo\n\nhermes send \"msg\"\n  Envía un mensaje directo a la plataforma configurada (Telegram/Discord/SMS) — sin pasar por el agente/LLM\n\nhermes setup\n  Wizard de configuración completo\n\nhermes gateway\n  Arranca el gateway (Telegram/Discord/SMS) en primer plano\n\nConfig: ~/.hermes/.env, ~/.hermes/config.yaml, ~/.hermes/SOUL.md</string>
+    <string name="hermes_btn_close">Cerrar</string>
+
+    <string name="hermes_hint_send_message">Mensaje a enviar (Telegram/Discord/SMS configurado)</string>
+    <string name="hermes_dialog_send_message_title">Enviar mensaje (hermes send)</string>
+    <string name="hermes_dialog_send_message_msg">Se envía directo a la plataforma configurada — no pasa por el agente/LLM.</string>
+    <string name="hermes_btn_send">Enviar</string>
+    <string name="hermes_toast_empty_message">Mensaje vacío</string>
+    <string name="hermes_btn_cancel">Cancelar</string>
+
+    <string name="hermes_hint_direct_prompt">Qué querés pedirle al agente</string>
+    <string name="hermes_dialog_direct_prompt_title">Prompt directo — Hermes</string>
+    <string name="hermes_dialog_direct_prompt_msg">One-shot no interactivo: pasa por el agente/LLM y responde, sin abrir la TUI.</string>
+    <string name="hermes_toast_empty_prompt">El prompt no puede estar vacío</string>
+
+    <string name="hermes_hint_provider">Proveedor (ej. openai, anthropic)</string>
+    <string name="hermes_hint_api_key">API key</string>
+    <string name="hermes_dialog_configure_provider_title">Configurar proveedor IA</string>
+    <string name="hermes_toast_missing_data">Faltan datos</string>
+    <string name="hermes_btn_save">Guardar</string>
+    <string name="hermes_toast_provider_saved">Proveedor guardado</string>
+
+    <string name="hermes_toast_ollama_unavailable">Ollama no disponible — inicialo primero</string>
+    <string name="hermes_toast_no_ollama_models">No hay modelos descargados en Ollama</string>
+    <string name="hermes_dialog_ollama_model_title">Modelo de Ollama para Hermes</string>
+    <string name="hermes_toast_no_gguf_models">No hay modelos .gguf descargados — descargá uno desde Chat IA primero</string>
+    <string name="hermes_dialog_llama_server_model_title">Modelo de llama-server para Hermes</string>
+    <string name="hermes_toast_configured_format">Configurado: %1$s</string>
+
+    <string name="hermes_dialog_status_title">Estado de Hermes</string>
+    <string name="hermes_dialog_status_body">Instalado: %1$b\nVersión: %2$s\nGateway corriendo: %3$b\nConfig guardada: %4$b\nProveedor: %5$s</string>
+
+    <string name="hermes_toast_reinstalling">Reinstalando Hermes…</string>
+    <string name="hermes_toast_updated">Hermes actualizado</string>
+</resources>

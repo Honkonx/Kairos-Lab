@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Menú contextual por fila del árbol de archivos (long-press o ícono "⋮") — ver
+     FileTreeAdapter (onContextMenuRequested) y MainActivity.showFileContextMenu(). Items
+     "Nuevo archivo"/"Nueva carpeta" se ocultan en tiempo de ejecución cuando el nodo tocado es
+     un archivo (no una carpeta) porque solo tiene sentido crear DENTRO de una carpeta. -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/action_tree_new_file"
+        android:title="@string/filetree_new_file" />
+
+    <item
+        android:id="@+id/action_tree_new_folder"
+        android:title="@string/filetree_new_folder" />
+
+    <item
+        android:id="@+id/action_tree_rename"
+        android:title="@string/filetree_rename" />
+
+    <item
+        android:id="@+id/action_tree_delete"
+        android:title="@string/filetree_delete" />
+
+    <item
+        android:id="@+id/action_tree_copy_path"
+        android:title="@string/filetree_copy_path" />
+
+</menu>

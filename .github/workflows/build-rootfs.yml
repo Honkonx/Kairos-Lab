@@ -1,0 +1,75 @@
+name: Build Kairos rootfs
+
+# Arma el rootfs embebido (paquetes .deb reales de Termux, SIN extraer — se
+# instalan con "apt install" real en el dispositivo, ver RootfsInstaller.kt,
+# para que queden registrados en dpkg/apt y "pkg list --upgradable" los vea)
+# y lo publica como asset de una GitHub Release versionada. Disparo manual
+# únicamente — este workflow es pesado (decenas de descargas) y no tiene
+# sentido correrlo en cada push; se corre a mano solo cuando cambia
+# tools/rootfs/package_list.txt o hace falta refrescar versiones.
+#
+# build-app.yml / build-app-rootfs.yml consumen el asset publicado acá — no
+# dependen entre sí, se corren por separado.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Rama/tag a usar para tools/rootfs/ (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
+        required: false
+        default: 'ide'
+      release_tag:
+        description: 'Tag de la Release a crear/actualizar (ej. rootfs-2026.07.28)'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # publicar una Release + subir assets requiere este scope
+
+jobs:
+  build-rootfs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Verificar herramientas (tar, xz)
+        run: |
+          command -v tar
+          command -v xz
+
+      - name: Armar rootfs (descarga .deb reales + resuelve dependencias, sin extraer)
+        run: |
+          mkdir -p rootfs_staging rootfs_cache
+          python3 tools/rootfs/build_rootfs.py rootfs_staging rootfs_cache
+
+      - name: Empaquetar tar.xz + checksum
+        run: |
+          tar -cJf kairos-rootfs-aarch64.tar.xz -C rootfs_staging .
+          ls -lh kairos-rootfs-aarch64.tar.xz
+          sha256sum kairos-rootfs-aarch64.tar.xz | awk '{print $1}' > kairos-rootfs-aarch64.tar.xz.sha256
+          mv manifest.json kairos-rootfs-aarch64.manifest.json || true
+
+      - name: Publicar como GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: "Kairos rootfs — ${{ inputs.release_tag }}"
+          body: |
+            Rootfs embebido de Kairos — paquetes reales de Termux (repo termux-main,
+            aarch64), armado automáticamente desde `tools/rootfs/package_list.txt`
+            por este workflow. Ver `docs/bootstrap/ROOTFS_EMBEBIDO.md` para el mecanismo completo.
+
+            No es una release de la app — es un artefacto interno que consumen
+            `build-app-rootfs.yml` (embebido en el APK) y el propio wizard de la app
+            (descarga en runtime para la variante sin rootfs embebido).
+          files: |
+            kairos-rootfs-aarch64.tar.xz
+            kairos-rootfs-aarch64.tar.xz.sha256
+            kairos-rootfs-aarch64.manifest.json
+          draft: false
+          prerelease: true

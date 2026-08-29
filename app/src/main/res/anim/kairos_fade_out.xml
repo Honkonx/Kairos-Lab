@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ver kairos_fade_in.xml — misma ronda, mismo razonamiento (docs/estructura/ESTILO_VISUAL_2026-08-25.md). -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromAlpha="1.0"
+    android:toAlpha="0.0"
+    android:duration="120"
+    android:interpolator="@android:anim/accelerate_interpolator" />

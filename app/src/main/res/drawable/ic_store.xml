@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono propio para la Tienda de plugins (2026-08-27, ver docs/humano257.md) — antes
+     MoreBottomSheetFragment.MENU_ITEMS reusaba R.drawable.ic_module_ollama para el ítem
+     "Plugins" (nav_plugins → PluginsFragment.kt, la tienda de módulos), mostrando la marca de
+     Ollama en un ítem sin relación temática. Bolsa de tienda con una etiqueta de precio en la
+     solapa — representa "tienda/catálogo" de forma abstracta, mismo criterio que
+     ic_module_generic.xml (ícono neutral en vez de reusar el logo de otro módulo). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 7 2 L 5 6 L 5 20 a 1 1 0 0 0 1 1 h 12 a 1 1 0 0 0 1 -1 L 19 6 L 17 2 Z M 7.24 4 h 9.52 l 1 2 H 6.24 Z M 7 8 h 10 l 0 11 H 7 Z"/>
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 9 10 a 3 3 0 0 0 6 0 h -1.6 a 1.4 1.4 0 0 1 -2.8 0 Z"/>
+</vector>

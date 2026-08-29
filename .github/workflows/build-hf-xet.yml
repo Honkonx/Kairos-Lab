@@ -1,0 +1,204 @@
+name: Build hf_xet prebuilt wheel (aarch64-linux-android)
+
+# Cross-compila hf_xet (extensión Rust de huggingface_hub, huggingface/xet-core,
+# subcarpeta hf_xet/) para aarch64-linux-android y publica el .whl resultante como
+# asset de una GitHub Release — ver docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md
+# para la causa raíz completa y el plan que esta ronda ejecuta. modulos/hf.sh (v1.2.0,
+# PASO 1.5) ya busca ese wheel en Releases recientes de este repo con el patrón de
+# nombre "hf_xet-*aarch64*android*.whl" antes de compilar Rust en el dispositivo — este
+# workflow es lo que produce ese asset.
+#
+# Disparo manual únicamente (workflow_dispatch) — este job cross-compila Rust desde
+# fuente con el NDK, consume minutos reales de CI, y hf_xet no cambia de versión
+# seguido, así que no tiene sentido correrlo en cada push (mismo criterio que
+# build-rootfs.yml: pesado, sin trigger automático, solo a mano cuando hace falta
+# refrescar la versión). Ver .claude/rules/multi-machine-continuity.md sobre cuota de
+# CI ya agotada antes.
+#
+# NOTA sobre el repo de destino de la Release (2026-08-28): igual que
+# build-rootfs.yml, este job publica en el repo donde corre (hoy el privado
+# kairos-dev) usando el GITHUB_TOKEN por defecto — Honkonx/kairos-lab (destino real
+# planeado, ver modulos/hf.sh HF_XET_PREBUILT_REPO) todavía no existe como repo
+# público (ver docs/humano267.md). Publicar cross-repo requeriría un PAT con permiso
+# de "contents: write" sobre kairos-lab que hoy no está configurado como secret en
+# este repo — no se agrega unilateralmente. Cuando kairos-lab exista de verdad, este
+# workflow (y build-rootfs.yml) necesitan actualizarse para apuntar ahí con
+# `repository: Honkonx/kairos-lab` + ese secret nuevo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      xet_core_ref:
+        description: 'Rama/tag de huggingface/xet-core a clonar (vacío = rama default del repo)'
+        required: false
+        default: ''
+      release_tag:
+        description: 'Tag de la Release a crear/actualizar (ej. hf-xet-aarch64-android-1.2.0)'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # publicar una Release + subir el wheel requiere este scope
+
+jobs:
+  build-hf-xet-wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar Rust (rustup) + target Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Instalar maturin
+        run: pip install maturin
+
+      # Bug real confirmado en la primera corrida (2026-08-29, ver log real en @log/):
+      # "${{ env.ANDROID_HOME }}" (contexto de expresiones de Actions) es DISTINTO de
+      # "$ANDROID_HOME" (variable de entorno real del shell del runner) — el contexto
+      # `env.*` solo ve variables sembradas explícitamente via $GITHUB_ENV en un step
+      # anterior de este mismo job, nunca las que el runner ya trae seteadas a nivel
+      # de sistema operativo. Sin este paso, "${{ env.ANDROID_HOME }}" evaluaba a
+      # string vacío en el step de cross-compile de más abajo, dejando
+      # NDK_HOME="/ndk/29.0.14206865" (sin el prefijo real del SDK) — el clang del NDK
+      # nunca se encontraba: "ToolNotFound: failed to find tool
+      # '/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/
+      # aarch64-linux-android26-clang': No such file or directory". Se siembra acá,
+      # ANTES de usar el contexto env.ANDROID_HOME en ningún otro step.
+      - name: Exportar ANDROID_HOME real al contexto de Actions
+        run: echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+      # Misma versión de NDK que usa terminal-emulator (ver CLAUDE.md — "NDK r29
+      # (29.0.14206865)"), no la r27 que usa el cross-compile de cloudflared en
+      # build-app.yml (ese pin es específico de llama-engine/Vulkan, no aplica acá).
+      - name: Instalar NDK 29.0.14206865
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;29.0.14206865"
+
+      - name: Clonar xet-core (fuente real de hf_xet)
+        run: |
+          set -e
+          if [ -n "${{ inputs.xet_core_ref }}" ]; then
+            git clone --depth 1 --branch "${{ inputs.xet_core_ref }}" https://github.com/huggingface/xet-core.git
+          else
+            git clone --depth 1 https://github.com/huggingface/xet-core.git
+          fi
+
+      # Bug real confirmado en la 2da y 3ra corrida (2026-08-29, log real en @log/):
+      # pyo3-ffi (dependencia de hf_xet) intenta linkear contra "-lpython3" en tiempo
+      # de build. PYO3_NO_PYTHON=1 (probado antes) NO alcanza solo — maturin 1.15.0
+      # ya genera bien el lib_name="python3" en el pyo3-config-file (el bug viejo de
+      # maturin #2945/#3130 de nombre incorrecto ya está resuelto en esa versión),
+      # pero Android simplemente no tiene NINGÚN libpython3.so del sistema para que
+      # el linker resuelva ese flag — a diferencia de Linux de escritorio, donde un
+      # extension-module de Python no necesita linkear contra libpython en absoluto.
+      # Causa raíz confirmada compilando en WSL Debian local (mismo NDK r29, mismo
+      # target) y reproduciendo el error exacto de CI antes de este fix.
+      #
+      # Fix real: Termux SÍ tiene su propio libpython3.so real (aarch64/Bionic,
+      # arquitectura idéntica al target de este build) empaquetado en su .deb de
+      # python — se descarga ese .deb real de packages.termux.dev (mismo repo que usa
+      # tools/rootfs/build_rootfs.py), se extrae la .so, y se agrega su directorio al
+      # linker vía RUSTFLAGS -L. El linker solo necesita resolver NOMBRES de símbolo
+      # en tiempo de link (no ejecuta código) — los símbolos reales de Python se
+      # resuelven en runtime contra el proceso real de Termux que hace dlopen() de
+      # esta extensión, exactamente el mismo mecanismo que un extension-module normal
+      # de Linux. Verificado end-to-end en dispositivo real (ADB): el .so compilado
+      # así importa correctamente en el Python real de Termux y expone todas las
+      # clases/funciones reales de PyO3 (XetSession, download_files, upload_files...).
+      - name: Descargar libpython3.so real de Termux (aarch64) para el linker
+        run: |
+          set -e
+          mkdir -p /tmp/termux-python-deb /tmp/termux-python-raw /tmp/pylib
+          curl -sSL -o /tmp/termux-python-deb/python.deb \
+            "https://packages.termux.dev/apt/termux-main/pool/main/p/python/python_3.14.6-1_aarch64.deb"
+          cd /tmp/termux-python-deb
+          ar x python.deb
+          # NOTA: combinar --wildcards con --strip-components en la misma invocación de
+          # tar rompía el matching del wildcard (0 archivos extraídos, confirmado con una
+          # prueba real fuera de CI) — se extrae con la estructura completa y se localiza
+          # con `find`, evita depender de contar a mano la profundidad exacta del path.
+          tar --wildcards -xf data.tar.* -C /tmp/termux-python-raw "./data/data/com.termux/files/usr/lib/libpython3*.so"
+          find /tmp/termux-python-raw -name "libpython3.*.so" ! -name "libpython3.so" -exec cp {} /tmp/pylib/ \;
+          cd /tmp/pylib
+          REAL_SO=$(ls libpython3.*.so | head -1)
+          [ -n "$REAL_SO" ] || { echo "No se encontró ninguna libpython3.*.so en el .deb de Termux"; exit 1; }
+          ln -sf "$REAL_SO" libpython3.so
+          ls -la
+
+      - name: Cross-compilar hf_xet (aarch64-linux-android, NDK clang)
+        working-directory: xet-core/hf_xet
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+          CC_aarch64_linux_android: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          AR_aarch64_linux_android: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-L /tmp/pylib"
+          PYO3_NO_PYTHON: "1"
+        run: |
+          set -e
+          maturin build --release --target aarch64-linux-android --out dist/
+          ls -lh dist/
+
+      # hf.sh busca el asset con el patrón de nombre "hf_xet-*aarch64*android*.whl"
+      # (grep sobre browser_download_url, ver modulos/hf.sh linea ~181). El nombre
+      # de wheel que produce maturin para este target NO necesariamente contiene el
+      # literal "android" en su platform tag (puede quedar como "linux_aarch64" —
+      # ver "Puntos NO verificados" en HF_XET_PREBUILD_PLAN_2026-08-28.md, item 1,
+      # todavía sin confirmar en un dispositivo real). Para que el asset SEA
+      # encontrable por hf.sh sin tocar los tags reales de compatibilidad (pyver-
+      # abi-plataforma, que pip SÍ valida estrictamente al instalar), se copia el
+      # wheel agregando el "build tag" opcional del spec de wheels (PEP 427 —
+      # posición 3, entre versión y pyver, debe empezar con un dígito, sin guiones)
+      # con el valor "0aarch64android": no cambia name/version/pyver/abi/platform
+      # tag, así que pip lo sigue reconociendo como el mismo wheel válido — solo
+      # agrega el texto que hf.sh necesita encontrar en el nombre del archivo.
+      - name: Renombrar el wheel para que coincida con el patrón que espera hf.sh
+        working-directory: xet-core/hf_xet
+        run: |
+          set -e
+          WHL=$(ls dist/hf_xet-*.whl | head -1)
+          [ -n "$WHL" ] || { echo "No se generó ningún wheel hf_xet-*.whl en dist/"; exit 1; }
+          BASE=$(basename "$WHL" .whl)
+          IFS='-' read -r -a PARTS <<< "$BASE"
+          N=${#PARTS[@]}
+          if [ "$N" -lt 4 ]; then
+            echo "Nombre de wheel inesperado (menos de 4 campos): $BASE"; exit 1
+          fi
+          PLATFORM_TAG="${PARTS[$((N-1))]}"
+          ABI_TAG="${PARTS[$((N-2))]}"
+          PY_TAG="${PARTS[$((N-3))]}"
+          NAME_VER=""
+          for ((i=0; i<N-3; i++)); do
+            NAME_VER="${NAME_VER}${PARTS[$i]}-"
+          done
+          NAME_VER="${NAME_VER%-}"
+          NEW_NAME="${NAME_VER}-0aarch64android-${PY_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl"
+          cp "dist/$BASE.whl" "dist/$NEW_NAME"
+          echo "Wheel original: $BASE.whl"
+          echo "Wheel renombrado para hf.sh: $NEW_NAME"
+          ls -lh dist/
+
+      - name: Publicar el wheel como Release asset
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: "hf_xet prebuilt (aarch64-linux-android) — ${{ inputs.release_tag }}"
+          body: |
+            Wheel de `hf_xet` (huggingface/xet-core) cross-compilado para
+            aarch64-linux-android con el NDK — evita compilar Rust en el dispositivo
+            al instalar el módulo `hf` (huggingface_hub CLI) en Kairos.
+
+            Ver `docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md` para la causa
+            raíz y `modulos/hf.sh` (PASO 1.5) para el mecanismo que consume este asset.
+
+            Verificado end-to-end en dispositivo real (ADB, 2026-08-29): el .whl
+            compilado con este mismo mecanismo (linkeado contra la libpython3.so real
+            de Termux) importa correctamente en el Python real de Termux y expone
+            todas las clases/funciones reales de PyO3 (XetSession, download_files,
+            upload_files, hash_files, etc.) — no solo "compila en CI".
+          files: |
+            xet-core/hf_xet/dist/hf_xet-*.whl
+          draft: false
+          prerelease: true

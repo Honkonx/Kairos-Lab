@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ide_background">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/ide_surface"
+        app:title="@string/terminal_title"
+        app:titleTextColor="@color/ide_text_primary"
+        app:navigationIcon="@drawable/studio_ic_back" />
+
+    <!-- Aviso de estado real: Kairos no instalado / permiso RUN_COMMAND no concedido /
+         recordatorio de allow-external-apps. Oculto cuando todo está listo. -->
+    <LinearLayout
+        android:id="@+id/status_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/ide_surface"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/status_banner_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/status_banner_action"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/output_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp">
+
+        <TextView
+            android:id="@+id/output_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/ide_text_primary"
+            android:textIsSelectable="true"
+            android:textSize="12sp" />
+
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/ide_surface"
+        android:padding="8dp"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/command_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:fontFamily="monospace"
+            android:hint="@string/terminal_command_hint"
+            android:imeOptions="actionSend"
+            android:inputType="text"
+            android:textColor="@color/ide_text_primary"
+            android:textColorHint="@color/ide_text_secondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/run_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/terminal_run" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <com.termux.app.vnc.VncCanvasView
+        android:id="@+id/vnc_canvas"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/vnc_status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:padding="16dp" />
+
+    <TextView
+        android:id="@+id/btn_vnc_close"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="10dp"
+        android:background="#66000000"
+        android:gravity="center"
+        android:text="✕"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <TextView
+        android:id="@+id/btn_vnc_keyboard"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="60dp"
+        android:layout_marginEnd="10dp"
+        android:background="#66000000"
+        android:gravity="center"
+        android:text="⌨"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="@string/vnc_viewer_open_keyboard" />
+
+    <!-- EditText invisible/mínimo usado únicamente como puente hacia el teclado software de
+         Android (ver VncViewerActivity.setupSoftKeyboardBridge()) — la mayoría de los teclados
+         software mandan texto vía InputConnection.commitText(), no como KeyEvent reales, así que
+         el onKeyDown/onKeyUp de la Activity no los recibe; este EditText oculto es lo que permite
+         capturarlos igual.
+
+         focusable/focusableInTouchMode="false" acá A PROPÓSITO (bug real confirmado 2026-08-29,
+         boot prompt de Alpine/QEMU-VNC ignoraba Enter físico): un EditText sin estos atributos
+         explícitos tiene focusableInTouchMode=true por default, y es la ÚNICA vista de este
+         layout con esa combinación (los botones ✕/⌨ son focusable pero NO focusableInTouchMode) —
+         Android le da foco de ventana automáticamente al abrir la Activity, ANTES de que el
+         usuario toque el botón ⌨. Con el foco ahí, dispatchKeyEvent() entrega cada tecla física
+         (Enter, flechas, letras) primero a este EditText — que la consume con su propio manejo
+         interno de edición de texto — y VncViewerActivity.onKeyDown()/onKeyUp() nunca llega a
+         ejecutarse, así que ningún key event físico se traduce a RFB. VncViewerActivity.
+         openSoftKeyboard() activa focusable/focusableInTouchMode en runtime justo antes de pedir
+         foco (y los desactiva de nuevo al perderlo) para que el foco sea siempre una acción
+         explícita del usuario, nunca automática. -->
+    <EditText
+        android:id="@+id/vnc_keyboard_input"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:layout_gravity="top|start"
+        android:background="@android:color/transparent"
+        android:textColor="@android:color/transparent"
+        android:textCursorDrawable="@null"
+        android:cursorVisible="false"
+        android:maxLines="1"
+        android:inputType="text"
+        android:imeOptions="actionDone"
+        android:focusable="false"
+        android:focusableInTouchMode="false"
+        android:importantForAutofill="no" />
+
+</FrameLayout>

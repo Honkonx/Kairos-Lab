@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg"
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="8dp"
+        android:text="📂 Archivos"
+        android:textColor="?attr/kairosText"
+        android:textSize="19sp"
+        android:textStyle="bold" />
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tab_roots"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:background="?attr/kairosBg3"
+        app:tabIndicator="@null"
+        app:tabIndicatorColor="?attr/kairosGreen"
+        app:tabSelectedTextColor="?attr/kairosText"
+        app:tabTextColor="?attr/kairosText3">
+
+        <com.google.android.material.tabs.TabItem
+            android:text="Termux" />
+
+        <com.google.android.material.tabs.TabItem
+            android:text="Interno" />
+
+    </com.google.android.material.tabs.TabLayout>
+
+    <!-- Barra de ruta estilo breadcrumb: botón "subir" + ruta actual en una card
+         redondeada, misma familia visual que las MaterialCardView del resto de la app
+         (item_plugin_row.xml, item_file_row.xml). -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="10dp"
+        app:cardBackgroundColor="?attr/kairosBg2"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="0dp"
+        app:contentPadding="0dp"
+        app:strokeColor="?attr/kairosBorder"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingVertical="4dp"
+            android:paddingHorizontal="6dp">
+
+            <TextView
+                android:id="@+id/btn_up"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="⬆"
+                android:textColor="?attr/kairosText"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/path_text"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:singleLine="true"
+                android:ellipsize="start"
+                android:fontFamily="monospace"
+                android:textColor="?attr/kairosText2"
+                android:textSize="12sp"
+                tools:text="/data/data/com.termux/files/home" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/files_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingTop="10dp"
+            android:paddingBottom="12dp"
+            android:clipToPadding="false" />
+
+        <TextView
+            android:id="@+id/empty_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="32dp"
+            android:textColor="?attr/kairosText3"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="Carpeta vacía" />
+
+    </FrameLayout>
+
+</LinearLayout>

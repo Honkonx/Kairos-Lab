@@ -1,0 +1,461 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:installLocation="internalOnly"
+    android:sharedUserId="${TERMUX_PACKAGE_NAME}"
+    android:sharedUserLabel="@string/shared_user_label">
+
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false" />
+
+    <permission
+        android:name="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND"
+        android:description="@string/permission_run_command_description"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/permission_run_command_label"
+        android:protectionLevel="dangerous" />
+
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Entrada de voz en el chat (SpeechInputManager.kt, ver docs/referencias/REFERENCIA_NEWTERMUX.md) —
+         SpeechRecognizer necesita RECORD_AUDIO en runtime (API 23+), pedido desde ChatFragment. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.READ_LOGS" />
+    <uses-permission android:name="android.permission.DUMP" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+
+    <application
+        android:name=".app.TermuxApplication"
+        android:allowBackup="false"
+        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/application_name"
+        android:requestLegacyExternalStorage="true"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:usesCleartextTraffic="true"
+        android:memtagMode="sync"
+        android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar"
+        tools:targetApi="m">
+
+        <!-- Bug real, 4to intento (2026-08-07, ver docs/humano/humano89.md): las 3 rondas
+             anteriores (humano77/humano83/humano86) parchearon un modelo de edge-to-edge
+             manual (setDecorFitsSystemWindows(false) + padding vía WindowInsetsCompat en
+             TermuxActivity.java) que NINGÚN proyecto de referencia usa — ni termux-app real
+             (github.com/termux/termux-app), ni los forks locales comparados
+             (referencia/termux/termux-app-master-x11-submodule, termux-kotlin-app-main,
+             NewTermux-main). Los 4 dejan que el sistema resuelva el resize de forma clásica
+             y automática, sin declarar "adjustResize" acá — el mecanismo real que usan es
+             KeyboardUtils.setSoftInputModeAdjustResize(activity) llamado por CÓDIGO (ver
+             TermuxTerminalViewClient.setSoftKeyboardState() y TermuxActivity.onCreate()),
+             no una declaración estática en el manifest. Revertido a coincidir con eso —
+             confirmado que el bug se reproducía igual CON este flag (humano86) que SIN él
+             (humano77) en 3 ROMs distintas, así que nunca fue la variable que decidía nada. -->
+        <activity
+            android:name=".app.TermuxActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
+            android:label="@string/application_name"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar"
+            tools:targetApi="n">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <activity-alias
+            android:name=".HomeActivity"
+            android:exported="true"
+            android:targetActivity=".app.TermuxActivity">
+
+            <!-- Launch activity automatically on boot on Android Things devices -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.IOT_LAUNCHER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity
+            android:name=".app.activities.HelpActivity"
+            android:exported="false"
+            android:label="@string/application_name"
+            android:parentActivityName=".app.TermuxActivity"
+            android:resizeableActivity="true"
+            tools:targetApi="n" />
+
+        <activity
+            android:name=".app.activities.SettingsActivity"
+            android:exported="true"
+            android:label="@string/title_activity_termux_settings"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
+        <!-- Sin configChanges, una rotación de pantalla destruye y recrea esta Activity — y
+             con ella WizardPagerAdapter (FragmentStateAdapter) recrea cada Fragment. En la
+             pantalla 4 (WizardInstallFragment, la de mayor riesgo del wizard: dispara
+             kairos.sh) eso significa una instancia NUEVA con su propio `started=false`, que
+             onResume() vuelve a disparar beginInstall() — un SEGUNDO kairos.sh (modo silent)
+             corriendo en paralelo al primero, que sigue vivo en el hilo de la instancia
+             vieja. Mismo patrón de bug ya confirmado en este wizard para
+             setupBootstrapIfNeeded() sin guard de concurrencia (ver docs/humano/humano58.md:
+             "corrompía $PREFIX"). Fix: declarar configChanges acá, igual que ya hace
+             TermuxActivity (línea ~75) y VncViewerActivity (línea ~136) para este mismo tipo
+             de riesgo — Android entrega onConfigurationChanged() en vez de recrear la
+             Activity, así que el Fragment/Thread de instalación en curso nunca se duplica.
+             Ver docs/arquitectura/AUDITORIA_WIZARD_CODIGO_2026-08-19.md. -->
+        <activity
+            android:name=".app.wizard.WizardActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
+        <!-- Visor VNC embebido (VncClient/VncCanvasView, com.termux.app.vnc) — conecta al
+             vncserver/tigervncserver que ya arranca EntornoNative.vncStart() en 127.0.0.1:5901.
+             Ver docs/x11/X11_EMBEBIDO.md / docs/humano/humano136.md. -->
+        <activity
+            android:name=".app.ui.VncViewerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
+        <!-- Visor del servidor X11 embebido (Xlorie/termux-x11). Clases en el módulo
+             :x11-server (com.termux.x11). Se lanza desde el menú "Más" → X11 junto con
+             X11Service (ver docs/x11/X11_EMBEBIDO.md). launchMode singleTask +
+             configChanges + PiP igual que termux-x11 standalone (MainActivity gestiona
+             orientation/fullscreen/cutout por código).
+             android:taskAffinity propio (bug real 2026-08-18, ver docs/humano/): sin esto,
+             esta Activity comparte la misma task que TermuxActivity (ambas usan el
+             taskAffinity por defecto = applicationId), así que el finishAffinity() y el
+             moveTaskToBack(true) del diálogo "Salir de X11"
+             (x11-server/.../MainActivity.java#showExitDialog) actuaban sobre TODA la task,
+             matando también TermuxActivity — eso es lo que el usuario veía como "la app
+             entera se cierra". Con una task propia, ambos botones del diálogo solo afectan
+             al visor X11; TermuxActivity queda intacta en su propia task de fondo. Se
+             mantiene declarada (además de la subclase de abajo) porque EntornoFragment.kt
+             todavía instancia esta clase directo — no se toca ese fragment en esta ronda
+             (alcance de otro agente), pero SÍ se beneficia del taskAffinity nuevo. -->
+        <activity
+            android:name="com.termux.x11.MainActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="${TERMUX_PACKAGE_NAME}.x11visor"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
+            android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar" />
+
+        <!-- Subclase Kotlin (módulo :app, com.termux.app.x11.KairosX11MainActivity) de la
+             Activity de arriba — agrega el botón flotante "Abrir teclado" (bug real
+             2026-08-18: el back del visor no abre el teclado porque el mecanismo original de
+             termux-x11 depende de un termuxActivityListener que en el embed standalone de
+             Kairos nunca se asigna) sin tocar ni una línea de x11-server/ (módulo protegido) —
+             ver KDoc de KairosX11MainActivity.kt. EntornoFragment.kt (el botón "Entrar en X11
+             (reabrir visor)" de la pantalla Mini PC — fusión 2026-08-25, antes vivía en
+             X11Fragment.kt/tab X11 propio, ver docs/mini-pc/MINIPC_TAB_2026-08-25.md) usa esta
+             subclase; mismo taskAffinity que la de arriba, así que ambas comparten task si
+             coexistieran (no debería pasar en uso normal). -->
+        <activity
+            android:name=".app.x11.KairosX11MainActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="${TERMUX_PACKAGE_NAME}.x11visor"
+            android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation|uiMode"
+            android:resizeableActivity="true"
+            android:supportsPictureInPicture="true"
+            android:theme="@style/Theme.TermuxActivity.DayNight.NoActionBar" />
+
+        <!-- Preferencias del visor X11 (resolución, escala, teclado, touch, extra keys, PiP,
+             fullscreen, orientación...). LoriePreferences es una actividad standalone que usa
+             getSupportActionBar() → theme con ActionBar. El engranaje de la MainActivity la abre
+             (patrón termux-x11 oficial); los cambios se propagan por el broadcast
+             ACTION_PREFERENCES_CHANGED que MainActivity recibe. Ver docs/x11/X11_EMBEBIDO.md. -->
+        <activity
+            android:name="com.termux.x11.LoriePreferences"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar" />
+
+        <!-- Subclase Kotlin (módulo :app, com.termux.app.x11.KairosX11PreferencesActivity) de
+             la Activity de arriba — usada por EntornoFragment.openX11Settings() ("Configuración
+             de X11" en la pantalla Mini PC de Kairos, fusión 2026-08-25 — antes
+             X11Fragment.openSettings()). Wirea termuxActivityListener (bug real
+             2026-08-18: "la mayoría de las opciones de Configuración de X11 no funcionan" —
+             varios botones de preferences.xml, ej. "stop_desktop"/"open_keyboard"/
+             "open_progress_manager", llaman a métodos de LoriePreferences que son no-op
+             cuando termuxActivityListener es null, que es SIEMPRE en el standalone original de
+             Kairos) sin tocar x11-server/ — ver KDoc de KairosX11PreferencesActivity.kt. -->
+        <activity
+            android:name=".app.x11.KairosX11PreferencesActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar" />
+
+        <!-- Input Control (perfiles de controles táctiles/gamepad, linaje Linbox/Winlator) —
+             bug real reportado por el usuario: "cada vez que los activo se sale" (la app entera
+             se cierra al abrir un perfil de Input Control desde LoriePreferences/showInputControlsDialog).
+             Root cause confirmada por lectura de código (docs/x11/AUDITORIA_X11_CODIGO_2026-08-19.md
+             sección "Actualización — input control..."): estas 3 Activities de
+             `x11-server/.../controller/` (módulo protegido) NUNCA se declararon en ningún
+             AndroidManifest.xml — ni el de x11-server (que delega explícitamente todas las
+             Activities al manifest del host, ver x11-server/src/main/AndroidManifest.xml) ni el
+             de la app. `LoriePreferences.showInputControlsDialog()` (botón "Settings" de un
+             perfil) y el menú "Input Control" de la pantalla de preferencias X11 lanzan
+             `InputControllerActivity`/`ControlsEditorActivity`/`ExternalControllerBindingsActivity`
+             con `startActivityForResult`/`startActivity` sin manejo de excepción — sin una
+             declaración en el manifest, Android lanza `ActivityNotFoundException` (no capturada),
+             que crashea el proceso entero: exactamente el síntoma "se sale" reportado. Fix: se
+             declaran acá (no se toca x11-server/, el módulo protegido, solo el manifest del
+             host — mismo patrón que MainActivity/LoriePreferences arriba). Temas: InputControllerActivity
+             y ControlsEditorActivity NO tienen su propio Toolbar en el layout (activity_input_controller.xml,
+             controls_editor_activity.xml) — dependen de la action bar del tema, igual que
+             LoriePreferences; ExternalControllerBindingsActivity SÍ trae su propio Toolbar
+             (external_controller_bindings_activity.xml, con setSupportActionBar()), por eso usa
+             un tema NoActionBar en vez de DarkActionBar. -->
+        <activity
+            android:name="com.termux.x11.controller.InputControllerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar" />
+
+        <activity
+            android:name="com.termux.x11.controller.ControlsEditorActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar" />
+
+        <activity
+            android:name="com.termux.x11.controller.ExternalControllerBindingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
+
+        <activity
+            android:name=".shared.activities.ReportActivity"
+            android:exported="false"
+            android:theme="@style/Theme.MarkdownViewActivity.DayNight"
+            android:documentLaunchMode="intoExisting" />
+
+        <!-- ── IDE integrado (com.termux.app.ui.studio, tab "Más" → Estudio) ──────────────
+             Pantallas secundarias del IDE (la principal es StudioFragment, un Fragment dentro
+             de TermuxActivity). Todas usan Theme.KairosIde (MaterialComponents DayNight
+             NoActionBar, ver values/studio_themes.xml) — el layout de cada una trae su propio
+             MaterialToolbar como action bar vía setSupportActionBar(). Ver
+             docs/ide/IDE_INTEGRADO.md. -->
+        <activity
+            android:name=".app.ui.studio.termux.TerminalActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KairosIde" />
+
+        <activity
+            android:name=".app.ui.studio.build.BuildLogActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KairosIde" />
+
+        <activity
+            android:name=".app.ui.studio.git.GitPanelActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KairosIde" />
+
+        <activity
+            android:name=".app.ui.studio.search.ProjectSearchActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KairosIde" />
+
+        <activity
+            android:name=".app.ui.studio.settings.EditorSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KairosIde" />
+
+        <activity
+            android:name=".app.ui.studio.ai.AiProviderSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KairosIde" />
+
+        <activity
+            android:name=".app.api.file.FileReceiverActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:resizeableActivity="true"
+            android:taskAffinity="${TERMUX_PACKAGE_NAME}.filereceiver"
+            tools:targetApi="n">
+        </activity>
+
+        <activity-alias
+            android:name=".app.api.file.FileShareReceiverActivity"
+            android:exported="true"
+            android:targetActivity=".app.api.file.FileReceiverActivity">
+
+            <!-- Accept multiple file types when sending. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="application/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="message/*" />
+                <data android:mimeType="multipart/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".app.api.file.FileViewReceiverActivity"
+            android:exported="true"
+            android:targetActivity=".app.api.file.FileReceiverActivity">
+
+            <!-- Accept multiple file types to let Termux be usable as generic file viewer. -->
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="application/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity-alias>
+
+        <provider
+            android:name=".filepicker.TermuxDocumentsProvider"
+            android:authorities="${TERMUX_PACKAGE_NAME}.documents"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+
+        <provider
+            android:name=".app.TermuxOpenReceiver$ContentProvider"
+            android:authorities="${TERMUX_PACKAGE_NAME}.files"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND" />
+
+        <!-- FileProvider dedicado para APKs compilados por ApkFragment (módulo apk, ver
+             modulos/apk.sh — compil-apk-termux). NO se reusa el provider ".files" de arriba
+             a propósito: su openFile() exige la policy "allow-external-apps" (ver
+             TermuxPluginUtils.checkIfAllowExternalAppsPolicyIsViolated), que por defecto es
+             false y bloquearía instalar/compartir un APK recién compilado por la propia app
+             hacia un instalador de paquetes real (un caller externo genuino) — esa policy es
+             para plugins de terceros que llaman a la API de Termux, no para artefactos que
+             Kairos genera y quiere entregar. Alcance mínimo: solo ~/proyectos (donde
+             compil-apk-termux deja <proyecto>/build/apk/final.apk), no toda $HOME. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${TERMUX_PACKAGE_NAME}.apkbuilder"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/apk_builder_paths" />
+        </provider>
+
+
+        <receiver
+            android:name=".app.TermuxOpenReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".app.event.SystemEventReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
+            android:exported="false" />
+
+
+        <service
+            android:name=".app.TermuxService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".app.RunCommandService"
+            android:exported="true"
+            android:foregroundServiceType="dataSync"
+            android:permission="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND">
+            <intent-filter>
+                <action android:name="${TERMUX_PACKAGE_NAME}.RUN_COMMAND" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".app.FloatingWidgetService"
+            android:exported="false" />
+
+        <!-- Servidor X11 embebido (Xlorie/termux-x11), patrón X11Service de Linbox-WinEmu:
+             corre en un proceso aparte (:xserver) del mismo APK y arranca CmdEntryPoint.main()
+             (que carga libXlorie.so vía System.loadLibrary). El visor com.termux.x11.MainActivity
+             se conecta por el broadcast ACTION_START. Ver docs/x11/X11_EMBEBIDO.md. -->
+        <service
+            android:name=".app.X11Service"
+            android:exported="false"
+            android:process=":xserver"
+            android:foregroundServiceType="dataSync" />
+
+
+        <!-- This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the
+        app with "This app is optimized to run in full screen." -->
+        <meta-data
+            android:name="android.max_aspect"
+            android:value="10.0" />
+
+
+        <!-- https://developer.samsung.com/samsung-dex/modify-optimizing.html -->
+
+        <!-- Version < 3.0. DeX Mode and Screen Mirroring support -->
+        <meta-data
+            android:name="com.samsung.android.keepalive.density"
+            android:value="true" />
+
+        <!-- Version >= 3.0. DeX Dual Mode support -->
+        <meta-data
+            android:name="com.samsung.android.multidisplay.keep_process_alive"
+            android:value="true" />
+
+        <meta-data
+            android:name="com.sec.android.support.multiwindow"
+            android:value="true" />
+
+    </application>
+
+</manifest>

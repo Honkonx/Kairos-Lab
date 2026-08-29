@@ -1,0 +1,107 @@
+{
+    "languages":  [
+                      {
+                          "grammar":  "textmate/java/syntaxes/java.tmLanguage.json",
+                          "name":  "java",
+                          "scopeName":  "source.java",
+                          "languageConfiguration":  "textmate/java/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/kotlin/syntaxes/kotlin.tmLanguage.json",
+                          "name":  "kotlin",
+                          "scopeName":  "source.kotlin",
+                          "languageConfiguration":  "textmate/kotlin/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/python/syntaxes/python.tmLanguage.json",
+                          "name":  "python",
+                          "scopeName":  "source.python",
+                          "languageConfiguration":  "textmate/python/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/xml/syntaxes/xml.tmLanguage.json",
+                          "name":  "xml",
+                          "scopeName":  "text.xml",
+                          "languageConfiguration":  "textmate/xml/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/html/syntaxes/html.tmLanguage.json",
+                          "name":  "html",
+                          "scopeName":  "text.html.basic",
+                          "languageConfiguration":  "textmate/html/language-configuration.json",
+                          "embeddedLanguages":  {
+                                                    "source.js":  "javascript"
+                                                }
+                      },
+                      {
+                          "grammar":  "textmate/javascript/syntaxes/JavaScript.tmLanguage.json",
+                          "name":  "javascript",
+                          "scopeName":  "source.js",
+                          "languageConfiguration":  "textmate/javascript/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/javascript/syntaxes/JavaScriptReact.tmLanguage.json",
+                          "name":  "JSX",
+                          "scopeName":  "source.js.jsx",
+                          "languageConfiguration":  "textmate/javascript/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/typescript/syntaxes/typescript.tmLanguage.json",
+                          "name":  "typescript",
+                          "scopeName":  "source.ts",
+                          "languageConfiguration":  "textmate/typescript/typescript.language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/typescript/syntaxes/TypeScriptReact.tmLanguage.json",
+                          "name":  "TSX",
+                          "scopeName":  "source.tsx",
+                          "languageConfiguration":  "textmate/typescript/typescript.language-configuration.json",
+                          "embeddedLanguages":  {
+                                                    "source.ts":  "typescript"
+                                                }
+                      },
+                      {
+                          "grammar":  "textmate/markdown/syntaxes/markdown.tmLanguage.json",
+                          "name":  "markdown",
+                          "scopeName":  "text.html.markdown",
+                          "languageConfiguration":  "textmate/markdown/language-configuration.json",
+                          "embeddedLanguages":  {
+                                                    "meta.embedded.block.html":  "html",
+                                                    "source.js":  "javascript",
+                                                    "meta.embedded.block.java":  "java",
+                                                    "meta.embedded.block.xml":  "xml",
+                                                    "meta.embedded.block.python":  "python"
+                                                }
+                      },
+                      {
+                          "grammar":  "textmate/json/syntaxes/JSON.tmLanguage.json",
+                          "name":  "json",
+                          "scopeName":  "source.json",
+                          "languageConfiguration":  "textmate/json/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/yaml/syntaxes/yaml.tmLanguage.json",
+                          "name":  "yaml",
+                          "scopeName":  "source.yaml",
+                          "languageConfiguration":  "textmate/yaml/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/shellscript/syntaxes/shell-unix-bash.tmLanguage.json",
+                          "name":  "shellscript",
+                          "scopeName":  "source.shell",
+                          "languageConfiguration":  "textmate/shellscript/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/css/syntaxes/css.tmLanguage.json",
+                          "name":  "css",
+                          "scopeName":  "source.css",
+                          "languageConfiguration":  "textmate/css/language-configuration.json"
+                      },
+                      {
+                          "grammar":  "textmate/groovy/syntaxes/groovy.tmLanguage.json",
+                          "name":  "groovy",
+                          "scopeName":  "source.groovy",
+                          "languageConfiguration":  "textmate/groovy/language-configuration.json"
+                      }
+                  ]
+}

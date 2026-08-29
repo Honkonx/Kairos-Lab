@@ -1,0 +1,112 @@
+name: Build Kairos APK (con rootfs embebido)
+
+# Variante de build-app.yml que además descarga el rootfs ya armado por
+# build-rootfs.yml (ver .github/workflows/build-rootfs.yml) y lo empaqueta
+# dentro del APK como asset — el wizard lo extrae directo, sin red, en vez
+# de descargarlo en el primer arranque (esa es la variante liviana,
+# build-app.yml, que sigue sin cambios). Pensado para probar los dos
+# métodos en paralelo — ver docs/bootstrap/ROOTFS_EMBEBIDO.md.
+#
+# Requiere que exista una Release publicada por build-rootfs.yml con el tag
+# fijado en KAIROS_ROOTFS_RELEASE_TAG (o en app/build.gradle si no se pasa acá)
+# — si esa Release todavía no existe, este build falla en downloadRootfsAsset
+# con un mensaje claro, no en silencio.
+#
+# downloadRootfsAsset (app/build.gradle) apunta a Honkonx/kairos-lab (repo público de
+# destino, ver docs/humano267.md — ningún link de descarga apunta al privado kairos-dev,
+# ni siquiera antes de que kairos-lab exista). El step de build igual recibe GITHUB_TOKEN
+# acá abajo por las dudas (no hace daño pasarlo, y GitHub Actions ya lo genera automático
+# en cada corrida) — pero una vez que kairos-lab exista como repo PÚBLICO con la Release
+# publicada, esta descarga funciona sin token, sin necesitar ningún permiso especial.
+# Ver docs/bootstrap/rootfs-embebido.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Rama/tag a compilar (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
+        required: false
+        default: 'ide'
+      rootfs_release_tag:
+        description: 'Tag de la Release de build-rootfs.yml a embeber'
+        required: true
+        default: 'rootfs-2026.07.28'
+      release_tag:
+        description: 'Tag de Release pre-release a crear (ej. apk-rootfs-2026.08.11). Vacío = solo subir artifact.'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write  # publicar una Release pre-release + subir el APK requiere este scope
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: gradle
+
+      # Mismos prerequisitos que build-app.yml — ver ese archivo y
+      # docs/ia-local/LLAMA_CPP_EMBEBIDO.md, el módulo llama-engine (llama.cpp +
+      # Vulkan) ahora es parte del build normal de app, no solo de esta
+      # variante con rootfs.
+      - name: Instalar NDK 27.2.12479018 (para llama-engine/Vulkan)
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.2.12479018"
+
+      - name: Clonar Vulkan-Headers y SPIRV-Headers (hermanos del checkout)
+        run: |
+          cd "${{ github.workspace }}/.."
+          git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git
+          cmake -S SPIRV-Headers -B SPIRV-Headers/build -DCMAKE_INSTALL_PREFIX=SPIRV-Headers/install
+          cmake --install SPIRV-Headers/build
+
+      - name: Build APK (con rootfs embebido)
+        run: |
+          chmod +x gradlew
+          ./gradlew downloadBootstraps downloadRootfsAsset assembleDebug --no-daemon
+        env:
+          TERMUX_PACKAGE_VARIANT: apt-android-7
+          TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS: 0
+          KAIROS_EMBED_ROOTFS: "true"
+          KAIROS_ROOTFS_RELEASE_TAG: ${{ inputs.rootfs_release_tag }}
+          # Repo privado — sin esto, downloadRootfsAsset ve 404 al pedir la Release
+          # (ver comentario arriba y docs/bootstrap/ROOTFS_EMBEBIDO.md).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Kairos-rootfs-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # Publicar como pre-release solo si se pasó release_tag en el dispatch
+      # (pedido usuario 2026-08-11, humano97 R2 — "modificar GitHub workflows para
+      # publicar pre-release (rootfs y APK)"). Sin tag, conserva el comportamiento
+      # original de solo subir artifact.
+      - name: Publicar como GitHub Release (pre-release)
+        if: ${{ inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: "Kairos APK (rootfs embebido) — ${{ inputs.release_tag }}"
+          body: |
+            APK de Kairos (debug, con rootfs embebido + módulo llama.cpp/Vulkan)
+            compilado por `build-app-rootfs.yml`. Pre-release de prueba — no es
+            una versión estable.
+          files: app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: true

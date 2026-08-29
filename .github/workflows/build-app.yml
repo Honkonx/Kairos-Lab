@@ -1,0 +1,132 @@
+name: Build Kairos APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Rama/tag a compilar (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano — quedó en main, desactualizada, en vez de ide).'
+        required: false
+        default: 'ide'
+      release_tag:
+        description: 'Tag de Release pre-release a crear (ej. apk-2026.08.11). Vacío = solo subir artifact (comportamiento original).'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write  # publicar una Release pre-release + subir el APK requiere este scope
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      # github.sha es el SHA del ref que DISPARÓ el workflow (el default del dropdown de
+      # "Run workflow" si no se tocó), no necesariamente el de inputs.ref si se cambió el
+      # dropdown — se recalcula el SHA real ya checkouteado para que el nombre del artifact
+      # no mienta sobre qué commit se compiló.
+      - name: Resolver SHA real del checkout
+        id: real_sha
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: gradle
+
+      # Prerequisitos del módulo llama-engine (llama.cpp + Vulkan, ver
+      # docs/ia-local/LLAMA_CPP_EMBEBIDO.md) — clonados como hermanos del checkout
+      # de Kairos, exactamente la ubicación que espera llama-engine/build.gradle
+      # (rootProject.file("../Vulkan-Headers"), "../SPIRV-Headers"). NDK
+      # 27.2.12479018 instalado aparte del NDK del proyecto (29.0.x, usado
+      # por terminal-emulator) — es la versión con la que este setup de
+      # Vulkan está probado, no una elegida al azar.
+      - name: Instalar NDK 27.2.12479018 (para llama-engine/Vulkan)
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.2.12479018"
+
+      - name: Clonar Vulkan-Headers y SPIRV-Headers (hermanos del checkout)
+        run: |
+          cd "${{ github.workspace }}/.."
+          git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git
+          cmake -S SPIRV-Headers -B SPIRV-Headers/build -DCMAKE_INSTALL_PREFIX=SPIRV-Headers/install
+          cmake --install SPIRV-Headers/build
+
+      # cloudflared nativo embebido (bug #2, DNS) — ver
+      # docs/adb/AUDITORIA_ADB_DISPOSITIVO_REAL_2026-08-21.md Ronda 6 y
+      # docs/humano/humano196.md. El binario oficial de cloudflared (releases de GitHub,
+      # GOOS=linux CGO_ENABLED=0) usa el resolver DNS puro de Go, que en Android busca
+      # /etc/resolv.conf real del sistema (no existe, solo lectura sin root) y falla
+      # siempre con "connection refused" — confirmado con pruebas reales en dispositivo,
+      # ni GODEBUG=netdns=go ni HOSTALIASES cambian nada porque el binario oficial nunca
+      # tuvo soporte cgo compilado. Compilando desde fuente con CGO_ENABLED=1 + el clang
+      # del NDK apuntando a Android, el binario usa getaddrinfo() real de Bionic (resolver
+      # nativo del sistema operativo) en vez del resolver puro de Go — resuelve la causa
+      # de raíz en vez de parchearla. Se instala como app/src/main/jniLibs/arm64-v8a/
+      # libcloudflared.so (convención estándar de AGP, sin necesidad de sourceSets.jniLibs
+      # explícito) — Android extrae este archivo al instalar el APK con permiso de
+      # ejecución real (mismo mecanismo que usa app/src/main/jniLibs/ para cualquier .so
+      # nativo), evitando las restricciones W^X de Android 10+ sobre binarios escritos en
+      # runtime. No se commitea al repo (es un artifact de build, igual que Vulkan-Headers
+      # arriba) — se compila fresco en cada corrida de CI.
+      - name: Instalar Go 1.26 (cross-compile cloudflared nativo)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Cross-compilar cloudflared nativo (android/arm64, CGO+NDK)
+        run: |
+          set -e
+          NDK_CLANG="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+          [ -x "$NDK_CLANG" ] || { echo "NDK clang no encontrado en $NDK_CLANG"; exit 1; }
+          git clone --depth 1 --branch 2026.8.2 https://github.com/cloudflare/cloudflared.git "${{ github.workspace }}/../cloudflared-src"
+          cd "${{ github.workspace }}/../cloudflared-src"
+          mkdir -p "${{ github.workspace }}/app/src/main/jniLibs/arm64-v8a"
+          GOOS=android GOARCH=arm64 CGO_ENABLED=1 CC="$NDK_CLANG" \
+            go build -trimpath -ldflags "-s -w" \
+            -o "${{ github.workspace }}/app/src/main/jniLibs/arm64-v8a/libcloudflared.so" \
+            ./cmd/cloudflared
+          chmod +x "${{ github.workspace }}/app/src/main/jniLibs/arm64-v8a/libcloudflared.so"
+          file "${{ github.workspace }}/app/src/main/jniLibs/arm64-v8a/libcloudflared.so"
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew downloadBootstraps assembleDebug --no-daemon
+        env:
+          TERMUX_PACKAGE_VARIANT: apt-android-7
+          TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS: 0
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Kairos-${{ inputs.ref }}-${{ steps.real_sha.outputs.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # Publicar como pre-release solo si se pasó release_tag en el dispatch
+      # (pedido usuario 2026-08-11, humano97 R2 — "modificar GitHub workflows para
+      # publicar pre-release (rootfs y APK)"). Sin tag, conserva el comportamiento
+      # original de solo subir artifact.
+      - name: Publicar como GitHub Release (pre-release)
+        if: ${{ inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: "Kairos APK — ${{ inputs.release_tag }}"
+          body: |
+            APK de Kairos (debug, con módulo llama.cpp/Vulkan embebido) compilado por
+            `build-app.yml`. Pre-release de prueba — no es una versión estable.
+
+            Variante con rootfs embebido: usar `build-app-rootfs.yml`.
+          files: app/build/outputs/apk/debug/*.apk
+          draft: false
+          prerelease: true

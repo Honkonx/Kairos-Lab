@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kairos: fondo del botón flotante de X11 (menú Minimizar/Cerrar), pedido explícito del
+     usuario ("boton tranparente dentro de x11 para minimizar, cerrar etc") — ver
+     docs/humano/humano98.md. Óvalo semi-transparente, mismo criterio que el resto de
+     controles flotantes de este layout (mouse_buttons, alpha=0.7). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#66000000" />
+    <stroke
+        android:width="1dp"
+        android:color="#33FFFFFF" />
+</shape>

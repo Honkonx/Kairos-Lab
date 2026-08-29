@@ -1,0 +1,104 @@
+name: Build Kairos APK (con rootfs embebido) v1
+
+# Variante mejorada de build-app-rootfs.yml:
+# - Auto-detecta la release más reciente con prefijo "rootfs-" (pre-release o release)
+# - El tag sigue siendo sobreescribible manualmente como fallback
+# - Funciona con repos privados via GITHUB_TOKEN automático de Actions
+#
+# Ver docs/bootstrap/ROOTFS_EMBEBIDO.md para el mecanismo completo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Rama/tag a compilar (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
+        required: false
+        default: 'ide'
+      rootfs_release_tag:
+        description: 'Tag a embeber (vacío = última release/pre-release automática)'
+        required: false
+        default: ''
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-java@v5
+        with:
+          java-version: 17
+          distribution: temurin
+          cache: gradle
+
+      # ── Resolver tag del rootfs ──────────────────────────────────────────────
+      # Si el input está vacío, busca la release más reciente con prefijo
+      # "rootfs-", incluyendo pre-releases. Si se pasó un tag manualmente,
+      # lo usa directamente sin consultar la API.
+      # GITHUB_TOKEN tiene permiso contents:read sobre este mismo repo privado
+      # de forma automática — no se necesita PAT ni secret adicional.
+      - name: Resolver tag del rootfs
+        id: resolve_tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.rootfs_release_tag }}"
+
+          if [ -z "$TAG" ]; then
+            echo "No se pasó tag manualmente — buscando la release más reciente con prefijo rootfs-..."
+
+            TAG=$(gh release list \
+              --repo "${{ github.repository }}" \
+              --limit 50 \
+              --json tagName,isPrerelease,createdAt \
+              --jq '[.[] | select(.tagName | startswith("rootfs-"))] | sort_by(.createdAt) | reverse | .[0].tagName')
+
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              echo "::error::No se encontró ninguna release con prefijo 'rootfs-' en ${{ github.repository }}"
+              exit 1
+            fi
+
+            echo "Tag auto-detectado: $TAG"
+          else
+            echo "Tag recibido manualmente: $TAG"
+          fi
+
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Instalar NDK 27.2.12479018 (para llama-engine/Vulkan)
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;27.2.12479018"
+
+      - name: Clonar Vulkan-Headers y SPIRV-Headers (hermanos del checkout)
+        run: |
+          cd "${{ github.workspace }}/.."
+          git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git
+          cmake -S SPIRV-Headers -B SPIRV-Headers/build -DCMAKE_INSTALL_PREFIX=SPIRV-Headers/install
+          cmake --install SPIRV-Headers/build
+
+      - name: Build APK (con rootfs embebido)
+        run: |
+          chmod +x gradlew
+          ./gradlew downloadBootstraps downloadRootfsAsset assembleDebug --no-daemon
+        env:
+          TERMUX_PACKAGE_VARIANT: apt-android-7
+          TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS: 0
+          KAIROS_EMBED_ROOTFS: "true"
+          KAIROS_ROOTFS_RELEASE_TAG: ${{ steps.resolve_tag.outputs.tag }}
+          # Repo privado — sin esto, downloadRootfsAsset ve 404 al pedir la Release.
+          # El token automático de Actions tiene contents:read sobre este repo.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: Kairos-rootfs-${{ steps.resolve_tag.outputs.tag }}-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30

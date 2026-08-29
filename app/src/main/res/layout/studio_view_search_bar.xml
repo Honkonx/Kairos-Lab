@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Barra de búsqueda/reemplazo dentro del archivo activo — envuelve la API nativa de
+     sora-editor (io.github.rosemoe.sora.widget.EditorSearcher, confirmada real por
+     decompilación de editor-0.24.4.aar, ver EditorSearchController.kt). Se infla junto al resto
+     de activity_main.xml y arranca invisible (visibility="gone"); MainActivity la muestra al
+     elegir "Buscar en archivo". -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/search_bar_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/ide_surface"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginEnd="6dp"
+            android:src="@drawable/studio_ic_search" />
+
+        <EditText
+            android:id="@+id/search_query_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="@string/search_query_hint"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="@color/ide_text_primary"
+            android:textColorHint="@color/ide_text_secondary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/search_match_counter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="6dp"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="12sp"
+            android:text="@string/search_no_matches" />
+
+        <ImageButton
+            android:id="@+id/search_prev_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search_previous"
+            android:src="@drawable/studio_ic_arrow_up" />
+
+        <ImageButton
+            android:id="@+id/search_next_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search_next"
+            android:src="@drawable/studio_ic_arrow_down" />
+
+        <ImageButton
+            android:id="@+id/search_toggle_replace_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search_toggle_replace"
+            android:src="@drawable/studio_ic_expand_more" />
+
+        <ImageButton
+            android:id="@+id/search_close_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:padding="6dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search_close"
+            android:src="@drawable/studio_ic_close" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/search_replace_row"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="8dp"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/search_replacement_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@null"
+            android:hint="@string/search_replacement_hint"
+            android:inputType="text"
+            android:singleLine="true"
+            android:textColor="@color/ide_text_primary"
+            android:textColorHint="@color/ide_text_secondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/search_replace_button"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/search_replace" />
+
+        <Button
+            android:id="@+id/search_replace_all_button"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/search_replace_all" />
+
+    </LinearLayout>
+
+</LinearLayout>

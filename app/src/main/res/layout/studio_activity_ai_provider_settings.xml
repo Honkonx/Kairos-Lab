@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ide_background">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/ide_surface"
+        app:title="@string/ai_provider_settings_title"
+        app:titleTextColor="@color/ide_text_primary"
+        app:navigationIcon="@drawable/studio_ic_back" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_provider_label"
+                android:textColor="@color/ide_text_secondary"
+                android:textSize="13sp"
+                android:layout_marginBottom="4dp" />
+
+            <Spinner
+                android:id="@+id/provider_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Grupo de campos BYO key — oculto cuando el proveedor elegido es "local". -->
+            <LinearLayout
+                android:id="@+id/api_key_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ai_api_key_label"
+                    android:textColor="@color/ide_text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/api_key_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textPassword"
+                    android:hint="@string/ai_api_key_hint"
+                    android:textColor="@color/ide_text_primary"
+                    android:textColorHint="@color/ide_text_secondary" />
+
+            </LinearLayout>
+
+            <!-- Aviso para la opción "Ollama / llama.cpp local" — oculto salvo que ese
+                 proveedor esté elegido. -->
+            <TextView
+                android:id="@+id/local_warning_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:padding="12dp"
+                android:background="@color/ide_surface"
+                android:textColor="@color/ide_text_secondary"
+                android:textSize="13sp"
+                android:text="@string/ai_local_warning"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/save_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/ai_save" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>

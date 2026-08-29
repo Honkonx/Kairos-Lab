@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Un proyecto abierto en el selector multi-proyecto de Estudio (ver
+     studio_activity_main.xml, project_session_row) — inflado y poblado a mano por
+     StudioFragment.updateSessionChipsUi(), no vía RecyclerView (cantidad chica y acotada,
+     máximo 3 sesiones simultáneas). -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginEnd="6dp"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="6dp"
+    android:background="?attr/studioBg">
+
+    <TextView
+        android:id="@+id/chip_project_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="140dp"
+        android:singleLine="true"
+        android:ellipsize="end"
+        android:textSize="12sp"
+        android:textColor="?attr/studioTextPrimary" />
+
+    <TextView
+        android:id="@+id/chip_close_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:padding="4dp"
+        android:text="✕"
+        android:textSize="12sp"
+        android:textColor="@color/ide_text_secondary" />
+
+</LinearLayout>

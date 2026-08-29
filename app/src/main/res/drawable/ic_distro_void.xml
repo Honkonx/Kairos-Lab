@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de identidad Void Linux (2026-08-27, ver docs/humano259.md) — interpretación
+     vectorial simplificada de un solo color (rombo/diamante, similar al símbolo abstracto del
+     logo real), fondo circular color de marca (#295C4C). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M12,4 L20,12 L12,20 L4,12 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M10.6,12 A1.4,1.4 0 1,0 13.4,12 A1.4,1.4 0 1,0 10.6,12 Z" />
+</vector>

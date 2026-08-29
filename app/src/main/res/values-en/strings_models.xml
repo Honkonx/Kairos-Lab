@@ -1,0 +1,62 @@
+<resources>
+    <string name="models_module_name">Models</string>
+
+    <!-- Curated Ollama model catalog descriptions -->
+    <string name="models_desc_qwen05b">The smallest and fastest in the catalog — great for trying out chat on any device.</string>
+    <string name="models_desc_qwen15b">Balance of speed and response quality, a good default for mid-range devices.</string>
+    <string name="models_desc_qwen3b">More capable than the smaller Qwen versions, still lightweight.</string>
+    <string name="models_desc_gemma2b">Google\'s model, good general performance and Spanish support.</string>
+    <string name="models_desc_llama1b">Meta\'s official model, long context (128K), built for small devices.</string>
+    <string name="models_desc_llama3b">The largest in the catalog — better response quality, ask for more RAM and storage.</string>
+
+    <!-- Expansion 2026-08-28 (Ollama/llama.cpp parity audit) -->
+    <string name="models_desc_llama318b">Meta\'s reference model at 8B, 128K context, good quality/size balance.</string>
+    <string name="models_desc_qwen257b">7B version of Qwen2.5, better reasoning than the smaller ones in the catalog.</string>
+    <string name="models_desc_qwen25coder7b">Qwen2.5 variant specialized in code, large size for complex tasks.</string>
+    <string name="models_desc_mistral7b">Mistral AI\'s classic model, reliable for general-purpose chat.</string>
+    <string name="models_desc_mistralnemo12b">Mistral AI + NVIDIA collaboration, long context (128K), 12B.</string>
+    <string name="models_desc_gemma29b">Larger version of Gemma 2 — better reasoning, needs more RAM than the 2B.</string>
+    <string name="models_desc_gemma34b">Newer Gemma generation — better overall quality than Gemma 2 at a similar size.</string>
+    <string name="models_desc_qwen34b">Latest Qwen generation, reasoning improvements over Qwen2.5 at a similar size.</string>
+    <string name="models_desc_qwen38b">8B version of Qwen3 — better quality, needs more RAM than the 4B.</string>
+    <string name="models_desc_deepseekr115b">DeepSeek\'s reasoning (chain-of-thought) model, distilled down to a small size.</string>
+    <string name="models_desc_deepseekr17b">7B version of DeepSeek\'s reasoning model — more elaborate step-by-step responses.</string>
+    <string name="models_desc_llama32vision11b">Meta\'s official multimodal model — understands images as well as text.</string>
+    <string name="models_desc_llava7b">The most widely used vision model on Ollama — describes/analyzes images in the conversation.</string>
+    <string name="models_desc_moondream18b">Small, fast vision model — describes images with low RAM usage.</string>
+    <string name="models_desc_minicpmv8b">OpenBMB\'s vision model, good at OCR and detailed image descriptions.</string>
+    <string name="models_tab_texto">Text</string>
+    <string name="models_tab_imagen">Image</string>
+
+    <string name="models_catalog_title">CATALOG</string>
+    <string name="models_catalog_hint">Lightweight models already tested — tap \"Download\", no need to type the name by hand.</string>
+    <string name="models_installed_title">INSTALLED MODELS</string>
+    <string name="models_download_advanced">+ Download model (advanced)</string>
+    <string name="models_ram_warning">⚠ May not fit in RAM (needs ~%1$sGB, device has ~%2$sGB total)</string>
+    <string name="models_installed_check">✓ Installed</string>
+    <string name="models_download">Download</string>
+    <string name="models_loading">Loading…</string>
+    <string name="models_ollama_unavailable">Ollama not available — %1$s</string>
+    <string name="models_none_installed">No models installed yet</string>
+    <string name="models_row_with_family">%1$s  ·  %2$s  ·  %3$s</string>
+    <string name="models_row_no_family">%1$s  ·  %2$s</string>
+    <string name="models_detail_body">Parameters: %1$s\nFamily: %2$s</string>
+    <string name="models_detail_error">Couldn\'t get info: %1$s</string>
+    <string name="models_action_close">Close</string>
+    <string name="models_action_delete">Delete</string>
+    <string name="models_delete_title">Delete model</string>
+    <string name="models_delete_message">Delete \"%1$s\"? This action can\'t be undone.</string>
+    <string name="models_action_cancel">Cancel</string>
+    <string name="models_deleted">Model deleted</string>
+    <string name="models_error_prefix">Error: %1$s</string>
+    <string name="models_unknown">unknown</string>
+    <string name="models_pull_hint">e.g. qwen2.5:1.5b</string>
+    <string name="models_pull_title">Download model</string>
+    <string name="models_pull_message">The download may take several minutes depending on the model\'s size.</string>
+    <string name="models_empty_name">Empty name</string>
+    <string name="models_downloading_title">Downloading %1$s</string>
+    <string name="models_downloading_message">Starting download…</string>
+    <string name="models_downloaded_notification">Model downloaded</string>
+    <string name="models_downloaded_success">%1$s downloaded</string>
+    <string name="models_download_error_title">Error downloading %1$s</string>
+</resources>

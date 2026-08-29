@@ -1,0 +1,470 @@
+plugins {
+    id "com.android.application"
+    id "org.jetbrains.kotlin.android"
+}
+
+ext {
+    // The packageVariant defines the bootstrap variant that will be included in the app APK.
+    // This must be supported by com.termux.shared.termux.TermuxBootstrap.PackageVariant or app will
+    // crash at startup.
+    // Bootstrap of a different variant must not be manually installed by the user after app installation
+    // by replacing $PREFIX since app code is dependant on the variant used to build the APK.
+    // Currently supported values are: [ "apt-android-7" "apt-android-5" ]
+    packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
+}
+
+android {
+    namespace "com.termux"
+
+    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
+    def appVersionName = System.getenv("TERMUX_APP_VERSION_NAME") ?: ""
+    def apkVersionTag = System.getenv("TERMUX_APK_VERSION_TAG") ?: ""
+    def splitAPKsForDebugBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS") ?: "1"
+    def splitAPKsForReleaseBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS") ?: "0" // F-Droid does not support split APKs #1904
+
+    dependencies {
+        implementation "androidx.annotation:annotation:1.9.0"
+        implementation "androidx.core:core:1.13.1"
+        implementation "androidx.drawerlayout:drawerlayout:1.2.0"
+        implementation "androidx.preference:preference:1.2.1"
+        implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
+        implementation "androidx.viewpager:viewpager:1.0.0"
+        // Wizard rediseñado como pantallas ViewPager2 + Fragment (patrón tomado de
+        // ver/MiceWine-Application-master/, ver docs/bootstrap/ROOTFS_EMBEBIDO.md).
+        implementation "androidx.viewpager2:viewpager2:1.1.0"
+        implementation "com.google.android.material:material:1.12.0"
+        implementation "com.google.guava:guava:24.1-jre"
+        implementation "io.noties.markwon:core:$markwonVersion"
+        implementation "io.noties.markwon:ext-strikethrough:$markwonVersion"
+        implementation "io.noties.markwon:linkify:$markwonVersion"
+        implementation "io.noties.markwon:recycler:$markwonVersion"
+        implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
+
+        // Editor de texto real para el tab Archivos (Fase 4b) — LGPL-2.1, uso como
+        // dependencia sin modificar el código de la librería no obliga a relicenciar
+        // Kairos (a diferencia de copiar código GPL de un proyecto como Xed-Editor).
+        implementation platform("io.github.rosemoe:editor-bom:0.24.4")
+        implementation "io.github.rosemoe:editor"
+        implementation "io.github.rosemoe:language-textmate"
+        // Autocompletado real vía LSP en Estudio (docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md
+        // §LSP) — módulo oficial de la misma librería/BOM, NO una implementación propia del
+        // protocolo JSON-RPC. Confirmado en Maven Central bajo el mismo groupId que "editor"/
+        // "language-textmate" (io.github.Rosemoe.sora-editor), gestionado por el mismo BOM.
+        implementation "io.github.rosemoe:editor-lsp"
+        // `org.eclipse.lsp4j.*` (tipos del protocolo LSP: DefinitionParams, WorkspaceEdit,
+        // TextEdit, LanguageServer, etc., usados directo en StudioLspController.kt) — el propio
+        // POM de editor-lsp-0.24.4 declara "org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0" con
+        // scope=runtime (confirmado leyendo el .pom real en la caché de Gradle), así que NO
+        // queda expuesto en el classpath de COMPILACIÓN del consumidor — mismo gotcha ya
+        // documentado abajo para kotlinx-coroutines-jdk8, esta vez para lsp4j. Sin esta línea,
+        // cualquier `import org.eclipse.lsp4j.*` en nuestro propio código falla con
+        // "Unresolved reference" pese a que la librería la usa internamente sin problema.
+        implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:0.24.0"
+        // Requerida por la API suspend de editor-lsp (LspEditor.connectWithTimeout(), etc.) —
+        // no estaba declarada en el proyecto todavía (confirmado por grep: ningún .kt del repo
+        // importaba kotlinx.coroutines de verdad antes de esta ronda).
+        implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
+        // `CompletableFuture<T>.await()` (extensión suspend) — usada tanto DENTRO de editor-lsp
+        // (ver io.github.rosemoe.sora.lsp.events.hover.HoverEvent.doHandleAsync en la librería
+        // upstream) como en nuestro propio StudioLspController.requestDefinition/requestRename
+        // (ronda 2026-08-26, hover/go-to-definition/rename cableados a UI). Vive en un artefacto
+        // Maven SEPARADO de "-core"/"-android" (`kotlinx-coroutines-jdk8`) — una dependencia
+        // `implementation` de editor-lsp no queda expuesta en el CLASSPATH DE COMPILACIÓN de
+        // Kairos (solo en el de runtime, por cómo Gradle resuelve "implementation" de un AAR
+        // consumido), así que sin esta línea `future.await()` en nuestro propio código no
+        // resolvería en tiempo de compilación aunque la librería la use internamente sin
+        // problema — declararla explícita evita depender de transitividad no garantizada.
+        implementation "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:1.8.1"
+
+        implementation project(":terminal-view")
+        implementation project(":termux-shared")
+
+        // Motor de inferencia local (llama.cpp embebido, Fase 3 del roadmap,
+        // ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md) — pedido explícito del usuario de
+        // agregarlo directo al build normal, no como variante aparte (a
+        // diferencia del rootfs). ADVERTENCIA: esto compila llama.cpp+Vulkan
+        // desde cero en CADA build de la app (incluido build-app.yml, el
+        // workflow "normal") — build más pesado y, hasta la primera corrida
+        // real de CI, sin verificar. Ver "Estado real" en
+        // docs/ia-local/LLAMA_CPP_EMBEBIDO.md.
+        implementation project(":llama-engine")
+
+        // Servidor X11 embebido (Xlorie/termux-x11) — menú "Más" → X11. Clases
+        // com.termux.x11.* + libXlorie.so precompilado (ver docs/x11/X11_EMBEBIDO.md).
+        implementation project(":x11-server")
+
+        // IDE integrado (paquete com.termux.app.ui.studio, tab "Más" → Estudio) — deps que
+        // usa el port de ide-app. DocumentFile para el árbol SAF del sidebar, security-crypto
+        // para AiProviderPrefs (EncryptedSharedPreferences) y recyclerview explícita para las
+        // listas (FileTreeAdapter, CommandPalette, ProjectSearch). Ver
+        // docs/ide/IDE_INTEGRADO.md.
+        implementation "androidx.documentfile:documentfile:1.0.1"
+        implementation "androidx.security:security-crypto:1.1.0"
+        implementation "androidx.recyclerview:recyclerview:1.3.2"
+    }
+
+    defaultConfig {
+        minSdkVersion project.properties.minSdkVersion.toInteger()
+        targetSdkVersion project.properties.targetSdkVersion.toInteger()
+        versionCode 126
+        versionName "0.126.0"
+
+        if (appVersionName) versionName = appVersionName
+        validateVersionName(versionName)
+
+        buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\"" // Used by TermuxApplication class
+
+        manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux"
+        manifestPlaceholders.TERMUX_APP_NAME = "Kairos"
+        manifestPlaceholders.TERMUX_API_APP_NAME = "Termux:API"
+        manifestPlaceholders.TERMUX_BOOT_APP_NAME = "Termux:Boot"
+        manifestPlaceholders.TERMUX_FLOAT_APP_NAME = "Termux:Float"
+        manifestPlaceholders.TERMUX_STYLING_APP_NAME = "Termux:Styling"
+        manifestPlaceholders.TERMUX_TASKER_APP_NAME = "Termux:Tasker"
+        manifestPlaceholders.TERMUX_WIDGET_APP_NAME = "Termux:Widget"
+
+        externalNativeBuild {
+            ndkBuild {
+                cFlags "-std=c11", "-Wall", "-Wextra", "-Werror", "-Os", "-fno-stack-protector", "-Wl,--gc-sections"
+            }
+        }
+
+        splits {
+            abi {
+                enable ((gradle.startParameter.taskNames.any { it.contains("Debug") } && splitAPKsForDebugBuilds == "1") ||
+                    (gradle.startParameter.taskNames.any { it.contains("Release") } && splitAPKsForReleaseBuilds == "1"))
+                reset ()
+                include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+                universalApk true
+            }
+        }
+    }
+
+    signingConfigs {
+        if (file('testkey_untrusted.jks').exists()) {
+            debug {
+                storeFile file('testkey_untrusted.jks')
+                keyAlias 'alias'
+                storePassword 'xrj45yWGLbsO7W0v'
+                keyPassword 'xrj45yWGLbsO7W0v'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources false // Reproducible builds
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            if (signingConfigs.findByName('debug')) {
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    compileOptions {
+        // Flag to enable support for the new language APIs
+        coreLibraryDesugaringEnabled true
+
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path "src/main/cpp/Android.mk"
+        }
+    }
+
+    lint {
+        disable 'ProtectedPermissions'
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
+    // El rootfs embebido (RootfsInstaller.kt) es un .tar.xz de ~300MB+ ya comprimido —
+    // sin esto, AAPT2 intenta re-comprimirlo con DEFLATE al empaquetar el APK (gasto de
+    // CPU/tiempo de build sin beneficio real, ya que un archivo .xz no se puede comprimir
+    // más) y, más importante, hace que la lectura en runtime pase por decodificación
+    // DEFLATE en vez de un acceso STORED (mmap-able) — patrón de riesgo real y conocido de
+    // Android para binarios grandes ya comprimidos embebidos como asset. Agregado 2026-08-26
+    // como hardening defensivo tras un fallo real sin confirmar en dispositivo (ver
+    // docs/bootstrap/AUDITORIA_ROOTFS_END2END_2026-08-26.md) — NO confirmado como la causa
+    // raíz exacta de ese fallo (la evidencia de código apunta a que RootfsInstaller SÍ
+    // detectó el asset embebido; el fallo real quedó en un paso posterior sin diagnosticar
+    // todavía), pero es una corrección de bajo riesgo y alta probabilidad de ayudar de
+    // todos modos — no se aplicó a ciegas como "el fix", ver ese doc para el detalle.
+    androidResources {
+        noCompress += [".xz"]
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            if (variant.buildType.name == "debug") {
+                def abi = output.getFilter(com.android.build.OutputFile.ABI)
+                outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "debug") + "_" + (abi ? abi : "universal") + ".apk")
+            } else if (variant.buildType.name == "release") {
+                def abi = output.getFilter(com.android.build.OutputFile.ABI)
+                outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "release") + "_" + (abi ? abi : "universal") + ".apk")
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        // ViewBinding para el IDE integrado (paquete com.termux.app.ui.studio): genera
+        // com.termux.databinding.ActivityStudio*Binding a partir de los layouts studio_*.xml.
+        // Ver docs/ide/IDE_INTEGRADO.md.
+        viewBinding true
+    }
+}
+
+dependencies {
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.robolectric:robolectric:4.10"
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:1.1.5"
+
+    // Extracción de tar.xz 100% en JVM para RootfsInstaller.kt — sin shellear al
+    // "tar" de Termux (patrón tomado de ver/MiceWine-Application-master/, mismo
+    // par de librerías que usan ellos para su formato .rat, ver docs/bootstrap/ROOTFS_EMBEBIDO.md).
+    implementation "org.apache.commons:commons-compress:1.27.1"
+    implementation "org.tukaani:xz:1.9"
+}
+
+task versionName {
+    doLast {
+        print android.defaultConfig.versionName
+    }
+}
+
+def validateVersionName(String versionName) {
+    // https://semver.org/spec/v2.0.0.html#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+    // ^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$
+    if (!java.util.regex.Pattern.matches("^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?\$", versionName))
+        throw new GradleException("The versionName '"  + versionName + "' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html.")
+}
+
+def downloadBootstrap(String arch, String expectedChecksum, String version) {
+    def digest = java.security.MessageDigest.getInstance("SHA-256")
+
+    def localUrl = "src/main/cpp/bootstrap-" + arch + ".zip"
+    def file = new File(projectDir, localUrl)
+    if (file.exists()) {
+        def buffer = new byte[8192]
+        def input = new FileInputStream(file)
+        while (true) {
+            def readBytes = input.read(buffer)
+            if (readBytes < 0) break
+            digest.update(buffer, 0, readBytes)
+        }
+        def checksum = new BigInteger(1, digest.digest()).toString(16)
+        while (checksum.length() < 64) { checksum = "0" + checksum }
+        if (checksum == expectedChecksum) {
+            return
+        } else {
+            logger.quiet("Deleting old local file with wrong hash: " + localUrl + ": expected: " + expectedChecksum + ", actual: " + checksum)
+            file.delete()
+        }
+    }
+
+    def remoteUrl = "https://github.com/termux/termux-packages/releases/download/bootstrap-" + version + "/bootstrap-" + arch + ".zip"
+    logger.quiet("Downloading " + remoteUrl + " ...")
+
+    file.parentFile.mkdirs()
+    def out = new BufferedOutputStream(new FileOutputStream(file))
+
+    def connection = new URL(remoteUrl).openConnection()
+    connection.setInstanceFollowRedirects(true)
+    def digestStream = new java.security.DigestInputStream(connection.inputStream, digest)
+    out << digestStream
+    out.close()
+
+    def checksum = new BigInteger(1, digest.digest()).toString(16)
+    while (checksum.length() < 64) { checksum = "0" + checksum }
+    if (checksum != expectedChecksum) {
+        file.delete()
+        throw new GradleException("Wrong checksum for " + remoteUrl + ": expected: " + expectedChecksum + ", actual: " + checksum)
+    }
+}
+
+clean {
+    doLast {
+        def tree = fileTree(new File(projectDir, 'src/main/cpp'))
+        tree.include 'bootstrap-*.zip'
+        tree.each { it.delete() }
+    }
+}
+
+task downloadBootstraps() {
+    doLast {
+        def packageVariant = project.ext.packageVariant
+        if (packageVariant == "apt-android-7") {
+            def version = "2026.02.12-r1" + "%2B" + "apt.android-7"
+            downloadBootstrap("aarch64", "ea2aeba8819e517db711f8c32369e89e7c52cee73e07930ff91185e1ab93f4f3", version)
+            downloadBootstrap("arm", "a38f4d3b2f735f83be2bf54eff463e86dc32a3e2f9f861c1557c4378d249c018", version)
+            downloadBootstrap("i686", "f5bc0b025b9f3b420b5fcaeefc064f888f5f22a0d6fd7090f4aac0c33eb3555b", version)
+            downloadBootstrap("x86_64", "b7fd0f2e3a4de534be3144f9f91acc768630fc463eaf134ab2e64c545e834f7a", version)
+        } else if (packageVariant == "apt-android-5") {
+            def version = "2022.04.28-r6" + "+" + packageVariant
+            downloadBootstrap("aarch64", "913609d439415c828c5640be1b0561467e539cb1c7080662decaaca2fb4820e7", version)
+            downloadBootstrap("arm", "26bfb45304c946170db69108e5eb6e3641aad751406ce106c80df80cad2eccf8", version)
+            downloadBootstrap("i686", "46dcfeb5eef67ba765498db9fe4c50dc4690805139aa0dd141a9d8ee0693cd27", version)
+            downloadBootstrap("x86_64", "615b590679ee6cd885b7fd2ff9473c845e920f9b422f790bb158c63fe42b8481", version)
+        } else {
+            throw new GradleException("Unsupported TERMUX_PACKAGE_VARIANT \"" + packageVariant + "\"")
+        }
+    }
+}
+
+// ── Rootfs embebido (opcional) ──────────────────────────────────────────
+// Mismo patrón que downloadBootstrap()/downloadBootstraps de arriba, pero para
+// el rootfs armado por .github/workflows/build-rootfs.yml (ver
+// tools/rootfs/build_rootfs.py y docs/bootstrap/ROOTFS_EMBEBIDO.md). Gateado por la
+// variable de entorno KAIROS_EMBED_ROOTFS — build-app.yml no la setea (APK
+// liviano, el wizard descarga el rootfs en runtime), build-app-rootfs.yml sí
+// (APK con el rootfs ya adentro, el wizard solo lo extrae, sin red).
+def rootfsReleaseTag = System.getenv("KAIROS_ROOTFS_RELEASE_TAG") ?: "rootfs-2026.07.28"
+// Apunta al futuro repo PÚBLICO kairos-lab (todavía no creado) a propósito — pedido
+// explícito del usuario (docs/humano267.md): ningún link de descarga (rootfs, paquetes,
+// update) debe apuntar al repo privado kairos-dev, ni siquiera hoy que kairos-lab no
+// existe aún, para que el día que se cree y se suba la Release real esto funcione sin
+// tocar código de nuevo. Consecuencia real HOY: este paso de CI (build-app-rootfs.yml)
+// va a fallar hasta que kairos-lab exista con la Release publicada — aceptado a propósito.
+def rootfsRepoOwner = "Honkonx"
+def rootfsRepoName = "kairos-lab"
+def rootfsAssetName = "kairos-rootfs-aarch64.tar.xz"
+def rootfsAssetFile = new File(projectDir, "src/main/assets/kairos_rootfs.tar.xz")
+
+// Honkonx/kairos-lab será un repo PÚBLICO una vez creado — a diferencia de cuando este
+// comentario hablaba del privado kairos-dev, acá NO hace falta GITHUB_TOKEN para un
+// asset de Release pública. El bloque de abajo describe el mecanismo real que hacía
+// falta para el repo PRIVADO (documentado por si en algún momento se vuelve a necesitar
+// descargar de un repo privado) — hoy, apuntando a kairos-lab público, un GET directo
+// sin auth alcanza una vez que el repo/Release existan.
+// Honkonx/Kairos [repo privado kairos-dev, ya no es el destino] — GitHub responde 404 (no 401/403, a propósito:
+// no revela que el recurso existe) a cualquier descarga sin autenticar de un asset de
+// Release privado, tanto por la URL directa "releases/download/<tag>/<archivo>" como
+// por la API. Confirmado contra la documentación/comportamiento real de GitHub: esa
+// URL directa NO acepta un header Authorization para repos privados — hay que resolver
+// el asset vía la API REST (api.github.com) y pedirlo por id con
+// "Accept: application/octet-stream". Ese endpoint responde con un 302 a una URL de
+// storage ya firmada (Azure Blob/S3) — el header Authorization de GitHub NO debe
+// reenviarse en ese segundo salto, o el storage rechaza el pedido por traer dos
+// mecanismos de auth a la vez (su propia firma en la query string + el Bearer de
+// GitHub). Ver docs/bootstrap/ROOTFS_EMBEBIDO.md, sección "Repo privado y GITHUB_TOKEN".
+//
+// GITHUB_TOKEN solo está disponible acá si build-app-rootfs.yml lo pasa explícitamente
+// como env var al step de `./gradlew` (GitHub Actions lo genera automático por corrida,
+// pero no lo inyecta a scripts salvo que el workflow lo declare). Sin token (build
+// local, o CI sin la env var seteada), se cae al mismo comportamiento de antes: GET
+// directo sin auth — funciona solo si el repo es público.
+def downloadReleaseAsset(String owner, String repo, String tag, String assetName, File destFile) {
+    def token = System.getenv("GITHUB_TOKEN")
+    def out = new BufferedOutputStream(new FileOutputStream(destFile))
+    try {
+        if (!token) {
+            def url = "https://github.com/" + owner + "/" + repo + "/releases/download/" + tag + "/" + assetName
+            logger.quiet("Sin GITHUB_TOKEN — descargando sin autenticación: " + url)
+            def connection = new URL(url).openConnection()
+            connection.setInstanceFollowRedirects(true)
+            out << connection.inputStream
+            return
+        }
+
+        logger.quiet("GITHUB_TOKEN presente — resolviendo asset '" + assetName + "' vía API de GitHub (soporta repo privado)")
+        def releaseUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/releases/tags/" + tag
+        def releaseConn = new URL(releaseUrl).openConnection()
+        releaseConn.setRequestProperty("Authorization", "Bearer " + token)
+        releaseConn.setRequestProperty("Accept", "application/vnd.github+json")
+        releaseConn.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+        def releaseJson = new groovy.json.JsonSlurper().parseText(releaseConn.inputStream.getText("UTF-8"))
+        def asset = releaseJson.assets.find { it.name == assetName }
+        if (!asset) {
+            throw new GradleException("No se encontró el asset '" + assetName + "' en la release '" + tag + "' de " + owner + "/" + repo)
+        }
+
+        def assetUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/releases/assets/" + asset.id
+        def assetConn = new URL(assetUrl).openConnection()
+        assetConn.setRequestProperty("Authorization", "Bearer " + token)
+        assetConn.setRequestProperty("Accept", "application/octet-stream")
+        assetConn.setInstanceFollowRedirects(false)
+        def responseCode = assetConn.responseCode
+        if (responseCode == 302 || responseCode == 301) {
+            def redirectUrl = assetConn.getHeaderField("Location")
+            // A propósito sin el header Authorization acá — ver comentario arriba.
+            def redirectConn = new URL(redirectUrl).openConnection()
+            redirectConn.setInstanceFollowRedirects(true)
+            out << redirectConn.inputStream
+        } else if (responseCode == 200) {
+            out << assetConn.inputStream
+        } else {
+            throw new GradleException("Descarga de asset falló con HTTP " + responseCode + ": " + assetUrl)
+        }
+    } finally {
+        out.close()
+    }
+}
+
+def sha256Hex(File file) {
+    def digest = java.security.MessageDigest.getInstance("SHA-256")
+    file.eachByte(8192) { buffer, bytesRead -> digest.update(buffer, 0, bytesRead) }
+    def checksum = new BigInteger(1, digest.digest()).toString(16)
+    while (checksum.length() < 64) { checksum = "0" + checksum }
+    return checksum
+}
+
+task downloadRootfsAsset() {
+    onlyIf { System.getenv("KAIROS_EMBED_ROOTFS") == "true" }
+    doLast {
+        rootfsAssetFile.parentFile.mkdirs()
+
+        def sha256File = File.createTempFile("kairos-rootfs", ".sha256")
+        try {
+            downloadReleaseAsset(rootfsRepoOwner, rootfsRepoName, rootfsReleaseTag, rootfsAssetName + ".sha256", sha256File)
+            def expectedChecksum = sha256File.text.trim().split(/\s+/)[0]
+
+            logger.quiet("Descargando rootfs embebido: " + rootfsAssetName + " (tag " + rootfsReleaseTag + ")")
+            downloadReleaseAsset(rootfsRepoOwner, rootfsRepoName, rootfsReleaseTag, rootfsAssetName, rootfsAssetFile)
+
+            def checksum = sha256Hex(rootfsAssetFile)
+            if (checksum != expectedChecksum) {
+                rootfsAssetFile.delete()
+                throw new GradleException("Checksum inválido para el rootfs embebido: esperado " + expectedChecksum + ", real " + checksum)
+            }
+            logger.quiet("Rootfs embebido OK: " + rootfsAssetFile)
+        } finally {
+            sha256File.delete()
+        }
+    }
+}
+
+clean {
+    doLast {
+        if (rootfsAssetFile.exists()) rootfsAssetFile.delete()
+    }
+}
+
+afterEvaluate {
+    android.applicationVariants.all { variant ->
+        variant.javaCompileProvider.get().dependsOn(downloadBootstraps)
+        variant.javaCompileProvider.get().dependsOn(downloadRootfsAsset)
+    }
+}

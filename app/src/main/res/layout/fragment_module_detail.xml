@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FrameLayout envolvente (2026-08-23, ver docs/humano209.md) — antes esto era directo un
+     ScrollView raíz, así que ninguna de las ~40 pantallas de módulo podía tener un FAB real
+     (un elemento flotante necesita un hermano superpuesto, un ScrollView solo no lo permite).
+     El ScrollView + content_container quedan IDÉNTICOS a como estaban — este cambio es
+     puramente aditivo, BaseModuleFragment.showFab() agrega el FAB acá como segundo hijo solo
+     si el Fragment lo pide explícitamente. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/kairosBg">
+
+        <LinearLayout
+            android:id="@+id/content_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp" />
+
+    </ScrollView>
+
+    <FrameLayout
+        android:id="@+id/fab_slot"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp" />
+
+</FrameLayout>

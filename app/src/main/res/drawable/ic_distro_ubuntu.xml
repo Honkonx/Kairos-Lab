@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de identidad Ubuntu (2026-08-27, ver docs/humano259.md) — interpretación vectorial
+     simplificada de un solo color del logo real "Circle of Friends" (anillo + 3 puntos),
+     NO una reproducción pixel-perfect con derechos de autor. Se pinta blanco sobre un fondo
+     circular color de marca (#E95420) — ver DistroIcons.kt. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M3,12 A9,9 0 1,0 21,12 A9,9 0 1,0 3,12 Z M5.8,12 A6.2,6.2 0 1,0 18.2,12 A6.2,6.2 0 1,0 5.8,12 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M10.6,4.4 A1.4,1.4 0 1,0 13.4,4.4 A1.4,1.4 0 1,0 10.6,4.4 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M4.02,15.8 A1.4,1.4 0 1,0 6.82,15.8 A1.4,1.4 0 1,0 4.02,15.8 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M17.18,15.8 A1.4,1.4 0 1,0 19.98,15.8 A1.4,1.4 0 1,0 17.18,15.8 Z" />
+</vector>

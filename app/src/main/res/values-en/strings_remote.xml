@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- RemoteFragment.kt — module name -->
+    <string name="remote_module_name">Remote</string>
+
+    <!-- Tabs -->
+    <string name="remote_tab_emisor">Sender</string>
+    <string name="remote_tab_seguridad">Security</string>
+    <string name="remote_tab_cloudflare">Cloudflare</string>
+    <string name="remote_tab_red">Network</string>
+    <string name="remote_tab_receptor">Receiver</string>
+
+    <!-- Card titles -->
+    <string name="remote_card_info">INFO</string>
+    <string name="remote_card_seguridad_ssh">SSH SECURITY</string>
+    <string name="remote_card_cloudflared">CLOUDFLARED</string>
+    <string name="remote_card_servidor_red">SERVER ON THE NETWORK</string>
+    <string name="remote_card_este_dispositivo">THIS DEVICE</string>
+    <string name="remote_card_servidores_guardados">SAVED SERVERS</string>
+    <string name="remote_card_claves_importadas">IMPORTED PRIVATE KEYS</string>
+
+    <!-- infoRow labels -->
+    <string name="remote_label_ssh">SSH</string>
+    <string name="remote_label_ip">IP</string>
+    <string name="remote_label_usuario">User</string>
+    <string name="remote_label_conexiones">Connections</string>
+    <string name="remote_label_puerto">Port</string>
+    <string name="remote_label_login_root">Root login</string>
+    <string name="remote_label_claves_autorizadas">Authorized keys</string>
+    <string name="remote_label_clave_propia_dispositivo">Device\'s own key</string>
+    <string name="remote_label_mi_ip_local">My local IP</string>
+    <string name="remote_label_mi_clave_propia">My own key</string>
+    <string name="remote_label_tunnel">Tunnel</string>
+
+    <!-- Switch -->
+    <string name="remote_switch_tunnel_cloudflare">Cloudflare tunnel</string>
+    <string name="remote_label_requerir_clave_ssh">🔑 Always require SSH key (recommended, like a real VPS)</string>
+
+    <!-- Buttons -->
+    <string name="remote_btn_info_conexion">ℹ Connection info</string>
+    <string name="remote_btn_agregar_clave_publica">🔑 Add public key</string>
+    <string name="remote_btn_cambiar_contrasena">🔒 Change password</string>
+    <string name="remote_btn_conexiones_activas">🔌 Active SSH connections</string>
+    <string name="remote_btn_copiar_comando_ssh">📋 Copy SSH command</string>
+    <string name="remote_btn_fingerprint">🔐 Server fingerprint</string>
+    <string name="remote_btn_cambiar_puerto">🔌 Change SSH port</string>
+    <string name="remote_btn_alternar_login_root">⛔ Toggle root login</string>
+    <string name="remote_btn_generar_clave_propia_conectar">🔑 Generate own key (to connect to other servers)</string>
+    <string name="remote_btn_copiar_clave_publica_propia">📋 Copy my own public key</string>
+    <string name="remote_btn_configurar_token_cf">🔑 Configure CF token</string>
+    <string name="remote_btn_como_conectarse_cf_ssh">📖 How to connect via CF-SSH</string>
+    <string name="remote_btn_buscar_servidor_red">📡 Search for server on the network</string>
+    <string name="remote_btn_generar_clave_propia">🔑 Generate own key</string>
+    <string name="remote_btn_copiar_clave_publica">📋 Copy my public key</string>
+    <string name="remote_btn_agregar_conexion">➕ Add connection</string>
+    <string name="remote_btn_importar_clave_privada">🔑 Import private key (save)</string>
+    <string name="remote_btn_conectar_clave_sesion">⚡ Connect with pasted key (don\'t save)</string>
+    <string name="remote_btn_reemplazar">🔁 Replace</string>
+    <string name="remote_btn_conectar">🔌 Connect</string>
+    <string name="remote_btn_borrar">🗑 Delete</string>
+    <string name="remote_btn_borrar_plain">Delete</string>
+    <string name="remote_btn_guardar">Save</string>
+    <string name="remote_btn_cancelar">Cancel</string>
+    <string name="remote_btn_cerrar">Close</string>
+    <string name="remote_btn_ok">OK</string>
+    <string name="remote_btn_requerir_clave">Require key</string>
+    <string name="remote_btn_permitir_de_todos_modos">Allow anyway</string>
+
+    <!-- Hints -->
+    <string name="remote_hint_ip_servidor">Server IP (e.g. 192.168.1.23)</string>
+    <string name="remote_hint_puerto_range">Port (1024-65535)</string>
+    <string name="remote_hint_valor">Value</string>
+    <string name="remote_hint_nombre_opcional">Name (optional, e.g. My VPS)</string>
+    <string name="remote_hint_host_o_ip">Host or IP (e.g. 192.168.1.50)</string>
+    <string name="remote_hint_puerto">Port</string>
+    <string name="remote_hint_usuario">User</string>
+    <string name="remote_hint_clave_privada_pegar">Paste the private key here (-----BEGIN ... PRIVATE KEY-----)</string>
+
+    <!-- Checkbox / radio -->
+    <string name="remote_check_usar_clave_propia">Use my own key (otherwise, it asks for a password when connecting)</string>
+    <string name="remote_label_metodo_auth">Authentication method</string>
+    <string name="remote_check_usar_clave_importada">Imported key: %1$s (%2$s)</string>
+    <string name="remote_check_sin_clave_contrasena">No key (asks for a password when connecting)</string>
+
+    <!-- Statuses -->
+    <string name="remote_status_corriendo_8022">Running - :8022</string>
+    <string name="remote_status_detenido">Stopped</string>
+    <string name="remote_status_activo">Active</string>
+    <string name="remote_status_sin_token">No token</string>
+    <string name="remote_status_permitido">Allowed</string>
+    <string name="remote_status_bloqueado">Blocked</string>
+    <string name="remote_status_si_al_menos_una">Yes, at least one</string>
+    <string name="remote_status_ninguna">None</string>
+    <string name="remote_status_ya_generada">Already generated</string>
+    <string name="remote_status_no_generada">Not generated</string>
+    <string name="remote_status_sin_confirmar">Not confirmed</string>
+    <string name="remote_status_confirmado_recien">Confirmed just now</string>
+    <string name="remote_status_confirmado_hace_min">Confirmed %1$dmin ago</string>
+
+    <!-- Dialog titles -->
+    <string name="remote_dialog_title_conexiones_ssh_activas">Active SSH connections</string>
+    <string name="remote_dialog_title_huella_servidor">Server fingerprint</string>
+    <string name="remote_dialog_title_cambiar_puerto_ssh">Change SSH port</string>
+    <string name="remote_dialog_title_requerir_clave_siempre">Always require SSH key</string>
+    <string name="remote_dialog_title_permitir_login_root">⚠ Allow root login over SSH</string>
+    <string name="remote_dialog_title_agregar_conexion_ssh">Add SSH connection</string>
+    <string name="remote_dialog_title_borrar_conexion">Delete connection</string>
+    <string name="remote_dialog_title_servidores_encontrados">Servers found (%1$d)</string>
+    <string name="remote_dialog_title_importar_clave_privada">Import private key</string>
+    <string name="remote_dialog_title_reemplazar_clave">Replace key — %1$s</string>
+    <string name="remote_dialog_title_borrar_clave_importada">Delete imported key</string>
+    <string name="remote_dialog_title_conectar_clave_sesion">Connect with pasted key</string>
+
+    <!-- Dialog messages -->
+    <string name="remote_dialog_msg_password_vps_note">Just like a real VPS: while this is enabled, no one gets in with just the password — not even you, from another device without the matching key.</string>
+    <string name="remote_dialog_msg_cambiar_puerto">sshd runs without root permissions — only ports 1024-65535 are allowed.</string>
+    <string name="remote_dialog_msg_requerir_clave">The device will act as a real server (VPS): no one will be able to log in over SSH with just the password — not even you, from another device without the matching key. Make sure you already added your key under \"Add public key\".</string>
+    <string name="remote_dialog_msg_permitir_login_root">This allows logging in over SSH directly as root, a real risk if the device is exposed to the internet (tunnel/VPS). Only enable it if you know what you\'re doing.</string>
+    <string name="remote_dialog_msg_borrar_conexion">Delete \"%1$s\" (%2$s@%3$s:%4$d)? This does not affect the remote server, it just stops being saved here.</string>
+    <string name="remote_dialog_msg_importar_clave_privada">It is saved on the device with restricted permissions (600). Once saved, Kairos never shows it again — you can only use it, replace it, or delete it.</string>
+    <string name="remote_dialog_msg_borrar_clave_importada">Delete key \"%1$s\"? Saved connections that used it will ask for an interactive password next time.</string>
+    <string name="remote_dialog_msg_conectar_clave_sesion">The key is NOT saved on the device — it\'s used only for this connection and deletes itself in a few seconds.</string>
+
+    <!-- Toasts / snackbars -->
+    <string name="remote_msg_puerto_invalido">Invalid port</string>
+    <string name="remote_msg_esperando_datos">Waiting for connection data, try again in a moment</string>
+    <string name="remote_msg_comando_copiado">Command copied: %1$s</string>
+    <string name="remote_msg_no_claves_host">No host keys found — start SSH at least once to generate them.</string>
+    <string name="remote_msg_agrega_clave_primero">Add your public key first, or you\'ll lose access</string>
+    <string name="remote_msg_generando_clave_propia">Generating your own key…</string>
+    <string name="remote_msg_no_clave_propia_generar_primero">You haven\'t generated your own key yet — use \"Generate own key\" first</string>
+    <string name="remote_msg_clave_publica_copiada">Public key copied</string>
+    <string name="remote_msg_conectate_wifi">Connect to WiFi to scan the network</string>
+    <string name="remote_msg_encontrado">Found: %1$s</string>
+    <string name="remote_msg_no_servidores_encontrados">No servers found on the network</string>
+    <string name="remote_msg_ip_copiada">IP %1$s copied</string>
+    <string name="remote_msg_sin_conexiones_guardadas">No saved connections yet — use \"Add connection\".</string>
+    <string name="remote_msg_sin_claves_importadas">No imported private keys yet — use \"Import private key\".</string>
+    <string name="remote_msg_sin_claves_importadas_hint">You haven\'t imported any private key yet — you can do it from \"Import private key\" before adding the connection.</string>
+    <string name="remote_msg_clave_importada">Key imported and saved</string>
+    <string name="remote_msg_clave_reemplazada">Key replaced</string>
+    <string name="remote_msg_conectando_a">Connecting to %1$s…</string>
+    <string name="remote_msg_probe_no_respondio">The probe did not respond (it may still be working) — opening terminal…</string>
+    <string name="remote_msg_ssh_iniciado">SSH started</string>
+    <string name="remote_msg_no_se_pudo_iniciar">could not be started</string>
+    <string name="remote_msg_ssh_detenido">SSH stopped</string>
+    <string name="remote_msg_error_no_se_pudo_detener">Error: could not be stopped</string>
+    <string name="remote_msg_daemon_activo">Daemon: active\n\n</string>
+    <string name="remote_msg_daemon_detenido">Daemon: stopped\n\n</string>
+    <string name="remote_msg_sin_conexiones_activas">No active connections.</string>
+    <string name="remote_error_fmt">Error: %1$s</string>
+    <string name="remote_error_unknown">unknown</string>
+    <string name="remote_msg_accion_desconocida">Unknown action: %1$s</string>
+
+    <!-- Context for friendlyProcessErrorMessage() -->
+    <string name="remote_ctx_ssh_cloudflared">SSH/Cloudflared</string>
+    <string name="remote_ctx_ssh">SSH</string>
+    <string name="remote_ctx_seguridad_ssh">SSH security</string>
+    <string name="remote_ctx_scan_red">network scan</string>
+    <string name="remote_ctx_conexiones_guardadas">saved connections</string>
+
+</resources>

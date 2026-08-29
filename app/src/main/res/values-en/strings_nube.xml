@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- NubeFragment.kt -->
+    <string name="nube_msg_servidor_iniciado">Server started</string>
+    <string name="nube_msg_no_se_pudo_iniciar_puerto">Could not start (is port %1$d busy?)</string>
+    <string name="nube_msg_servidor_detenido">Server stopped</string>
+
+    <string name="nube_status_activo_puerto">● server active · port %1$d</string>
+    <string name="nube_status_detenido">○ server stopped</string>
+
+    <string name="nube_msg_iniciando_tunel">Starting tunnel (%1$s)…</string>
+    <string name="nube_error_fmt">Error: %1$s</string>
+    <string name="nube_msg_tunel_detenido">Tunnel stopped</string>
+    <string name="nube_msg_tunel_sin_url">The tunnel is still active but no URL was detected yet — check the status again later</string>
+
+    <string name="nube_msg_url_copiada">URL copied</string>
+    <string name="nube_share_chooser_title">Share Cloud link</string>
+
+    <string name="nube_msg_no_se_pudo_leer_carpeta">Could not read this folder</string>
+    <string name="nube_msg_carpeta_vacia">Empty folder — upload files from the URL above or from Termux ($HOME/nube)</string>
+
+    <string name="nube_file_menu_renombrar">Rename</string>
+    <string name="nube_file_menu_eliminar">Delete</string>
+
+    <string name="nube_dialog_title_renombrar">Rename</string>
+    <string name="nube_btn_renombrar">Rename</string>
+    <string name="nube_msg_nombre_vacio">Empty name</string>
+    <string name="nube_msg_ya_existe">\"%1$s\" already exists</string>
+    <string name="nube_msg_no_se_pudo_renombrar">Could not rename</string>
+    <string name="nube_btn_cancelar">Cancel</string>
+
+    <string name="nube_dialog_title_eliminar">Delete</string>
+    <string name="nube_dialog_msg_eliminar">Delete \"%1$s\"? This action cannot be undone.</string>
+    <string name="nube_btn_eliminar">Delete</string>
+    <string name="nube_msg_no_se_pudo_eliminar">Could not delete</string>
+
+    <string name="nube_file_meta_carpeta">folder</string>
+    <string name="nube_file_meta_size_date">%1$s · %2$s</string>
+    <string name="nube_file_click_info">%1$s · %2$s</string>
+
+</resources>

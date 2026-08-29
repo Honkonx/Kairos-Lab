@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- TunnelFragment.kt — nombres de módulo -->
+    <string name="tunnel_module_ssh_remote">SSH (Remote)</string>
+    <string name="tunnel_module_ia_local">IA Local (llama.cpp)</string>
+
+    <!-- TunnelFragment.kt — encabezado -->
+    <string name="tunnel_title">Túnel</string>
+    <string name="tunnel_subtitle">Expone un módulo a internet vía Cloudflare o ngrok — cualquiera con el link puede usarlo, sin login. Podés guardar tu token y dominio (Cloudflare y ngrok) abajo y se reutilizan en los botones rápidos.</string>
+
+    <!-- Panel de configuración de proveedores -->
+    <string name="tunnel_config_panel_title">⚙ Configuración de túneles</string>
+    <string name="tunnel_provider_cloudflare">Cloudflare</string>
+    <string name="tunnel_provider_ngrok">ngrok</string>
+    <string name="tunnel_btn_editar">Editar</string>
+    <string name="tunnel_btn_borrar">Borrar</string>
+    <string name="tunnel_provider_state_sin_configurar">%1$s %2$s — sin configurar</string>
+    <string name="tunnel_provider_state_configurado">%1$s %2$s — %3$s</string>
+    <string name="tunnel_state_token_ok">token ✓</string>
+    <string name="tunnel_state_dominio_ok">dominio ✓</string>
+
+    <!-- promptProviderConfig -->
+    <string name="tunnel_hint_token_guardado">Token guardado (dejar vacío para no cambiarlo)</string>
+    <string name="tunnel_hint_token_cloudflare">Token de Cloudflare Tunnel</string>
+    <string name="tunnel_hint_authtoken_ngrok">Authtoken de ngrok</string>
+    <string name="tunnel_hint_dominio_propio_opcional">Dominio propio (opcional)</string>
+    <string name="tunnel_dialog_title_configurar">Configurar %1$s</string>
+    <string name="tunnel_dialog_msg_configurar">Guardado en el registry y reutilizado por los botones rápidos de cada módulo.</string>
+    <string name="tunnel_btn_guardar">Guardar</string>
+    <string name="tunnel_btn_cancelar">Cancelar</string>
+    <string name="tunnel_msg_config_guardada">Configuración guardada para %1$s</string>
+
+    <!-- clearProviderConfig -->
+    <string name="tunnel_dialog_title_borrar_config">¿Borrar config de %1$s?</string>
+    <string name="tunnel_dialog_msg_borrar_config">Se eliminan el token y el dominio guardados para %1$s.</string>
+    <string name="tunnel_btn_borrar_accion">Borrar</string>
+    <string name="tunnel_msg_config_eliminada">Configuración de %1$s eliminada</string>
+
+    <!-- Dominios guardados -->
+    <string name="tunnel_saved_domains_title">🌐 Dominios guardados</string>
+    <string name="tunnel_btn_verificar">✓ Verificar</string>
+    <string name="tunnel_saved_domains_subtitle">Guardá varios dominios/tokens por proveedor y asignalos al módulo que quieras. Tocá un dominio para asignarlo — el ícono 🗑 lo elimina de esta lista (no afecta un módulo que ya lo tenga asignado).</string>
+    <string name="tunnel_btn_agregar">+ Agregar</string>
+    <string name="tunnel_sin_dominios_guardados">— sin dominios guardados —</string>
+    <string name="tunnel_saved_entry_label">· %1$s</string>
+    <string name="tunnel_saved_entry_token_suffix"> (token ✓)</string>
+
+    <!-- promptAddSaved -->
+    <string name="tunnel_hint_dominio_opcional">Dominio (opcional)</string>
+    <string name="tunnel_hint_token_authtoken">Token / authtoken</string>
+    <string name="tunnel_dialog_title_agregar_dominio">Agregar dominio — %1$s</string>
+    <string name="tunnel_dialog_msg_agregar_dominio">Se guarda en la lista, sin asignar todavía a ningún módulo — asignalo tocándolo en la lista.</string>
+    <string name="tunnel_msg_agregado">Agregado</string>
+
+    <!-- confirmDeleteSaved -->
+    <string name="tunnel_dialog_title_eliminar_lista">¿Eliminar de la lista?</string>
+    <string name="tunnel_dialog_msg_eliminar_lista">Se elimina \"%1$s\" de los dominios guardados. Si algún módulo ya lo tiene asignado, sigue funcionando igual — esto no lo desasigna.</string>
+    <string name="tunnel_btn_eliminar">Eliminar</string>
+    <string name="tunnel_msg_eliminado">Eliminado</string>
+
+    <!-- promptAssign / confirmAndAssign / doAssign -->
+    <string name="tunnel_dialog_title_asignar_a">Asignar \"%1$s\" a…</string>
+    <string name="tunnel_dialog_title_reemplazar_dominio">¿Reemplazar dominio de %1$s?</string>
+    <string name="tunnel_dialog_msg_reemplazar_dominio">%1$s ya tiene un dominio/token asignado (%2$s) — ¿reemplazarlo por \"%3$s\"?</string>
+    <string name="tunnel_label_solo_token">solo token</string>
+    <string name="tunnel_btn_reemplazar">Reemplazar</string>
+    <string name="tunnel_msg_asignado_a">Asignado a %1$s</string>
+
+    <!-- runVerify -->
+    <string name="tunnel_msg_verificando">Verificando…</string>
+    <string name="tunnel_dialog_title_verificar_tuneles">Verificar túneles</string>
+    <string name="tunnel_dialog_msg_ningun_modulo_asignado">Ningún módulo tiene un dominio/token propio asignado todavía.</string>
+    <string name="tunnel_btn_ok">OK</string>
+
+    <!-- buildModuleCard -->
+    <string name="tunnel_btn_copiar">Copiar</string>
+    <string name="tunnel_msg_url_copiada">URL copiada</string>
+    <string name="tunnel_btn_cloudflare">▶ Cloudflare</string>
+    <string name="tunnel_btn_con_token">🔑 Con token</string>
+    <string name="tunnel_btn_ngrok_tcp">🚇 ngrok tcp</string>
+    <string name="tunnel_btn_ngrok">🚇 ngrok</string>
+    <string name="tunnel_btn_ngrok_tcp_auth">🔑 ngrok tcp+auth</string>
+    <string name="tunnel_btn_ngrok_dominio">🔑 ngrok+dominio</string>
+    <string name="tunnel_btn_detener">⏹ Detener</string>
+
+    <!-- Estados -->
+    <string name="tunnel_status_modulo_detenido">○ módulo detenido</string>
+    <string name="tunnel_status_tunel_propio_activo">● túnel propio de n8n activo</string>
+    <string name="tunnel_status_tunel_propio_sin_url">● túnel propio de n8n activo — sin URL detectada</string>
+    <string name="tunnel_status_activo">● activo</string>
+    <string name="tunnel_status_iniciando">● iniciando…</string>
+    <string name="tunnel_status_sin_tunel">○ sin túnel</string>
+    <string name="tunnel_status_activo_sin_url">● activo — sin URL todavía (revisá el log)</string>
+
+    <!-- confirmAndStart -->
+    <string name="tunnel_warning_tcp_only">Esto expone %1$s (puerto %2$d) a internet — cualquiera podrá intentar conectarse por SSH (todavía necesita usuario/contraseña o clave válida). Usá una contraseña fuerte o preferí autenticación por clave pública. ¿Continuar?</string>
+    <string name="tunnel_warning_generic">Esto expone %1$s (puerto %2$d) a internet — cualquiera con el link podrá usarlo sin autenticación. ¿Continuar?</string>
+    <string name="tunnel_dialog_title_exponer_a_internet">Exponer %1$s a internet</string>
+    <string name="tunnel_btn_continuar">Continuar</string>
+
+    <!-- promptCloudflareTokenAndStart -->
+    <string name="tunnel_dialog_title_tunel_con_token">Túnel con token</string>
+    <string name="tunnel_dialog_msg_tunel_con_token">Usa un túnel nombrado de tu cuenta de Cloudflare en vez de uno anónimo. El dominio ya queda atado del lado del dashboard de Cloudflare al crear ese túnel — no hace falta escribirlo acá.</string>
+    <string name="tunnel_btn_iniciar">Iniciar</string>
+    <string name="tunnel_msg_token_vacio">Token vacío</string>
+
+    <!-- promptNgrokTokenAndStart -->
+    <string name="tunnel_hint_authtoken_ngrok_dashboard">Authtoken de ngrok (ngrok.com → dashboard)</string>
+    <string name="tunnel_hint_dominio_reservado_opcional">Dominio propio/reservado (opcional)</string>
+    <string name="tunnel_msg_ngrok_tcp_authtoken">El authtoken habilita tu cuenta de ngrok (obligatorio para \'ngrok tcp\' — SSH crudo no admite túneles anónimos).</string>
+    <string name="tunnel_msg_ngrok_authtoken">El authtoken habilita tu cuenta de ngrok (necesario para usar un dominio propio). El dominio es opcional — dejalo vacío para una URL aleatoria.</string>
+    <string name="tunnel_dialog_title_tunel_ngrok_authtoken">Túnel ngrok con authtoken</string>
+    <string name="tunnel_msg_authtoken_vacio">Authtoken vacío</string>
+
+    <!-- startTunnel / stopTunnel -->
+    <string name="tunnel_msg_iniciando_tunel">Iniciando túnel (%1$s) para %2$s…</string>
+    <string name="tunnel_error_fmt">Error: %1$s</string>
+    <string name="tunnel_msg_tunel_detenido">Túnel detenido</string>
+
+</resources>

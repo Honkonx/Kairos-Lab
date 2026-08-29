@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LocalAIFragment.kt — GGUF model catalog -->
+    <string name="localai_model_qwen05b_name">Qwen2.5 0.5B Instruct</string>
+    <string name="localai_model_qwen05b_desc">The smallest and fastest in the catalog — ideal for testing the local engine on any device.</string>
+
+    <string name="localai_model_tinyllama11b_name">TinyLlama 1.1B Chat</string>
+    <string name="localai_model_tinyllama11b_desc">One of the lightest models available in GGUF — starts up fast on any hardware.</string>
+
+    <string name="localai_model_smollm217b_name">SmolLM2 1.7B Instruct</string>
+    <string name="localai_model_smollm217b_desc">Model from HuggingFaceTB trained to run well on devices with limited RAM.</string>
+
+    <string name="localai_model_qwencoder15b_name">Qwen2.5 Coder 1.5B Instruct</string>
+    <string name="localai_model_qwencoder15b_desc">Qwen2.5 variant specialized in code, small size for autocompleting/explaining snippets.</string>
+
+    <string name="localai_model_qwen15b_name">Qwen2.5 1.5B Instruct</string>
+    <string name="localai_model_qwen15b_desc">Balance between speed and response quality, a good default for mid-range devices.</string>
+
+    <string name="localai_model_llama321b_name">Llama 3.2 1B Instruct</string>
+    <string name="localai_model_llama321b_desc">Official Meta model, quantized by bartowski — good quality for its size.</string>
+
+    <string name="localai_model_gemma22b_name">Gemma 2 2B IT</string>
+    <string name="localai_model_gemma22b_desc">Google model, good performance in Spanish and general reasoning.</string>
+
+    <string name="localai_model_qwencoder3b_name">Qwen2.5 Coder 3B Instruct</string>
+    <string name="localai_model_qwencoder3b_desc">Mid-size version of Qwen\'s code model — more useful context than the 1.5B.</string>
+
+    <string name="localai_model_qwen3b_name">Qwen2.5 3B Instruct</string>
+    <string name="localai_model_qwen3b_desc">Intermediate step between the 1.5B and Llama\'s 3.2 — good RAM/quality balance.</string>
+
+    <string name="localai_model_llama323b_name">Llama 3.2 3B Instruct</string>
+    <string name="localai_model_llama323b_desc">Better response quality than the previous ones, but needs more RAM and storage.</string>
+
+    <string name="localai_model_phi3mini_name">Phi-3 Mini 4K Instruct</string>
+    <string name="localai_model_phi3mini_desc">Microsoft model (3.8B), strong reasoning for its size, 4K token context.</string>
+
+    <string name="localai_model_phi35mini_name">Phi-3.5 Mini Instruct</string>
+    <string name="localai_model_phi35mini_desc">Successor to Phi-3 Mini, same size (3.8B) with quality improvements from Microsoft.</string>
+
+    <string name="localai_model_qwen7b_name">Qwen2.5 7B Instruct</string>
+    <string name="localai_model_qwen7b_desc">Mid-size Alibaba model, good quality-to-size ratio for general reasoning.</string>
+
+    <string name="localai_model_qwencoder7b_name">Qwen2.5 Coder 7B Instruct</string>
+    <string name="localai_model_qwencoder7b_desc">Larger version of Qwen\'s code model — better for complex programming tasks.</string>
+
+    <string name="localai_model_mistral7b_name">Mistral 7B Instruct v0.3</string>
+    <string name="localai_model_mistral7b_desc">Mistral AI\'s reference model, a reliable classic in the 7B range.</string>
+
+    <string name="localai_model_openhermes7b_name">OpenHermes 2.5 Mistral 7B</string>
+    <string name="localai_model_openhermes7b_desc">Community fine-tune of Mistral 7B, widely used for general-purpose chat.</string>
+
+    <string name="localai_model_llama38b_name">Meta Llama 3 8B Instruct</string>
+    <string name="localai_model_llama38b_desc">Previous generation of Meta\'s Llama at 8B — still widely used as a reference.</string>
+
+    <string name="localai_model_llama318b_name">Meta Llama 3.1 8B Instruct</string>
+    <string name="localai_model_llama318b_desc">Official Meta model, quality reference in the 8B range.</string>
+
+    <string name="localai_model_gemma29b_name">Gemma 2 9B IT</string>
+    <string name="localai_model_gemma29b_desc">Larger version of Gemma 2 — better reasoning than the 2B, needs considerably more RAM.</string>
+
+    <string name="localai_model_qwen14b_name">Qwen2.5 14B Instruct</string>
+    <string name="localai_model_qwen14b_desc">The largest in the catalog — best quality, but needs a fair amount of RAM (8GB+ recommended) and storage.</string>
+
+    <string name="localai_model_phi414b_name">Phi-4 14B</string>
+    <string name="localai_model_phi414b_desc">Microsoft\'s reasoning model (14B) — one of the best-quality options in the catalog.</string>
+
+    <!-- Expansion 2026-08-28 (Ollama/llama.cpp parity audit) — repos/files verified one by
+         one against the Hub API before adding them. -->
+    <string name="localai_model_qwencoder05b_name">Qwen2.5 Coder 0.5B Instruct</string>
+    <string name="localai_model_qwencoder05b_desc">The smallest in the code catalog — autocompleting/explaining snippets on any device.</string>
+
+    <string name="localai_model_deepseekr115b_name">DeepSeek R1 Distill Qwen 1.5B</string>
+    <string name="localai_model_deepseekr115b_desc">DeepSeek\'s reasoning (chain-of-thought) model, distilled down to a small size.</string>
+
+    <string name="localai_model_qwen34b_name">Qwen3 4B Instruct</string>
+    <string name="localai_model_qwen34b_desc">Latest Qwen generation, reasoning improvements over Qwen2.5 at a similar size.</string>
+
+    <string name="localai_model_gemma34b_name">Gemma 3 4B IT</string>
+    <string name="localai_model_gemma34b_desc">Newer Gemma generation — better overall quality than Gemma 2 at a similar size.</string>
+
+    <string name="localai_model_phi4mini_name">Phi-4 Mini Instruct</string>
+    <string name="localai_model_phi4mini_desc">Small version of Microsoft\'s reasoning model — same lineage as Phi-4 14B with far less RAM.</string>
+
+    <string name="localai_model_deepseekr17b_name">DeepSeek R1 Distill Qwen 7B</string>
+    <string name="localai_model_deepseekr17b_desc">7B version of DeepSeek\'s reasoning model — more elaborate step-by-step responses.</string>
+
+    <string name="localai_model_qwen38b_name">Qwen3 8B</string>
+    <string name="localai_model_qwen38b_desc">8B version of Qwen3 — better quality than the 4B, needs more RAM.</string>
+
+    <string name="localai_model_mistralnemo12b_name">Mistral NeMo 12B Instruct</string>
+    <string name="localai_model_mistralnemo12b_desc">Mistral AI + NVIDIA collaboration, long context (128K), 12B.</string>
+
+    <string name="localai_model_gemma312b_name">Gemma 3 12B IT</string>
+    <string name="localai_model_gemma312b_desc">Larger version of Gemma 3 — better reasoning than the 4B, needs considerably more RAM.</string>
+
+    <string name="localai_model_qwencoder14b_name">Qwen2.5 Coder 14B Instruct</string>
+    <string name="localai_model_qwencoder14b_desc">The largest code model in the catalog — better for complex programming tasks, needs a fair amount of RAM.</string>
+
+    <!-- General UI -->
+    <string name="localai_title">Local AI</string>
+    <string name="localai_card_store_title">🛒 MODEL STORE</string>
+    <string name="localai_card_downloaded_title">DOWNLOADED MODELS</string>
+    <string name="localai_btn_import">📂 Import</string>
+    <string name="localai_btn_by_url">+ By URL</string>
+    <string name="localai_no_models_downloaded">No models downloaded yet.</string>
+    <string name="localai_delete">Delete</string>
+    <string name="localai_catalog_button_label">📋 Model list (%1$d/%2$d downloaded)</string>
+    <string name="localai_toast_chat_open_failed">Could not open the chat</string>
+    <string name="localai_catalog_dialog_title">Model list</string>
+    <string name="localai_toast_already_downloaded">%1$s is already downloaded</string>
+    <string name="localai_close">Close</string>
+    <string name="localai_install_confirm_message">%1$s\n\nSize: %2$s\n\nInstall it?</string>
+    <string name="localai_install">Install</string>
+    <string name="localai_cancel">Cancel</string>
+    <string name="localai_starting_download">Starting download of %1$s…</string>
+    <string name="localai_toast_model_downloaded">Model downloaded: %1$s</string>
+    <string name="localai_notify_model_downloaded">Model downloaded</string>
+    <string name="localai_toast_download_error">Error downloading %1$s: %2$s</string>
+    <string name="localai_unknown_error">unknown</string>
+    <string name="localai_toast_picker_error">Could not open the picker: %1$s</string>
+    <string name="localai_import_dialog_title">Import model</string>
+    <string name="localai_import_dialog_message">It will be copied to the app\'s private storage. This may take a while depending on the file size.</string>
+    <string name="localai_import_progress_title">Importing model</string>
+    <string name="localai_import_progress_message">Copying file…</string>
+    <string name="localai_toast_name_required">The name is required</string>
+    <string name="localai_import">Import</string>
+    <string name="localai_toast_model_imported">Model imported: %1$s</string>
+    <string name="localai_import_error_title">Error importing model</string>
+    <string name="localai_add_model_url_hint">Direct URL to the .gguf (e.g. Hugging Face)</string>
+    <string name="localai_add_model_name_hint">model-name.gguf</string>
+    <string name="localai_add_model_dialog_title">Add model</string>
+    <string name="localai_toast_url_name_required">URL and name are required</string>
+    <string name="localai_download">Download</string>
+    <string name="localai_download_dialog_title">Downloading model</string>
+    <string name="localai_download_starting">Starting download…</string>
+    <string name="localai_download_error_title">Error downloading model</string>
+</resources>

@@ -1,0 +1,68 @@
+plugins {
+    id "com.android.library"
+}
+
+// Servidor X11 embebido (fork Xlorie de termux-x11), integración tomada del patrón de
+// referencia Linbox-WinEmu / linbox-main (ver docs/x11/X11_EMBEBIDO.md).
+// - Clases com.termux.x11.* (CmdEntryPoint, MainActivity/LorieView, controller, input,
+//   extrakeys, utils) copiadas de referencia/emuladores/linbox-main/termux-x11/src/main/java — el
+//   mismo árbol fuente que produjo el libXlorie.so precompilado de libs/ (autoconsistente).
+// - libXlorie.so precompilado para 4 ABIs en libs/ (NO se compila Xorg desde fuente).
+// - Assets de Wine (wine.tar.gz, wfm.exe, winhandler.exe, start-tfm) EXCLUIDOS a propósito:
+//   no los necesita el flujo visor X11 (MainActivity.onCreate los usa solo para funcionalidad
+//   Wine; WinHandler es UDP puro sobre localhost:7946/7947 y no toca assets).
+// - android:process=":xserver" y el arranque vía CmdEntryPoint.main() se declaran en la
+//   app host (com.termux), no acá (patrón Linbox-WinEmu X11Service).
+android {
+    namespace "com.termux.x11"
+
+    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    ndkVersion = project.properties.ndkVersion
+
+    defaultConfig {
+        minSdkVersion project.properties.minSdkVersion.toInteger()
+        // Identificador de build para el log de CmdEntryPoint ("commit <COMMIT>").
+        buildConfigField "String", "COMMIT", "\"kairos-embedded-x11\""
+    }
+
+    sourceSets {
+        main {
+            // Prebuilt libXlorie.so para los 4 ABIs (mismo patrón de linbox-main en Windows).
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+
+    buildFeatures {
+        buildConfig true
+        aidl true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.annotation:annotation:1.9.0"
+    implementation "androidx.core:core:1.13.1"
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.fragment:fragment:1.6.2"
+    implementation "androidx.recyclerview:recyclerview:1.3.2"
+    implementation "androidx.viewpager:viewpager:1.0.0"
+    implementation "androidx.preference:preference:1.2.1"
+    implementation "com.google.android.material:material:1.12.0"
+
+    // TarCompressorUtils (Wine install flows de linbox) — descompresión de .tar.gz/.xz/.zst.
+    // commons-compress/xz ya las usa la app (RootfsInstaller); zstd-jni viene de jitpack
+    // (presente en allprojects.repositories).
+    implementation "org.apache.commons:commons-compress:1.27.1"
+    implementation "org.tukaani:xz:1.9"
+    implementation "com.github.luben:zstd-jni:1.5.2-3@aar"
+}

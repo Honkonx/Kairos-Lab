@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vista custom de cada tab de archivo abierto: acento de color por tipo de archivo + nombre +
+     punto "modificado" (sin guardar) + botón de cierre — patrón de tabs de editor
+     (TabLayout.Tab.setCustomView), no las tabs planas por defecto de Material.
+     El acento (tab_accent) reusa FileIconProvider.iconFor(...).colorRes — mismo criterio "por
+     categoría de lenguaje" que ya usan los íconos del árbol de archivos (ver
+     EditorTabsController.buildTabView), adaptado de la idea de tabs coloreados por
+     grupo/proyecto de referencia/interfaz/Haven-main (TerminalScreen.kt) a "por tipo de
+     archivo", que es lo aplicable acá porque Kairos IDE solo tiene un proyecto abierto a la vez. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="10dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <View
+        android:id="@+id/tab_accent"
+        android:layout_width="3dp"
+        android:layout_height="18dp"
+        android:layout_marginEnd="10dp"
+        android:background="@color/ide_lang_default" />
+
+    <TextView
+        android:id="@+id/tab_file_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="140dp"
+        android:singleLine="true"
+        android:ellipsize="middle"
+        android:textSize="13sp"
+        android:textColor="@color/ide_text_secondary" />
+
+    <View
+        android:id="@+id/tab_dirty_dot"
+        android:layout_width="6dp"
+        android:layout_height="6dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/studio_dot_dirty"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/tab_close_button"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginStart="8dp"
+        android:padding="3dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/studio_ic_close"
+        android:contentDescription="@string/action_close_tab" />
+
+</LinearLayout>

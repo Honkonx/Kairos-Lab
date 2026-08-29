@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de identidad Kali Linux (2026-08-27, ver docs/humano259.md) — interpretación
+     vectorial simplificada de un solo color (curva de "dragón" estilizada, no la ilustración
+     real con derechos de autor). Fondo circular color de marca (#367BF0). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4,17 C6,13 5,9 8,6 C10,4 13,4 14,6 C15,8 13,9 15,10 C17,11 19,9 20,7" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7,20 C9,17 9,14 11,12" />
+</vector>

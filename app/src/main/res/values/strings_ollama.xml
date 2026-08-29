@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- OllamaConfigFragment.kt -->
+    <string name="ollama_config_title">Configuración Ollama</string>
+    <string name="ollama_config_card_parametros">PARÁMETROS</string>
+    <string name="ollama_config_label_temperatura">Temperatura (0.0-2.0)</string>
+    <string name="ollama_config_label_rep_penalty">Repeat penalty</string>
+    <string name="ollama_config_label_top_p">Top P</string>
+    <string name="ollama_config_label_top_k">Top K</string>
+    <string name="ollama_config_label_contexto">Contexto (tokens)</string>
+    <string name="ollama_config_label_max_respuesta">Max respuesta (tokens)</string>
+    <string name="ollama_config_card_system_prompt">SYSTEM PROMPT</string>
+    <string name="ollama_config_hint_system_prompt">Rol / objetivo / tono / entregable…</string>
+    <string name="ollama_config_card_red">RED</string>
+    <string name="ollama_config_label_lan">Escuchar en LAN (red local)</string>
+    <string name="ollama_config_desc_lan">Expone la API de Ollama a otros dispositivos de tu red local (OLLAMA_HOST=0.0.0.0) en vez de solo este teléfono (127.0.0.1, default). Solo aplica la próxima vez que inicies Ollama — si ya está corriendo, reiniciá el servicio desde Módulos → Ollama para que tome el cambio.</string>
+    <string name="ollama_config_card_servidor">SERVIDOR</string>
+    <string name="ollama_config_label_keep_alive">Keep-alive (ej. 5m, -1, 0)</string>
+    <string name="ollama_config_label_num_parallel">Requests paralelos por modelo</string>
+    <string name="ollama_config_label_max_loaded">Modelos cargados a la vez</string>
+    <string name="ollama_config_desc_servidor">Vacío/0 = usar el default real del binario (keep-alive 5m, 1 request paralelo, 1 modelo cargado). Solo aplica la próxima vez que inicies Ollama.</string>
+    <string name="ollama_config_label_num_thread">Threads CPU</string>
+    <string name="ollama_config_label_num_gpu">Capas en GPU (num_gpu)</string>
+    <string name="ollama_config_desc_num_thread_gpu">0 = auto (Ollama decide). Se envían en cada mensaje del chat, igual que Temperatura/Top P — no hace falta reiniciar el servicio.</string>
+    <string name="ollama_config_btn_guardar">Guardar</string>
+    <string name="ollama_config_btn_restaurar">Restaurar defaults</string>
+    <string name="ollama_config_card_mantenimiento">MANTENIMIENTO</string>
+    <string name="ollama_config_btn_reiniciar">↻ Reiniciar servicio</string>
+    <string name="ollama_config_btn_detalle_proceso">ℹ Detalle del proceso (RAM/Uptime)</string>
+    <string name="ollama_config_btn_info_gpu">🎮 Info GPU / Vulkan</string>
+    <string name="ollama_config_btn_actualizar">🔄 Actualizar Ollama</string>
+    <string name="ollama_config_btn_desinstalar">🗑 Desinstalar</string>
+    <string name="ollama_config_toast_reiniciando">Reiniciando…</string>
+    <string name="ollama_config_toast_reiniciado_ok">Ollama reiniciado</string>
+    <string name="ollama_config_toast_reiniciado_fail">No se pudo reiniciar</string>
+    <string name="ollama_config_dialog_detalle_titulo">Detalle del proceso</string>
+    <string name="ollama_config_dialog_detalle_msg">Proceso: ollama serve\nPuerto: :11434\nVersión: %1$s\nRAM usada: —\nUptime: —</string>
+    <string name="ollama_config_btn_cerrar">Cerrar</string>
+    <string name="ollama_config_toast_actualizando">Actualizando Ollama…</string>
+    <string name="ollama_config_toast_actualizado_ok">Ollama actualizado</string>
+    <string name="ollama_config_toast_actualizado_fail">Falló — revisa ~/kairos_logs/install_ollama.log</string>
+    <string name="ollama_config_gpu_none_detected_feats">ninguna detectada</string>
+    <string name="ollama_config_gpu_body">GPU Vulkan: %1$s\nOLLAMA_VULKAN: %2$s\nFeatures CPU: %3$s</string>
+    <string name="ollama_config_gpu_no_detectado">No detectado</string>
+    <string name="ollama_config_gpu_activado">activado</string>
+    <string name="ollama_config_gpu_desactivado">desactivado</string>
+    <string name="ollama_config_dialog_gpu_titulo">GPU / Vulkan</string>
+    <string name="ollama_config_card_historial">HISTORIAL DE CHAT</string>
+    <string name="ollama_config_desc_historial">Cuántos mensajes previos se reenvían como contexto a Ollama en cada respuesta (RAM) y cuántos quedan guardados en el historial del Chat IA (disco) — se aplican en el próximo mensaje/apertura del chat.</string>
+    <string name="ollama_config_preset_2msg">2 msg</string>
+    <string name="ollama_config_preset_4msg">4 msg</string>
+    <string name="ollama_config_preset_6msg">6 msg</string>
+    <string name="ollama_config_preset_8msg">8 msg</string>
+    <string name="ollama_config_hint_personalizado_ram">Personalizado (1-20)</string>
+    <string name="ollama_config_toast_valor_invalido_ram">Valor inválido (1-20)</string>
+    <string name="ollama_config_hint_personalizado_disco">Personalizado (10-500)</string>
+    <string name="ollama_config_toast_valor_invalido_disco">Valor inválido (10-500)</string>
+    <string name="ollama_config_btn_aplicar">Aplicar</string>
+    <string name="ollama_config_toast_ram_set">RAM: %1$d mensajes de contexto</string>
+    <string name="ollama_config_toast_disco_ilimitado">Disco: sin límite</string>
+    <string name="ollama_config_toast_disco_set">Disco: %1$d mensajes</string>
+    <string name="ollama_config_label_ram_actual">Mensajes en RAM (contexto por request) — Actual: %1$d</string>
+    <string name="ollama_config_label_disco_actual">Mensajes en disco (historial persistido) — Actual: %1$s</string>
+    <string name="ollama_config_disco_ilimitado_label">∞ (sin límite)</string>
+    <string name="ollama_config_btn_ver_estadisticas">Ver estadísticas del historial</string>
+    <string name="ollama_config_btn_borrar_historial">Borrar historial de chat</string>
+    <string name="ollama_config_dialog_stats_titulo">Estadísticas del historial</string>
+    <string name="ollama_config_stats_mensajes">Mensajes: %1$d\n</string>
+    <string name="ollama_config_stats_con_imagen">Con imagen: %1$d\n</string>
+    <string name="ollama_config_stats_tamano_disco">Tamaño en disco: %1$s</string>
+    <string name="ollama_config_stats_por_modelo_header">\n\nPor modelo:\n</string>
+    <string name="ollama_config_stats_modelo_line">"  %1$s: %2$d\n"</string>
+    <string name="ollama_config_dialog_borrar_historial_titulo">Borrar historial de chat</string>
+    <string name="ollama_config_dialog_borrar_historial_msg">Se va a borrar TODO el historial persistido del Chat IA — no se puede deshacer. ¿Continuar?</string>
+    <string name="ollama_config_btn_borrar">Borrar</string>
+    <string name="ollama_config_btn_cancelar">Cancelar</string>
+    <string name="ollama_config_toast_historial_borrado">Historial borrado</string>
+    <string name="ollama_config_card_modelo_personalizado">MODELO PERSONALIZADO</string>
+    <string name="ollama_config_desc_modelo_personalizado">Genera un ~/Modelfile real (FROM + SYSTEM + PARAMETER) con la configuración guardada arriba y crea un modelo nuevo en Ollama a partir de uno de los ya descargados.</string>
+    <string name="ollama_config_btn_crear_modelo">Crear modelo personalizado</string>
+    <string name="ollama_config_toast_buscando_modelos">Buscando modelos instalados…</string>
+    <string name="ollama_config_toast_error_consultar_ollama">No se pudo consultar Ollama: %1$s</string>
+    <string name="ollama_config_esta_corriendo_fallback">¿está corriendo?</string>
+    <string name="ollama_config_toast_no_hay_modelos">No hay modelos descargados — bajá uno primero desde Módulos → Ollama → Modelos</string>
+    <string name="ollama_config_dialog_modelo_base_titulo">Modelo base para el Modelfile</string>
+    <string name="ollama_config_dialog_nombre_modelo_titulo">Nombre del modelo nuevo</string>
+    <string name="ollama_config_dialog_nombre_modelo_msg">Base: %1$s</string>
+    <string name="ollama_config_btn_crear">Crear</string>
+    <string name="ollama_config_nombre_modelo_default">mi-asistente-%1$s</string>
+    <string name="ollama_config_toast_nombre_invalido">Nombre inválido</string>
+    <string name="ollama_config_toast_creando_modelo">Creando \"%1$s\"…</string>
+    <string name="ollama_config_toast_error_leyendo_config">Error leyendo config: %1$s</string>
+    <string name="ollama_config_toast_error_escribiendo_modelfile">No se pudo escribir ~/Modelfile: %1$s</string>
+    <string name="ollama_config_codigo_salida">código de salida %1$d</string>
+    <string name="ollama_config_desconocido">desconocido</string>
+    <string name="ollama_config_toast_modelo_creado">Modelo \"%1$s\" creado — ya está disponible en Chat IA</string>
+    <string name="ollama_config_toast_error_creando_modelo">Error creando el modelo: %1$s</string>
+    <string name="ollama_config_toast_error_cargando_config">Error cargando config: %1$s</string>
+    <string name="ollama_config_toast_error_guardando_red">Error guardando red: %1$s</string>
+    <string name="ollama_config_toast_temp_invalida">Temperatura debe ser un número entre 0.0 y 2.0</string>
+    <string name="ollama_config_toast_guardado">Guardado</string>
+    <string name="ollama_config_toast_error_guardando_config">Error guardando config: %1$s</string>
+    <string name="ollama_config_toast_restaurado">Restaurado a defaults</string>
+    <string name="ollama_config_toast_error_generico">Error: %1$s</string>
+
+    <!-- OllamaFragment.kt -->
+    <string name="ollama_title">Ollama</string>
+    <string name="ollama_toast_iniciando">Iniciando Ollama…</string>
+    <string name="ollama_toast_iniciado_ok">Ollama iniciado</string>
+    <string name="ollama_toast_iniciado_fail">No se pudo iniciar</string>
+    <string name="ollama_toast_deteniendo">Deteniendo Ollama…</string>
+    <string name="ollama_toast_detenido_ok">Ollama detenido</string>
+    <string name="ollama_toast_detenido_fail">No se pudo detener</string>
+    <string name="ollama_cargando">Cargando…</string>
+    <string name="ollama_card_modelos">MODELOS</string>
+    <string name="ollama_btn_descargar_modelo">＋ Descargar modelo</string>
+    <string name="ollama_cpu_fallback_banner">⚠ Corriendo por CPU, no GPU — ver Info en ⚙</string>
+    <string name="ollama_no_responde">Ollama no responde</string>
+    <string name="ollama_model_en_memoria">%1$s en memoria</string>
+    <string name="ollama_btn_liberar">Liberar</string>
+    <string name="ollama_no_hay_modelos_descargados">No hay modelos descargados</string>
+    <string name="ollama_toast_liberando">Liberando %1$s…</string>
+    <string name="ollama_toast_liberado">%1$s liberado</string>
+    <string name="ollama_toast_error_generico">Error: %1$s</string>
+    <string name="ollama_desconocido">desconocido</string>
+
+    <!-- LlamaServerConfigFragment.kt -->
+    <string name="llamaserver_config_title">Configuración — IA Local</string>
+    <string name="llamaserver_config_card_motor">MOTOR</string>
+    <string name="llamaserver_config_desc_motor">0 = default del binario (contexto de entrenamiento / auto-detección de núcleos).</string>
+    <string name="llamaserver_config_label_contexto">Contexto (tokens)</string>
+    <string name="llamaserver_config_label_threads">Threads CPU</string>
+    <string name="llamaserver_config_label_ngl">Capas en GPU (-ngl)</string>
+    <string name="llamaserver_config_desc_gpu_vulkan">GPU Vulkan — 0 = todo en CPU, un valor alto (ej. 99) intenta cargar todo el modelo en GPU.</string>
+    <string name="llamaserver_config_card_servidor">SERVIDOR</string>
+    <string name="llamaserver_config_label_api_key">API key (opcional)</string>
+    <string name="llamaserver_config_label_parallel">Slots concurrentes (--parallel)</string>
+    <string name="llamaserver_config_label_embeddings">Modo embeddings (--embeddings)</string>
+    <string name="llamaserver_config_label_lan">Escuchar en LAN (0.0.0.0)</string>
+    <string name="llamaserver_config_desc_api_key">Sin API key, el servidor queda sin autenticar — recomendado setear una antes de habilitar LAN.</string>
+    <string name="llamaserver_config_btn_guardar_parametros">Guardar parámetros</string>
+    <string name="llamaserver_config_toast_valores_invalidos">Valores inválidos — usá números enteros ≥ 0</string>
+    <string name="llamaserver_config_toast_guardado">Guardado — se aplica la próxima vez que inicies el servicio</string>
+    <string name="llamaserver_config_card_motor_embebido">MOTOR EMBEBIDO (usado en Chat)</string>
+    <string name="llamaserver_config_detectando">Detectando…</string>
+    <string name="llamaserver_config_radio_vulkan">Vulkan si está disponible (recomendado)</string>
+    <string name="llamaserver_config_radio_cpu">Solo CPU</string>
+    <string name="llamaserver_config_card_generacion">GENERACIÓN (usado en Chat)</string>
+    <string name="llamaserver_config_temperature_format">Temperature: %1$.2f%2$s</string>
+    <string name="llamaserver_config_temperature_warn"> ⚠ alta, respuestas menos predecibles</string>
+    <string name="llamaserver_config_contexto_format">Contexto: %1$d tokens%2$s</string>
+    <string name="llamaserver_config_contexto_warn"> ⚠ por encima de lo recomendado para este dispositivo (%1$d)</string>
+    <string name="llamaserver_config_desc_top_p_fixed">top_p/top_k/repeat_penalty: fijos de fábrica</string>
+    <string name="llamaserver_config_card_mantenimiento">MANTENIMIENTO</string>
+    <string name="llamaserver_config_btn_reiniciar">↻ Reiniciar servicio</string>
+    <string name="llamaserver_config_toast_reiniciando">Reiniciando…</string>
+    <string name="llamaserver_config_toast_reiniciado_ok">llama-server reiniciado</string>
+    <string name="llamaserver_config_toast_reiniciado_fail">No se pudo reiniciar</string>
+    <string name="llamaserver_config_btn_detalle_proceso">ℹ Detalle del proceso</string>
+    <string name="llamaserver_config_dialog_detalle_titulo">Detalle del proceso</string>
+    <string name="llamaserver_config_dialog_detalle_msg">Proceso: llama-server\nPuerto: :%1$s\nModelo: %2$s\nContexto: %3$s\nCapas GPU (-ngl): %4$s</string>
+    <string name="llamaserver_config_btn_actualizar">🔄 Actualizar</string>
+    <string name="llamaserver_config_toast_actualizando">Actualizando llama-server…</string>
+    <string name="llamaserver_config_toast_actualizado_ok">llama-server actualizado</string>
+    <string name="llamaserver_config_toast_actualizado_fail">Falló — revisa ~/kairos_logs/install_llamaserver.log</string>
+    <string name="llamaserver_config_btn_desinstalar">🗑 Desinstalar</string>
+    <string name="llamaserver_config_gpu_detectada">GPU detectada: %1$s</string>
+    <string name="llamaserver_config_sin_gpu">Sin GPU compatible — CPU únicamente</string>
+    <string name="llamaserver_config_gpu_error">No se pudo detectar el motor (%1$s)</string>
+    <string name="llamaserver_config_error_desconocido">error desconocido</string>
+
+    <!-- Paridad con OllamaConfigFragment (auditoría de paridad de opciones, 2026-08-28) —
+         OLLAMA_SYSTEM_PROMPT y "context_turns" (kairos_llm_prefs) son en realidad claves
+         compartidas entre motores: ChatFragment.buildSystemMessage()/buildContextMessages() las
+         usa tanto para makeOllamaRequest() como makeLlamaServerRequest(). Antes solo eran
+         alcanzables desde OllamaConfigFragment, que bloquea toda la pantalla con
+         showNotInstalled() si Ollama no está instalado — un usuario que solo usa llama-server no
+         tenía forma real de tocarlas. -->
+    <string name="llamaserver_config_card_system_prompt">SYSTEM PROMPT (Chat — Ollama y llama.cpp)</string>
+    <string name="llamaserver_config_desc_system_prompt">Mismo prompt que usa el Chat IA sin importar qué motor esté activo (Ollama o llama-server).</string>
+    <string name="llamaserver_config_card_contexto_ram">CONTEXTO DE CHAT (RAM)</string>
+    <string name="llamaserver_config_desc_contexto_ram">Cuántos mensajes previos se reenvían como contexto en cada respuesta del Chat IA — aplica a Ollama y a llama-server por igual.</string>
+    <string name="llamaserver_config_btn_info_gpu">🎮 Info GPU / Vulkan (llama-server)</string>
+    <string name="llamaserver_config_dialog_gpu_titulo">GPU / Vulkan — llama-server</string>
+    <string name="llamaserver_config_gpu_body">GPU Vulkan: %1$s\nFeatures CPU: %2$s\n\nllama-server se compila con soporte Vulkan siempre activo — el uso real de GPU lo controla \"Capas en GPU (-ngl)\" arriba, no un toggle aparte.</string>
+
+    <!-- LlamaServerFragment.kt -->
+    <string name="llamaserver_title">IA Local (llama.cpp)</string>
+    <string name="llamaserver_card_modelo">MODELO</string>
+    <string name="llamaserver_cargando">Cargando…</string>
+    <string name="llamaserver_btn_elegir_modelo">🗂 Elegir modelo (.gguf)</string>
+    <string name="llamaserver_btn_catalogo">📥 Catálogo de modelos (GGUF)</string>
+    <string name="llamaserver_toast_elegi_modelo">Elegí un modelo primero</string>
+    <string name="llamaserver_toast_iniciando">Iniciando llama-server…</string>
+    <string name="llamaserver_toast_iniciado_ok">llama-server iniciado</string>
+    <string name="llamaserver_toast_iniciado_fail">No se pudo iniciar — revisá el modelo elegido</string>
+    <string name="llamaserver_toast_detenido_ok">llama-server detenido</string>
+    <string name="llamaserver_toast_detenido_fail">No se pudo detener</string>
+    <string name="llamaserver_status_detenido">Detenido</string>
+    <string name="llamaserver_status_activo">Activo — modelo cargado</string>
+    <string name="llamaserver_status_cargando_modelo">Cargando modelo…</string>
+    <string name="llamaserver_status_proceso_activo">Proceso activo (sin responder aún)</string>
+    <string name="llamaserver_modelo_ninguno">Ninguno — elegí uno abajo</string>
+    <string name="llamaserver_dialog_sin_modelos_titulo">Sin modelos</string>
+    <string name="llamaserver_dialog_sin_modelos_msg">No hay modelos .gguf descargados todavía — descargá uno desde Chat IA primero, después volvé acá para elegirlo.</string>
+    <string name="llamaserver_btn_cerrar">Cerrar</string>
+    <string name="llamaserver_dialog_elegir_modelo_titulo">Elegir modelo</string>
+    <string name="llamaserver_btn_cancelar">Cancelar</string>
+    <string name="llamaserver_toast_modelo_elegido">Modelo elegido: %1$s — reiniciá el servicio para aplicar</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="docker_module_name">Docker</string>
+    <string name="docker_not_working_title">⚠ Docker real no funciona en este dispositivo</string>
+    <string name="docker_not_working_body">Docker necesita permisos especiales del sistema operativo (aislar procesos y limitar recursos) que Android no le da a ninguna app sin rootear el celular. No es un problema de Kairos ni de Termux — es una restricción de seguridad de Android mismo. Rootear el dispositivo está fuera de lo que esta app busca hacer, así que este módulo no instala nada: solo te lo explica y te ofrece la alternativa real de abajo.</string>
+    <string name="docker_alternative_card_title">ALTERNATIVA REAL</string>
+    <string name="docker_alternative_body">udocker corre imágenes de contenedores (las mismas de Docker Hub: alpine, ubuntu, debian, etc.) sin necesitar root. El aislamiento es más débil que Docker real, pero funciona para correr la mayoría de imágenes — es la misma tecnología que ya usa el módulo n8n por dentro.</string>
+    <string name="docker_go_to_udocker_button">→ Ir a udocker (alternativa real)</string>
+</resources>

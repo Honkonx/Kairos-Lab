@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cards -->
+    <string name="clitool_card_estado">ESTADO</string>
+    <string name="clitool_card_usar">USAR</string>
+    <string name="clitool_card_cuenta">CUENTA</string>
+    <string name="clitool_card_prompt_directo">PROMPT DIRECTO</string>
+    <string name="clitool_card_analisis_proyecto">ANÁLISIS DE PROYECTO</string>
+    <string name="clitool_card_mantenimiento">MANTENIMIENTO</string>
+    <string name="clitool_card_extensiones">EXTENSIONES</string>
+    <string name="clitool_card_scaffolding">SCAFFOLDING</string>
+    <string name="clitool_card_mas_opciones">MÁS OPCIONES</string>
+    <string name="clitool_card_proveedor_local">PROVEEDOR IA LOCAL</string>
+    <string name="clitool_card_accion_proyecto_default">ACCIÓN EN PROYECTO</string>
+
+    <!-- Info rows -->
+    <string name="clitool_info_id">ID</string>
+    <string name="clitool_info_version">Versión</string>
+    <string name="clitool_info_comando">Comando</string>
+
+    <!-- Static buttons -->
+    <string name="clitool_btn_open_terminal">⌨ Abrir en terminal</string>
+    <string name="clitool_btn_manage_projects">🗂 Gestionar proyectos</string>
+    <string name="clitool_btn_login">🔑 Iniciar sesión</string>
+    <string name="clitool_btn_send_prompt">💬 Enviar prompt</string>
+    <string name="clitool_btn_send_prompt_model_suffix"> (con modelo opcional)</string>
+    <string name="clitool_btn_continue_session">↻ Continuar última sesión</string>
+    <string name="clitool_btn_approval_mode">⚙ Modo de aprobación</string>
+    <string name="clitool_btn_analyze_project">🔍 Analizar proyecto</string>
+    <string name="clitool_btn_use_ollama">⬡ Usar Ollama local</string>
+    <string name="clitool_btn_use_llama_server">◍ Usar llama-server local</string>
+    <string name="clitool_btn_update">🔄 Actualizar</string>
+    <string name="clitool_btn_uninstall">🗑 Desinstalar</string>
+    <string name="clitool_btn_cancel">Cancelar</string>
+    <string name="clitool_btn_send">Enviar</string>
+    <string name="clitool_btn_search">Buscar</string>
+    <string name="clitool_btn_install">Instalar</string>
+    <string name="clitool_btn_create">Crear</string>
+    <string name="clitool_btn_continue">Continuar</string>
+    <string name="clitool_btn_uninstall_confirm">Desinstalar</string>
+
+    <!-- Toasts / messages -->
+    <string name="clitool_toast_updating">Actualizando %1$s…</string>
+    <string name="clitool_toast_updated">%1$s actualizado</string>
+    <string name="clitool_toast_update_failed">Falló — revisa ~/kairos_logs/install_%1$s.log</string>
+    <string name="clitool_hint_prompt">Qué querés pedirle a %1$s</string>
+    <string name="clitool_title_direct_prompt">Prompt directo — %1$s</string>
+    <string name="clitool_toast_prompt_empty">El prompt no puede estar vacío</string>
+    <string name="clitool_toast_term_empty">Ingresá un término</string>
+    <string name="clitool_toast_source_empty">Ingresá una fuente</string>
+    <string name="clitool_hint_template">Plantilla (ej. next, express, cli)</string>
+    <string name="clitool_hint_project_name">Nombre del proyecto</string>
+    <string name="clitool_toast_complete_template_name">Completá plantilla y nombre</string>
+    <string name="clitool_title_approval_mode">Modo de aprobación — %1$s</string>
+    <string name="clitool_toast_text_empty">El texto no puede estar vacío</string>
+    <string name="clitool_title_model_optional">Modelo (opcional)</string>
+    <string name="clitool_hint_model">ej. provider/model — dejar vacío para usar el default</string>
+    <string name="clitool_toast_ollama_unavailable">Ollama no disponible — inicialo primero</string>
+    <string name="clitool_toast_error_generic">Error: %1$s</string>
+    <string name="clitool_toast_no_ollama_models">No hay modelos descargados en Ollama</string>
+    <string name="clitool_title_ollama_model">Modelo de Ollama para %1$s</string>
+    <string name="clitool_toast_no_gguf_models">No hay modelos .gguf descargados — descargá uno desde Chat IA primero</string>
+    <string name="clitool_title_llama_server_model">Modelo de llama-server para %1$s</string>
+    <string name="clitool_toast_configured">Configurado: %1$s</string>
+    <string name="clitool_toast_no_local_provider_support">Módulo sin soporte de proveedor local</string>
+    <string name="clitool_checkbox_deep_uninstall">Desinstalación profunda (borra también el paquete real, no solo el estado)</string>
+    <string name="clitool_title_confirm_uninstall">¿Desinstalar %1$s?</string>
+    <string name="clitool_msg_confirm_uninstall">Detiene el módulo si está corriendo y borra sus scripts, checkpoints y entradas del registry. No toca los paquetes compartidos (nodejs, python, proot-distro).</string>
+    <string name="clitool_toast_uninstalled">%1$s desinstalado</string>
+    <string name="clitool_toast_uninstall_failed">No se pudo desinstalar %1$s</string>
+
+    <!-- CliModuleConfig defaults + per-module overrides (resolved via @StringRes fields) -->
+    <string name="clitool_cfg_default_search_symbol_label">🔍 Buscar símbolo</string>
+    <string name="clitool_cfg_default_search_symbol_hint">Nombre de función/clase/símbolo</string>
+    <string name="clitool_cfg_default_install_ext_label">📦 Instalar extensión</string>
+    <string name="clitool_cfg_default_install_ext_hint">Fuente (path, npm, git URL)</string>
+    <string name="clitool_cfg_default_create_template_label">＋ Crear proyecto desde plantilla</string>
+
+    <string name="clitool_cfg_extra_plugins_mcp">🧩 Ver plugins/MCP</string>
+    <string name="clitool_cfg_extra_quota">📊 Ver cuota de uso</string>
+    <string name="clitool_cfg_extra_sessions">📋 Ver sesiones</string>
+    <string name="clitool_cfg_extra_connect_engram">🔌 Conectar Engram (MCP)</string>
+    <string name="clitool_cfg_extra_mcp_servers">🔌 Ver servidores MCP</string>
+    <string name="clitool_cfg_extra_usage_costs">📊 Uso y costos</string>
+    <string name="clitool_cfg_extra_account_status">👤 Estado de cuenta</string>
+    <string name="clitool_cfg_extra_active_session">👤 Ver sesión activa</string>
+    <string name="clitool_cfg_extra_view_cache">💾 Ver caché</string>
+    <string name="clitool_cfg_extra_clear_cache">🗑 Limpiar caché</string>
+    <string name="clitool_cfg_extra_installed_extensions">🗂 Ver extensiones instaladas</string>
+    <string name="clitool_cfg_extra_choose_session">↻ Elegir sesión (resume)</string>
+    <string name="clitool_cfg_extra_configure_provider">⚙ Configurar proveedor/modelo</string>
+
+    <string name="clitool_cfg_authhint_qwencode">Dentro de la sesión, usá el comando \'/auth\' para elegir tu proveedor (Alibaba ModelStudio, OpenRouter, Fireworks AI, etc.)</string>
+    <string name="clitool_cfg_authhint_pi">Pi no tiene un subcomando de login fuera de sesión — abrí la terminal y usá \'/login\' dentro de la sesión interactiva para autenticarte (OAuth o API key).</string>
+
+    <string name="clitool_cfg_search_model_dataset_label">🔍 Buscar modelo/dataset</string>
+    <string name="clitool_cfg_search_term_hint">Término de búsqueda</string>
+    <string name="clitool_cfg_search_function_class_hint">Nombre de función/clase a buscar</string>
+
+    <string name="clitool_cfg_download_by_id_label">⬇ Descargar por ID</string>
+    <string name="clitool_cfg_repo_id_hint">ID del repo (ej. org/modelo)</string>
+
+    <string name="clitool_cfg_callers_label">👥 Quién llama (callers)</string>
+    <string name="clitool_cfg_callees_label">📞 A quién llama (callees)</string>
+    <string name="clitool_cfg_impact_label">💥 Impacto de cambiarlo</string>
+
+    <string name="clitool_cfg_affected_files_label">🎯 Archivos afectados (affected)</string>
+    <string name="clitool_cfg_assisted_commit_label">📝 Commit asistido</string>
+
+    <string name="clitool_cfg_generate_image_label">🖼 Generar imagen</string>
+    <string name="clitool_cfg_generate_image_hint">Describí la imagen a generar</string>
+    <string name="clitool_cfg_synthesize_voice_label">🔊 Sintetizar voz</string>
+    <string name="clitool_cfg_synthesize_voice_hint">Texto a convertir en audio</string>
+</resources>

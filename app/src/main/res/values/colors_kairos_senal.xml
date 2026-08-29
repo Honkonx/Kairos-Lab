@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema "Señal" (2026-08-22, ver docs/humano/humano190.md) — azul-negro tipo panel de control,
+         acento cian único en vez de los 4 colores saturados default de "Oscuro". Aplicado vía
+         Theme.Kairos.Senal (themes_kairos.xml), nunca referenciado directo desde layouts. -->
+    <color name="kairos_senal_bg">#0A0E14</color>
+    <color name="kairos_senal_bg2">#10151D</color>
+    <color name="kairos_senal_bg3">#161C26</color>
+    <color name="kairos_senal_bg_elevated">#1B222E</color>
+    <color name="kairos_senal_bg_surface">#0D131A</color>
+    <color name="kairos_senal_nav_bg">#080C11</color>
+
+    <color name="kairos_senal_text">#E4EAF2</color>
+    <color name="kairos_senal_text2">#7C8B9E</color>
+    <color name="kairos_senal_text3">#4A5568</color>
+
+    <color name="kairos_senal_blue">#4FD1C5</color>
+    <color name="kairos_senal_green">#48BB78</color>
+    <color name="kairos_senal_red">#F56565</color>
+    <color name="kairos_senal_amber">#ECC94B</color>
+
+    <color name="kairos_senal_border">#1E2733</color>
+    <color name="kairos_senal_divider">#171F29</color>
+
+    <color name="kairos_senal_status_running">#48BB78</color>
+    <color name="kairos_senal_status_stopped">#4A5568</color>
+    <color name="kairos_senal_status_installing">#4FD1C5</color>
+    <color name="kairos_senal_status_error">#F56565</color>
+    <color name="kairos_senal_status_not_installed">#2A323D</color>
+</resources>

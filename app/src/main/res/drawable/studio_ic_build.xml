@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder de acción "Build" — glifo tipo engranaje/play, la lógica real de compilación la
+     conecta otro agente de esta misma ronda; esta pantalla solo deja la entrada de UI lista. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#E8EAF0">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 8 5 v 14 l 11 -7 z" />
+</vector>

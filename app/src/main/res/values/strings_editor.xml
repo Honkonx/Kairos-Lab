@@ -1,0 +1,11 @@
+<resources>
+    <string name="editor_file_not_found">Archivo no encontrado</string>
+    <string name="editor_file_too_large">Archivo demasiado grande para editar (&gt;5MB)</string>
+    <string name="editor_read_error">No se pudo leer: %1$s</string>
+    <string name="editor_unsaved_changes_title">Cambios sin guardar</string>
+    <string name="editor_unsaved_changes_message">¿Salir sin guardar los cambios?</string>
+    <string name="editor_exit_without_saving">Salir sin guardar</string>
+    <string name="editor_action_cancel">Cancelar</string>
+    <string name="editor_saved">Guardado</string>
+    <string name="editor_save_error">Error al guardar: %1$s</string>
+</resources>

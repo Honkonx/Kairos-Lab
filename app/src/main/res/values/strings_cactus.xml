@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cactus_module_name">Cactus Needle</string>
+    <string name="cactus_installed">Cactus Needle instalado</string>
+    <string name="cactus_install_failed">Falló la instalación — revisá el log en Módulos</string>
+
+    <string name="cactus_card_estado">ESTADO</string>
+    <string name="cactus_ollama_label">Ollama (:11434)</string>
+    <string name="cactus_llama_label">llama-server (:8085)</string>
+    <string name="cactus_verificando">verificando…</string>
+    <string name="cactus_active">● Activo</string>
+    <string name="cactus_inactive">○ Inactivo</string>
+
+    <string name="cactus_card_sin_ia">EJECUTAR SIN IA (needle directo)</string>
+    <string name="cactus_hint_sin_ia">Pedido — ej. \"lista los archivos de ~/proyectos\"</string>
+    <string name="cactus_btn_run_sin_ia">▶ Ejecutar sin IA</string>
+    <string name="cactus_toast_write_request">Escribí un pedido primero</string>
+
+    <string name="cactus_card_con_ia">EJECUTAR CON IA (razonador + needle)</string>
+    <string name="cactus_hint_con_ia">Pedido en lenguaje natural</string>
+    <string name="cactus_note_need_backend">Necesitás Ollama o llama-server corriendo para usar este modo.</string>
+    <string name="cactus_btn_run_con_ia">🧠 Ejecutar con IA</string>
+    <string name="cactus_toast_start_backend">Iniciá Ollama o llama-server primero</string>
+
+    <string name="cactus_progress_ai_title">cactus ai</string>
+    <string name="cactus_progress_run_title">cactus run</string>
+    <string name="cactus_progress_ejecutando">Ejecutando…</string>
+    <string name="cactus_not_installed_error">cactus no está instalado</string>
+    <string name="cactus_reinstall_hint">Reinstalá el módulo desde Módulos.</string>
+    <string name="cactus_sin_salida">Sin salida</string>
+    <string name="cactus_exit_code">código de salida %1$d</string>
+    <string name="cactus_listo">Listo</string>
+    <string name="cactus_parse_error">No se pudo interpretar la salida</string>
+
+    <string name="cactus_result_tipo">Tipo: %1$s\n</string>
+    <string name="cactus_result_confianza">Confianza: %1$s\n</string>
+    <string name="cactus_result_razonamiento">Razonamiento: %1$s\n</string>
+    <string name="cactus_sin_resultados">Sin resultados.</string>
+    <string name="cactus_result_step_err">  [err] %1$s\n</string>
+
+    <string name="cactus_card_extract">EXTRAER DATOS (extract)</string>
+    <string name="cactus_extract_desc">Pegá un documento (factura, recibo, tarjeta de presentación, notas...) — needle devuelve los campos como JSON, sin escribir un pedido.</string>
+    <string name="cactus_extract_schema_label">Esquema: %1$s (%2$s)</string>
+    <string name="cactus_extract_schema_label_default">Esquema: Factura (invoice)</string>
+    <string name="cactus_btn_choose_schema">📋 Elegir esquema (por categoría)</string>
+    <string name="cactus_hint_extract_text">Texto del documento (pegar tal cual)</string>
+    <string name="cactus_btn_extract">🔎 Extraer</string>
+    <string name="cactus_toast_paste_text">Pegá el texto a analizar primero</string>
+
+    <string name="cactus_schema_invoice">Factura</string>
+    <string name="cactus_schema_receipt">Recibo</string>
+    <string name="cactus_schema_purchase_order">Orden de compra</string>
+    <string name="cactus_schema_quote">Presupuesto</string>
+    <string name="cactus_schema_business_card">Tarjeta de presentación</string>
+    <string name="cactus_schema_contact">Contacto (firma/mensaje)</string>
+    <string name="cactus_schema_meeting_notes">Notas de reunión</string>
+    <string name="cactus_schema_event">Evento/invitación</string>
+
+    <string name="cactus_category_business_docs">Documentos comerciales</string>
+    <string name="cactus_category_identification">Identificación y contacto</string>
+    <string name="cactus_category_productivity">Productividad</string>
+
+    <string name="cactus_dialog_choose_schema_title">Elegir esquema</string>
+    <string name="cactus_cancelar">Cancelar</string>
+
+    <string name="cactus_progress_extract_title">cactus extract</string>
+    <string name="cactus_progress_extrayendo">Extrayendo…</string>
+    <string name="cactus_extract_error_default">Error desconocido</string>
+    <string name="cactus_extract_schema_result">Esquema: %1$s\n</string>
+    <string name="cactus_extract_confianza">Confianza: %1$s\n</string>
+    <string name="cactus_extract_sin_campos">\nSin campos extraídos — probá con un texto más completo.</string>
+    <string name="cactus_extract_razonamiento">\nRazonamiento: %1$s</string>
+
+    <string name="cactus_card_tareas">TAREAS</string>
+    <string name="cactus_sin_tareas">Sin tareas guardadas todavía</string>
+    <string name="cactus_btn_plantillas">☰ Plantillas</string>
+    <string name="cactus_btn_nueva_tarea">＋ Nueva tarea</string>
+
+    <string name="cactus_template_info_sistema_title">Info del sistema</string>
+    <string name="cactus_template_info_sistema_prompt">dame la información del sistema: SO, kernel, arquitectura y uptime</string>
+    <string name="cactus_template_listar_download_title">Listar Download</string>
+    <string name="cactus_template_listar_download_prompt">lista los archivos de /storage/emulated/0/Download</string>
+    <string name="cactus_template_buscar_memoria_title">Buscar en memoria</string>
+    <string name="cactus_template_buscar_memoria_prompt">busca en mi memoria guardada sobre: </string>
+    <string name="cactus_template_guardar_nota_title">Guardar nota en memoria</string>
+    <string name="cactus_template_guardar_nota_prompt">guarda en mi memoria una nota titulada \"\" con el contenido: </string>
+    <string name="cactus_template_leer_archivo_title">Leer un archivo</string>
+    <string name="cactus_template_leer_archivo_prompt">lee el archivo </string>
+    <string name="cactus_template_bash_title">Ejecutar comando bash</string>
+    <string name="cactus_template_bash_prompt">ejecuta el comando: </string>
+    <string name="cactus_template_python_title">Ejecutar código Python</string>
+    <string name="cactus_template_python_prompt">ejecuta este código python y devolveme el resultado: </string>
+    <string name="cactus_template_write_file_title">Escribir un archivo</string>
+    <string name="cactus_template_write_file_prompt">escribe un archivo en  con el contenido: </string>
+    <string name="cactus_template_diagnostico_ia_title">Diagnosticar con IA</string>
+    <string name="cactus_template_diagnostico_ia_prompt">revisá el estado del sistema y contame si hay algo raro (espacio en disco, uptime, procesos)</string>
+    <string name="cactus_template_lenguaje_natural_title">Pedido en lenguaje natural (IA)</string>
+
+    <string name="cactus_dialog_plantillas_title">Plantillas de tareas</string>
+
+    <string name="cactus_task_row_con_ia">con IA • %1$s</string>
+    <string name="cactus_task_row_sin_ia">sin IA • %1$s</string>
+
+    <string name="cactus_hint_titulo_tarea">Título de la tarea</string>
+    <string name="cactus_hint_pedido_needle">Pedido para needle</string>
+    <string name="cactus_switch_con_ia">Con IA (razonador)</string>
+    <string name="cactus_dialog_nueva_tarea_title">Nueva tarea</string>
+    <string name="cactus_btn_guardar">Guardar</string>
+    <string name="cactus_toast_faltan_datos">Faltan datos</string>
+
+    <string name="cactus_dialog_eliminar_tarea_title">Eliminar tarea</string>
+    <string name="cactus_dialog_eliminar_tarea_msg">¿Eliminar \"%1$s\"?</string>
+    <string name="cactus_btn_eliminar">Eliminar</string>
+
+    <string name="cactus_toast_task_needs_ia">Esta tarea usa IA — iniciá Ollama o llama-server primero</string>
+
+    <string name="cactus_card_tools">CATÁLOGO DE TOOLS</string>
+    <string name="cactus_tools_desc">Las funciones que needle puede ejecutar (run_bash, read_file, engram_recall, ...).</string>
+    <string name="cactus_btn_ver_catalogo">🧰 Ver catálogo</string>
+    <string name="cactus_tools_error">No se pudo leer el catálogo: %1$s</string>
+    <string name="cactus_tools_item">• %1$s — %2$s</string>
+    <string name="cactus_tools_unexpected_format">Catálogo con formato inesperado: %1$s</string>
+
+    <string name="cactus_card_server">SERVIDOR HTTP (para n8n u otros clientes)</string>
+    <string name="cactus_server_desc">Expone POST http://127.0.0.1:%1$d/run con header X-Cactus-Token — mismos 3 modos que el CLI (directo/ia/extract). Apagado por defecto.</string>
+    <string name="cactus_server_verificando">Verificando…</string>
+    <string name="cactus_btn_ver_token">🔑 Ver token de acceso</string>
+    <string name="cactus_toast_iniciando_server">Iniciando servidor HTTP…</string>
+    <string name="cactus_toast_server_iniciado">Servidor HTTP iniciado en :%1$d</string>
+    <string name="cactus_toast_server_no_inicio">No se pudo iniciar el servidor HTTP</string>
+    <string name="cactus_toast_server_detenido">Servidor HTTP detenido</string>
+    <string name="cactus_toast_server_no_detuvo">No se pudo detener el servidor HTTP</string>
+    <string name="cactus_server_status_active">● Activo — 127.0.0.1:%1$d</string>
+    <string name="cactus_server_status_stopped">○ Detenido</string>
+    <string name="cactus_token_not_generated">Todavía no se generó — iniciá el servidor HTTP primero.</string>
+    <string name="cactus_token_header_required">Header requerido en cada request:\n\nX-Cactus-Token: %1$s</string>
+    <string name="cactus_dialog_token_title">Token de acceso — cactus serve</string>
+    <string name="cactus_btn_cerrar">Cerrar</string>
+
+    <string name="cactus_card_scripts">SCRIPTS</string>
+    <string name="cactus_scripts_desc">Motor (cactus_engine.py) y tareas guardadas — para respaldar o migrar entre instalaciones.</string>
+    <string name="cactus_btn_export_scripts">⬇ Exportar scripts</string>
+    <string name="cactus_btn_import_scripts">⬆ Importar scripts</string>
+    <string name="cactus_dialog_export_title">Exportar scripts de Cactus</string>
+    <string name="cactus_dialog_export_msg">Genera un JSON con el motor cactus_engine.py y las tareas guardadas en Download/KairosCactus.</string>
+    <string name="cactus_btn_exportar">Exportar</string>
+    <string name="cactus_progress_export_title">Exportar scripts</string>
+    <string name="cactus_progress_generando">Generando archivo…</string>
+    <string name="cactus_export_success">Exportado: %1$s</string>
+    <string name="cactus_export_error_title">Error al exportar</string>
+    <string name="cactus_error_desconocido">desconocido</string>
+    <string name="cactus_dialog_import_title">Importar scripts de Cactus</string>
+    <string name="cactus_dialog_import_msg">¿Restaurar el motor y las tareas guardadas de este archivo? Puede sobreescribir los actuales.</string>
+    <string name="cactus_btn_importar">Importar</string>
+    <string name="cactus_progress_import_title">Importar scripts</string>
+    <string name="cactus_progress_leyendo">Leyendo archivo…</string>
+    <string name="cactus_error_no_open_file">No se pudo abrir el archivo elegido</string>
+    <string name="cactus_import_success">Importado (%1$d archivos)</string>
+    <string name="cactus_import_error_title">No se pudo importar</string>
+    <string name="cactus_import_invalid_file">Archivo inválido o corrupto: %1$s</string>
+    <string name="cactus_import_invalid_export">No es un export de scripts de Cactus válido</string>
+
+    <string name="cactus_btn_terminal">💻 Abrir en terminal</string>
+</resources>

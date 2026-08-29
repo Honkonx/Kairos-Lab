@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout real de IDE: DrawerLayout raíz (sidebar de explorador a la izquierda, patrón
+     confirmado en referencia/ides/android-code-studio-dev) + columna principal con
+     Toolbar → tabs de archivos abiertos → editor → barra de estado inferior.
+     Paleta "Kairos Ink" — ver values/colors.xml. -->
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="?attr/studioBg">
+
+        <!-- ?attr/studio* en vez de @color/ide_* fijo (2026-08-22, ver docs/humano/humano202.md,
+             StudioThemePrefs.kt) — solo estos 3 (fondo raíz + esta toolbar) siguen el tema
+             propio de Estudio por ahora, fase mínima del rediseño; sidebar/tabs/sintaxis del
+             editor siguen en @color/ide_* fijo (migración pendiente de una ronda futura). -->
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/studioSurface"
+            app:navigationIcon="@drawable/studio_ic_menu"
+            app:title="@string/studio_app_name"
+            app:titleTextColor="?attr/studioTextPrimary" />
+
+        <!-- Selector de proyectos abiertos (multi-proyecto, ver
+             docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §2) — solo visible cuando hay 2+
+             sesiones abiertas, poblado programáticamente en StudioFragment.updateSessionChipsUi().
+             Un chip por sesión (studio_item_project_chip.xml): tap cambia de sesión, "✕" la cierra. -->
+        <HorizontalScrollView
+            android:id="@+id/project_session_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/studioSurface"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/project_session_chips"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="4dp" />
+
+        </HorizontalScrollView>
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/file_tabs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/ide_tab_bar_bg"
+            android:visibility="gone" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/ide_divider" />
+
+        <include
+            android:id="@+id/search_bar_include"
+            layout="@layout/studio_view_search_bar" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <io.github.rosemoe.sora.widget.CodeEditor
+                android:id="@+id/code_editor"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/empty_state_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:padding="24dp"
+                android:gravity="center"
+                android:textColor="@color/ide_text_secondary"
+                android:text="@string/no_file_open" />
+
+        </FrameLayout>
+
+        <com.termux.app.ui.studio.keyboard.VirtualKeyboardBar
+            android:id="@+id/virtual_keyboard_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/ide_divider" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="28dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@color/ide_status_bar_bg"
+            android:paddingHorizontal="10dp">
+
+            <TextView
+                android:id="@+id/status_file_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:textSize="11sp"
+                android:textColor="@color/ide_text_secondary"
+                android:text="@string/no_file_open" />
+
+            <TextView
+                android:id="@+id/status_cursor_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="14dp"
+                android:textSize="11sp"
+                android:textColor="@color/ide_text_secondary"
+                android:text="@string/status_cursor_placeholder" />
+
+            <TextView
+                android:id="@+id/status_encoding_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="@color/ide_text_secondary"
+                android:text="@string/status_encoding" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <include
+        android:id="@+id/sidebar_include"
+        layout="@layout/studio_layout_sidebar" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

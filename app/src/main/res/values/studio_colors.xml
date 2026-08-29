@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta "Kairos Ink" — oscura, propia (no es el Material Design genérico ni un calco de
+         VS Code Dark+). Base azul-tinta muy oscura (no negro puro) con acento verde-agua, que
+         retoma el acento @color/ide_accent que ya existía en la ronda anterior de esta pantalla
+         y lo extiende a un sistema completo de superficies/estado/lenguaje. Ver reporte de la
+         ronda para el detalle de qué referencias (android-code-studio-dev, VS Code Dark+/Dark
+         Modern) se usaron como inspiración de estructura, no de color literal. -->
+
+    <!-- Superficies -->
+    <color name="ide_background">#12151C</color>
+    <color name="ide_surface">#1B1F2A</color>
+    <color name="ide_sidebar_bg">#161A23</color>
+    <color name="ide_sidebar_header_bg">#1E2330</color>
+    <color name="ide_status_bar_bg">#0D1016</color>
+    <color name="ide_tab_bar_bg">#161A23</color>
+    <color name="ide_tab_active_bg">#12151C</color>
+    <color name="ide_tab_inactive_bg">#1B1F2A</color>
+    <color name="ide_divider">#262B38</color>
+    <color name="ide_ripple">#2A3040</color>
+
+    <!-- Acento y estado -->
+    <color name="ide_accent">#5CE0C6</color>
+    <color name="ide_accent_dim">#3AA894</color>
+    <color name="ide_warning">#F5C463</color>
+    <color name="ide_error">#F0665E</color>
+    <color name="ide_dirty_dot">#F5C463</color>
+
+    <!-- Texto -->
+    <color name="ide_text_primary">#E8EAF0</color>
+    <color name="ide_text_secondary">#9AA3B5</color>
+    <color name="ide_text_disabled">#5A6273</color>
+
+    <!-- Iconografía por tipo de archivo — colores distintos por categoría de lenguaje, mismo
+         set de formas (ic_file_code / ic_file_config / ic_file_markup / ic_file_doc /
+         ic_file_image / ic_file_generic) tintadas según extensión, ver FileIconProvider.kt -->
+    <color name="ide_lang_kotlin">#B39BFF</color>
+    <color name="ide_lang_java">#F2A65A</color>
+    <color name="ide_lang_xml">#5CA9E0</color>
+    <color name="ide_lang_json">#F5D76E</color>
+    <color name="ide_lang_markdown">#9AA3B5</color>
+    <color name="ide_lang_python">#7FCB8F</color>
+    <color name="ide_lang_web">#F0D75A</color>
+    <color name="ide_lang_gradle">#7FCB9F</color>
+    <color name="ide_lang_shell">#6FD3C7</color>
+    <color name="ide_lang_image">#D48CE0</color>
+    <color name="ide_lang_default">#8D96A8</color>
+    <color name="ide_folder">#7FA8E0</color>
+
+    <!-- Resaltado de sintaxis (TextMate, ver editor/SyntaxHighlighter.kt +
+         assets/textmate/theme/kairos-ink.json) — tokens por ROL sintáctico (keyword, string,
+         comment, ...), distintos de los `ide_lang_*` de arriba que son por CATEGORÍA de archivo
+         completo (para íconos del árbol). Reutilizan los mismos matices de la paleta Kairos Ink
+         donde tiene sentido (ej. keyword comparte violeta con el ícono de Kotlin) para que el
+         editor se sienta parte del mismo sistema, no un theme genérico importado. -->
+    <color name="ide_syntax_keyword">#B39BFF</color>
+    <color name="ide_syntax_string">#7FCB8F</color>
+    <color name="ide_syntax_comment">#5A6273</color>
+    <color name="ide_syntax_number">#F5D76E</color>
+    <color name="ide_syntax_function">#5CE0C6</color>
+    <color name="ide_syntax_type">#5CA9E0</color>
+    <color name="ide_syntax_variable">#E8EAF0</color>
+    <color name="ide_syntax_constant">#F2A65A</color>
+    <color name="ide_syntax_operator">#9AA3B5</color>
+    <color name="ide_syntax_tag">#6FD3C7</color>
+    <color name="ide_syntax_attribute">#F5C463</color>
+    <color name="ide_syntax_punctuation">#8D96A8</color>
+
+    <!-- Variante "Claro" del tema de Estudio (2026-08-22, ver docs/humano/humano202.md) — solo cubre
+         los 3 ?attr/studio* de attrs.xml (fondo raíz, superficie de la toolbar, texto primario)
+         por ahora, no todo "Kairos Ink" (sidebar/tabs/sintaxis siguen fijos en @color/ide_* de
+         arriba, fase mínima). Contraste verificado a ojo contra ide_accent (#5CE0C6, se mantiene
+         igual en ambas variantes, ya tiene suficiente contraste sobre fondo claro u oscuro). -->
+    <color name="ide_claro_background">#F4F5F8</color>
+    <color name="ide_claro_surface">#FFFFFF</color>
+    <color name="ide_claro_text_primary">#1B1F2A</color>
+</resources>

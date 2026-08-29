@@ -1,0 +1,110 @@
+image: eclipse-temurin:17-jdk
+
+variables:
+  TERMUX_PACKAGE_VARIANT: apt-android-7
+  TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS: "0"
+  GRADLE_OPTS: -Dorg.gradle.daemon=false
+  ANDROID_HOME: /opt/android-sdk
+  ANDROID_SDK_ROOT: /opt/android-sdk
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .gradle/wrapper
+    - .gradle/caches
+
+stages:
+  - build
+
+build-apk:
+  stage: build
+  # Antes: "only: - main" — no podía dispararse en ninguna otra rama (bloqueaba
+  # justo la rama de trabajo activa, llama-server-and-terminal-ux). Se saca la
+  # restricción: "when: manual" ya evita que corra solo en cada push, que es lo
+  # que en la práctica cuidaba los minutos.
+  when: manual
+  interruptible: true
+  before_script:
+    - chmod +x gradlew
+    # Bug real (2026-08-06, ver docs/humano/humano79.md): "eclipse-temurin:17-jdk" es una imagen
+    # solo-JDK, sin toolchain de C/C++ — cmake encontraba /usr/bin/cc (paquete "cmake" trae algo
+    # de C mínimo) pero fallaba con "No CMAKE_CXX_COMPILER could be found" al configurar
+    # SPIRV-Headers (su CMakeLists.txt pide C++ por defecto vía project()). g++ hace falta
+    # explícito — el runner de GitHub Actions (ubuntu-latest) lo trae preinstalado, por eso
+    # build-app.yml nunca necesitó pedirlo a mano.
+    - apt-get update -qq && apt-get install -y -qq wget unzip git cmake g++ > /dev/null
+    - mkdir -p $ANDROID_HOME/cmdline-tools
+    - wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline-tools.zip
+    - unzip -q /tmp/cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
+    - mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+    - $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --list 2>&1 | head -5
+    - printf 'y\ny\ny\ny\n' | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platforms;android-36" 2>&1
+    - rm /tmp/cmdline-tools.zip
+    - ls $ANDROID_HOME/platforms/ 2>&1
+    # Prerequisitos de llama-engine (llama.cpp + Vulkan, ver
+    # docs/ia-local/LLAMA_CPP_EMBEBIDO.md) — mismos 3 pasos que ya tiene
+    # .github/workflows/build-app.yml, portados acá porque este pipeline se había
+    # quedado desactualizado de antes de que existiera el módulo llama-engine.
+    # NDK 27.2.12479018 aparte del NDK 29.x del resto del proyecto (terminal-emulator)
+    # — es la versión con la que este setup de Vulkan está probado.
+    - printf 'y\n' | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "ndk;27.2.12479018" 2>&1
+    # Bug real (2026-08-06, ver docs/humano/humano80.md): "cmake;3.22.1" (el componente del SDK
+    # que trae el ninja que llama-engine/build.gradle usa para el toolchain de host de
+    # vulkan-shaders-gen, ver generateVulkanHostToolchain) se instala recién DENTRO del build de
+    # Gradle, lazy, la primera vez que un configureCMake* lo necesita — pero
+    # generateVulkanHostToolchain corre ANTES de eso en el grafo de tareas, así que en un SDK
+    # armado desde cero (como este pipeline) su chequeo sdkNinja.exists() da false, el toolchain
+    # generado queda sin CMAKE_MAKE_PROGRAM, y el configure de vulkan-shaders-gen falla con
+    # "CMake was unable to find a build program corresponding to Ninja". En GitHub Actions
+    # (ubuntu-latest) esto nunca pasó porque ese runner trae un Android SDK pre-instalado con
+    # varias versiones de cmake (incluida 3.22.1) ya en disco de fábrica — acá no hay nada
+    # pre-instalado, se arma todo desde cero en este mismo job. Se instala a mano, ANTES de
+    # invocar gradlew, para que ya esté en disco cuando generateVulkanHostToolchain corra.
+    - printf 'y\n' | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "cmake;3.22.1" 2>&1
+    - ls $ANDROID_HOME/cmake/3.22.1/bin/ninja 2>&1
+    - |
+      cd "$CI_PROJECT_DIR/.."
+      git clone --depth 1 https://github.com/KhronosGroup/Vulkan-Headers.git
+      git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git
+      cmake -S SPIRV-Headers -B SPIRV-Headers/build -DCMAKE_INSTALL_PREFIX=SPIRV-Headers/install
+      cmake --install SPIRV-Headers/build
+      cd "$CI_PROJECT_DIR"
+    # cloudflared nativo embebido (bug #2, DNS) — mismo paso que
+    # .github/workflows/build-app.yml, portado acá por el mismo motivo que el bloque de
+    # Vulkan de arriba (este pipeline se actualiza en paralelo al de GitHub). Ver
+    # docs/adb/AUDITORIA_ADB_DISPOSITIVO_REAL_2026-08-21.md Ronda 6 para la causa
+    # raíz completa (resolver DNS puro de Go sin soporte cgo en el binario oficial).
+    - |
+      if ! command -v go >/dev/null 2>&1 || [ "$(go version | grep -oE 'go[0-9]+\.[0-9]+' | tr -d go)" \< "1.26" ]; then
+        curl -fsSL https://go.dev/dl/go1.26.0.linux-amd64.tar.gz -o /tmp/go.tar.gz
+        rm -rf /tmp/go1.26 && mkdir -p /tmp/go1.26
+        tar -C /tmp/go1.26 -xzf /tmp/go.tar.gz --strip-components=1
+        export PATH="/tmp/go1.26/bin:$PATH"
+      fi
+      go version
+      NDK_CLANG="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang"
+      [ -x "$NDK_CLANG" ] || { echo "NDK clang no encontrado en $NDK_CLANG"; exit 1; }
+      git clone --depth 1 --branch 2026.8.2 https://github.com/cloudflare/cloudflared.git "$CI_PROJECT_DIR/../cloudflared-src"
+      cd "$CI_PROJECT_DIR/../cloudflared-src"
+      mkdir -p "$CI_PROJECT_DIR/app/src/main/jniLibs/arm64-v8a"
+      GOOS=android GOARCH=arm64 CGO_ENABLED=1 CC="$NDK_CLANG" \
+        go build -trimpath -ldflags "-s -w" \
+        -o "$CI_PROJECT_DIR/app/src/main/jniLibs/arm64-v8a/libcloudflared.so" \
+        ./cmd/cloudflared
+      chmod +x "$CI_PROJECT_DIR/app/src/main/jniLibs/arm64-v8a/libcloudflared.so"
+      file "$CI_PROJECT_DIR/app/src/main/jniLibs/arm64-v8a/libcloudflared.so"
+      cd "$CI_PROJECT_DIR"
+  script:
+    - ./gradlew downloadBootstraps assembleDebug --no-daemon
+  artifacts:
+    name: "Kairos-${CI_COMMIT_SHORT_SHA}"
+    paths:
+      - app/build/outputs/apk/debug/*.apk
+    expire_in: 30 days
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - .gradle/wrapper
+      - .gradle/caches
+      - $ANDROID_HOME
+    policy: pull-push

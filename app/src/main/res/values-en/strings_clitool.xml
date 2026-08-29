@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Cards -->
+    <string name="clitool_card_estado">STATUS</string>
+    <string name="clitool_card_usar">USE</string>
+    <string name="clitool_card_cuenta">ACCOUNT</string>
+    <string name="clitool_card_prompt_directo">DIRECT PROMPT</string>
+    <string name="clitool_card_analisis_proyecto">PROJECT ANALYSIS</string>
+    <string name="clitool_card_mantenimiento">MAINTENANCE</string>
+    <string name="clitool_card_extensiones">EXTENSIONS</string>
+    <string name="clitool_card_scaffolding">SCAFFOLDING</string>
+    <string name="clitool_card_mas_opciones">MORE OPTIONS</string>
+    <string name="clitool_card_proveedor_local">LOCAL AI PROVIDER</string>
+    <string name="clitool_card_accion_proyecto_default">PROJECT ACTION</string>
+
+    <!-- Info rows -->
+    <string name="clitool_info_id">ID</string>
+    <string name="clitool_info_version">Version</string>
+    <string name="clitool_info_comando">Command</string>
+
+    <!-- Static buttons -->
+    <string name="clitool_btn_open_terminal">⌨ Open in terminal</string>
+    <string name="clitool_btn_manage_projects">🗂 Manage projects</string>
+    <string name="clitool_btn_login">🔑 Log in</string>
+    <string name="clitool_btn_send_prompt">💬 Send prompt</string>
+    <string name="clitool_btn_send_prompt_model_suffix"> (with optional model)</string>
+    <string name="clitool_btn_continue_session">↻ Continue last session</string>
+    <string name="clitool_btn_approval_mode">⚙ Approval mode</string>
+    <string name="clitool_btn_analyze_project">🔍 Analyze project</string>
+    <string name="clitool_btn_use_ollama">⬡ Use local Ollama</string>
+    <string name="clitool_btn_use_llama_server">◍ Use local llama-server</string>
+    <string name="clitool_btn_update">🔄 Update</string>
+    <string name="clitool_btn_uninstall">🗑 Uninstall</string>
+    <string name="clitool_btn_cancel">Cancel</string>
+    <string name="clitool_btn_send">Send</string>
+    <string name="clitool_btn_search">Search</string>
+    <string name="clitool_btn_install">Install</string>
+    <string name="clitool_btn_create">Create</string>
+    <string name="clitool_btn_continue">Continue</string>
+    <string name="clitool_btn_uninstall_confirm">Uninstall</string>
+
+    <!-- Toasts / messages -->
+    <string name="clitool_toast_updating">Updating %1$s…</string>
+    <string name="clitool_toast_updated">%1$s updated</string>
+    <string name="clitool_toast_update_failed">Failed — check ~/kairos_logs/install_%1$s.log</string>
+    <string name="clitool_hint_prompt">What do you want to ask %1$s</string>
+    <string name="clitool_title_direct_prompt">Direct prompt — %1$s</string>
+    <string name="clitool_toast_prompt_empty">The prompt cannot be empty</string>
+    <string name="clitool_toast_term_empty">Enter a term</string>
+    <string name="clitool_toast_source_empty">Enter a source</string>
+    <string name="clitool_hint_template">Template (e.g. next, express, cli)</string>
+    <string name="clitool_hint_project_name">Project name</string>
+    <string name="clitool_toast_complete_template_name">Fill in the template and name</string>
+    <string name="clitool_title_approval_mode">Approval mode — %1$s</string>
+    <string name="clitool_toast_text_empty">The text cannot be empty</string>
+    <string name="clitool_title_model_optional">Model (optional)</string>
+    <string name="clitool_hint_model">e.g. provider/model — leave empty to use the default</string>
+    <string name="clitool_toast_ollama_unavailable">Ollama not available — start it first</string>
+    <string name="clitool_toast_error_generic">Error: %1$s</string>
+    <string name="clitool_toast_no_ollama_models">No models downloaded in Ollama</string>
+    <string name="clitool_title_ollama_model">Ollama model for %1$s</string>
+    <string name="clitool_toast_no_gguf_models">No .gguf models downloaded — download one from AI Chat first</string>
+    <string name="clitool_title_llama_server_model">llama-server model for %1$s</string>
+    <string name="clitool_toast_configured">Configured: %1$s</string>
+    <string name="clitool_toast_no_local_provider_support">Module without local provider support</string>
+    <string name="clitool_checkbox_deep_uninstall">Deep uninstall (also removes the real package, not just the state)</string>
+    <string name="clitool_title_confirm_uninstall">Uninstall %1$s?</string>
+    <string name="clitool_msg_confirm_uninstall">Stops the module if it is running and deletes its scripts, checkpoints, and registry entries. Does not touch shared packages (nodejs, python, proot-distro).</string>
+    <string name="clitool_toast_uninstalled">%1$s uninstalled</string>
+    <string name="clitool_toast_uninstall_failed">Could not uninstall %1$s</string>
+
+    <!-- CliModuleConfig defaults + per-module overrides (resolved via @StringRes fields) -->
+    <string name="clitool_cfg_default_search_symbol_label">🔍 Search symbol</string>
+    <string name="clitool_cfg_default_search_symbol_hint">Function/class/symbol name</string>
+    <string name="clitool_cfg_default_install_ext_label">📦 Install extension</string>
+    <string name="clitool_cfg_default_install_ext_hint">Source (path, npm, git URL)</string>
+    <string name="clitool_cfg_default_create_template_label">＋ Create project from template</string>
+
+    <string name="clitool_cfg_extra_plugins_mcp">🧩 View plugins/MCP</string>
+    <string name="clitool_cfg_extra_quota">📊 View usage quota</string>
+    <string name="clitool_cfg_extra_sessions">📋 View sessions</string>
+    <string name="clitool_cfg_extra_connect_engram">🔌 Connect Engram (MCP)</string>
+    <string name="clitool_cfg_extra_mcp_servers">🔌 View MCP servers</string>
+    <string name="clitool_cfg_extra_usage_costs">📊 Usage and costs</string>
+    <string name="clitool_cfg_extra_account_status">👤 Account status</string>
+    <string name="clitool_cfg_extra_active_session">👤 View active session</string>
+    <string name="clitool_cfg_extra_view_cache">💾 View cache</string>
+    <string name="clitool_cfg_extra_clear_cache">🗑 Clear cache</string>
+    <string name="clitool_cfg_extra_installed_extensions">🗂 View installed extensions</string>
+    <string name="clitool_cfg_extra_choose_session">↻ Choose session (resume)</string>
+    <string name="clitool_cfg_extra_configure_provider">⚙ Configure provider/model</string>
+
+    <string name="clitool_cfg_authhint_qwencode">Inside the session, use the \'/auth\' command to choose your provider (Alibaba ModelStudio, OpenRouter, Fireworks AI, etc.)</string>
+    <string name="clitool_cfg_authhint_pi">Pi has no login subcommand outside a session — open the terminal and use \'/login\' inside the interactive session to authenticate (OAuth or API key).</string>
+
+    <string name="clitool_cfg_search_model_dataset_label">🔍 Search model/dataset</string>
+    <string name="clitool_cfg_search_term_hint">Search term</string>
+    <string name="clitool_cfg_search_function_class_hint">Function/class name to search</string>
+
+    <string name="clitool_cfg_download_by_id_label">⬇ Download by ID</string>
+    <string name="clitool_cfg_repo_id_hint">Repo ID (e.g. org/model)</string>
+
+    <string name="clitool_cfg_callers_label">👥 Who calls it (callers)</string>
+    <string name="clitool_cfg_callees_label">📞 What it calls (callees)</string>
+    <string name="clitool_cfg_impact_label">💥 Impact of changing it</string>
+
+    <string name="clitool_cfg_affected_files_label">🎯 Affected files (affected)</string>
+    <string name="clitool_cfg_assisted_commit_label">📝 Assisted commit</string>
+
+    <string name="clitool_cfg_generate_image_label">🖼 Generate image</string>
+    <string name="clitool_cfg_generate_image_hint">Describe the image to generate</string>
+    <string name="clitool_cfg_synthesize_voice_label">🔊 Synthesize voice</string>
+    <string name="clitool_cfg_synthesize_voice_hint">Text to convert to audio</string>
+</resources>

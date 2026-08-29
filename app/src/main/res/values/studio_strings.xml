@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Kairos IDE</string>
+    <string name="studio_app_name">Estudio</string>
+
+    <string name="action_open_folder">Abrir carpeta</string>
+    <string name="action_open_file">Abrir archivo</string>
+    <string name="action_save_file">Guardar archivo</string>
+    <string name="action_ai_settings">Proveedor de IA</string>
+    <string name="action_command_palette">Paleta de comandos</string>
+    <string name="command_palette_hint">Buscar un comando…</string>
+    <string name="command_palette_empty">Sin comandos que coincidan.</string>
+    <string name="action_ask_ai">Preguntar a la IA sobre este código</string>
+    <string name="action_terminal">Terminal</string>
+    <string name="action_close_tab">Cerrar pestaña</string>
+    <string name="action_recent_projects">Proyectos recientes</string>
+    <string name="action_new_project">Nuevo proyecto</string>
+    <string name="no_file_open">Ningún archivo abierto. Usá el menú para abrir una carpeta o un archivo.</string>
+
+    <string name="recent_projects_title">Proyectos recientes</string>
+    <string name="recent_projects_empty">Todavía no abriste ningún proyecto.</string>
+    <string name="recent_projects_open_error">No se pudo reabrir el proyecto (el permiso pudo haberse revocado): %1$s</string>
+
+    <string name="new_project_title">Nuevo proyecto</string>
+    <string name="new_project_empty_folder">Carpeta vacía o existente</string>
+    <string name="new_project_android_template">Proyecto Android vacío (plantilla mínima)</string>
+    <string name="new_project_template_created">Plantilla mínima creada en la carpeta elegida</string>
+    <string name="new_project_template_error">No se pudo generar la plantilla: %1$s</string>
+
+    <string name="sidebar_title">Explorador</string>
+    <string name="sidebar_no_project">Ninguna carpeta abierta</string>
+    <string name="sidebar_open_folder_hint">Abrí una carpeta desde el menú (⋮ → Abrir carpeta) para ver el árbol de archivos acá.</string>
+    <string name="sidebar_filter_hint">Filtrar por nombre…</string>
+
+    <string name="filetree_context_menu">Menú de archivo</string>
+    <string name="filetree_new_file">Nuevo archivo</string>
+    <string name="filetree_new_folder">Nueva carpeta</string>
+    <string name="filetree_rename">Renombrar</string>
+    <string name="filetree_delete">Eliminar</string>
+    <string name="filetree_copy_path">Copiar ruta</string>
+
+    <string name="filetree_new_file_title">Nuevo archivo</string>
+    <string name="filetree_new_folder_title">Nueva carpeta</string>
+    <string name="filetree_name_hint">Nombre</string>
+    <string name="filetree_rename_title">Renombrar</string>
+    <string name="filetree_delete_title">Eliminar %1$s</string>
+    <string name="filetree_delete_message">¿Eliminar \"%1$s\"? Esta acción no se puede deshacer.</string>
+    <string name="filetree_create_ok">Crear</string>
+    <string name="filetree_rename_ok">Renombrar</string>
+    <string name="filetree_delete_ok">Eliminar</string>
+    <string name="filetree_cancel">Cancelar</string>
+    <string name="filetree_path_copied">Ruta copiada al portapapeles</string>
+    <string name="filetree_error_create">No se pudo crear: %1$s</string>
+    <string name="filetree_error_rename">No se pudo renombrar: %1$s</string>
+    <string name="filetree_error_delete">No se pudo eliminar: %1$s</string>
+    <string name="filetree_error_no_project">Abrí una carpeta primero</string>
+
+    <string name="status_cursor_placeholder">1:1</string>
+    <string name="status_encoding">UTF-8</string>
+
+    <string name="terminal_title">Terminal (vía Kairos)</string>
+    <string name="terminal_command_hint">Comando…</string>
+    <string name="terminal_run">Ejecutar</string>
+    <string name="terminal_grant_permission">Conceder permiso</string>
+    <string name="terminal_exit_code">(código de salida: %1$d)</string>
+    <string name="terminal_kairos_not_installed">Kairos no está instalado en este dispositivo. La terminal del IDE ejecuta comandos a través de Kairos (mecanismo RUN_COMMAND de Termux) — instalá Kairos para poder usarla.</string>
+    <string name="terminal_permission_not_granted">Falta conceder el permiso "Ejecutar comandos" (com.termux.permission.RUN_COMMAND) para que el IDE pueda mandar comandos a Kairos.</string>
+
+    <string name="action_editor_settings">Configuración del editor</string>
+    <string name="action_studio_theme">🎨 Tema de Estudio</string>
+    <string name="editor_settings_title">Configuración del editor</string>
+    <string name="editor_font_size_label">Tamaño de fuente</string>
+    <string name="editor_tab_size_label">Tamaño de tabulación (espacios)</string>
+    <string name="editor_word_wrap_label">Ajuste de línea (word wrap)</string>
+    <string name="editor_line_numbers_label">Mostrar números de línea</string>
+    <string name="editor_highlight_current_line_label">Resaltar línea actual</string>
+    <string name="editor_theme_label">Tema de color</string>
+    <string name="editor_theme_kairos_ink">Kairos Ink (oscuro)</string>
+    <string name="editor_theme_kairos_paper">Kairos Paper (claro)</string>
+    <string name="editor_theme_kairos_contrast">Kairos Contraste (alto contraste)</string>
+
+    <string name="ai_provider_settings_title">Proveedor de IA</string>
+    <string name="ai_provider_label">Proveedor</string>
+    <string name="ai_api_key_label">API key propia (BYO)</string>
+    <string name="ai_api_key_hint">Pegá tu API key aquí</string>
+    <string name="ai_save">Guardar</string>
+    <string name="ai_saved_confirmation">Configuración guardada</string>
+
+    <string name="ai_provider_gemini">Google Gemini</string>
+    <string name="ai_provider_deepseek">DeepSeek</string>
+    <string name="ai_provider_openai">OpenAI</string>
+    <string name="ai_provider_anthropic">Anthropic (Claude)</string>
+    <string name="ai_provider_grok">Grok (xAI)</string>
+    <string name="ai_provider_local">Ollama / llama.cpp local</string>
+
+    <string name="ai_local_warning">Necesitás tener Ollama o llama-server corriendo en este dispositivo antes de usar esta opción — configuralo desde Kairos si todavía no lo hiciste.\n\nPuertos esperados: Ollama en 127.0.0.1:11434, llama-server en 127.0.0.1:8085 (mismos puertos que usa Kairos).</string>
+
+    <string name="ai_ask_title">Preguntar a la IA</string>
+    <string name="ai_ask_hint">¿Qué querés saber sobre este código?</string>
+    <string name="ai_ask_send">Preguntar</string>
+    <string name="ai_no_code">Abrí un archivo primero — no hay código para mandarle a la IA.</string>
+    <string name="ai_asking">Preguntando a la IA…</string>
+    <string name="ai_result_title">Respuesta de la IA</string>
+    <string name="ai_error_title">Error al preguntar</string>
+
+    <string name="action_search_in_file">Buscar en archivo</string>
+    <string name="action_search_in_project">Buscar en proyecto</string>
+    <string name="search_query_hint">Buscar…</string>
+    <string name="search_replacement_hint">Reemplazar por…</string>
+    <string name="search_replace">Reemplazar</string>
+    <string name="search_replace_all">Reemplazar todo</string>
+    <string name="search_previous">Coincidencia anterior</string>
+    <string name="search_next">Coincidencia siguiente</string>
+    <string name="search_toggle_replace">Mostrar/ocultar reemplazo</string>
+    <string name="search_close">Cerrar búsqueda</string>
+    <string name="search_no_matches">0/0</string>
+    <string name="search_match_counter_format">%1$d/%2$d</string>
+    <string name="search_no_query_toast">Escribí algo para buscar primero.</string>
+    <string name="search_replaced_all_toast">Reemplazos hechos: %1$d</string>
+
+    <string name="project_search_title">Buscar en proyecto</string>
+    <string name="project_search_hint">Buscar en todos los archivos del proyecto…</string>
+    <string name="project_search_run">Buscar</string>
+    <string name="project_search_no_project">Abrí una carpeta de proyecto primero (menú ⋮ → Abrir carpeta).</string>
+    <string name="project_search_searching">Buscando…</string>
+    <string name="project_search_no_results">Sin resultados.</string>
+    <string name="project_search_results_count">%1$d resultado(s) en %2$d archivo(s)</string>
+
+    <string name="action_build_apk">🔨 Build APK</string>
+    <string name="build_log_title">Log de compilación</string>
+    <string name="build_log_waiting">Esperando output de Termux…\n\nEsto corre `./gradlew assembleDebug` dentro de Kairos/Termux, no dentro de Kairos IDE — necesitás tener Kairos instalado con Java (openjdk-17) y Gradle disponibles ahí (`pkg install openjdk-17`). Kairos IDE no trae su propio JDK.</string>
+    <string name="build_error_no_kairos">No se encontró Kairos instalado en este dispositivo. La compilación real de APKs corre dentro de Kairos/Termux (Java + Gradle) — instalá Kairos primero.</string>
+    <string name="build_error_no_project">Abrí una carpeta de proyecto primero (necesita ser una ruta real en almacenamiento compartido, no solo un permiso SAF — ver "Abrir carpeta").</string>
+    <string name="build_error_no_real_path">No se pudo resolver una ruta real de archivo para esta carpeta. La compilación necesita que el proyecto esté en almacenamiento compartido (ej. /storage/emulated/0/…), porque Termux corre en otro proceso y no puede leer carpetas SAF de otra app.</string>
+    <string name="build_diagnostic_file_not_found">No se pudo ubicar %1$s dentro del proyecto abierto para saltar a la línea del error.</string>
+    <string name="build_status_running_elapsed">Compilando en Termux (Kairos)… %1$s</string>
+    <string name="build_status_done_elapsed">%1$s — tiempo total: %2$s</string>
+    <string name="build_conflict_title">Ya hay un build corriendo</string>
+    <string name="build_conflict_message">Hay una compilación en curso. ¿Detenerla y correr una nueva? El build anterior sigue corriendo del lado de Termux/Kairos — el IDE solo deja de esperar su resultado.</string>
+    <string name="build_conflict_dont_ask_again">No preguntar de nuevo esta sesión</string>
+    <string name="build_conflict_confirm">Sí, correr de nuevo</string>
+    <string name="build_conflict_cancel">No</string>
+
+    <string name="action_git">Git</string>
+    <string name="git_panel_title">Git (vía Kairos)</string>
+    <string name="git_branch_placeholder">Rama: —</string>
+    <string name="git_branch_label">Rama: %1$s</string>
+    <string name="git_changes_title">Cambios</string>
+    <string name="git_log_title">Últimos commits</string>
+    <string name="git_loading">Cargando…</string>
+    <string name="git_no_changes">Sin cambios pendientes — working tree limpio.</string>
+    <string name="git_no_commits">Sin commits todavía.</string>
+    <string name="git_commit_hint">Mensaje del commit…</string>
+    <string name="git_commit_button">Commit</string>
+    <string name="git_push_button">Push</string>
+    <string name="git_pull_button">Pull</string>
+    <string name="git_commit_empty_message">Escribí un mensaje de commit primero.</string>
+    <string name="git_commit_no_changes">No hay cambios para commitear.</string>
+    <string name="git_push_confirm_title">¿Hacer push?</string>
+    <string name="git_push_confirm_message">Esto sube los commits locales al remoto configurado. Puede pedir credenciales que Kairos/Termux no tenga guardadas — si git.push falla por autenticación, hace falta configurar SSH/credential helper dentro de Kairos primero.</string>
+    <string name="git_pull_confirm_title">¿Hacer pull?</string>
+    <string name="git_pull_confirm_message">Esto trae y fusiona cambios del remoto configurado sobre el working tree actual.</string>
+    <string name="git_confirm_yes">Confirmar</string>
+    <string name="git_confirm_cancel">Cancelar</string>
+    <string name="git_error_no_project">Abrí una carpeta de proyecto primero (necesita ser una ruta real en almacenamiento compartido, no solo un permiso SAF — ver "Abrir carpeta").</string>
+    <string name="git_operation_running">Ejecutando…</string>
+
+    <string name="tabs_unsaved_changes_title">Cambios sin guardar</string>
+    <string name="tabs_unsaved_changes_message">Hay cambios sin guardar en \"%1$s\". ¿Cerrar de todas formas?</string>
+    <string name="tabs_save_and_close">Guardar y cerrar</string>
+    <string name="tabs_discard_and_close">Cerrar sin guardar</string>
+    <string name="tabs_cancel_close">Cancelar</string>
+
+    <string name="vk_label_ctrl">Ctrl</string>
+    <string name="vk_label_alt">Alt</string>
+    <string name="vk_label_shift">Shift</string>
+    <string name="vk_label_tab">Tab</string>
+    <string name="vk_label_esc">Esc</string>
+
+    <!-- Menú contextual LSP (long-press en el editor) — ver com.termux.app.ui.studio.lsp.StudioLspController
+         y docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §LSP. -->
+    <string name="lsp_menu_goto_definition">Ir a definición</string>
+    <string name="lsp_menu_hover">Info (hover)</string>
+    <string name="lsp_menu_rename">Renombrar símbolo</string>
+    <string name="lsp_not_connected">El autocompletado LSP no está conectado para este archivo todavía.</string>
+    <string name="lsp_definition_not_found">No se encontró una definición para este símbolo.</string>
+    <string name="lsp_definition_unsupported">Este language server no soporta "ir a definición".</string>
+    <string name="lsp_definition_outside_project">La definición está fuera del proyecto abierto (%1$s) — no se pudo abrir.</string>
+    <string name="lsp_rename_unsupported">Este language server no soporta renombrar símbolos.</string>
+    <string name="lsp_rename_title">Renombrar símbolo</string>
+    <string name="lsp_rename_hint">Nuevo nombre</string>
+    <string name="lsp_rename_ok">Renombrar</string>
+    <string name="lsp_rename_no_changes">El servidor no propuso ningún cambio (¿el cursor está sobre el símbolo?).</string>
+    <string name="lsp_rename_failed">No se pudo pedir el renombrado (falló el request o hizo timeout) — probá de nuevo.</string>
+    <string name="lsp_rename_preview_title">Confirmar renombrado</string>
+    <string name="lsp_rename_preview_message">%1$d archivo(s), %2$d cambio(s) en total:\n\n%3$s</string>
+    <string name="lsp_rename_apply">Aplicar</string>
+    <string name="lsp_rename_applied">Renombrado aplicado en %1$d archivo(s).</string>
+    <string name="lsp_rename_partial">Renombrado aplicado en %1$d de %2$d archivo(s) — %3$s no se pudo escribir (fuera del proyecto o error de E/S), sin aplicar en ninguno para evitar un renombrado parcial.</string>
+    <string name="lsp_rename_error">Error al pedir el renombrado: %1$s</string>
+</resources>

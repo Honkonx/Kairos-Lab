@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono nuevo (2026-08-26, rediseño grid/pestañas de Mini PC) — monitor + cursor de flecha
+     superpuesto (visor remoto), para distinguir de ic_desktop.xml (el escritorio en sí) en las
+     tiles de VNC ("Instalar TigerVNC", "Iniciar VNC", "Configurar e iniciar VNC", "Abrir visor
+     VNC", "Detener VNC"). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 3 4 h 18 a 1 1 0 0 1 1 1 v 11 a 1 1 0 0 1 -1 1 h -7 v 2 h 3 v 2 H 7 v -2 h 3 v -2 H 3 a 1 1 0 0 1 -1 -1 V 5 a 1 1 0 0 1 1 -1 z M 3 6 v 10 h 18 V 6 H 3 z" />
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 13 9 l 6.5 3.2 l -2.7 0.6 l 1.5 2.6 l -1.4 0.8 l -1.5 -2.6 l -1.9 2.1 z" />
+</vector>

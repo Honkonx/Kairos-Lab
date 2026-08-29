@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Archivo de configuración" (json/gradle/properties) — cuerpo de hoja + glifo de llaves {} -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 14 2 H 6 a 2 2 0 0 0 -2 2 v 16 a 2 2 0 0 0 2 2 h 12 a 2 2 0 0 0 2 -2 V 8 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 14 2 v 6 h 6 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 9.8 11.5 c -1 0 -1.3 0.4 -1.3 1.2 v 0.7 c 0 0.6 -0.2 0.8 -0.8 0.8 v 1 c 0.6 0 0.8 0.2 0.8 0.8 v 0.7 c 0 0.8 0.3 1.2 1.3 1.2 v -0.9 c -0.4 0 -0.5 -0.1 -0.5 -0.5 v -0.7 c 0 -0.6 -0.2 -1 -0.6 -1.2 0.4 -0.2 0.6 -0.5 0.6 -1.1 v -0.7 c 0 -0.4 0.1 -0.5 0.5 -0.5 z M 14.2 11.5 c 1 0 1.3 0.4 1.3 1.2 v 0.7 c 0 0.6 0.2 0.8 0.8 0.8 v 1 c -0.6 0 -0.8 0.2 -0.8 0.8 v 0.7 c 0 0.8 -0.3 1.2 -1.3 1.2 v -0.9 c 0.4 0 0.5 -0.1 0.5 -0.5 v -0.7 c 0 -0.6 0.2 -1 0.6 -1.2 -0.4 -0.2 -0.6 -0.5 -0.6 -1.1 v -0.7 c 0 -0.4 -0.1 -0.5 -0.5 -0.5 z" />
+</vector>

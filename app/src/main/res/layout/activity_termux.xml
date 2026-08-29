@@ -1,0 +1,375 @@
+<com.termux.app.terminal.TermuxActivityRootView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_termux_root_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:id="@+id/activity_termux_root_relative_layout"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginHorizontal="3dp"
+        android:layout_marginVertical="0dp"
+        android:orientation="vertical">
+
+        <!-- layout_below (no alignParentTop) es intencional: cuando terminal_adapted_bar (más
+             abajo en este archivo) está VISIBLE, empuja el drawer/terminal hacia abajo en vez de
+             superponerse. Bug real encontrado: con alignParentTop en ambos, el drawer/terminal
+             dibujaba debajo de la barra adaptada en vez de debajo — las primeras filas de la
+             terminal (borde superior de una TUI full-screen tipo OpenCode, que usa toda la
+             altura reportada por TerminalView) quedaban tapadas por la barra opaca "OpenCode /
+             Minimizar / Cerrar". Cuando terminal_adapted_bar está GONE (terminal normal de
+             Termux vía FAB) esto no cambia nada: un view GONE en RelativeLayout se resuelve con
+             alto 0 en su misma posición, así que layout_below equivale a alignParentTop. -->
+        <androidx.drawerlayout.widget.DrawerLayout
+            android:id="@+id/drawer_layout"
+            android:layout_width="match_parent"
+            android:layout_below="@id/terminal_adapted_bar"
+            android:layout_above="@+id/bottom_bar_container"
+            android:layout_height="match_parent">
+
+            <com.termux.view.TerminalView
+                android:id="@+id/terminal_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusableInTouchMode="true"
+                android:scrollbarThumbVertical="@drawable/terminal_scroll_shape"
+                android:scrollbars="vertical"
+                tools:ignore="UnusedAttribute" />
+
+            <!-- El sidebar (deslizable desde el borde) muestra contenido DISTINTO según el modo
+                 — ver TermuxActivity#applyTerminalModeUi(). En modo normal (terminal de Termux
+                 vía FAB): left_drawer_normal_content (sesiones + config, sin cambios). En modo
+                 adaptado (CLI de módulo): left_drawer_adapted_content (acciones rápidas del
+                 módulo activo) — antes el drawer se bloqueaba cerrado del todo en ese modo, sin
+                 ninguna opción accesible por swipe. Ambos viven dentro del mismo left_drawer
+                 (mismo ancho/fondo/posición), alternando visibility, para no duplicar el
+                 DrawerLayout entero. -->
+            <LinearLayout
+                android:id="@+id/left_drawer"
+                android:layout_width="240dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="start"
+                android:descendantFocusability="blocksDescendants"
+                android:orientation="vertical"
+                android:background="?attr/termuxActivityDrawerBackground">
+
+                <LinearLayout
+                    android:id="@+id/left_drawer_normal_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:choiceMode="singleChoice"
+                    android:divider="@android:color/transparent"
+                    android:dividerHeight="0dp"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+                        <ImageButton
+                            android:id="@+id/settings_button"
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:src="@drawable/ic_settings"
+                            android:background="@null"
+                            android:contentDescription="@string/action_open_settings"
+                            app:tint="?attr/termuxActivityDrawerImageTint" />
+                    </LinearLayout>
+
+                    <ListView
+                        android:id="@+id/terminal_sessions_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_gravity="top"
+                        android:layout_weight="1"
+                        android:choiceMode="singleChoice"
+                        android:longClickable="true" />
+
+                    <LinearLayout
+                        style="?android:attr/buttonBarStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/toggle_keyboard_button"
+                            style="?android:attr/buttonBarButtonStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/action_toggle_soft_keyboard" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/new_session_button"
+                            style="?android:attr/buttonBarButtonStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/action_new_session" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        style="?android:attr/buttonBarStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/terminal_quick_settings_button"
+                            style="?android:attr/buttonBarButtonStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/action_terminal_quick_settings" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Contenido del modo adaptado — poblado en runtime por
+                     TermuxActivity#populateAdaptedDrawerContent(), ver ese método para la lista
+                     real de acciones (Minimizar/Cerrar/Reiniciar módulo/Ver logs). Arranca GONE;
+                     applyTerminalModeUi() lo alterna junto con left_drawer_normal_content. -->
+                <LinearLayout
+                    android:id="@+id/left_drawer_adapted_content"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:id="@+id/adapted_drawer_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        android:textColor="?attr/kairosText3"
+                        android:letterSpacing="0.08"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="8dp"
+                        tools:text="OPENCODE" />
+
+                    <!-- Command palette chico: filtra las filas de adapted_drawer_actions por texto
+                         en vivo (ver TermuxActivity#populateAdaptedDrawerContent()/setupAdaptedDrawerSearch())
+                         — pedido 2026-08-25, mismo patrón conceptual de command palette investigado
+                         en la ronda de terminales con interfaz rica (Warp/AryterLink). Sin backend
+                         nuevo: filtra las Views ya generadas, no agrega acciones nuevas. -->
+                    <EditText
+                        android:id="@+id/adapted_drawer_search"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Buscar acción…"
+                        android:textSize="13sp"
+                        android:textColor="?attr/kairosText"
+                        android:textColorHint="?attr/kairosText3"
+                        android:background="@null"
+                        android:inputType="text"
+                        android:imeOptions="actionDone"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="10dp"
+                        android:singleLine="true" />
+
+                    <LinearLayout
+                        android:id="@+id/adapted_drawer_actions"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.drawerlayout.widget.DrawerLayout>
+
+        <!-- Contenedor de la barra inferior — alterna entre el toolbar de teclas extra (modo
+             normal) y la barra de info adaptada (modo adaptado), nunca ambos a la vez. Un solo
+             contenedor con layout_alignParentBottom evita necesitar 2 anchors distintos en el
+             RelativeLayout para el DrawerLayout de arriba (layout_above solo acepta un id). -->
+        <LinearLayout
+            android:id="@+id/bottom_bar_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:orientation="vertical">
+
+            <androidx.viewpager.widget.ViewPager
+                android:id="@+id/terminal_toolbar_view_pager"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="37.5dp"
+                android:background="@color/black" />
+
+            <!-- Barra inferior del modo adaptado — info contextual (puerto/URL si el módulo
+                 corre un servidor web, o el estado en su defecto). Poblada por
+                 TermuxActivity#refreshAdaptedBarInfo(). Oculta si no hay nada útil que mostrar
+                 (ver ese método) en vez de forzar contenido vacío. -->
+            <TextView
+                android:id="@+id/terminal_adapted_bottom_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/kairosBg2"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:textSize="12.5sp"
+                android:fontFamily="monospace"
+                android:textColor="?attr/kairosText2"
+                android:visibility="gone"
+                tools:text="⏺ escuchando en http://127.0.0.1:3000"
+                tools:visibility="visible" />
+
+            <!-- Métricas CPU/RAM en vivo del dispositivo, refrescadas cada pocos segundos
+                 mientras el overlay adaptado está visible. Ver
+                 TermuxActivity#startAdaptedMetricsLoop()/refreshAdaptedMetrics() y
+                 ManagerNativeUtils.systemMetricsSummary() (delta de /proc/stat + /proc/meminfo,
+                 mismo patrón que termux-status). Oculta hasta la primera muestra útil (la
+                 primera lectura de CPU no tiene delta con qué calcular %). -->
+            <TextView
+                android:id="@+id/terminal_adapted_metrics"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/kairosBg2"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:textColor="?attr/kairosText3"
+                android:visibility="gone"
+                tools:text="CPU 12% · RAM 1024/4096 MB (25%)"
+                tools:visibility="visible" />
+
+        </LinearLayout>
+
+        <!-- Barra de terminal adaptada (CLI de módulos): minimizar/cerrar sin exponer el
+             toolbar de teclas extra ni el drawer de sesiones de la terminal normal de Termux.
+             Oculta por defecto; TermuxActivity la muestra solo cuando openTerminalWithCommand()
+             se llama con un sessionName (ver TermuxActivity#applyTerminalModeUi). -->
+        <LinearLayout
+            android:id="@+id/terminal_adapted_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:orientation="vertical"
+            android:background="?attr/kairosBg2"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="4dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="2dp">
+
+                <!-- Touch target Material mínimo (48dp) — antes minWidth=0dp con solo el glifo
+                     "☰" como contenido podía quedar por debajo en algunos temas/densidades.
+                     minWidth/minHeight NO cambian el tamaño visual del botón (layout_width/height
+                     siguen en wrap_content, min* solo fija un piso), pero garantizan un área
+                     tocable de al menos 48x48dp — mismo criterio aplicado a los otros 2 botones
+                     de esta barra (minimizar/cerrar). Es también la entrada principal a "Teclas
+                     extra"/"Monitor" del sidebar (ver populateAdaptedDrawerContent en
+                     TermuxActivity.java) — mejor discoverability con un área tocable real. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/terminal_adapted_menu_button"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    android:text="☰"
+                    android:contentDescription="@string/action_terminal_adapted_menu" />
+
+                <TextView
+                    android:id="@+id/terminal_adapted_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/kairosText"
+                    tools:text="OpenCode" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/terminal_adapted_minimize_button"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    android:text="@string/action_terminal_adapted_minimize" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/terminal_adapted_close_button"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    android:text="@string/action_terminal_adapted_close" />
+
+            </LinearLayout>
+
+            <!-- Subtítulo con estado real + versión — poblado por
+                 TermuxActivity#refreshAdaptedBarInfo(). Ej. "● Activo · v1.18.3".
+                 textColor kairos_text2 (antes kairos_text3, #555555 sobre el fondo kairos_bg2
+                 #0A0A0A da ~3.5:1 de contraste — por debajo del mínimo WCAG AA de 4.5:1 para
+                 texto de este tamaño; kairos_text2 #888888 da ~5.9:1, mismo tono "secundario"
+                 que ya usa el resto de la app para texto de este tipo, ej. BaseModuleFragment
+                 infoRow()). paddingTop agregado para separar del botonera de arriba. -->
+            <TextView
+                android:id="@+id/terminal_adapted_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="?attr/kairosText2"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="4dp"
+                tools:text="● Activo · v1.18.3" />
+
+            <!-- Fila de chips de dependencia (backend IA local: Ollama/llama-server) — poblada
+                 dinámicamente por TermuxActivity#refreshAdaptedBarInfo() vía
+                 adaptedModuleDependencies(moduleId), GONE si el módulo activo no depende de
+                 ningún otro (la mayoría). Pedido explícito del usuario (docs/humano/humano169.md,
+                 "mejorar la terminal adaptada... si estan en opencode ver si ollama/llama esta
+                 corriendo") — mecanismo genérico, no hardcodeado solo para OpenCode: agregar una
+                 entrada más en adaptedModuleDependencies() alcanza para que otro CLI muestre sus
+                 propios chips sin tocar este layout. Los chips en sí son TextView creados en
+                 código (mismo patrón que addAdaptedDrawerAction), no hace falta declarar cada
+                 uno acá. -->
+            <LinearLayout
+                android:id="@+id/terminal_adapted_deps_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="6dp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+
+        </LinearLayout>
+
+    </RelativeLayout>
+
+    <View
+        android:id="@+id/activity_termux_bottom_space_view"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/transparent" />
+
+</com.termux.app.terminal.TermuxActivityRootView>

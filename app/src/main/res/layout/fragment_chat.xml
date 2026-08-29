@@ -1,0 +1,527 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg">
+
+    <LinearLayout
+        android:id="@+id/chat_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/kairosBgSurface"
+            android:paddingLeft="16dp" android:paddingRight="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="\u25C8 Chat IA"
+                    android:textSize="17sp"
+                    android:textColor="?attr/kairosText"
+                    android:textStyle="bold"
+                    android:letterSpacing="-0.01" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center_vertical">
+
+                    <View
+                        android:id="@+id/status_dot"
+                        android:layout_width="6dp"
+                        android:layout_height="6dp"
+                        android:background="@drawable/circle_dot_green"
+                        android:layout_marginEnd="5dp" />
+
+                    <TextView
+                        android:id="@+id/status_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ollama activo"
+                        android:textSize="11sp"
+                        android:textColor="?attr/kairosText3" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <!-- Vuelve a la pantalla de elegir motor (Ollama Termux / llama.cpp local) —
+                     pedido explícito del usuario: separar los 2 motores, elegir cuál usar
+                     ANTES de entrar al chat en vez de un selector de modelo mezclado. Ver
+                     ChatFragment.showEngineSelector(). -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_switch_engine"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="?attr/kairosBg3"
+                    app:strokeWidth="1dp"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="6dp"
+                    app:contentPadding="0dp"
+                    android:layout_marginEnd="8dp"
+                    android:paddingLeft="10dp" android:paddingRight="10dp"
+                    android:paddingTop="6dp" android:paddingBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⇄"
+                        android:textSize="14sp"
+                        android:textColor="?attr/kairosText2" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Atajo a memoria/contexto (temperature + context_size, mismas
+                     SharedPreferences "kairos_llm_prefs" que IA Local) — pedido
+                     explícito del usuario: no quiere salir del chat para tocar
+                     esos 2 parámetros. Ver ChatFragment.showQuickSettingsDialog(). -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_chat_settings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="?attr/kairosBg3"
+                    app:strokeWidth="1dp"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="6dp"
+                    app:contentPadding="0dp"
+                    android:layout_marginEnd="8dp"
+                    android:paddingLeft="10dp" android:paddingRight="10dp"
+                    android:paddingTop="6dp" android:paddingBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚙"
+                        android:textSize="14sp"
+                        android:textColor="?attr/kairosText2" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_clear"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="?attr/kairosBg3"
+                    app:strokeWidth="1dp"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="6dp"
+                    app:contentPadding="0dp"
+                    android:paddingLeft="10dp" android:paddingRight="10dp"
+                    android:paddingTop="6dp" android:paddingBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="\u232B Limpiar"
+                        android:textSize="12sp"
+                        android:textColor="?attr/kairosText2" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Model bar -->
+        <LinearLayout
+            android:id="@+id/model_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/kairosBgSurface"
+            android:paddingLeft="12dp" android:paddingRight="12dp"
+            android:paddingTop="8dp" android:paddingBottom="8dp">
+
+            <TextView
+                android:id="@+id/model_selector"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/model_selector_bg"
+                android:paddingLeft="12dp" android:paddingRight="12dp"
+                android:paddingTop="8dp" android:paddingBottom="8dp"
+                android:text="qwen2.5:0.5b"
+                android:textSize="12sp"
+                android:textColor="?attr/kairosGreen"
+                android:fontFamily="monospace"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/message_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="11sp"
+                android:textColor="?attr/kairosText3"
+                android:layout_marginStart="12dp" />
+
+        </LinearLayout>
+
+        <!-- Aviso honesto de límites del motor: el motor LOCAL (llama.cpp embebido, sin
+             mmproj/vision projector) sigue sin soportar imágenes — ver
+             docs/ia-local/LLAMA_CPP_EMBEBIDO.md sección "Estado real". Ollama remoto SÍ soporta
+             imágenes (ver btn_attach abajo, deshabilitado automáticamente para modelos
+             .gguf por ChatFragment.updateAttachButtonState()). -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🖼 Imágenes: con modelos Ollama remotos · no disponible en modelos locales 📱"
+            android:textSize="10sp"
+            android:textColor="?attr/kairosText3"
+            android:background="?attr/kairosBgSurface"
+            android:paddingLeft="12dp" android:paddingRight="12dp"
+            android:paddingBottom="6dp" />
+
+        <!-- Chat area -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_chat"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingTop="12dp"
+            android:paddingBottom="8dp" />
+
+        <!-- Error bar. Mensaje amigable siempre visible + detalle t\u00E9cnico
+             crudo colapsable (patr\u00F3n "Show Technical Details" de PrivateLM,
+             ver docs/referencias/REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md y
+             com.termux.app.util.LlmErrorMapper) \u2014 nunca se esconde del todo
+             la info t\u00E9cnica, solo se colapsa por defecto. -->
+        <LinearLayout
+            android:id="@+id/error_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="?attr/kairosBgSurface"
+            android:paddingLeft="14dp" android:paddingRight="14dp"
+            android:paddingTop="8dp" android:paddingBottom="8dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/error_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text=""
+                    android:textSize="12sp"
+                    android:textColor="?attr/kairosRed" />
+
+                <TextView
+                    android:id="@+id/error_toggle_detail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ver detalles"
+                    android:textSize="11sp"
+                    android:textColor="?attr/kairosText2"
+                    android:paddingLeft="8dp" android:paddingRight="8dp"
+                    android:visibility="gone"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+                <TextView
+                    android:id="@+id/error_dismiss"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="\u00D7"
+                    android:textSize="18sp"
+                    android:textColor="?attr/kairosRed"
+                    android:paddingLeft="8dp" android:paddingRight="8dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/error_detail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textSize="10sp"
+                android:fontFamily="monospace"
+                android:textColor="?attr/kairosText3"
+                android:paddingTop="6dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Footer -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="?attr/kairosBgSurface">
+
+            <!-- Cancel bar -->
+            <LinearLayout
+                android:id="@+id/cancel_bar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingLeft="14dp" android:paddingRight="14dp"
+                android:paddingTop="8dp" android:paddingBottom="8dp"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:id="@+id/cancel_spinner"
+                    style="?android:attr/progressBarStyleSmall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp" />
+
+                <TextView
+                    android:id="@+id/cancel_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ollama procesando... \u00B7 toca para cancelar"
+                    android:textSize="12sp"
+                    android:textColor="?attr/kairosGreen"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+            <!-- Vista previa de la imagen adjunta (solo Ollama remoto, ver
+                 ChatFragment.showImagePreview/clearAttachedImage) — oculta hasta que el
+                 usuario elige una imagen con btn_attach. -->
+            <LinearLayout
+                android:id="@+id/image_preview_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingLeft="14dp" android:paddingRight="14dp"
+                android:paddingTop="6dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/image_preview_thumb"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:scaleType="centerCrop"
+                    android:background="@drawable/input_bg" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Imagen adjunta"
+                    android:textSize="11sp"
+                    android:textColor="?attr/kairosText3" />
+
+                <TextView
+                    android:id="@+id/image_preview_remove"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="✕ Quitar"
+                    android:textSize="11sp"
+                    android:textColor="?attr/kairosRed"
+                    android:paddingLeft="8dp" android:paddingRight="8dp"
+                    android:paddingTop="4dp" android:paddingBottom="4dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+            <!-- Input row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingLeft="12dp" android:paddingRight="12dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="4dp">
+
+                <!-- Adjuntar imagen — solo Ollama remoto (ver
+                     ChatFragment.onAttachClicked/updateAttachButtonState). Queda atenuado
+                     (no oculto: el usuario ve que la opción existe) y muestra un aviso en
+                     vez de abrir el picker cuando el modelo activo es local (.gguf). -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_attach"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="8dp"
+                    app:cardBackgroundColor="?attr/kairosBg3"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/kairosBorder"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="22dp"
+                    app:contentPadding="0dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:text="📎"
+                        android:textSize="16sp" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <EditText
+                    android:id="@+id/chat_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:minHeight="44dp"
+                    android:maxHeight="120dp"
+                    android:background="@drawable/input_bg"
+                    android:paddingLeft="14dp" android:paddingRight="14dp"
+                    android:paddingTop="11dp"
+                    android:paddingBottom="11dp"
+                    android:textSize="14sp"
+                    android:textColor="?attr/kairosText"
+                    android:hint="Escribe a qwen2.5:0.5b..."
+                    android:textColorHint="?attr/kairosText3"
+                    android:inputType="textMultiLine"
+                    android:gravity="top" />
+
+                <!-- Entrada de voz vía SpeechInputManager.kt (ver ChatFragment.onViewCreated,
+                     docs/referencias/REFERENCIA_NEWTERMUX.md). Se atenúa (mismo criterio que btn_attach) si
+                     el dispositivo no tiene reconocimiento de voz disponible. -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_mic"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="8dp"
+                    app:cardBackgroundColor="?attr/kairosBg3"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/kairosBorder"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="22dp"
+                    app:contentPadding="0dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:text="🎤"
+                        android:textSize="16sp" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_send"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="8dp"
+                    app:cardBackgroundColor="?attr/kairosBlue"
+                    app:strokeWidth="0dp"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="22dp"
+                    app:contentPadding="0dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:id="@+id/send_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:text="\u2191"
+                        android:textSize="18sp"
+                        android:textColor="?attr/kairosBg"
+                        android:textStyle="bold" />
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+            <!-- Bottom padding -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="8dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Offline overlay -->
+    <LinearLayout
+        android:id="@+id/offline_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="?attr/kairosBg"
+        android:visibility="gone"
+        android:paddingLeft="36dp" android:paddingRight="36dp">
+
+        <View
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="@drawable/circle_offline_icon"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Ollama inactivo"
+            android:textSize="20sp"
+            android:textColor="?attr/kairosText"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Activa Ollama desde M\u00F3dulos para usar el chat con IA"
+            android:textSize="14sp"
+            android:textColor="?attr/kairosText3"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp" />
+
+        <!-- Salida real cuando Ollama est\u00E1 ca\u00EDdo \u2014 antes el usuario quedaba sin forma de
+             volver a la pantalla de elegir motor sin cambiar de tab e volver (ver
+             ChatFragment.showOffline()/showEngineSelector()). -->
+        <TextView
+            android:id="@+id/offline_switch_engine"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="\u21C4 Usar llama.cpp local en su lugar"
+            android:textSize="13sp"
+            android:textColor="?attr/kairosBlue"
+            android:paddingLeft="14dp" android:paddingRight="14dp"
+            android:paddingTop="8dp" android:paddingBottom="8dp"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
+
+</FrameLayout>

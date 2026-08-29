@@ -1,0 +1,403 @@
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+// Módulo NDK/JNI que embebe llama.cpp directo — el wrapper JNI original (kairos_llm,
+// usado por el tab Chat IA) más, desde la rama "llama-server-and-terminal-ux"
+// (2026-08-05, ver docs/humano/humano71.md), el binario real llama-server (servidor HTTP
+// compatible OpenAI de llama.cpp), para que OpenCode/Hermes/OpenClaw (procesos Termux
+// separados, necesitan un endpoint de red — el wrapper JNI es en proceso, sin puerto)
+// puedan usar llama.cpp igual que ya usan Ollama. Ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md
+// y docs/referencias/REFERENCIA_OLLAMASERVER.md (patrón de referencia).
+// Configuración de CMake/Vulkan adaptada de OfflineLLM (jegly/OfflineLLM,
+// Apache-2.0) — ver docs/referencias/REFERENCIA_OFFLINELLM.md para el detalle de cada
+// flag. ndkVersion pineado DISTINTO al del resto del proyecto (29.0.x en
+// gradle.properties, usado por terminal-emulator) a propósito: 27.2.12479018
+// es la versión con la que OfflineLLM tiene Vulkan realmente compilando y
+// corriendo — no hay evidencia de que r29 lo logre igual o mejor, así que
+// se usa la que sí está probada en vez de asumir que una versión más nueva
+// resuelve el mismo problema.
+
+def sdkDirPath = { ->
+    // Bug real encontrado 2026-08-26 (build local en Windows, PC "HP"): la versión anterior
+    // leía "local.properties" con readLines()+substring crudo, SIN desescapar la sintaxis real
+    // del formato Properties de Java — Android Studio escribe rutas de Windows como
+    // "sdk.dir=C\:\\Users\\HP\\AppData\\Local\\Android\\Sdk" (":" escapado, "\" duplicado), y
+    // el substring crudo dejaba esos backslashes literales en el valor. Esa cadena corrupta
+    // terminaba concatenada en -DVulkan_GLSLC_EXECUTABLE=..., que CMake/vulkan-shaders-gen
+    // interpretaba mal ("Failed to create process" al compilar cada shader .comp — la ruta
+    // resultante ni siquiera apuntaba a un archivo real). Fix: usar java.util.Properties, que
+    // desescapa el formato correctamente (mismo mecanismo que usa el propio Gradle/AGP para
+    // leer este archivo).
+    def localProps = rootProject.file("local.properties")
+    if (localProps.exists()) {
+        def props = new Properties()
+        localProps.withInputStream { props.load(it) }
+        def dir = props.getProperty("sdk.dir")
+        if (dir) return dir.trim()
+    }
+    return System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: ""
+}
+def sdkDir = sdkDirPath()
+
+// Build local en Windows (2026-08-15, ver docs/humano128.md/tools/build-local.ps1): las
+// herramientas de HOST que llama.cpp compila durante el build (llama-ui-embed en
+// tools/ui/CMakeLists.txt, y el vulkan-shaders-gen de más abajo) asumen un compilador
+// GCC/Clang de host real. En Linux (CI) eso es /usr/bin/gcc; en Windows no hay g++/clang++
+// del sistema instalado — find_program() de tools/ui/CMakeLists.txt encontraba por error
+// el clang++ del NDK de Android (solo compila para Android, no para Windows), fallando con
+// "'inttypes.h' file not found". Se usa w64devkit (MinGW g++ portable, sin instalador) si
+// está presente en .build-tools/ — ver tools/build-local.ps1.
+def isWindowsHost = System.getProperty("os.name").toLowerCase().contains("windows")
+def w64devkitBin = new File(rootProject.projectDir, ".build-tools/w64devkit/bin")
+def hostGccWin = new File(w64devkitBin, "gcc.exe")
+def hostGxxWin = new File(w64devkitBin, "g++.exe")
+
+// llama-server, compilado por CMake (ver CMakeLists.txt, add_custom_command POST_BUILD del
+// target "llama-server"), se copia acá — un directorio de build normal (siempre gitignoreado,
+// nunca se commitea un binario) en vez de escribir directo dentro de app/src/main/assets/
+// (fuente versionada) — y se registra como sourceSet de assets más abajo, para que AGP lo
+// empaquete en la APK vía el merge normal de assets de biblioteca->app, sin necesitar tocar
+// app/build.gradle. Ruta absoluta pasada a CMake vía KAIROS_LLAMA_SERVER_OUT_DIR: evita tener
+// que calcular a mano cuántos "../" hacen falta desde el directorio de build interno de CMake
+// (.cxx/<config>/<hash>/<abi>/, no predecible sin una build real) hasta acá.
+def llamaServerAssetsRoot = new File(buildDir, "generated/llamaServerAssets")
+def llamaServerAssetsScriptsDir = new File(llamaServerAssetsRoot, "scripts")
+
+// Toolchain de host para vulkan-shaders-gen de llama.cpp, que debe correr en
+// la máquina de build (no en Android). Espeja host-toolchain.cmake.in de
+// upstream, pineando CMAKE_MAKE_PROGRAM al ninja del SDK cuando existe (el
+// host puede no tener ninja en el PATH y el ExternalProject interno falla
+// sin uno).
+def vulkanHostToolchain = new File(buildDir, "vulkan-host-toolchain.cmake")
+
+task generateVulkanHostToolchain {
+    doLast {
+        vulkanHostToolchain.parentFile.mkdirs()
+        def sdkNinja = new File(sdkDir, "cmake/3.22.1/bin/ninja")
+        def makeProgramLine = (sdkDir && sdkNinja.exists()) ?
+            "\nset(CMAKE_MAKE_PROGRAM \"" + sdkNinja.absolutePath + "\" CACHE FILEPATH \"\")" : ""
+        def hostGcc = "/usr/bin/gcc"
+        def hostGxx = "/usr/bin/g++"
+        if (isWindowsHost) {
+            if (!hostGccWin.exists() || !hostGxxWin.exists()) {
+                throw new GradleException("Build local en Windows: no se encontró w64devkit en " +
+                    w64devkitBin.absolutePath + " (gcc.exe/g++.exe) — necesario para compilar " +
+                    "vulkan-shaders-gen de host. Ver docs/arquitectura/BUILD.md.")
+            }
+            hostGcc = hostGccWin.absolutePath.replace('\\', '/')
+            hostGxx = hostGxxWin.absolutePath.replace('\\', '/')
+        }
+        vulkanHostToolchain.text = """
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_C_FLAGS -O2)
+set(CMAKE_CXX_FLAGS -O2)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE NEVER)
+set(CMAKE_C_COMPILER ${hostGcc})
+set(CMAKE_CXX_COMPILER ${hostGxx})
+""".trim() + makeProgramLine
+    }
+}
+
+android {
+    namespace "com.termux.llm"
+
+    compileSdkVersion project.properties.compileSdkVersion.toInteger()
+    ndkVersion "27.2.12479018"
+
+    defaultConfig {
+        minSdkVersion project.properties.minSdkVersion.toInteger()
+        targetSdkVersion project.properties.targetSdkVersion.toInteger()
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+
+        externalNativeBuild {
+            cmake {
+                cppFlags "-O3"
+                // ggml-vulkan incluye <spirv/unified1/spirv.hpp> asumiendo el
+                // layout del Vulkan SDK donde los headers de spirv están al
+                // lado de los de vulkan; con checkouts separados de Khronos
+                // hay que agregar el include de SPIRV explícito.
+                def spirvInclude = rootProject.file("../SPIRV-Headers/include")
+                if (spirvInclude.exists()) {
+                    cppFlags "-isystem" + spirvInclude.absolutePath
+                }
+                arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+                // AGP deriva ANDROID_PLATFORM de minSdkVersion (24) por defecto — eso
+                // rompe el link de ggml-vulkan: vkGetPhysicalDeviceFeatures2 recién se
+                // exporta en el stub de libvulkan.so a partir de API 28 (confirmado
+                // contra libvulkan.map.txt real de AOSP, "# introduced=28", tras un
+                // fallo de build real: "ld.lld: error: undefined symbol:
+                // vkGetPhysicalDeviceFeatures2"). Se sobreescribe acá SOLO para el link
+                // nativo de este módulo — el minSdkVersion=24 de la app (Java/manifest)
+                // no cambia. Es seguro para las variantes CPU-only (GGML_CPU_ALL_VARIANTS)
+                // porque no usan ninguna API introducida después de 24; en dispositivos
+                // reales, el resolver de símbolos en runtime usa el libvulkan.so real del
+                // sistema (no el stub del NDK), así que esto no excluye ningún
+                // dispositivo que de verdad no pudiera cargar Vulkan 1.2 igual (ya
+                // manejado con gracia por GpuBackend.kt). Mismo valor (android-28) que
+                // usan otros proyectos reales de llama.cpp+Vulkan en Android.
+                arguments "-DANDROID_PLATFORM=android-28"
+                arguments "-DCMAKE_BUILD_TYPE=Release"
+                arguments "-DBUILD_SHARED_LIBS=ON"
+                // Rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md):
+                // se agrega el binario llama-server real (servidor HTTP compatible OpenAI de
+                // llama.cpp) además del wrapper JNI — para que OpenCode/Hermes/OpenClaw (procesos
+                // Termux separados, necesitan un endpoint de red) puedan usar llama.cpp además de
+                // Ollama. Patrón confirmado viable por 3 proyectos de referencia (ver
+                // docs/referencias/REFERENCIA_OLLAMASERVER.md). Esto exige
+                // LLAMA_BUILD_COMMON=ON (antes OFF — el comentario original decía "común trae
+                // código HTTP/descarga que no hace falta"; ahora SÍ hace falta, es justamente lo
+                // que arma el servidor) + TOOLS/SERVER=ON. LLAMA_BUILD_UI=OFF: Kairos usa su propia
+                // UI nativa, no la web UI embebida de llama.cpp (evita además necesitar Node/npm en
+                // el runner de CI — sin assets prebuilt ni build UI, tools/ui/CMakeLists.txt emite
+                // un warning y sigue con una UI vacía en vez de fallar, confirmado leyendo
+                // scripts/ui-assets.cmake de llama.cpp).
+                arguments "-DLLAMA_BUILD_COMMON=ON"
+                arguments "-DLLAMA_BUILD_TOOLS=ON"
+                arguments "-DLLAMA_BUILD_SERVER=ON"
+                arguments "-DLLAMA_BUILD_UI=OFF"
+                arguments "-DKAIROS_LLAMA_SERVER_OUT_DIR=" + llamaServerAssetsScriptsDir.absolutePath
+                arguments "-DLLAMA_CURL=OFF"
+                // Auditoría 2026-08-05 (ver docs/humano/humano73.md) — guía oficial de
+                // ggml-org/llama.cpp para Android (docs/android.md) recomienda explícitamente
+                // estos 2 flags. Verificado leyendo ggml/src/CMakeLists.txt: GGML_OPENMP hace
+                // `find_package(OpenMP)` con fallback gracioso (WARNING, no error, si no lo
+                // encuentra) — no rompía el build ya exitoso de kairos_llm/kairos_ggufreader sin
+                // este flag, pero lo deja explícito para no depender de ese fallback y evitar
+                // ruido en el log. GGML_LLAMAFILE sí compila código real si queda en ON (default
+                // real acá, confirmado leyendo CMakeLists.txt raíz de llama.cpp:
+                // "if (NOT DEFINED GGML_LLAMAFILE) set(GGML_LLAMAFILE_DEFAULT ON) endif()" corre
+                // ANTES que el default OFF de ggml/CMakeLists.txt, así que gana ON) — ya venía en
+                // ON en los 2 builds anteriores que sí compilaron limpio, así que no es un fix a
+                // un error confirmado, es alinear con la guía oficial y sacar código que Kairos
+                // no necesita (ggml ya tiene sus propios kernels ARM optimizados vía
+                // GGML_CPU_ALL_VARIANTS).
+                arguments "-DGGML_OPENMP=OFF"
+                arguments "-DGGML_LLAMAFILE=OFF"
+                // Backend Vulkan (opt-in en runtime vía Settings — ver
+                // GpuBackend.kt; dispositivos sin Vulkan 1.2 fallan el
+                // registro con gracia y quedan en CPU-only).
+                arguments "-DGGML_VULKAN=ON"
+                // Backends como plugins cargables en runtime, con una
+                // variante de ggml-cpu por nivel de feature ARM
+                // (dotprod/fp16/i8mm/SVE...). ggml puntúa las variantes
+                // contra la CPU real del dispositivo al cargar y elige la
+                // mejor — esto es lo que habilita los kernels rápidos de
+                // matmul cuantizado en SoCs modernos.
+                arguments "-DGGML_BACKEND_DL=ON"
+                arguments "-DGGML_CPU_ALL_VARIANTS=ON"
+
+                // Windows: fija HOST_CXX_COMPILER a mano en vez de dejar que
+                // tools/ui/CMakeLists.txt lo resuelva con find_program(g++/clang++) —
+                // ese find_program encontraba por error el clang++ del NDK de Android
+                // (target Android, no Windows) al no haber ningún g++/clang++ de host
+                // real en el PATH. Ver nota de w64devkit arriba.
+                if (isWindowsHost && hostGxxWin.exists()) {
+                    arguments "-DHOST_CXX_COMPILER=" + hostGxxWin.absolutePath.replace('\\', '/')
+                }
+
+                if (sdkDir) {
+                    def ninja = new File(sdkDir, "cmake/3.22.1/bin/ninja")
+                    if (ninja.exists()) {
+                        arguments "-DCMAKE_MAKE_PROGRAM=" + ninja.absolutePath
+                    }
+                    // glslc viene con el NDK; FindVulkan no lo descubre solo
+                    // en el sysroot de cross-compile. glslc corre en el HOST de build (genera
+                    // los .spv en build time, no en el device) — el NDK trae shader-tools por
+                    // SO de host (linux-x86_64/ windows-x86_64/...), hardcodear linux-x86_64
+                    // rompe en un host Windows con "Failed to create process" (intenta
+                    // ejecutar un ELF de Linux). Ver docs/humano128.md.
+                    def shaderToolsHostDir = isWindowsHost ? "windows-x86_64" : "linux-x86_64"
+                    def glslcName = isWindowsHost ? "glslc.exe" : "glslc"
+                    arguments "-DVulkan_GLSLC_EXECUTABLE=" + sdkDir + "/ndk/27.2.12479018/shader-tools/" + shaderToolsHostDir + "/" + glslcName
+                    arguments "-DGGML_VULKAN_SHADERS_GEN_TOOLCHAIN=" + vulkanHostToolchain.absolutePath
+
+                    // El sysroot del NDK solo tiene los headers C de Vulkan;
+                    // ggml-vulkan.cpp necesita Vulkan-Hpp (vulkan.hpp).
+                    // Apuntar FindVulkan a un checkout de
+                    // KhronosGroup/Vulkan-Headers.
+                    def vulkanHeaders = rootProject.file("../Vulkan-Headers/include")
+                    if (vulkanHeaders.exists()) {
+                        arguments "-DVulkan_INCLUDE_DIR=" + vulkanHeaders.absolutePath
+                    } else {
+                        logger.warn("Vulkan-Headers no encontrado en " + vulkanHeaders.absolutePath +
+                            " — ggml-vulkan va a fallar al compilar. Clonar " +
+                            "https://github.com/KhronosGroup/Vulkan-Headers.git al lado del proyecto.")
+                    }
+                    // Paquete CMake de SPIRV-Headers (solo headers; instalado
+                    // localmente desde un clone de KhronosGroup/SPIRV-Headers
+                    // vía `cmake --install`).
+                    def spirvHeadersInstall = rootProject.file("../SPIRV-Headers/install")
+                    if (spirvHeadersInstall.exists()) {
+                        arguments "-DSPIRV-Headers_DIR=" + spirvHeadersInstall.absolutePath + "/share/cmake/SPIRV-Headers"
+                    } else {
+                        logger.warn("SPIRV-Headers install no encontrado en " + spirvHeadersInstall.absolutePath +
+                            " — ggml-vulkan va a fallar al configurar.")
+                    }
+                }
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // llama-server generado por CMake (ver arriba) se empaqueta en la APK vía el merge normal
+    // de assets de biblioteca de AGP — mismo mecanismo que src/main/assets/, solo que esta
+    // carpeta la llena la build nativa en vez de estar versionada.
+    sourceSets {
+        main {
+            assets.srcDirs += llamaServerAssetsRoot.absolutePath
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+}
+
+// llama.cpp se clona (NO como git submodule — Kairos no usa submodules en
+// ningún otro lado del proyecto) antes de que corra la config de CMake.
+// Tag pineado a un build real y verificado de ggml-org/llama.cpp (repo
+// movido desde ggerganov/llama.cpp) al momento de escribir esto — llama.cpp
+// no tiene releases "estables" tradicionales, cada build de CI se etiqueta
+// con un número incremental "bNNNNN".
+def llamaCppTag = System.getenv("KAIROS_LLAMACPP_TAG") ?: "b10194"
+def llamaCppDir = new File(projectDir, "llama.cpp")
+
+// Herramientas de tools/CMakeLists.txt que Kairos no necesita (no las pide LLAMA_BUILD_SERVER,
+// que solo requiere ui/cli/server + mtmd, dependencia dura de server) — deshabilitadas por
+// parche (ver downloadLlamaCpp) en vez de EXCLUDE_FROM_ALL. Bug real de build (2026-08-06, ver
+// docs/humano/humano76.md): EXCLUDE_FROM_ALL en el add_subdirectory de llama.cpp entero NO
+// tiene efecto — confirmado leyendo el comando real de ninja en 2 builds de CI, Android Gradle
+// Plugin enumera TODOS los targets vía la File API de CMake y se los pasa a ninja
+// explícitamente por nombre, ignorando esa propiedad por completo. La única forma real de que
+// AGP no intente construir un target es que CMake nunca lo DEFINA — de ahí el parche de texto.
+// "parser" en particular (tools/parser/, la "llama-debug-template-parser" que ya rompió 2
+// builds seguidos) llama directo a llama_grammar_init_impl(), una función interna de "llama"
+// (declarada en src/llama-grammar.h, NO en el include/llama.h público) — nunca exportada en un
+// build de librería compartida, ni siquiera con la visibilidad corregida (ver CMakeLists.txt,
+// fix de PUBLIC->PRIVATE) porque ese símbolo nunca tuvo el marcador LLAMA_API para empezar. Es
+// un bug real de esa herramienta de debug puntual bajo BUILD_SHARED_LIBS (mismo patrón ya
+// confirmado por evidencia externa: llama.cpp documenta que "ciertas tools se deshabilitan con
+// BUILD_SHARED_LIBS porque usan funciones internas no exportadas con LLAMA_API", solo que el
+// guard existente en tools/parser/CMakeLists.txt es específico de Windows, no cubre Android).
+def KAIROS_UNNEEDED_TOOLS = [
+        "batched-bench", "gguf-split", "imatrix", "llama-bench",
+        "completion", "perplexity", "quantize", "tokenize", "parser", "tts"
+]
+
+task downloadLlamaCpp {
+    doLast {
+        if (llamaCppDir.exists() && new File(llamaCppDir, "CMakeLists.txt").exists()) {
+            logger.quiet("llama.cpp ya presente en " + llamaCppDir + " — omitiendo clone")
+        } else {
+            logger.quiet("Clonando llama.cpp (" + llamaCppTag + ") en " + llamaCppDir + " ...")
+            llamaCppDir.parentFile.mkdirs()
+            def clone = ["git", "clone", "--depth", "1", "--branch", llamaCppTag,
+                         "https://github.com/ggml-org/llama.cpp.git", llamaCppDir.absolutePath]
+            def proc = clone.execute()
+            proc.waitFor()
+            if (proc.exitValue() != 0) {
+                throw new GradleException("git clone de llama.cpp falló: " + proc.err.text)
+            }
+        }
+
+        // Parche idempotente (por construcción: una vez comentada, la línea ya no vuelve a
+        // matchear "add_subdirectory(<nombre>)" exacto en una corrida siguiente que reuse el
+        // mismo checkout) — comenta los add_subdirectory() de las herramientas de la lista de
+        // arriba en tools/CMakeLists.txt, para que ni siquiera se DEFINAN como targets de CMake.
+        def toolsCMakeLists = new File(llamaCppDir, "tools/CMakeLists.txt")
+        if (toolsCMakeLists.exists()) {
+            def patchedCount = 0
+            def newLines = toolsCMakeLists.readLines().collect { line ->
+                def trimmed = line.trim()
+                def match = KAIROS_UNNEEDED_TOOLS.find { name -> trimmed == "add_subdirectory(${name})" }
+                if (match != null) {
+                    patchedCount++
+                    return line.replace(
+                        "add_subdirectory(${match})",
+                        "# KAIROS: deshabilitado (herramienta de debug/bench innecesaria, ver llama-engine/build.gradle) — add_subdirectory(${match})"
+                    )
+                }
+                return line
+            }
+            if (patchedCount > 0) {
+                toolsCMakeLists.text = newLines.join("\n") + "\n"
+                logger.quiet("Parcheado tools/CMakeLists.txt: " + patchedCount + " herramientas innecesarias deshabilitadas")
+            }
+        }
+    }
+}
+
+// Fase 2 (2026-08-06, ver docs/humano/humano77.md) — bug real confirmado en dispositivo:
+// KairosBootstrap no encontró llama-server en assets tras un build que SÍ compiló OK
+// (log: "llama-server no está en .../scripts/install/llama-server"). No hay forma de
+// confirmar desde acá si el custom target de copia (kairos_copy_llama_server, ver
+// CMakeLists.txt) realmente corrió — el log de Gradle de un build exitoso no muestra el
+// detalle de qué targets de ninja se invocaron. En vez de seguir adivinando, esta tarea
+// convierte el gap silencioso en un fallo de build fuerte y explícito: si el binario no
+// está en el sourceSet de assets después de la build nativa, el build de CI FALLA con un
+// mensaje claro, en vez de compilar "exitosamente" una APK que en el dispositivo va a
+// fallar la instalación de llama-server sin ninguna pista de por qué.
+task verifyLlamaServerAsset {
+    doLast {
+        def expected = new File(llamaServerAssetsScriptsDir, "llama-server")
+        if (!expected.exists()) {
+            throw new GradleException(
+                "llama-server no se generó en " + expected.absolutePath + " tras la build " +
+                "nativa de CMake — el custom target kairos_copy_llama_server (ver " +
+                "src/main/cpp/CMakeLists.txt) no corrió o falló silenciosamente. La APK " +
+                "resultante NO tendría el binario de llama-server (ver docs/humano/humano77.md)."
+            )
+        }
+        logger.quiet("llama-server verificado en assets: " + expected.absolutePath +
+            " (" + (expected.length() / 1024 / 1024) + " MB)")
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name.startsWith("configureCMake") || it.name.startsWith("buildCMake") }.each {
+        it.dependsOn(downloadLlamaCpp)
+        it.dependsOn(generateVulkanHostToolchain)
+    }
+    tasks.matching { it.name.startsWith("buildCMake") }.each { buildTask ->
+        verifyLlamaServerAsset.dependsOn(buildTask)
+    }
+    // llamaServerAssetsScriptsDir (arriba) lo llena el custom command POST_BUILD del target
+    // llama-server (ver CMakeLists.txt) — sin esta dependencia explícita, AGP podría mergear
+    // los assets ANTES de que termine la build nativa (el sourceSet se registró a mano, Gradle
+    // no infiere solo que depende de una tarea de CMake) y empaquetar una carpeta vacía/vieja.
+    // verifyLlamaServerAsset corre entre medio: después de buildCMake, antes de merge*Assets.
+    tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.each { mergeTask ->
+        tasks.matching { it.name.startsWith("buildCMake") }.each { buildTask ->
+            mergeTask.dependsOn(buildTask)
+        }
+        mergeTask.dependsOn(verifyLlamaServerAsset)
+    }
+}
+
+dependencies {
+    implementation "androidx.annotation:annotation:1.9.0"
+}

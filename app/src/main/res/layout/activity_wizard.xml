@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottom_area">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:padding="32dp">
+
+            <TextView
+                android:id="@+id/welcome_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="KAIROS"
+                android:textSize="34sp"
+                android:textStyle="bold"
+                android:textColor="?attr/kairosText"
+                android:letterSpacing="0.15"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Terminal AI Stack"
+                android:textSize="14sp"
+                android:textColor="?attr/kairosText2"
+                android:letterSpacing="0.1"
+                android:layout_marginBottom="24dp"/>
+
+            <TextView
+                android:id="@+id/status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Preparando entorno..."
+                android:textSize="14sp"
+                android:textColor="?attr/kairosText"
+                android:layout_marginBottom="20dp"/>
+
+            <LinearLayout
+                android:id="@+id/steps_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/bottom_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:max="11"
+            android:progress="0"
+            android:progressTint="?attr/kairosBlue"
+            android:visibility="visible"/>
+
+        <Button
+            android:id="@+id/button_start"
+            android:layout_width="280dp"
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:text="Reintentar"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/white"
+            android:backgroundTint="?attr/kairosRed"
+            android:visibility="gone"/>
+
+    </LinearLayout>
+
+</RelativeLayout>

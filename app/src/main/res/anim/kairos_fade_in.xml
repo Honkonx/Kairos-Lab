@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Transición de tab del BottomNavigationView (pulido visual 2026-08-25, ver
+     docs/estructura/ESTILO_VISUAL_2026-08-25.md). Fade cruzado corto: los 11 fragments de tab
+     son hermanos del mismo nivel de navegación (hide/show sobre R.id.fragment_container en
+     TermuxActivity.switchFragment()), no hay jerarquía padre/hijo entre ellos, así que un slide
+     direccional (que implica "entrar desde/salir hacia" un lado) no tiene un sentido natural
+     consistente entre 11 destinos — un fade simple es neutro para cualquier par de tabs. -->
+<alpha xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fromAlpha="0.0"
+    android:toAlpha="1.0"
+    android:duration="150"
+    android:interpolator="@android:anim/decelerate_interpolator" />

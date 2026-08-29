@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="verificar_module_name">Verification</string>
+    <string name="verificar_diagnostico_card_title">LIVE DIAGNOSTIC</string>
+    <string name="verificar_diagnostico_description">Verifies EVERY module the registry marks as installed against the real filesystem/binary (6 strategies: cmd, pkg, dir, file, plugin, config) — detects the \"installed on paper but broken in practice\" case (e.g. the folder got deleted, a pkg remove broke something).</string>
+    <string name="verificar_run_button">🔍 Verify all modules</string>
+    <string name="verificar_results_card_title">RESULTS</string>
+    <string name="verificar_results_placeholder">Tap \"Verify all modules\" to run the diagnostic.</string>
+    <string name="verificar_maintenance_card_title">MAINTENANCE</string>
+    <string name="verificar_update_button">🔄 Update</string>
+    <string name="verificar_updating_toast">Updating %1$s…</string>
+    <string name="verificar_updated_toast">%1$s updated</string>
+    <string name="verificar_update_failed_toast">Failed — check ~/kairos_logs/install_verificar.log</string>
+    <string name="verificar_uninstall_button">🗑 Uninstall</string>
+    <string name="verificar_uninstalled_toast">%1$s uninstalled</string>
+    <string name="verificar_uninstall_failed_toast">Could not uninstall %1$s</string>
+    <string name="verificar_progress_title">Verifying modules</string>
+    <string name="verificar_progress_message">Running the 6 live strategies…</string>
+    <string name="verificar_progress_failure">Could not run the verification</string>
+    <string name="verificar_progress_success">%1$d OK · %2$d with issues · %3$d without a strategy</string>
+    <string name="verificar_progress_success_detail">%1$d module(s) verified</string>
+    <string name="verificar_placeholder_failed">Verification failed — check that \"verificar\" is installed.</string>
+    <string name="verificar_placeholder_empty">Nothing to verify (empty registry).</string>
+    <string name="verificar_status_ok_label">Installed and verified</string>
+    <string name="verificar_status_warn_label">Registry says installed but the real binary is missing</string>
+    <string name="verificar_status_skip_label">Installed (no verification strategy defined yet)</string>
+    <string name="verificar_strategy_line">strategy: %1$s → %2$s</string>
+</resources>

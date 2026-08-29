@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="verificar_module_name">Verificación</string>
+    <string name="verificar_diagnostico_card_title">DIAGNÓSTICO EN VIVO</string>
+    <string name="verificar_diagnostico_description">Verifica CADA módulo que el registry dice instalado contra el filesystem/binario real (6 estrategias: cmd, pkg, dir, file, plugin, config) — detecta el caso \"instalado en el papel pero roto en la práctica\" (ej. borraron la carpeta, un pkg remove rompió algo).</string>
+    <string name="verificar_run_button">🔍 Verificar todos los módulos</string>
+    <string name="verificar_results_card_title">RESULTADOS</string>
+    <string name="verificar_results_placeholder">Tocá \"Verificar todos los módulos\" para correr el diagnóstico.</string>
+    <string name="verificar_maintenance_card_title">MANTENIMIENTO</string>
+    <string name="verificar_update_button">🔄 Actualizar</string>
+    <string name="verificar_updating_toast">Actualizando %1$s…</string>
+    <string name="verificar_updated_toast">%1$s actualizado</string>
+    <string name="verificar_update_failed_toast">Falló — revisa ~/kairos_logs/install_verificar.log</string>
+    <string name="verificar_uninstall_button">🗑 Desinstalar</string>
+    <string name="verificar_uninstalled_toast">%1$s desinstalado</string>
+    <string name="verificar_uninstall_failed_toast">No se pudo desinstalar %1$s</string>
+    <string name="verificar_progress_title">Verificando módulos</string>
+    <string name="verificar_progress_message">Corriendo las 6 estrategias en vivo…</string>
+    <string name="verificar_progress_failure">No se pudo correr la verificación</string>
+    <string name="verificar_progress_success">%1$d OK · %2$d con problemas · %3$d sin estrategia</string>
+    <string name="verificar_progress_success_detail">%1$d módulo(s) verificados</string>
+    <string name="verificar_placeholder_failed">Falló la verificación — revisá que \"verificar\" esté instalado.</string>
+    <string name="verificar_placeholder_empty">Nada para verificar (registry vacío).</string>
+    <string name="verificar_status_ok_label">Instalado y verificado</string>
+    <string name="verificar_status_warn_label">Registry dice instalado pero el binario real no está</string>
+    <string name="verificar_status_skip_label">Instalado (sin estrategia de verificación definida todavía)</string>
+    <string name="verificar_strategy_line">estrategia: %1$s → %2$s</string>
+</resources>

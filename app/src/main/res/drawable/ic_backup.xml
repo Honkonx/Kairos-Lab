@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono nuevo (2026-08-26, rediseño grid/pestañas de Mini PC) — carpeta/archivo con flecha
+     hacia abajo (guardar copia), usado en la tile "Backup de distro (tar.gz)". -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 5 3 h 14 a 1 1 0 0 1 1 1 v 4 h -2 V 5 H 6 v 14 h 6 v 2 H 5 a 1 1 0 0 1 -1 -1 V 4 a 1 1 0 0 1 1 -1 z" />
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 15 10 h 2 v 4 h 3 l -4 4 l -4 -4 h 3 z" />
+</vector>

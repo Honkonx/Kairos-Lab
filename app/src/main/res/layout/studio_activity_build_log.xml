@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ide_background">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/ide_surface"
+        app:title="@string/build_log_title"
+        app:titleTextColor="@color/ide_text_primary"
+        app:navigationIcon="@drawable/studio_ic_back" />
+
+    <!-- Mismo patrón de aviso de estado que TerminalActivity: Kairos no instalado / permiso
+         RUN_COMMAND no concedido / recordatorio de allow-external-apps. -->
+    <LinearLayout
+        android:id="@+id/status_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/ide_surface"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/status_banner_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/status_banner_action"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/build_status_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp"
+        android:textColor="@color/ide_text_primary"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:background="@color/ide_surface" />
+
+    <ScrollView
+        android:id="@+id/build_log_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/build_log_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="12sp" />
+
+    </ScrollView>
+
+    <Button
+        android:id="@+id/rebuild_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="8dp"
+        android:text="@string/action_build_apk" />
+
+</LinearLayout>

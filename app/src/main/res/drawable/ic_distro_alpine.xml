@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de identidad Alpine Linux (2026-08-27, ver docs/humano259.md) — interpretación
+     vectorial simplificada de un solo color (cordillera de picos, el mismo motivo del logo
+     real), fondo circular color de marca (#0D597F). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M2,19 L7,10 L10,14.5 L13,8 L18,17 H15.6 L13,12.4 L10.6,17.5 L8.3,13.7 L6,19 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M14,19 L18.5,11 L22,19 Z" />
+</vector>

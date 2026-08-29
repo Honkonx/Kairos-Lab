@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fila de resultado de "Buscar en proyecto": ruta del archivo + línea:contexto. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="?attr/selectableItemBackground"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="8dp">
+
+    <TextView
+        android:id="@+id/search_result_path"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:ellipsize="middle"
+        android:textColor="@color/ide_accent"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/search_result_line"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:fontFamily="monospace"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:textColor="@color/ide_text_primary"
+        android:textSize="13sp" />
+
+</LinearLayout>

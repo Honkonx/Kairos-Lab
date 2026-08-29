@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono "+" para los botones de crear archivo/carpeta en la raíz del proyecto (header del
+     sidebar) — ver layout_sidebar.xml / MainActivity.showNewEntryDialog. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#9AA3B5">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 19 13 h -6 v 6 h -2 v -6 H 5 v -2 h 6 V 5 h 2 v 6 h 6 v 2 z" />
+</vector>

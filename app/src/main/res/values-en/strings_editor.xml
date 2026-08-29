@@ -1,0 +1,11 @@
+<resources>
+    <string name="editor_file_not_found">File not found</string>
+    <string name="editor_file_too_large">File too large to edit (&gt;5MB)</string>
+    <string name="editor_read_error">Couldn\'t read file: %1$s</string>
+    <string name="editor_unsaved_changes_title">Unsaved changes</string>
+    <string name="editor_unsaved_changes_message">Exit without saving changes?</string>
+    <string name="editor_exit_without_saving">Exit without saving</string>
+    <string name="editor_action_cancel">Cancel</string>
+    <string name="editor_saved">Saved</string>
+    <string name="editor_save_error">Error saving: %1$s</string>
+</resources>

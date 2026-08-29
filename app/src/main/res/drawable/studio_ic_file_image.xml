@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Archivo de imagen" — cuerpo de hoja + glifo de montaña/sol -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 14 2 H 6 a 2 2 0 0 0 -2 2 v 16 a 2 2 0 0 0 2 2 h 12 a 2 2 0 0 0 2 -2 V 8 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 14 2 v 6 h 6 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 7 17.5 l 3 -4 2 2.5 2.5 -3.5 L 17 17.5 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 9.2 11.2 m -1.2 0 a 1.2 1.2 0 1 1 2.4 0 a 1.2 1.2 0 1 1 -2.4 0" />
+</vector>

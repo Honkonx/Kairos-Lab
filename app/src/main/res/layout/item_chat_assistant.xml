@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingLeft="12dp" android:paddingRight="12dp"
+    android:paddingTop="4dp" android:paddingBottom="4dp"
+    android:gravity="start">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="48dp"
+        app:cardBackgroundColor="?attr/kairosBg2"
+        app:strokeWidth="1dp"
+        app:strokeColor="?attr/kairosBorder"
+        app:cardElevation="0dp"
+        app:cardCornerRadius="12dp"
+        app:contentPadding="10dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="5dp">
+
+                <TextView
+                    android:id="@+id/bubble_role"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="10sp"
+                    android:textColor="?attr/kairosText2"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.1" />
+
+                <TextView
+                    android:id="@+id/bubble_ts"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="10sp"
+                    android:textColor="?attr/kairosText3"
+                    android:layout_marginStart="8dp" />
+
+            </LinearLayout>
+
+            <!-- Cadena de pensamiento de modelos razonadores (DeepSeek-R1, QwQ, ...),
+                 tag <think>...</think> parseado en ChatFragment.ThinkStreamParser —
+                 ver docs/referencias/REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md. Colapsado por
+                 defecto (toca para expandir), oculto del todo si el modelo no
+                 emitió ningún pensamiento. -->
+            <TextView
+                android:id="@+id/bubble_thought"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textStyle="italic"
+                android:textColor="?attr/kairosText3"
+                android:lineSpacingExtra="2dp"
+                android:layout_marginBottom="6dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/bubble_content"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="?attr/kairosText"
+                android:lineSpacingExtra="4dp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>

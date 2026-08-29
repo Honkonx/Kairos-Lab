@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de identidad Rocky Linux (2026-08-27, ver docs/humano259.md) — interpretación
+     vectorial simplificada de un solo color (montaña/pico, evocando el nombre "Rocky"), fondo
+     circular color de marca (#6DA34D). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,4 L20,20 H4 Z" />
+    <path
+        android:fillColor="#6DA34D"
+        android:pathData="M12,4 L15.3,10.6 L12,13 L8.7,10.6 Z" />
+</vector>

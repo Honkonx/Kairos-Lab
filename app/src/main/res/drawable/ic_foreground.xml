@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Logo nuevo de Kairos: pluma verde neón sobre navy (2026-08-22, ver docs/humano/humano191.md,
+     pedido explícito del usuario: "el nuevo logo que quiero para el apk es el de la pluma").
+     Reemplaza la "K" de 3 trazos anterior (mantenida solo como referencia histórica en
+     art/ic_launcher.svg, no se borra). El bitmap real vive en
+     drawable-nodpi/ic_foreground_feather.png (recortado + con zona segura de adaptive icon —
+     ver el script de procesamiento en la sesión que generó este archivo). -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/ic_foreground_feather"
+    android:gravity="fill" />

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder de acción "Terminal" — glifo prompt ">_", la lógica real la conecta otro agente
+     de esta misma ronda; esta pantalla solo deja la entrada de UI lista. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#E8EAF0">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 20 4 H 4 a 2 2 0 0 0 -2 2 v 12 a 2 2 0 0 0 2 2 h 16 a 2 2 0 0 0 2 -2 V 6 a 2 2 0 0 0 -2 -2 z M 7.5 15.5 L 6.09 14.09 8.67 11.5 6.09 8.91 7.5 7.5 l 4 4 z M 17 15.5 h -6 v -1.5 h 6 z" />
+</vector>

@@ -1,0 +1,190 @@
+<resources>
+    <!-- Nombres de módulos/motores/CLIs mostrados en las filas de estado de Monitor -->
+    <string name="monitor_module_ollama">Ollama</string>
+    <string name="monitor_module_n8n">n8n</string>
+    <string name="monitor_module_openclaw">OpenClaw</string>
+    <string name="monitor_module_opencode">OpenCode</string>
+    <string name="monitor_module_remote">Remote (SSH)</string>
+    <string name="monitor_engine_llamaserver">llama-server</string>
+    <string name="monitor_cli_hermes">Hermes</string>
+    <string name="monitor_cli_engram">Engram</string>
+
+    <!-- Títulos de sección -->
+    <string name="monitor_section_device">DISPOSITIVO</string>
+    <string name="monitor_section_modules">MÓDULOS EN EJECUCIÓN</string>
+    <string name="monitor_section_ai_engines">MOTORES DE IA</string>
+    <string name="monitor_section_cli_tools">HERRAMIENTAS IA (CLI)</string>
+    <string name="monitor_section_databases">BASES DE DATOS</string>
+    <string name="monitor_section_desktop">ENTORNO — ESCRITORIO</string>
+    <string name="monitor_section_processes">PROCESOS (pm2)</string>
+    <string name="monitor_section_network">RED</string>
+    <string name="monitor_section_termux_packages">PAQUETES DE TERMUX</string>
+    <string name="monitor_section_pip_packages">PAQUETES DE PYTHON (pip)</string>
+    <string name="monitor_section_diagnostics">DIAGNÓSTICO</string>
+
+    <!-- Genéricos -->
+    <string name="monitor_loading">Cargando…</string>
+    <string name="monitor_status_running">● Corriendo</string>
+    <string name="monitor_status_stopped">○ Detenido</string>
+    <string name="monitor_status_running_port">● Corriendo (puerto %1$s)</string>
+    <string name="monitor_installed_check">✓ Instalado</string>
+    <string name="monitor_not_installed_dash">— No instalado</string>
+    <string name="monitor_error_generic">Error: %1$s</string>
+    <string name="monitor_action_delete">Eliminar</string>
+    <string name="monitor_action_cancel">Cancelar</string>
+    <string name="monitor_action_close">Cerrar</string>
+
+    <!-- Bases de datos -->
+    <string name="monitor_db_mysql">MySQL / MariaDB</string>
+    <string name="monitor_db_postgres">PostgreSQL</string>
+    <string name="monitor_db_sqlite">SQLite (CLI)</string>
+    <string name="monitor_db_available">● Disponible</string>
+    <string name="monitor_db_not_installed">○ No instalado</string>
+    <string name="monitor_db_last_stack">Último stack (Entornos de Prueba)</string>
+    <string name="monitor_db_no_presets">Sin presets instalados</string>
+    <string name="monitor_db_stack_target_format">%1$s (%2$s)</string>
+
+    <!-- Entorno — Escritorio -->
+    <string name="monitor_desktop_x11_server">Servidor X11 (embebido)</string>
+    <string name="monitor_desktop_x11_unavailable">○ No disponible</string>
+    <string name="monitor_desktop_installed">Escritorios instalados</string>
+    <string name="monitor_desktop_none_installed">Ninguno instalado</string>
+
+    <!-- Procesos (pm2) -->
+    <string name="monitor_pm2_no_processes">No hay procesos gestionados por pm2 todavía</string>
+    <string name="monitor_pm2_invalid_json">Respuesta de pm2 no es JSON válido: %1$s</string>
+    <string name="monitor_pm2_unavailable">pm2 no está disponible — probá reinstalarlo.</string>
+    <string name="monitor_pm2_reinstall_btn">↻ Reinstalar pm2</string>
+    <string name="monitor_pm2_reinstalling">Reinstalando pm2…</string>
+    <string name="monitor_pm2_reinstall_ok">pm2 reinstalado correctamente</string>
+    <string name="monitor_pm2_reinstall_fail">No se pudo reinstalar pm2: %1$s</string>
+    <string name="monitor_pm2_delete_title">¿Eliminar %1$s de pm2?</string>
+    <string name="monitor_pm2_delete_message">Se detiene y se saca de la lista de pm2. No borra archivos del proceso.</string>
+    <string name="monitor_pm2_action_result">%1$s: %2$s OK</string>
+    <string name="monitor_pm2_proc_detail">PID %1$d · CPU %2$d%% · RAM %3$s · %4$d reinicios</string>
+    <string name="monitor_pm2_action_stop">Detener</string>
+    <string name="monitor_pm2_action_restart">Reiniciar</string>
+    <string name="monitor_pm2_action_restart_icon">↻ Reiniciar</string>
+
+    <!-- Red -->
+    <string name="monitor_network_no_connection">○ Sin conexión</string>
+    <string name="monitor_network_label_connection">Conexión</string>
+    <string name="monitor_network_wifi">Wi-Fi</string>
+    <string name="monitor_network_cellular">Datos móviles</string>
+    <string name="monitor_network_ethernet">Ethernet</string>
+    <string name="monitor_network_other">Otro</string>
+    <string name="monitor_network_label_type">Tipo de conexión</string>
+    <string name="monitor_network_label_internet">Internet</string>
+    <string name="monitor_network_validated">● Validado</string>
+    <string name="monitor_network_no_internet">○ Sin salida a internet</string>
+
+    <!-- Paquetes de Termux / pip -->
+    <string name="monitor_pkg_count">%1$d paquetes instalados en Termux</string>
+    <string name="monitor_pkg_unavailable">pkg no está disponible — el bootstrap de Termux de este dispositivo quedó incompleto y todavía no hay forma de repararlo desde la app. Probá desinstalar y volver a instalar KairosApp.</string>
+    <string name="monitor_pip_count">%1$d paquetes pip instalados</string>
+    <string name="monitor_pip_broken">python3 no responde (se instaló antes pero dejó de funcionar) — andá a Módulos &gt; Python y tocá instalar para repararlo.</string>
+    <string name="monitor_pip_never_installed">python3 nunca se instaló — andá a Módulos &gt; Python para instalarlo.</string>
+
+    <!-- Diagnóstico -->
+    <string name="monitor_diag_phantom_label">Phantom process killer</string>
+    <string name="monitor_diag_phantom_fixed">Desactivado y verificado en este dispositivo</string>
+    <string name="monitor_diag_checking_real_state">Verificando estado real…</string>
+    <string name="monitor_diag_phantom_off">Desactivado — Android no matará módulos en segundo plano</string>
+    <string name="monitor_diag_phantom_on">ACTIVO — Android puede matar tus módulos; recomendado desactivarlo</string>
+    <string name="monitor_diag_reapply">Volver a aplicar</string>
+    <string name="monitor_diag_disable">Desactivar</string>
+    <string name="monitor_diag_battery_label">Optimización de batería</string>
+    <string name="monitor_diag_battery_off">Desactivada — Kairos exento de restricciones</string>
+    <string name="monitor_diag_battery_on">ACTIVA — el sistema puede pausar tus módulos; recomendado desactivarla</string>
+    <string name="monitor_diag_root_label">Acceso root</string>
+    <string name="monitor_diag_checking">Verificando…</string>
+    <string name="monitor_diag_root_not_detected">No detectado — vista limitada a los procesos propios de Kairos (sandbox)</string>
+    <string name="monitor_diag_root_detected">Detectado — %1$d procesos a nivel de sistema (sandbox sin root: %2$s)</string>
+    <string name="monitor_diag_problem_phantom">el \"phantom process killer\" está activo (mata procesos en segundo plano)</string>
+    <string name="monitor_diag_problem_battery">la optimización de batería está activa (puede pausar los módulos)</string>
+    <string name="monitor_diag_recommend_toast">Recomendado desactivar: %1$s — para evitar errores</string>
+    <string name="monitor_phantom_root_success">Desactivado — puede hacer falta reiniciar el dispositivo</string>
+
+    <!-- Diálogos de fix del phantom process killer -->
+    <string name="monitor_phantom_dialog_no_root">Este dispositivo no tiene root (o Kairos no tiene permiso su) — igual se puede aplicar el fix real sin PC, usando la Depuración inalámbrica de Android.</string>
+    <string name="monitor_phantom_dialog_detail_suffix">\n\nDetalle: %1$s</string>
+    <string name="monitor_phantom_option_auto_title">Configurar automáticamente (sin PC)</string>
+    <string name="monitor_phantom_option_auto_subtitle">Kairos te pide 3 datos y hace todo lo demás.</string>
+    <string name="monitor_phantom_option_beta_title">Auto-detectar puerto (beta)</string>
+    <string name="monitor_phantom_option_beta_subtitle">Solo pedís 2 datos — instala nmap y detecta el puerto de conexión solo.</string>
+    <string name="monitor_phantom_option_manual_title">Ver tutorial manual</string>
+    <string name="monitor_phantom_option_manual_subtitle">Corré los comandos vos mismo, sin automatizar nada.</string>
+    <string name="monitor_phantom_dialog_title_no_root">Sin acceso root</string>
+
+    <!-- Fix guiado, paso 1 -->
+    <string name="monitor_guided_step1_title">Paso 1 de 3 — Depuración inalámbrica</string>
+    <string name="monitor_guided_step1_message">Vamos a usar la Depuración inalámbrica de Android para desactivar el phantom process killer sin necesitar una PC. En el siguiente paso vas a tener que escribir 3 datos que SOLO Android muestra en su propia pantalla — no hay forma de leerlos automáticamente.\n\nTocá \"Abrir Opciones de desarrollador\", entrá a \"Depuración inalámbrica\" y activala. Cuando la tengas activa, volvé a Kairos y tocá \"Continuar\".</string>
+    <string name="monitor_open_dev_options">Abrir Opciones de desarrollador</string>
+    <string name="monitor_continue">Continuar</string>
+
+    <!-- Fix guiado, paso 2 -->
+    <string name="monitor_hint_pairing_port">Puerto de emparejamiento (ej. 39555)</string>
+    <string name="monitor_hint_code">Código de 6 dígitos</string>
+    <string name="monitor_hint_connect_port">Puerto de conexión (ej. 35541)</string>
+    <string name="monitor_guided_step2_message">Dentro de \"Depuración inalámbrica\": el puerto de conexión está arriba de la pantalla principal, junto a la IP. El puerto de emparejamiento y el código de 6 dígitos aparecen al tocar \"Vincular dispositivo con código de emparejamiento\".</string>
+    <string name="monitor_guided_step2_title">Paso 2 de 3 — Datos de emparejamiento</string>
+    <string name="monitor_apply_fix">Aplicar fix</string>
+    <string name="monitor_fill_3_fields">Completá los 3 campos solo con números</string>
+
+    <!-- Fix guiado, paso 3 -->
+    <string name="monitor_guided_step3_title">Paso 3 de 3 — Aplicando fix</string>
+    <string name="monitor_running_adb">Ejecutando comandos ADB…</string>
+    <string name="monitor_phantom_fix_success">Phantom process killer desactivado (verificado)</string>
+    <string name="monitor_phantom_fix_fail">No se pudo confirmar el fix — revisá el detalle</string>
+
+    <!-- Auto-detección (beta) -->
+    <string name="monitor_autodetect_preparing_title">Preparando auto-detección (beta)</string>
+    <string name="monitor_autodetect_preparing_message">Espere, instalando paquete necesario…</string>
+    <string name="monitor_nmap_install_fail_title">No se pudo instalar nmap</string>
+    <string name="monitor_nmap_install_fail_detail">Probá la opción \"Configurar automáticamente (sin PC)\" en su lugar — no necesita nmap.</string>
+    <string name="monitor_autodetect_step1_title">Paso 1 de 3 — Depuración inalámbrica (beta)</string>
+    <string name="monitor_autodetect_step1_message">nmap ya está instalado. Igual que la vía normal, vamos a usar la Depuración inalámbrica de Android — pero acá solo vas a tener que escribir 2 datos (el puerto de conexión lo detecta Kairos solo).\n\nTocá \"Abrir Opciones de desarrollador\", entrá a \"Depuración inalámbrica\" y activala. Cuando la tengas activa, volvé a Kairos y tocá \"Continuar\".</string>
+    <string name="monitor_autodetect_step2_message">Dentro de \"Depuración inalámbrica\", tocá \"Vincular dispositivo con código de emparejamiento\" — vas a ver el puerto y el código de 6 dígitos. No hace falta el puerto de conexión esta vez.</string>
+    <string name="monitor_fill_2_fields">Completá los 2 campos solo con números</string>
+    <string name="monitor_autodetect_step3_title">Paso 3 de 3 — Detectando puerto y aplicando fix (beta)</string>
+
+    <!-- Dispositivo -->
+    <string name="monitor_device_ip">IP local</string>
+    <string name="monitor_device_uptime">Uptime</string>
+    <string name="monitor_device_android">Android</string>
+    <string name="monitor_device_android_value">API %1$d</string>
+    <string name="monitor_device_arch">Arquitectura</string>
+    <string name="monitor_device_gpu">GPU</string>
+    <string name="monitor_device_gpu_value">%1$s — %2$s</string>
+    <string name="monitor_device_gpu_unavailable">No se pudo detectar</string>
+    <string name="monitor_device_network_rate">Red (↓/↑)</string>
+    <string name="monitor_network_rate_value">↓ %1$s · ↑ %2$s</string>
+    <string name="monitor_network_rate_measuring">Midiendo…</string>
+    <string name="monitor_network_rate_unavailable">No disponible en este dispositivo</string>
+    <string name="monitor_device_processes">Procesos visibles</string>
+    <string name="monitor_device_processes_value">%1$d</string>
+
+    <!-- CPU -->
+    <string name="monitor_cpu_usage">CPU: %1$d%% en uso</string>
+    <string name="monitor_cpu_cores">%1$d núcleos</string>
+    <string name="monitor_cpu_measuring">Midiendo…</string>
+
+    <!-- Almacenamiento -->
+    <string name="monitor_storage_no_permission">Sin permiso de almacenamiento</string>
+    <string name="monitor_storage_tap_grant">Toca para conceder</string>
+    <string name="monitor_storage_available_gb">%1$s GB disponible</string>
+    <string name="monitor_storage_total_used">Total: %1$s GB · Usado: %2$s GB (%3$d%%)</string>
+    <string name="monitor_storage_read_error">Error al leer almacenamiento</string>
+    <string name="monitor_storage_setting_up">Iniciando configuración de almacenamiento...</string>
+    <string name="monitor_storage_setup_ok">✓ Configuración de almacenamiento completada</string>
+    <string name="monitor_storage_setup_error">✗ Error: %1$s</string>
+    <string name="monitor_storage_setup_exception">✗ Excepción: %1$s</string>
+
+    <!-- RAM -->
+    <string name="monitor_ram_available">Disponible: %1$d MB</string>
+    <string name="monitor_ram_total">Total: %1$d MB</string>
+    <string name="monitor_ram_used">Usada: %1$d MB (%2$d%%)</string>
+
+    <!-- Navegación a detalle de módulo -->
+    <string name="monitor_module_not_found">Módulo no encontrado en el catálogo</string>
+</resources>

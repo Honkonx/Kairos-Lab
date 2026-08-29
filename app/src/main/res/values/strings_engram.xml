@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="engram_module_name">Engram</string>
+    <string name="engram_card_estado">ESTADO</string>
+
+    <string name="engram_row_motor_label">Motor</string>
+    <string name="engram_row_motor_value">Go (binario nativo)</string>
+    <string name="engram_row_storage_label">Almacenamiento</string>
+    <string name="engram_row_storage_value">SQLite local</string>
+    <string name="engram_label_estado">Estado</string>
+    <string name="engram_pill_dash">—</string>
+    <string name="engram_label_terminal">Terminal</string>
+
+    <string name="engram_card_que_es">QUÉ ES</string>
+    <string name="engram_desc_que_es">Memoria persistente para agentes de IA (Claude Code, OpenCode, etc). Guarda contexto entre sesiones en SQLite local, sin servicios externos.</string>
+
+    <string name="engram_btn_abrir_tui">⌨ Abrir TUI en terminal</string>
+    <string name="engram_btn_guardar_manual">💾 Guardar memoria manual</string>
+    <string name="engram_btn_buscar">🔍 Buscar en memoria</string>
+    <string name="engram_btn_contexto_reciente">🗂 Ver contexto reciente</string>
+    <string name="engram_btn_stats">📊 Ver estadísticas (stats)</string>
+    <string name="engram_btn_listar_proyectos">📁 Listar proyectos</string>
+    <string name="engram_btn_doctor">🩺 Diagnóstico (doctor)</string>
+    <string name="engram_btn_configurar_agentes">🔗 Configurar integración con agentes</string>
+    <string name="engram_btn_exportar">📤 Exportar memoria a JSON</string>
+    <string name="engram_btn_importar">📥 Importar memoria desde JSON</string>
+    <string name="engram_btn_eliminar_proyecto">🗑 Eliminar memoria de un proyecto</string>
+    <string name="engram_btn_reinstalar">⚙ Reinstalar / recompilar</string>
+
+    <string name="engram_toast_reinstalando">Reinstalando Engram…</string>
+    <string name="engram_toast_actualizado">Engram actualizado</string>
+    <string name="engram_toast_fallo_reinstalar">Falló — revisa ~/kairos_logs/install_engram.log</string>
+
+    <string name="engram_pill_listo">listo</string>
+    <string name="engram_pill_no_responde">no responde</string>
+
+    <string name="engram_dialog_guardar_title">Guardar memoria manual</string>
+    <string name="engram_hint_titulo">Título</string>
+    <string name="engram_hint_contenido">Contenido</string>
+    <string name="engram_btn_guardar">Guardar</string>
+    <string name="engram_toast_falta_titulo_contenido">Falta título o contenido</string>
+    <string name="engram_toast_memoria_guardada">Memoria guardada</string>
+    <string name="engram_btn_cancelar">Cancelar</string>
+
+    <string name="engram_dialog_buscar_title">Buscar en memoria</string>
+    <string name="engram_hint_buscar">Texto a buscar en la memoria</string>
+    <string name="engram_btn_buscar_dialog">Buscar</string>
+
+    <string name="engram_toast_exportando">Exportando memoria…</string>
+    <string name="engram_toast_exportado">Exportado a ~/%1$s</string>
+    <string name="engram_toast_fallo_exportar">Falló al exportar: %1$s</string>
+
+    <string name="engram_toast_no_backups">No hay backups en ~/ (engram_export_*.json) — exportá uno primero o escribí la ruta a mano</string>
+    <string name="engram_dialog_importar_title">Importar memoria</string>
+    <string name="engram_btn_ruta_manual">Escribir ruta a mano</string>
+    <string name="engram_dialog_ruta_title">Ruta del backup</string>
+    <string name="engram_hint_ruta">Ruta completa al .json</string>
+    <string name="engram_btn_continuar">Continuar</string>
+    <string name="engram_dialog_confirmar_import_title">¿Importar %1$s?</string>
+    <string name="engram_dialog_confirmar_import_msg">Restaura memorias desde ese backup — puede duplicar observaciones ya existentes si se importa dos veces.</string>
+    <string name="engram_btn_importar_dialog">Importar</string>
+    <string name="engram_toast_importando">Importando…</string>
+
+    <string name="engram_dialog_eliminar_proyecto_title">Eliminar memoria de un proyecto</string>
+    <string name="engram_dialog_eliminar_proyecto_msg">Borra (soft-delete, recuperable) las observaciones guardadas de ese proyecto en la memoria de Engram.</string>
+    <string name="engram_hint_nombre_proyecto">Nombre del proyecto</string>
+    <string name="engram_dialog_confirmar_eliminar_title">¿Eliminar \"%1$s\"?</string>
+    <string name="engram_dialog_confirmar_eliminar_msg">Esto borra (soft-delete) las observaciones de memoria asociadas a este proyecto.</string>
+    <string name="engram_btn_eliminar_dialog">Eliminar</string>
+
+    <string name="engram_sin_salida">(sin salida)</string>
+    <string name="engram_dialog_cerrar">Cerrar</string>
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema "Claro" (2026-08-22, ver docs/humano/humano190.md) — modo claro real, no una simple
+         inversión del oscuro (fondo cálido en vez de blanco puro, acentos más oscuros para
+         mantener contraste sobre fondo claro). Aplicado vía Theme.Kairos.Claro
+         (themes_kairos.xml), nunca referenciado directo desde layouts. -->
+    <color name="kairos_claro_bg">#F7F6F3</color>
+    <color name="kairos_claro_bg2">#FFFFFF</color>
+    <color name="kairos_claro_bg3">#EFEDE8</color>
+    <color name="kairos_claro_bg_elevated">#FFFFFF</color>
+    <color name="kairos_claro_bg_surface">#FBFAF8</color>
+    <color name="kairos_claro_nav_bg">#FFFFFF</color>
+
+    <color name="kairos_claro_text">#1A1A1C</color>
+    <color name="kairos_claro_text2">#5B5B60</color>
+    <color name="kairos_claro_text3">#8C8C90</color>
+
+    <color name="kairos_claro_blue">#2563EB</color>
+    <color name="kairos_claro_green">#16A34A</color>
+    <color name="kairos_claro_red">#DC2626</color>
+    <color name="kairos_claro_amber">#D97706</color>
+
+    <color name="kairos_claro_border">#E4E2DC</color>
+    <color name="kairos_claro_divider">#EBE9E4</color>
+
+    <color name="kairos_claro_status_running">#16A34A</color>
+    <color name="kairos_claro_status_stopped">#9CA3AF</color>
+    <color name="kairos_claro_status_installing">#2563EB</color>
+    <color name="kairos_claro_status_error">#DC2626</color>
+    <color name="kairos_claro_status_not_installed">#C7C5BF</color>
+</resources>

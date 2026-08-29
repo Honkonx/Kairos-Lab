@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ciberseguridad_module_name">Cybersecurity</string>
+
+    <!-- Legal/ethical disclaimer -->
+    <string name="ciberseguridad_disclaimer_checkbox">I understand and agree to use these tools responsibly and legally</string>
+    <string name="ciberseguridad_disclaimer_dialog_title">Before using Cybersecurity</string>
+    <string name="ciberseguridad_disclaimer_accept_button">I understand and agree</string>
+    <string name="ciberseguridad_disclaimer_banner_title">⚠ RESPONSIBLE USE</string>
+    <string name="ciberseguridad_disclaimer_view_full">View full legal details</string>
+    <string name="ciberseguridad_disclaimer_full_dialog_title">Responsible use — Cybersecurity</string>
+    <string name="ciberseguridad_disclaimer_short">Only use these tools against systems you own or have explicit authorization for — misuse can be illegal.</string>
+    <string name="ciberseguridad_disclaimer_full">Cybersecurity installs and gives access to real pentesting/OSINT tools (nmap, theHarvester, nikto, dirb, sqlmap and, at the Pro tier, a full Kali Linux container).\n\nUsing these tools against networks, systems, domains, or accounts that are not yours, or without explicit and verifiable authorization from the owner, may constitute a crime under the laws of your country (for example, unauthorized access to computer systems or data interception).\n\nKairos does not and cannot verify that you have that authorization — you are the one who takes on all legal and ethical responsibility for every action you run with these tools, whether inside or outside the full terminal this module exposes.</string>
+
+    <!-- Network card -->
+    <string name="ciberseguridad_network_card_title">🌐 NETWORK</string>
+    <string name="ciberseguridad_ip_local_label">Local IP</string>
+    <string name="ciberseguridad_loading_placeholder">…</string>
+    <string name="ciberseguridad_installed_level_label">Installed tier</string>
+    <string name="ciberseguridad_level_pro_value">Pro (+ Kali Linux)</string>
+    <string name="ciberseguridad_level_basic_value">Basic</string>
+    <string name="ciberseguridad_kali_container_label">Kali container</string>
+    <string name="ciberseguridad_gui_label">Graphical interface</string>
+    <string name="ciberseguridad_gui_yes">Yes (XFCE)</string>
+    <string name="ciberseguridad_gui_no">No (headless)</string>
+    <string name="ciberseguridad_scan_lan_button">🔍 Scan devices on the LAN (nmap -sn)</string>
+    <string name="ciberseguridad_scanning_button">Scanning…</string>
+    <string name="ciberseguridad_scanning_lan_placeholder">Scanning the network…</string>
+    <string name="ciberseguridad_nmap_missing_reinstall">nmap is not installed — reinstall the module</string>
+    <string name="ciberseguridad_error_prefix">Error: %1$s</string>
+    <string name="ciberseguridad_no_devices_found">No devices found</string>
+    <string name="ciberseguridad_invalid_local_ip">Invalid local IP (%1$s)</string>
+    <string name="ciberseguridad_nmap_error">nmap finished with an error</string>
+
+    <!-- Tabs -->
+    <string name="ciberseguridad_tab_reconocimiento">Recon</string>
+    <string name="ciberseguridad_tab_web">Web</string>
+    <string name="ciberseguridad_tab_pro">Pro</string>
+    <string name="ciberseguridad_kali_tab_title">KALI LINUX (PRO)</string>
+
+    <!-- Recon buttons -->
+    <string name="ciberseguridad_nmap_native_button">🎯 nmap — quick port scan (native panel)</string>
+    <string name="ciberseguridad_nmap_terminal_button">⌨ nmap (full terminal — advanced flags)</string>
+    <string name="ciberseguridad_theharvester_native_button">🔎 theHarvester — quick OSINT (native panel)</string>
+    <string name="ciberseguridad_theharvester_terminal_button">⌨ theHarvester (full terminal — sources needing an API key)</string>
+
+    <!-- Web buttons -->
+    <string name="ciberseguridad_nikto_native_button">🕷 nikto — quick web vulnerability scan (native panel)</string>
+    <string name="ciberseguridad_nikto_terminal_button">⌨ nikto (full terminal)</string>
+    <string name="ciberseguridad_dirb_native_button">📁 dirb — quick directory brute force (native panel)</string>
+    <string name="ciberseguridad_dirb_terminal_button">⌨ dirb (full terminal)</string>
+    <string name="ciberseguridad_sqlmap_action_label">💉 sqlmap — choose action</string>
+    <string name="ciberseguridad_sqlmap_action_scan">Quick SQLi test (--batch)</string>
+    <string name="ciberseguridad_sqlmap_action_dbs">List databases (--dbs)</string>
+    <string name="ciberseguridad_sqlmap_action_tables">List tables in a database (--tables)</string>
+    <string name="ciberseguridad_sqlmap_action_dump">Dump table (--dump, sensitive)</string>
+    <string name="ciberseguridad_sqlmap_run_button">▶ Run selected sqlmap action</string>
+    <string name="ciberseguridad_sqlmap_terminal_button">⌨ sqlmap (full terminal)</string>
+
+    <!-- Pro tab -->
+    <string name="ciberseguridad_kali_enter_button">☠ Enter Kali (proot-distro)</string>
+    <string name="ciberseguridad_kali_gui_start_button">🖥 Start Kali desktop (XFCE)</string>
+    <string name="ciberseguridad_kali_session_name">Kali</string>
+    <string name="ciberseguridad_kali_gui_session_name">Kali GUI</string>
+    <string name="ciberseguridad_status_label">Status</string>
+    <string name="ciberseguridad_not_installed_value">Not installed</string>
+    <string name="ciberseguridad_install_pro_button">⬆ Install Pro tier (Kali)</string>
+
+    <!-- Shared generic dialogs -->
+    <string name="ciberseguridad_cancel">Cancel</string>
+    <string name="ciberseguridad_target_empty">Empty target</string>
+    <string name="ciberseguridad_scan_button">Scan</string>
+    <string name="ciberseguridad_close_button">Close</string>
+    <string name="ciberseguridad_no_results">No results.</string>
+    <string name="ciberseguridad_url_hint">Target URL (e.g. http://192.168.1.1)</string>
+    <string name="ciberseguridad_tool_not_installed">%1$s is not installed</string>
+    <string name="ciberseguridad_continue_button">Continue</string>
+    <string name="ciberseguridad_unknown_error">unknown error</string>
+
+    <!-- nmap -->
+    <string name="ciberseguridad_nmap_prompt_title">nmap — quick scan</string>
+    <string name="ciberseguridad_nmap_prompt_hint">IP or hostname (e.g. 192.168.1.1)</string>
+    <string name="ciberseguridad_nmap_scanning_progress">Scanning %1$s (nmap)…</string>
+    <string name="ciberseguridad_nmap_result_title">nmap: %1$s</string>
+    <string name="ciberseguridad_nmap_no_ports">No open ports detected (fast scan)</string>
+
+    <!-- nikto -->
+    <string name="ciberseguridad_nikto_tuning_1">Interesting files / seen in logs (default)</string>
+    <string name="ciberseguridad_nikto_tuning_2">Misconfiguration / default files</string>
+    <string name="ciberseguridad_nikto_tuning_3">Information disclosure</string>
+    <string name="ciberseguridad_nikto_tuning_4">Injection (XSS/Script/HTML)</string>
+    <string name="ciberseguridad_nikto_tuning_9">SQL Injection</string>
+    <string name="ciberseguridad_nikto_tuning_b">Software identification</string>
+    <string name="ciberseguridad_nikto_tuning_label">Category (-Tuning): %1$s — tap to change</string>
+    <string name="ciberseguridad_nikto_tuning_dialog_title">Choose the category (-Tuning)</string>
+    <string name="ciberseguridad_nikto_prompt_title">nikto — quick scan</string>
+    <string name="ciberseguridad_nikto_scanning_progress">Scanning %1$s (nikto -Tuning %2$s -maxtime 30s)…</string>
+    <string name="ciberseguridad_nikto_result_title">nikto: %1$s</string>
+    <string name="ciberseguridad_nikto_no_findings">No findings (Tuning %1$s: %2$s)</string>
+
+    <!-- dirb -->
+    <string name="ciberseguridad_dirb_wordlist_common">Common — common.txt (default, faster)</string>
+    <string name="ciberseguridad_dirb_wordlist_big">Big — big.txt (more coverage, slower)</string>
+    <string name="ciberseguridad_dirb_wordlist_label">Wordlist: %1$s — tap to change</string>
+    <string name="ciberseguridad_dirb_wordlist_dialog_title">Choose the wordlist</string>
+    <string name="ciberseguridad_dirb_prompt_title">dirb — quick brute force</string>
+    <string name="ciberseguridad_dirb_scanning_progress">Scanning %1$s (dirb -S -w -r, wordlist %2$s)…</string>
+    <string name="ciberseguridad_dirb_result_title">dirb: %1$s</string>
+    <string name="ciberseguridad_dirb_no_findings">No directories found (45s timeout — try the full terminal for an unlimited scan)</string>
+
+    <!-- sqlmap — quick test -->
+    <string name="ciberseguridad_sqlmap_url_param_hint">URL with a parameter (e.g. http://192.168.1.1/vuln.php?id=1)</string>
+    <string name="ciberseguridad_sqlmap_level_hint">Level --level (1-5, default 1)</string>
+    <string name="ciberseguridad_sqlmap_risk_hint">Risk --risk (1-3, default 1)</string>
+    <string name="ciberseguridad_sqlmap_scan_dialog_title">sqlmap — quick SQLi test</string>
+    <string name="ciberseguridad_sqlmap_test_button">Test</string>
+    <string name="ciberseguridad_sqlmap_scan_progress">Testing %1$s (sqlmap --batch --level=%2$s --risk=%3$s)…</string>
+    <string name="ciberseguridad_sqlmap_scan_result_title">sqlmap: %1$s</string>
+    <string name="ciberseguridad_sqlmap_scan_no_results">No clear results (90s timeout — try the full terminal for an unlimited scan)</string>
+
+    <!-- theHarvester -->
+    <string name="ciberseguridad_theharvester_domain_hint">Target domain (e.g. example.com)</string>
+    <string name="ciberseguridad_theharvester_limit_hint">Result limit (default 100)</string>
+    <string name="ciberseguridad_theharvester_source_label">Source (-b): %1$s — tap to change</string>
+    <string name="ciberseguridad_theharvester_source_dialog_title">Choose the source (-b)</string>
+    <string name="ciberseguridad_theharvester_prompt_title">theHarvester — quick OSINT</string>
+    <string name="ciberseguridad_theharvester_domain_empty">Empty domain</string>
+    <string name="ciberseguridad_theharvester_search_button">Search</string>
+    <string name="ciberseguridad_theharvester_progress">Searching %1$s (theHarvester -b %2$s -l %3$s)…</string>
+    <string name="ciberseguridad_theharvester_result_title">theHarvester: %1$s</string>
+    <string name="ciberseguridad_theharvester_no_findings">No findings with source \"%1$s\" — try another source or the full terminal</string>
+
+    <!-- sqlmap — dbs/tables/dump -->
+    <string name="ciberseguridad_sqlmap_db_hint">Database name (-D)</string>
+    <string name="ciberseguridad_sqlmap_table_hint">Table name (-T)</string>
+    <string name="ciberseguridad_sqlmap_dbs_dialog_title">sqlmap — list databases</string>
+    <string name="ciberseguridad_sqlmap_dbs_progress">Listing databases for %1$s (sqlmap --dbs --batch)…</string>
+    <string name="ciberseguridad_sqlmap_dbs_result_title">sqlmap --dbs: %1$s</string>
+    <string name="ciberseguridad_sqlmap_dbs_no_results">No databases detected (120s timeout — try the full terminal)</string>
+    <string name="ciberseguridad_sqlmap_tables_dialog_title">sqlmap — list tables</string>
+    <string name="ciberseguridad_sqlmap_db_empty">Empty database name</string>
+    <string name="ciberseguridad_sqlmap_tables_progress">Listing tables of %1$s in %2$s (sqlmap --tables -D %1$s --batch)…</string>
+    <string name="ciberseguridad_sqlmap_tables_result_title">sqlmap --tables: %1$s</string>
+    <string name="ciberseguridad_sqlmap_tables_no_results">No tables detected in \"%1$s\" (120s timeout — try the full terminal)</string>
+    <string name="ciberseguridad_sqlmap_dump_dialog_title">sqlmap — dump table (--dump)</string>
+    <string name="ciberseguridad_sqlmap_db_table_empty">Fill in database and table</string>
+    <string name="ciberseguridad_sqlmap_dump_confirm_title">Extract data from \"%1$s\"?</string>
+    <string name="ciberseguridad_sqlmap_dump_confirm_message">sqlmap --dump extracts the actual CONTENT of \"%1$s.%2$s\" through the detected SQL injection. This is a sensitive, slow action — only use it with explicit authorization over the target. Continue?</string>
+    <string name="ciberseguridad_sqlmap_dump_extract_button">Extract</string>
+    <string name="ciberseguridad_sqlmap_dump_progress">Extracting %1$s.%2$s from %3$s (sqlmap --dump --batch)…</string>
+    <string name="ciberseguridad_sqlmap_dump_result_title">sqlmap --dump: %1$s.%2$s</string>
+    <string name="ciberseguridad_sqlmap_dump_no_results">No data extracted (150s timeout — try the full terminal for large tables)</string>
+
+    <!-- Pro install -->
+    <string name="ciberseguridad_pro_install_dialog_title">Install Pro tier (Kali Linux)</string>
+    <string name="ciberseguridad_pro_install_dialog_message">Adds a Kali Linux container (proot-distro) on top of the already installed basic tier. Several hundred MB — needs a stable connection.</string>
+    <string name="ciberseguridad_pro_headless_item">Pro without GUI (basic + Kali Linux container)</string>
+    <string name="ciberseguridad_pro_gui_item">Pro with GUI (basic + Kali with XFCE desktop)</string>
+    <string name="ciberseguridad_kali_installed_toast">Kali Linux installed</string>
+    <string name="ciberseguridad_install_failed_log">Failed — check ~/kairos_logs/install_ciberseguridad.log</string>
+
+    <!-- Silent install -->
+    <string name="ciberseguridad_silent_install_dialog_title">Install Cybersecurity in the background</string>
+    <string name="ciberseguridad_silent_install_dialog_message">Choose the tier. The install runs in the background and you can keep using the app.</string>
+    <string name="ciberseguridad_basic_item">Basic (nmap, netcat, dirb, nikto, theHarvester, sqlmap)</string>
+    <string name="ciberseguridad_installed_toast">Cybersecurity installed</string>
+</resources>

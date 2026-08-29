@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- EntornoFragment.kt — strings visibles al usuario (español) -->
+
+    <!-- Módulo -->
+    <string name="entorno_module_name">Entorno</string>
+
+    <!-- Títulos de card / secciones -->
+    <string name="entorno_card_estado">ESTADO</string>
+    <string name="entorno_card_instalado">📋 INSTALADO</string>
+    <string name="entorno_sublabel_distros">Distros (proot-distro)</string>
+
+    <!-- Labels de la card ESTADO -->
+    <string name="entorno_label_gpu">GPU</string>
+    <string name="entorno_label_metodo">Método</string>
+    <string name="entorno_label_x11">X11</string>
+    <string name="entorno_label_vnc">VNC</string>
+    <string name="entorno_label_pulseaudio">PulseAudio</string>
+    <string name="entorno_label_escritorios">Escritorios</string>
+
+    <!-- Instalación del módulo -->
+    <string name="entorno_toast_instalado">Entorno instalado</string>
+    <string name="entorno_toast_fallo_instalacion">Fallo — revisá ~/kairos_logs/install_entorno.log</string>
+
+    <!-- Inventario de distros -->
+    <string name="entorno_estado_instalada">instalada</string>
+    <string name="entorno_ninguna_distro">Ninguna distro instalada</string>
+
+    <!-- Valores de estado -->
+    <string name="entorno_x11_corriendo">● Corriendo (embebido)</string>
+    <string name="entorno_detenido">○ Detenido</string>
+    <string name="entorno_corriendo">● Corriendo</string>
+    <string name="entorno_no_instalado">— No instalado</string>
+    <string name="entorno_activo">● Activo</string>
+    <string name="entorno_ninguno">ninguno</string>
+    <string name="entorno_status_error">error</string>
+
+    <!-- Fallbacks genéricos -->
+    <string name="entorno_ok">OK</string>
+    <string name="entorno_desconocido">desconocido</string>
+    <string name="entorno_error_desconocido_texto">error desconocido</string>
+    <string name="entorno_error_desconocido">Error desconocido</string>
+    <string name="entorno_error_prefix">Error: %1$s</string>
+    <string name="entorno_accion_desconocida">Acción desconocida: %1$s</string>
+
+    <!-- Botones compartidos -->
+    <string name="entorno_cancelar">Cancelar</string>
+    <string name="entorno_continuar">Continuar</string>
+    <string name="entorno_instalar_boton">Instalar</string>
+    <string name="entorno_iniciar">Iniciar</string>
+    <string name="entorno_eliminar">Eliminar</string>
+    <string name="entorno_entendido">Entendido</string>
+    <string name="entorno_cerrar">Cerrar</string>
+    <string name="entorno_guardar">Guardar</string>
+
+    <!-- Instalar distro -->
+    <string name="entorno_dialog_instalar_distro_titulo">Instalar distro</string>
+    <string name="entorno_dialog_distro_experimental_titulo">Distro experimental</string>
+    <string name="entorno_distro_experimental_mensaje">%1$s no está confirmada en dispositivos reales de este proyecto — puede fallar. ¿Continuar?</string>
+    <string name="entorno_badge_experimental">experimental</string>
+    <!-- KDE Plasma (roadmap Mini PC item 2, MEJORAS_PENDIENTES.md 2026-08-28) -->
+    <string name="entorno_dialog_kde_pesado_titulo">KDE Plasma es pesado</string>
+    <string name="entorno_mensaje_kde_pesado">KDE Plasma ocupa entre 1.5GB y 2GB de espacio y puede tardar varios minutos en instalarse — no verificado todavía en dispositivo real de este proyecto. ¿Continuar?</string>
+
+    <!-- Perfil recomendado (roadmap Mini PC item 4, MEJORAS_PENDIENTES.md 2026-08-28) -->
+    <string name="entorno_tile_perfil_recomendado">✨ Perfil\nrecomendado</string>
+    <string name="entorno_dialog_perfil_recomendado_titulo">Perfil recomendado</string>
+    <string name="entorno_mensaje_perfil_recomendado">Recomendado para tu dispositivo:\n\n• Distro: %1$s\n• Escritorio: %2$s%3$s\n• Método GPU: %4$s (GPU detectada: %5$s)\n\n¿Instalar todo esto ahora? Puede tardar varios minutos.</string>
+    <string name="entorno_perfil_recomendado_modo_liviano"> (modo liviano)</string>
+    <string name="entorno_progreso_perfil_recomendado_titulo">Instalando perfil recomendado</string>
+    <string name="entorno_progreso_perfil_paso_distro">Paso 1/3 — Instalando distro %1$s…</string>
+    <string name="entorno_progreso_perfil_paso_escritorio">Paso 2/3 — Instalando escritorio %1$s…</string>
+    <string name="entorno_progreso_perfil_paso_gpu">Paso 3/3 — Configurando método GPU %1$s…</string>
+    <string name="entorno_perfil_recomendado_ok">Perfil recomendado instalado — usá \"Iniciar escritorio en distro\" para entrar</string>
+    <string name="entorno_perfil_recomendado_error_distro">No se pudo instalar la distro recomendada</string>
+    <string name="entorno_perfil_recomendado_error_escritorio">La distro se instaló pero el escritorio falló</string>
+    <string name="entorno_perfil_recomendado_error_gpu">Distro y escritorio listos, pero el método GPU no se pudo configurar</string>
+
+    <!-- Pestañas -->
+    <string name="entorno_tab_nativo">Nativo</string>
+    <string name="entorno_tab_x11">X11</string>
+    <string name="entorno_tab_distros">Distros</string>
+    <string name="entorno_tab_vnc">VNC</string>
+    <string name="entorno_tab_sistema">Sistema</string>
+
+    <!-- Sub-secciones dentro de cada pestaña -->
+    <string name="entorno_seccion_lanzar">LANZAR</string>
+    <string name="entorno_seccion_mantenimiento">MANTENIMIENTO</string>
+    <string name="entorno_seccion_servidor_x11">SERVIDOR X11 EMBEBIDO (:1)</string>
+    <string name="entorno_subtitulo_display_x11">Display activo: :1 · compartido por Nativo, Distros y (a futuro) Wine/Box64</string>
+    <string name="entorno_seccion_audio_gpu">AUDIO + GPU</string>
+
+    <!-- Tiles — pestaña Nativo -->
+    <string name="entorno_tile_xfce_nativo">XFCE4 nativo\n(instalar+iniciar)</string>
+    <string name="entorno_tile_iniciar_escritorio">Iniciar escritorio\n(X11 + DE)</string>
+    <string name="entorno_tile_configurar_autoinicio">Configurar\nautoinicio</string>
+    <string name="entorno_tile_instalar_otro_escritorio">Instalar otro\nescritorio (LXQt/MATE)</string>
+    <string name="entorno_tile_actualizar_lanzadores">Actualizar\nlanzadores</string>
+    <string name="entorno_tile_detener_escritorio">Detener escritorio\n(mantiene X11)</string>
+    <string name="entorno_tile_cambiar_fondo">Cambiar fondo\nde pantalla</string>
+
+    <!-- Tiles — pestaña X11 -->
+    <string name="entorno_tile_entrar_x11">Entrar en X11</string>
+    <string name="entorno_tile_configuracion_x11">Configuración\nde X11</string>
+    <string name="entorno_tile_detener_servidor_x11">Detener\nservidor X11</string>
+
+    <!-- Tiles — pestaña Distros -->
+    <string name="entorno_tile_instalar_distro">Instalar\ndistro</string>
+    <string name="entorno_tile_login_distro">Login a distro\n(terminal)</string>
+    <string name="entorno_tile_instalar_escritorio_distro">Instalar escritorio\nen distro</string>
+    <string name="entorno_tile_iniciar_escritorio_distro">Iniciar escritorio\nen distro</string>
+    <string name="entorno_tile_backup_distro">Backup de distro\n(tar.gz)</string>
+    <string name="entorno_tile_eliminar_distro">Eliminar\ndistro</string>
+    <string name="entorno_tile_vincular_carpetas">Vincular ~/scripts\ny ~/proyectos</string>
+    <string name="entorno_tile_instalar_app_distro">Instalar app\nen distro</string>
+    <string name="entorno_tile_eliminar_app_distro">Eliminar app\nde distro</string>
+    <string name="entorno_titulo_backup_distro">Backup de distro</string>
+    <string name="entorno_titulo_vincular_carpetas">Vincular carpetas con distro</string>
+
+    <!-- Tiles — pestaña VNC -->
+    <string name="entorno_tile_instalar_tigervnc">Instalar\nTigerVNC</string>
+    <string name="entorno_tile_iniciar_vnc">Iniciar VNC\n(:5901)</string>
+    <string name="entorno_tile_configurar_iniciar_vnc">Configurar e\niniciar VNC</string>
+    <string name="entorno_tile_abrir_visor_vnc">Abrir visor\nVNC</string>
+    <string name="entorno_tile_detener_vnc">Detener\nVNC</string>
+
+    <!-- Tiles — pestaña Sistema -->
+    <string name="entorno_tile_pulseaudio_toggle">PulseAudio\nencender/apagar</string>
+    <string name="entorno_tile_diagnostico_gpu">Diagnóstico\nGPU</string>
+    <string name="entorno_tile_configurar_metodo_gpu">Configurar\nmétodo GPU</string>
+
+    <!-- Eliminar distro -->
+    <string name="entorno_toast_no_hay_distros">No hay distros instaladas</string>
+    <string name="entorno_dialog_eliminar_distro_titulo">Eliminar distro</string>
+    <string name="entorno_dialog_confirmar_eliminar_distro">¿Eliminar %1$s?</string>
+    <string name="entorno_mensaje_eliminar_distro_irreversible">Esto borra el rootfs completo, no se puede deshacer.</string>
+
+    <!-- Login a distro -->
+    <string name="entorno_toast_no_hay_distros_instala">No hay distros instaladas — instalá una primero</string>
+    <string name="entorno_dialog_login_distro_titulo">Login a distro</string>
+    <string name="entorno_titulo_sesion_terminal">Entorno: %1$s</string>
+
+    <!-- Instalar / catálogo de apps -->
+    <string name="entorno_dialog_en_que_distro_instalar">¿En qué distro instalar?</string>
+    <string name="entorno_opcion_otro_paquete">Otro (escribir nombre del paquete)</string>
+    <string name="entorno_dialog_instalar_en_distro">Instalar en %1$s</string>
+    <string name="entorno_hint_nombre_paquete">Nombre del paquete apt (ej: gimp, vlc, firefox-esr)</string>
+    <string name="entorno_toast_paquete_vacio">Nombre de paquete vacío</string>
+    <string name="entorno_progreso_instalando_app_titulo">Instalando app</string>
+    <string name="entorno_progreso_instalando_app_mensaje">Instalando %1$s en %2$s…</string>
+    <string name="entorno_instalado">Instalado</string>
+    <string name="entorno_error_no_pudo_instalar_pkg">No se pudo instalar %1$s</string>
+
+    <!-- Eliminar app de distro -->
+    <string name="entorno_toast_no_hay_apps_distro">No hay apps de distro instaladas todavía</string>
+    <string name="entorno_dialog_eliminar_app_titulo">Eliminar app</string>
+    <string name="entorno_dialog_confirmar_eliminar_app">¿Eliminar %1$s de %2$s?</string>
+
+    <!-- Instalar escritorio (genérico) -->
+    <string name="entorno_dialog_instalar_escritorio_titulo">Instalar escritorio</string>
+
+    <!-- XFCE4 nativo -->
+    <string name="entorno_progreso_instalando_escritorio_titulo">Instalando escritorio</string>
+    <string name="entorno_progreso_instalando_xfce_nativo">Instalando XFCE4 nativo (sin distro)…</string>
+    <string name="entorno_error_no_pudo_instalar_xfce">No se pudo instalar XFCE4</string>
+    <string name="entorno_notif_xfce_instalado_background">Instalado — abrí Entorno y tocá \"Iniciar\" para abrir el visor.</string>
+    <string name="entorno_notif_xfce_instalado_iniciado_background">Instalado e iniciado — abrí Entorno para abrir el visor.</string>
+    <string name="entorno_mensaje_xfce_iniciado">XFCE4 iniciado sobre el X11 embebido</string>
+    <string name="entorno_error_xfce_instalado_no_iniciado">XFCE4 instalado pero no se pudo iniciar</string>
+
+    <!-- Fix docs/humano283.md: abrir el visor X11 ya no es automático al iniciar un escritorio (nativo o en distro) — queda como acción explícita del Snackbar. -->
+    <string name="entorno_snackbar_escritorio_listo">Escritorio listo</string>
+    <string name="entorno_snackbar_accion_abrir_x11">Abrir X11</string>
+
+    <!-- Instalar escritorio con progreso (genérico) -->
+    <string name="entorno_progreso_instalando_desktop_mensaje">Instalando %1$s…</string>
+    <string name="entorno_escritorio_instalado">Escritorio instalado</string>
+    <string name="entorno_error_no_pudo_instalar_escritorio">No se pudo instalar el escritorio</string>
+
+    <!-- TigerVNC -->
+    <string name="entorno_progreso_instalando_tigervnc_titulo">Instalando TigerVNC</string>
+    <string name="entorno_progreso_instalando_tigervnc_mensaje">Descargando e instalando el paquete tigervnc…</string>
+    <string name="entorno_tigervnc_instalado">TigerVNC instalado</string>
+    <string name="entorno_error_no_pudo_instalar_tigervnc">No se pudo instalar TigerVNC</string>
+
+    <!-- Iniciar escritorio nativo -->
+    <string name="entorno_toast_no_hay_escritorio">No hay ningún escritorio instalado — usá \"Instalar escritorio\" primero</string>
+    <string name="entorno_dialog_cual_escritorio_iniciar">¿Cuál escritorio iniciar?</string>
+    <string name="entorno_toast_iniciando_sobre_x11">Iniciando %1$s sobre X11…</string>
+
+    <!-- Instalar escritorio en distro -->
+    <string name="entorno_dialog_en_que_distro_instalar_escritorio">¿En qué distro instalar el escritorio?</string>
+    <string name="entorno_dialog_escritorio_para_distro">Escritorio para %1$s</string>
+    <string name="entorno_progreso_instalando_desktop_en_distro">Instalando %1$s en %2$s…</string>
+    <string name="entorno_error_no_pudo_instalar_escritorio_distro">No se pudo instalar el escritorio en %1$s</string>
+
+    <!-- Iniciar escritorio en distro -->
+    <string name="entorno_dialog_en_que_distro_iniciar_escritorio">¿En qué distro iniciar el escritorio?</string>
+    <string name="entorno_mensaje_sin_escritorio_en_distro">Todavía no instalaste ningún escritorio en %1$s — usá \"Instalar escritorio en distro\" primero.</string>
+    <string name="entorno_dialog_cual_escritorio_iniciar_en_distro">¿Cuál escritorio iniciar en %1$s?</string>
+    <string name="entorno_toast_iniciando_dentro_distro">Iniciando %1$s dentro de %2$s sobre X11…</string>
+
+    <!-- Fondo de pantalla -->
+    <string name="entorno_toast_instala_escritorio_nativo">Instalá un escritorio nativo primero</string>
+    <string name="entorno_dialog_para_cual_escritorio">¿Para cuál escritorio?</string>
+    <string name="entorno_dialog_en_que_distro">¿En qué distro?</string>
+    <string name="entorno_toast_distro_sin_escritorio">%1$s no tiene ningún escritorio instalado — instalá uno primero</string>
+    <string name="entorno_dialog_cual_escritorio_en_distro">¿Cuál escritorio en %1$s?</string>
+    <string name="entorno_error_no_pudo_leer_imagen">No se pudo leer la imagen elegida</string>
+    <string name="entorno_fondo_cambiado">Fondo de pantalla cambiado</string>
+
+    <!-- Conflicto de escritorio activo -->
+    <string name="entorno_dialog_conflicto_titulo">Ya hay un escritorio activo</string>
+    <string name="entorno_conflicto_mensaje_default">Solo puede haber un escritorio activo a la vez.</string>
+    <string name="entorno_boton_detener_actual_continuar">Detener el actual y continuar</string>
+    <string name="entorno_toast_deteniendo_escritorio_actual">Deteniendo escritorio actual…</string>
+    <string name="entorno_toast_deteniendo_escritorio">Deteniendo escritorio…</string>
+
+    <!-- X11 -->
+    <string name="entorno_dialog_no_pudo_abrir_x11_titulo">No se pudo abrir X11</string>
+    <string name="entorno_toast_servidor_x11_detenido">Servidor X11 detenido</string>
+
+    <!-- VNC viewer -->
+    <string name="entorno_toast_preparando_visor_vnc">Preparando visor VNC…</string>
+    <string name="entorno_error_no_pudo_instalar_vnc">No se pudo instalar VNC</string>
+    <string name="entorno_error_no_pudo_iniciar_servidor_vnc">No se pudo iniciar el servidor VNC</string>
+
+    <!-- Diagnóstico GPU -->
+    <string name="entorno_toast_diagnosticando_gpu">Diagnosticando GPU…</string>
+    <string name="entorno_error_no_pudo_diagnosticar_gpu">No se pudo diagnosticar la GPU</string>
+    <string name="entorno_gpu_diagnostico_mensaje">GPU detectada: %1$s\nMétodo activo: %2$s\n\nRenderer OpenGL: %3$s\nDispositivo Vulkan: %4$s\n\nDrivers instalados:\n%5$s</string>
+    <string name="entorno_dialog_diagnostico_gpu_titulo">Diagnóstico GPU</string>
+
+    <!-- Método GPU -->
+    <string name="entorno_error_no_pudo_leer_gpu">No se pudo leer el tipo de GPU</string>
+    <string name="entorno_dialog_metodo_gpu_titulo">Método GPU (%1$s)</string>
+
+    <!-- Configurar VNC -->
+    <string name="entorno_label_resolucion">Resolución</string>
+    <string name="entorno_resolucion_nativa">Nativa del dispositivo (%1$s)</string>
+    <string name="entorno_label_calidad">Calidad</string>
+    <string name="entorno_checkbox_pedir_contrasena">Pedir contraseña (vncpasswd)</string>
+    <string name="entorno_label_contrasena">Contraseña (mínimo 6 caracteres)</string>
+    <string name="entorno_hint_nueva_contrasena_vnc">Nueva contraseña VNC</string>
+    <string name="entorno_dialog_configurar_vnc_titulo">Configurar VNC</string>
+    <string name="entorno_dialog_iniciar_sin_contrasena_titulo">¿Iniciar sin contraseña?</string>
+    <string name="entorno_mensaje_iniciar_sin_contrasena">Cualquier app en este dispositivo podrá conectarse al escritorio VNC sin autenticación. Solo acepta conexiones locales (-localhost), pero queda sin protección extra.</string>
+    <string name="entorno_boton_iniciar_igual">Iniciar igual</string>
+    <string name="entorno_toast_contrasena_corta">La contraseña debe tener al menos 6 caracteres</string>
+    <string name="entorno_depth_24bit">24 bit (color completo)</string>
+    <string name="entorno_depth_16bit">16 bit (más liviano)</string>
+    <string name="entorno_toast_iniciando_vnc">Iniciando VNC…</string>
+    <!-- Orientación (docs/humano283.md, pedido explícito: faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig(), no un toggle cosmético. -->
+    <string name="entorno_label_orientacion">Orientación</string>
+    <string name="entorno_orientacion_horizontal">Horizontal</string>
+    <string name="entorno_orientacion_vertical">Vertical (invierte ancho/alto)</string>
+
+    <!-- Autoinicio -->
+    <string name="entorno_toast_no_hay_cli_autoinicio">No hay ningún CLI instalado todavía para configurar autoinicio</string>
+    <string name="entorno_dialog_autoinicio_titulo">Autoinicio — abrir solos al iniciar el escritorio</string>
+
+    <!-- Instalación liviana de escritorio en distro (auditoría GUI/distro 2026-08-28) -->
+    <string name="entorno_checkbox_instalacion_liviana">Instalación liviana (sin paquetes extra — recomendado en gama baja)</string>
+    <string name="entorno_mensaje_elegir_escritorio_liviano">Elegí si querés el set completo de paquetes o solo lo mínimo, y después qué escritorio instalar.</string>
+</resources>

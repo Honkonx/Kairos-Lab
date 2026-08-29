@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fondos -->
+    <color name="kairos_bg">#050505</color>
+    <color name="kairos_bg2">#0A0A0A</color>
+    <color name="kairos_bg3">#111111</color>
+    <color name="kairos_bg_elevated">#1A1A1A</color>
+    <color name="kairos_bg_surface">#0D0D0D</color>
+    <color name="kairos_nav_bg">#080808</color>
+
+    <!-- Texto -->
+    <color name="kairos_text">#E8E8E8</color>
+    <color name="kairos_text2">#888888</color>
+    <color name="kairos_text3">#555555</color>
+
+    <!-- Acentos -->
+    <color name="kairos_blue">#3B82F6</color>
+    <color name="kairos_green">#22C55E</color>
+    <color name="kairos_red">#EF4444</color>
+    <color name="kairos_amber">#F59E0B</color>
+
+    <!-- Bordes -->
+    <color name="kairos_border">#1F1F1F</color>
+    <color name="kairos_divider">#151515</color>
+
+    <!-- Status -->
+    <color name="kairos_status_running">#22C55E</color>
+    <color name="kairos_status_stopped">#555555</color>
+    <color name="kairos_status_installing">#3B82F6</color>
+    <color name="kairos_status_error">#EF4444</color>
+    <color name="kairos_status_not_installed">#333333</color>
+</resources>

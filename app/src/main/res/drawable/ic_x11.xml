@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono X11/X.Org (2026-08-26, rediseño grid/pestañas de Mini PC; pulido 2026-08-27, ver
+     docs/humano259.md — antes era una "X" dentro de un recuadro, más parecido a un ícono
+     genérico de "cerrar/ventana" que al logo real de X.Org, que ES literalmente una X grande
+     de trazos gruesos sin marco). Distinto de ic_desktop.xml (el escritorio/DE que corre
+     encima). Usado en tiles "Entrar en X11", "Configuración de X11", "Detener servidor X11" —
+     se mantiene monocromo/tintado (no colores de marca fijos) para seguir el mismo lenguaje
+     visual que el resto de íconos de ACCIÓN de esta grilla (ic_start, ic_stop, ic_settings). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:strokeColor="#FFF"
+        android:strokeWidth="2.6"
+        android:strokeLineCap="round"
+        android:pathData="M4.5,4.5 L19.5,19.5 M19.5,4.5 L4.5,19.5" />
+</vector>

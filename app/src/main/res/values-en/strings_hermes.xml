@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HermesFragment.kt -->
+    <string name="hermes_card_estado">STATUS</string>
+    <string name="hermes_toast_installed">Hermes installed</string>
+    <string name="hermes_toast_install_failed">Failed — check ~/kairos_logs/install_hermes.log</string>
+    <string name="hermes_label_version">Version</string>
+    <string name="hermes_label_gateway">Gateway</string>
+    <string name="hermes_label_provider">AI Provider</string>
+    <string name="hermes_label_terminal_tui">Terminal TUI</string>
+    <string name="hermes_dash">—</string>
+    <string name="hermes_status_active">● Active</string>
+    <string name="hermes_status_stopped">○ Stopped</string>
+
+    <string name="hermes_btn_open_tui">🤖 Open Hermes (TUI)</string>
+    <string name="hermes_btn_chat">💬 Chat (hermes chat)</string>
+    <string name="hermes_btn_gateway">📡 Gateway</string>
+    <string name="hermes_btn_manage_projects">🗂 Manage projects</string>
+    <string name="hermes_btn_command_reference">📖 Commands — reference</string>
+    <string name="hermes_btn_choose_model">🔀 Choose model/provider (hermes model)</string>
+    <string name="hermes_btn_configure_provider_quick">🔌 Configure AI provider (quick, no terminal)</string>
+    <string name="hermes_label_local_provider">Local AI provider</string>
+    <string name="hermes_option_ollama_local">Local Ollama</string>
+    <string name="hermes_option_llama_server_local">Local llama-server</string>
+    <string name="hermes_btn_configure_local_provider">🔌 Configure local AI provider</string>
+    <string name="hermes_btn_send_message">📤 Send message (hermes send)</string>
+    <string name="hermes_btn_direct_prompt">🤖 Direct prompt to the agent (hermes -z)</string>
+    <string name="hermes_btn_stop_gateway">⏹ Stop gateway</string>
+    <string name="hermes_toast_gateway_stopped">Gateway stopped</string>
+    <string name="hermes_toast_could_not_stop">Could not stop it</string>
+    <string name="hermes_btn_status_diagnostics">🔍 Status and diagnostics</string>
+    <string name="hermes_btn_full_wizard">⚙ Full wizard (hermes setup)</string>
+    <string name="hermes_btn_doctor">🩺 Diagnostics (hermes doctor)</string>
+    <string name="hermes_btn_kanban">📋 Task board (kanban)</string>
+    <string name="hermes_btn_cron">⏰ Scheduled tasks (hermes cron)</string>
+    <string name="hermes_btn_update">↑ Update Hermes (hermes update)</string>
+    <string name="hermes_btn_install_reinstall">↑ Install / reinstall</string>
+    <string name="hermes_btn_connect_engram">🔗 Connect Engram memory (skill)</string>
+    <string name="hermes_card_maintenance">MAINTENANCE</string>
+    <string name="hermes_btn_uninstall">🗑 Uninstall</string>
+
+    <string name="hermes_toast_engram_not_installed">Engram is not installed — install it from its module first</string>
+    <string name="hermes_toast_engram_skill_installed">Engram skill installed — Hermes uses it on its own when it applies</string>
+    <string name="hermes_error_format">Error: %1$s</string>
+    <string name="hermes_error_unknown">unknown</string>
+
+    <string name="hermes_dialog_commands_title">Hermes commands</string>
+    <string name="hermes_dialog_commands_body">hermes\n  Opens the classic REPL\n\nhermes --tui\n  Modern TUI (Node/Ink)\n\nhermes chat\n  Dedicated interactive chat\n\nhermes model\n  Interactive provider/model selector\n\nhermes send \"msg\"\n  Sends a message directly to the configured platform (Telegram/Discord/SMS) — without going through the agent/LLM\n\nhermes setup\n  Full configuration wizard\n\nhermes gateway\n  Starts the gateway (Telegram/Discord/SMS) in the foreground\n\nConfig: ~/.hermes/.env, ~/.hermes/config.yaml, ~/.hermes/SOUL.md</string>
+    <string name="hermes_btn_close">Close</string>
+
+    <string name="hermes_hint_send_message">Message to send (Telegram/Discord/SMS configured)</string>
+    <string name="hermes_dialog_send_message_title">Send message (hermes send)</string>
+    <string name="hermes_dialog_send_message_msg">Sent directly to the configured platform — does not go through the agent/LLM.</string>
+    <string name="hermes_btn_send">Send</string>
+    <string name="hermes_toast_empty_message">Empty message</string>
+    <string name="hermes_btn_cancel">Cancel</string>
+
+    <string name="hermes_hint_direct_prompt">What do you want to ask the agent</string>
+    <string name="hermes_dialog_direct_prompt_title">Direct prompt — Hermes</string>
+    <string name="hermes_dialog_direct_prompt_msg">Non-interactive one-shot: goes through the agent/LLM and replies, without opening the TUI.</string>
+    <string name="hermes_toast_empty_prompt">The prompt cannot be empty</string>
+
+    <string name="hermes_hint_provider">Provider (e.g. openai, anthropic)</string>
+    <string name="hermes_hint_api_key">API key</string>
+    <string name="hermes_dialog_configure_provider_title">Configure AI provider</string>
+    <string name="hermes_toast_missing_data">Missing data</string>
+    <string name="hermes_btn_save">Save</string>
+    <string name="hermes_toast_provider_saved">Provider saved</string>
+
+    <string name="hermes_toast_ollama_unavailable">Ollama is not available — start it first</string>
+    <string name="hermes_toast_no_ollama_models">No models downloaded in Ollama</string>
+    <string name="hermes_dialog_ollama_model_title">Ollama model for Hermes</string>
+    <string name="hermes_toast_no_gguf_models">No .gguf models downloaded — download one from AI Chat first</string>
+    <string name="hermes_dialog_llama_server_model_title">llama-server model for Hermes</string>
+    <string name="hermes_toast_configured_format">Configured: %1$s</string>
+
+    <string name="hermes_dialog_status_title">Hermes status</string>
+    <string name="hermes_dialog_status_body">Installed: %1$b\nVersion: %2$s\nGateway running: %3$b\nConfig saved: %4$b\nProvider: %5$s</string>
+
+    <string name="hermes_toast_reinstalling">Reinstalling Hermes…</string>
+    <string name="hermes_toast_updated">Hermes updated</string>
+</resources>

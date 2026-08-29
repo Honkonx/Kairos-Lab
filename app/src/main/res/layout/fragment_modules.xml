@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.swiperefreshlayout.widget.SwipeRefreshLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/swipe_refresh"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg">
+
+    <!-- androidx.core.widget.NestedScrollView, NO android.widget.ScrollView clásico — bug
+         real investigado 2026-08-01 (tercer reporte del usuario de que Expo/Engram/Entorno
+         "no se ven"; rondas 39/41 no habían encontrado nada revisando JSON/adapter/layout
+         en aislado). SwipeRefreshLayout está documentado (developer.android.com y fuentes
+         reales de la comunidad Android) para sostener un ÚNICO hijo scrollable directo — un
+         ScrollView clásico envolviendo un RecyclerView(wrap_content, nestedScrollingEnabled
+         =false) es un patrón conocido con casos límite reales de medición incompleta
+         justamente en esta combinación (SwipeRefreshLayout + ScrollView intermedio + hijo
+         con altura wrap_content), a diferencia de NestedScrollView, que SÍ está diseñado
+         explícitamente para interoperar bien con scroll anidado y con SwipeRefreshLayout. -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <!-- Stats card -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/stats_card"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                app:cardBackgroundColor="?attr/kairosBgSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:contentPadding="0dp"
+                app:strokeColor="?attr/kairosBorder"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="8dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/stats_installed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="?attr/kairosText3"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Instalados"
+                            android:textColor="?attr/kairosText3"
+                            android:textSize="10sp" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="24dp"
+                        android:background="?attr/kairosDivider" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/stats_active"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textColor="?attr/kairosGreen"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Activos"
+                            android:textColor="?attr/kairosText3"
+                            android:textSize="10sp" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="24dp"
+                        android:background="?attr/kairosDivider" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/stats_ram"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="—"
+                            android:typeface="monospace"
+                            android:textColor="?attr/kairosText"
+                            android:textSize="13sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="RAM"
+                            android:textColor="?attr/kairosText3"
+                            android:textSize="10sp" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="24dp"
+                        android:background="?attr/kairosDivider" />
+
+                    <TextView
+                        android:id="@+id/stats_refresh"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="↻ Actualizar"
+                        android:textColor="?attr/kairosGreen"
+                        android:textSize="11sp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?android:attr/selectableItemBackground" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Voz → Agente (2026-08-13, ver docs/humano correspondiente): dicta un pedido
+                 y lo manda como prompt inicial a cualquiera de los CLIs de IA que Kairos ya
+                 soporta. Mismo estilo de card que stats_card, un nivel abajo. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/voice_agent_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardBackgroundColor="?attr/kairosBgSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:contentPadding="0dp"
+                app:strokeColor="?attr/kairosBorder"
+                app:strokeWidth="1dp">
+
+                <TextView
+                    android:id="@+id/btn_voice_to_agent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:padding="14dp"
+                    android:text="🎤 Voz → Agente"
+                    android:textColor="?attr/kairosGreen"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Buscador (2026-08-26, mismo patrón que plugin_search de fragment_plugins.xml)
+                 — filtra por nombre/id/descripción/categoría entre los módulos instalados que
+                 ya se muestran acá. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/modules_search_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardBackgroundColor="?attr/kairosBgSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:contentPadding="0dp"
+                app:strokeColor="?attr/kairosBorder"
+                app:strokeWidth="1dp">
+
+                <EditText
+                    android:id="@+id/modules_search"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:hint="Buscar módulo…"
+                    android:imeOptions="actionSearch"
+                    android:inputType="text"
+                    android:maxLines="1"
+                    android:textColor="?attr/kairosText"
+                    android:textColorHint="?attr/kairosText3"
+                    android:textSize="14sp"
+                    android:background="@android:color/transparent" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Section label -->
+            <TextView
+                android:id="@+id/modules_section_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp"
+                android:layout_marginStart="4dp"
+                android:text="MÓDULOS"
+                android:textColor="?attr/kairosText3"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.12" />
+
+            <!-- Empty state (2026-08-10): la pantalla Módulos muestra SOLO lo instalado;
+                 si no hay nada instalado aún, este panel guía a la Tienda (Plugins). -->
+            <LinearLayout
+                android:id="@+id/modules_empty"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="24dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🧩"
+                    android:textSize="40sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:gravity="center"
+                    android:text="No hay módulos instalados"
+                    android:textColor="?attr/kairosText"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center"
+                    android:text="Instala desde la Tienda (menú Más → Plugins) y aparecerá acá."
+                    android:textColor="?attr/kairosText3"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/modules_empty_go_plugins"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:padding="8dp"
+                    android:text="Ir a Plugins →"
+                    android:textColor="?attr/kairosGreen"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:background="?android:attr/selectableItemBackground" />
+
+            </LinearLayout>
+
+            <!-- Module list -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/modules_recycler"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                android:paddingBottom="80dp" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.swiperefreshlayout.widget.SwipeRefreshLayout>

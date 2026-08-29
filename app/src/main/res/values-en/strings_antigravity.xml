@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="antigravity_module_name">Antigravity CLI</string>
+    <string name="antigravity_card_estado">STATUS</string>
+    <string name="antigravity_label_method">Method</string>
+    <string name="antigravity_value_native_binario">native·binary</string>
+    <string name="antigravity_label_version">Version</string>
+    <string name="antigravity_placeholder_dash">—</string>
+    <string name="antigravity_label_status">Status</string>
+    <string name="antigravity_label_google_account">Google account</string>
+    <string name="antigravity_status_connected">connected</string>
+    <string name="antigravity_status_not_connected">not connected</string>
+    <string name="antigravity_label_terminal">Terminal</string>
+    <string name="antigravity_btn_open_terminal">⌨ Open in terminal (agy)</string>
+    <string name="antigravity_btn_direct_prompt">💬 Direct prompt (agy -p)</string>
+    <string name="antigravity_btn_continue_last">↻ Continue last session</string>
+    <string name="antigravity_btn_open_in_project">📁 Open in project</string>
+    <string name="antigravity_btn_manage_projects">🗂 Manage projects</string>
+    <string name="antigravity_btn_logout_google">🚪 Sign out of Google</string>
+    <string name="antigravity_btn_login_google">🔑 Sign in with Google</string>
+    <string name="antigravity_btn_update">↻ Update (agy update)</string>
+    <string name="antigravity_toast_reinstalling">Reinstalling Antigravity CLI…</string>
+    <string name="antigravity_toast_updated">Antigravity CLI updated</string>
+    <string name="antigravity_toast_update_failed">Failed — check ~/kairos_logs/install_antigravity.log</string>
+    <string name="antigravity_card_mantenimiento">MAINTENANCE</string>
+    <string name="antigravity_btn_uninstall">🗑 Uninstall</string>
+    <string name="antigravity_pill_ready">ready</string>
+    <string name="antigravity_pill_not_responding">not responding</string>
+    <string name="antigravity_toast_error_reason">Error: %1$s</string>
+    <string name="antigravity_error_unknown">unknown</string>
+    <string name="antigravity_toast_no_projects">No projects imported yet — use "Manage projects" to add one</string>
+    <string name="antigravity_title_open_project">Open project</string>
+    <string name="antigravity_btn_cancel">Cancel</string>
+    <string name="antigravity_toast_signin_in_progress">A sign-in is already in progress…</string>
+    <string name="antigravity_toast_opening_google">Opening Google to sign in…</string>
+    <string name="antigravity_toast_browser_error">Couldn\'t open the browser: %1$s</string>
+    <string name="antigravity_toast_signin_success">Signed in successfully</string>
+    <string name="antigravity_toast_signin_failed">Sign-in failed: %1$s</string>
+    <string name="antigravity_toast_unexpected_error">Unexpected error: %1$s</string>
+    <string name="antigravity_hint_prompt">What do you want to ask Antigravity</string>
+    <string name="antigravity_hint_model">Model (optional, e.g. Gemini 3.1 Pro (High)) — empty = default</string>
+    <string name="antigravity_title_direct_prompt">Direct prompt — Antigravity</string>
+    <string name="antigravity_btn_send">Send</string>
+    <string name="antigravity_toast_prompt_empty">The prompt cannot be empty</string>
+    <string name="antigravity_toast_session_closed">Session closed</string>
+</resources>

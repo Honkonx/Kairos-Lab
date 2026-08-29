@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="termuxActivityDrawerBackground" format="reference" />
+    <attr name="termuxActivityDrawerImageTint" format="reference" />
+
+    <!-- Atributos de tema Kairos (2026-08-22, ver docs/humano/humano190.md) — permiten elegir entre
+         3 temas (Oscuro/Señal/Claro, ver themes_kairos.xml) sin tocar los layouts/Kotlin que ya
+         referencian estos colores: primero usaban @color/kairos_* fijo (un solo tema posible);
+         ahora ?attr/kairos* resuelve contra el tema activo de la Activity. La migración es
+         progresiva — pantallas no migradas todavía siguen viendo el tema Oscuro (default) sin
+         romperse, ver MEJORAS_PENDIENTES.md para el resto pendiente. -->
+    <attr name="kairosBg" format="color" />
+    <attr name="kairosBg2" format="color" />
+    <attr name="kairosBg3" format="color" />
+    <attr name="kairosBgElevated" format="color" />
+    <attr name="kairosBgSurface" format="color" />
+    <attr name="kairosNavBg" format="color" />
+    <attr name="kairosText" format="color" />
+    <attr name="kairosText2" format="color" />
+    <attr name="kairosText3" format="color" />
+    <attr name="kairosBlue" format="color" />
+    <attr name="kairosGreen" format="color" />
+    <attr name="kairosRed" format="color" />
+    <attr name="kairosAmber" format="color" />
+    <attr name="kairosBorder" format="color" />
+    <attr name="kairosDivider" format="color" />
+    <attr name="kairosStatusRunning" format="color" />
+    <attr name="kairosStatusStopped" format="color" />
+    <attr name="kairosStatusInstalling" format="color" />
+    <attr name="kairosStatusError" format="color" />
+    <attr name="kairosStatusNotInstalled" format="color" />
+
+    <!-- Atributos de tema de Estudio/IDE (2026-08-22, ver docs/humano/humano202.md y
+         docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §3) — sistema de temas
+         INDEPENDIENTE del tema del apk (?attr/kairos*): pedido explícito del usuario, "el tema
+         del ide/estudio no debe ser el mismo que el del apk". Fase mínima (StudioThemePrefs.kt):
+         solo 2 temas (Oscuro/Claro) + una 3ra opción "igual que el apk" que no agrega un tercer
+         style, reusa Oscuro o Claro según la polaridad del tema Kairos activo. Solo cubre el
+         fondo raíz + la toolbar de StudioFragment por ahora (no todo el chrome del editor,
+         sidebar, tabs — eso sigue en @color/ide_* fijo, migración pendiente de una ronda futura;
+         el texto/sintaxis del código YA tenía su propio selector independiente, EditorPrefs.
+         editorTheme, sin tocar acá). -->
+    <attr name="studioBg" format="color" />
+    <attr name="studioSurface" format="color" />
+    <attr name="studioTextPrimary" format="color" />
+</resources>

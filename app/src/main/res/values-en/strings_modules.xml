@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  English translations of strings_modules.xml (ModulesFragment.kt, OpenCodeFragment.kt,
+  BaseModuleFragment.kt, CodexFragment.kt) — see values/strings_modules.xml for the source
+  Spanish strings and origin comments.
+-->
+<resources>
+
+    <!-- ═══════════════ ModulesFragment.kt ═══════════════ -->
+    <string name="modules_section_label">MODULES</string>
+    <string name="modules_section_label_count">MODULES · %1$d</string>
+    <string name="modules_error_loading">Error loading modules: %1$s</string>
+    <string name="modules_notification_channel_crashed">Modules down</string>
+    <string name="modules_notification_stopped_title">%1$s stopped</string>
+    <string name="modules_notification_stopped_text">The process stopped running — tap it in Modules to restart it.</string>
+    <string name="modules_ram_format">%1$.1fGB / %2$.1fGB</string>
+    <string name="modules_ram_unavailable">—</string>
+    <string name="modules_updating_repo">↻ Updating repository…</string>
+    <string name="modules_starting">Starting %1$s…</string>
+    <string name="modules_error_output">Error: %1$s</string>
+    <string name="modules_stopping">Stopping %1$s…</string>
+    <string name="modules_stop_failed">Could not stop %1$s</string>
+
+    <!-- ═══════════════ OpenCodeFragment.kt ═══════════════ -->
+    <string name="opencode_label_variant">Variant</string>
+    <string name="opencode_label_version">Version</string>
+    <string name="opencode_dash">—</string>
+    <string name="opencode_label_web_server">Web server</string>
+    <string name="opencode_btn_open">🌐 Open</string>
+    <string name="opencode_label_terminal_tui">TUI Terminal</string>
+    <string name="opencode_btn_tui_terminal">⌨ TUI in terminal</string>
+    <string name="opencode_btn_manage_projects">🗂 Manage projects</string>
+    <string name="opencode_card_estado">STATUS</string>
+    <string name="opencode_card_prompt_directo">DIRECT PROMPT</string>
+    <string name="opencode_btn_send_prompt">💬 Send prompt (non-interactive)</string>
+    <string name="opencode_card_cuenta">ACCOUNT</string>
+    <string name="opencode_btn_configure_provider">🔑 Configure provider (auth login)</string>
+    <string name="opencode_card_mcp">MCP</string>
+    <string name="opencode_btn_view_mcp_servers">🔌 View MCP servers</string>
+    <string name="opencode_btn_configure_ollama">🤖 Configure local Ollama</string>
+    <string name="opencode_btn_configure_llama_server">◍ Configure local llama-server</string>
+    <string name="opencode_btn_reinstall_update">↑ Reinstall / update</string>
+    <string name="opencode_card_mantenimiento">MAINTENANCE</string>
+    <string name="opencode_btn_uninstall">🗑 Uninstall</string>
+    <string name="opencode_server_stopped">Server stopped</string>
+    <string name="opencode_server_stop_failed">Could not stop it</string>
+    <string name="opencode_starting_server">Starting server on :%1$d…</string>
+    <string name="opencode_port_3000_default_cwd">Port :3000 always starts in ~ — use :4096 to pick a folder</string>
+    <string name="opencode_server_start_failed">Could not start the server</string>
+    <string name="opencode_error_prefix">Error: %1$s</string>
+    <string name="opencode_error_unknown">unknown</string>
+    <string name="opencode_error_ollama_unavailable">Ollama unavailable — start it first</string>
+    <string name="opencode_no_ollama_models">No models downloaded in Ollama</string>
+    <string name="opencode_dialog_title_ollama_model">Ollama model for OpenCode</string>
+    <string name="opencode_configured_default">Configured</string>
+    <string name="opencode_dialog_cancel">Cancel</string>
+    <string name="opencode_no_gguf_models">No .gguf models downloaded — download one from AI Chat first</string>
+    <string name="opencode_dialog_title_llama_model">llama-server model for OpenCode</string>
+    <string name="opencode_prompt_hint">What do you want to ask OpenCode</string>
+    <string name="opencode_continue_last_session">Continue the last session (--continue)</string>
+    <string name="opencode_model_hint">Model (optional) — e.g. anthropic/claude-sonnet-5, leave empty for the default</string>
+    <string name="opencode_dialog_title_prompt">Direct prompt — OpenCode</string>
+    <string name="opencode_dialog_send">Send</string>
+    <string name="opencode_prompt_empty">The prompt cannot be empty</string>
+    <string name="opencode_reinstalling">Reinstalling OpenCode…</string>
+    <string name="opencode_updated">OpenCode updated</string>
+    <string name="opencode_update_failed">Failed — check ~/kairos_logs/install_opencode.log</string>
+
+    <!-- ═══════════════ CodexFragment.kt ═══════════════ -->
+    <string name="codex_card_estado">STATUS</string>
+    <string name="codex_label_canal">Channel</string>
+    <string name="codex_label_version">Version</string>
+    <string name="codex_dash">—</string>
+    <string name="codex_label_estado">Status</string>
+    <string name="codex_label_terminal">Terminal</string>
+    <string name="codex_btn_open_terminal">⌨ Open in terminal</string>
+    <string name="codex_btn_open_in_project">📁 Open in project</string>
+    <string name="codex_btn_manage_projects">🗂 Manage projects</string>
+    <string name="codex_btn_login">🔑 codex login</string>
+    <string name="codex_card_prompt_directo">DIRECT PROMPT</string>
+    <string name="codex_btn_send_prompt">💬 Send prompt (non-interactive)</string>
+    <string name="codex_card_sesion">SESSION</string>
+    <string name="codex_btn_resume_session">🕒 Resume last session</string>
+    <string name="codex_btn_install_change_channel">⚙ Install / change channel</string>
+    <string name="codex_reinstalling">Reinstalling Codex CLI…</string>
+    <string name="codex_updated">Codex CLI updated</string>
+    <string name="codex_update_failed">Failed — check ~/kairos_logs/install_codex.log</string>
+    <string name="codex_card_mantenimiento">MAINTENANCE</string>
+    <string name="codex_btn_uninstall">🗑 Uninstall</string>
+    <string name="codex_status_ready">ready</string>
+    <string name="codex_status_not_responding">not responding</string>
+    <string name="codex_prompt_hint">What do you want to ask Codex</string>
+    <string name="codex_dialog_title_prompt">Direct prompt — Codex</string>
+    <string name="codex_dialog_send">Send</string>
+    <string name="codex_prompt_empty">The prompt cannot be empty</string>
+    <string name="codex_dialog_cancel">Cancel</string>
+    <string name="codex_model_hint">Model (optional) — e.g. gpt-5.6-terra, leave empty for the default</string>
+    <string name="codex_dialog_title_model">Model (optional)</string>
+    <string name="codex_dialog_continue">Continue</string>
+    <string name="codex_sandbox_default">Profile default (no flag)</string>
+    <string name="codex_sandbox_readonly">Read-only</string>
+    <string name="codex_sandbox_workspace_write">Read/write in the project (workspace-write)</string>
+    <string name="codex_sandbox_danger_full_access">Full access, no sandbox (danger-full-access)</string>
+    <string name="codex_approval_untrusted">Only ask on untrusted operations (untrusted)</string>
+    <string name="codex_approval_on_request">Ask when the command requests it (on-request)</string>
+    <string name="codex_approval_never">Never ask (never — requires a non-full-access sandbox)</string>
+    <string name="codex_dialog_title_sandbox">Sandbox (--sandbox)</string>
+    <string name="codex_dialog_title_approval">Approval mode (--ask-for-approval)</string>
+    <string name="codex_dialog_title_codex_cli">Codex CLI</string>
+    <string name="codex_executing_prompt">Running prompt…</string>
+    <string name="codex_error_with_code">Error (code %1$d):\n%2$s</string>
+    <string name="codex_no_output">(no output)</string>
+    <string name="codex_dialog_title_result">Result — Codex</string>
+    <string name="codex_dialog_close">Close</string>
+    <string name="codex_error_prefix">Error: %1$s</string>
+    <string name="codex_error_unknown">unknown</string>
+    <string name="codex_no_projects">No projects in ~/proyectos — use \"Manage projects\" to add one</string>
+    <string name="codex_dialog_title_open_project">Open project</string>
+
+    <!-- ═══════════════ BaseModuleFragment.kt ═══════════════ -->
+    <string name="base_module_card_mantenimiento">MAINTENANCE</string>
+    <string name="base_module_not_installed_title">📭 Module not installed</string>
+    <string name="base_module_not_installed_body">%1$s is not installed. Go back to the list and tap \"Install\".</string>
+    <string name="base_module_install_background">⚙ Install in background</string>
+    <string name="base_module_back">← Back</string>
+    <string name="base_module_installing_background">Installing %1$s in background…</string>
+    <string name="base_module_install_failed_log_hint">Check ~/kairos_logs/install_%1$s.log</string>
+    <string name="base_module_update">🔄 Update</string>
+    <string name="base_module_updating">Updating %1$s…</string>
+    <string name="base_module_updated">%1$s updated</string>
+    <string name="base_module_update_failed">Failed — check ~/kairos_logs/install_%1$s.log</string>
+    <string name="base_module_uninstall">🗑 Uninstall</string>
+    <string name="base_module_deep_uninstall_checkbox">Deep uninstall (also removes the real package, not just the state)</string>
+    <string name="base_module_confirm_uninstall_title">Uninstall %1$s?</string>
+    <string name="base_module_confirm_uninstall_message">Stops the module if it is running and removes its scripts, checkpoints, and registry entries. Does not touch shared packages (nodejs, python, proot-distro).</string>
+    <string name="base_module_uninstall_btn">Uninstall</string>
+    <string name="base_module_uninstalled">%1$s uninstalled</string>
+    <string name="base_module_uninstall_failed">Could not uninstall %1$s</string>
+    <string name="base_module_cancel">Cancel</string>
+    <string name="base_module_connect_engram">🔗 Connect Engram memory (MCP)</string>
+    <string name="base_module_engram_not_installed">Engram is not installed — install it from its module first</string>
+    <string name="base_module_mcp_read_error">Error reading MCP config: %1$s</string>
+    <string name="base_module_mcp_no_servers">No MCP servers configured yet.</string>
+    <string name="base_module_mcp_config_missing">The config file does not exist yet:\n%1$s</string>
+    <string name="base_module_copy_config">📋 Copy config to clipboard</string>
+    <string name="base_module_open_config_editor">📝 Open config file in editor</string>
+    <string name="base_module_config_missing_toast">The file does not exist yet: %1$s</string>
+    <string name="base_module_open_terminal_advanced">⌘ Open in terminal (advanced)</string>
+    <string name="base_module_mcp_dialog_title">MCP servers — %1$s</string>
+    <string name="base_module_close">Close</string>
+    <string name="base_module_mcp_active">active</string>
+    <string name="base_module_mcp_inactive">disabled</string>
+    <string name="base_module_mcp_type_prefix">type: %1$s</string>
+    <string name="base_module_mcp_scope_prefix">scope: %1$s</string>
+    <string name="base_module_view_detail">View detail</string>
+    <string name="base_module_disable">Disable</string>
+    <string name="base_module_enable">Enable</string>
+    <string name="base_module_saved_default">Saved</string>
+    <string name="base_module_error_prefix">Error: %1$s</string>
+    <string name="base_module_error_unknown">unknown</string>
+    <string name="base_module_mcp_detail_type">Type: %1$s</string>
+    <string name="base_module_mcp_detail_dash">—</string>
+    <string name="base_module_mcp_detail_enabled">Enabled: %1$s</string>
+    <string name="base_module_yes">yes</string>
+    <string name="base_module_no">no</string>
+    <string name="base_module_mcp_detail_url">URL: %1$s</string>
+    <string name="base_module_mcp_detail_oauth">OAuth: %1$s</string>
+    <string name="base_module_mcp_detail_command">Command: %1$s</string>
+    <string name="base_module_mcp_detail_args">Args: %1$s</string>
+    <string name="base_module_mcp_detail_headers">Headers:</string>
+    <string name="base_module_mcp_detail_env_vars">Environment variables:</string>
+    <string name="base_module_mcp_detail_env_line">  %1$s=%2$s</string>
+    <string name="base_module_mcp_no_config_to_copy">No config to copy yet</string>
+    <string name="base_module_config_copied">Config copied to clipboard</string>
+    <string name="base_module_terminal_tui_background">TUI running in background</string>
+    <string name="base_module_terminal_tui_not_started">TUI not started</string>
+
+</resources>

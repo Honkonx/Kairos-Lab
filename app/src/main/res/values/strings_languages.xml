@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LanguagesFragment.kt -->
+    <string name="languages_screen_name">Lenguajes</string>
+    <string name="languages_intro_text">Lenguajes de programación nativos de Termux, sin proot — instalación real vía pkg install. Todos también están disponibles aparte, con su propio apt install, dentro de una distro Linux completa (proot, módulo Entorno/Stacks) si la usás.</string>
+    <string name="languages_section_title">LENGUAJES</string>
+
+    <string name="languages_item_nodejs_name">Node.js LTS</string>
+    <string name="languages_item_nodejs_note">Incluye npm + Corepack (pnpm/yarn) · nativo Termux</string>
+    <string name="languages_action_npm_packages">Paquetes npm -g</string>
+
+    <string name="languages_item_perl_name">Perl</string>
+    <string name="languages_item_perl_note">Nativo Termux · dependencia de PSQL Format (módulo Paquetes)</string>
+    <string name="languages_action_perl_config">Config (perl -V)</string>
+
+    <string name="languages_item_php_name">PHP</string>
+    <string name="languages_item_php_note">CLI nativo Termux</string>
+    <string name="languages_action_php_modules">Módulos cargados (php -m)</string>
+
+    <string name="languages_item_rust_name">Rust</string>
+    <string name="languages_item_rust_note">rustc + cargo, precompilado ARM64 · nativo Termux</string>
+    <string name="languages_action_cargo_binaries">Binarios cargo install</string>
+
+    <string name="languages_item_clang_name">C/C++ (Clang)</string>
+    <string name="languages_item_clang_note">Compilador nativo Termux</string>
+
+    <string name="languages_item_golang_name">Go</string>
+    <string name="languages_item_golang_note">Compilador + toolchain · nativo Termux</string>
+    <string name="languages_action_go_env">Entorno (go env)</string>
+
+    <string name="languages_item_ruby_name">Ruby</string>
+    <string name="languages_item_ruby_note">Incluye gem · nativo Termux</string>
+    <string name="languages_action_ruby_gems">Gemas instaladas</string>
+
+    <string name="languages_item_kotlin_name">Kotlin</string>
+    <string name="languages_item_kotlin_note">Compilador kotlinc · nativo Termux, requiere JDK (dependencia apt del paquete)</string>
+
+    <string name="languages_card_already_installed_title">YA INSTALADO APARTE</string>
+    <string name="languages_python_row_label">🐍 Python — gestión propia (venv, pip)</string>
+    <string name="languages_open_arrow">Abrir →</string>
+</resources>

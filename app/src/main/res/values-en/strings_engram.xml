@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="engram_module_name">Engram</string>
+    <string name="engram_card_estado">STATUS</string>
+
+    <string name="engram_row_motor_label">Engine</string>
+    <string name="engram_row_motor_value">Go (native binary)</string>
+    <string name="engram_row_storage_label">Storage</string>
+    <string name="engram_row_storage_value">Local SQLite</string>
+    <string name="engram_label_estado">Status</string>
+    <string name="engram_pill_dash">—</string>
+    <string name="engram_label_terminal">Terminal</string>
+
+    <string name="engram_card_que_es">WHAT IT IS</string>
+    <string name="engram_desc_que_es">Persistent memory for AI agents (Claude Code, OpenCode, etc). Stores context across sessions in local SQLite, no external services.</string>
+
+    <string name="engram_btn_abrir_tui">⌨ Open TUI in terminal</string>
+    <string name="engram_btn_guardar_manual">💾 Save memory manually</string>
+    <string name="engram_btn_buscar">🔍 Search memory</string>
+    <string name="engram_btn_contexto_reciente">🗂 View recent context</string>
+    <string name="engram_btn_stats">📊 View statistics (stats)</string>
+    <string name="engram_btn_listar_proyectos">📁 List projects</string>
+    <string name="engram_btn_doctor">🩺 Diagnostics (doctor)</string>
+    <string name="engram_btn_configurar_agentes">🔗 Configure agent integration</string>
+    <string name="engram_btn_exportar">📤 Export memory to JSON</string>
+    <string name="engram_btn_importar">📥 Import memory from JSON</string>
+    <string name="engram_btn_eliminar_proyecto">🗑 Delete a project\'s memory</string>
+    <string name="engram_btn_reinstalar">⚙ Reinstall / rebuild</string>
+
+    <string name="engram_toast_reinstalando">Reinstalling Engram…</string>
+    <string name="engram_toast_actualizado">Engram updated</string>
+    <string name="engram_toast_fallo_reinstalar">Failed — check ~/kairos_logs/install_engram.log</string>
+
+    <string name="engram_pill_listo">ready</string>
+    <string name="engram_pill_no_responde">not responding</string>
+
+    <string name="engram_dialog_guardar_title">Save memory manually</string>
+    <string name="engram_hint_titulo">Title</string>
+    <string name="engram_hint_contenido">Content</string>
+    <string name="engram_btn_guardar">Save</string>
+    <string name="engram_toast_falta_titulo_contenido">Missing title or content</string>
+    <string name="engram_toast_memoria_guardada">Memory saved</string>
+    <string name="engram_btn_cancelar">Cancel</string>
+
+    <string name="engram_dialog_buscar_title">Search memory</string>
+    <string name="engram_hint_buscar">Text to search in memory</string>
+    <string name="engram_btn_buscar_dialog">Search</string>
+
+    <string name="engram_toast_exportando">Exporting memory…</string>
+    <string name="engram_toast_exportado">Exported to ~/%1$s</string>
+    <string name="engram_toast_fallo_exportar">Export failed: %1$s</string>
+
+    <string name="engram_toast_no_backups">No backups in ~/ (engram_export_*.json) — export one first or type the path manually</string>
+    <string name="engram_dialog_importar_title">Import memory</string>
+    <string name="engram_btn_ruta_manual">Type path manually</string>
+    <string name="engram_dialog_ruta_title">Backup path</string>
+    <string name="engram_hint_ruta">Full path to the .json</string>
+    <string name="engram_btn_continuar">Continue</string>
+    <string name="engram_dialog_confirmar_import_title">Import %1$s?</string>
+    <string name="engram_dialog_confirmar_import_msg">Restores memories from that backup — can duplicate observations already present if imported twice.</string>
+    <string name="engram_btn_importar_dialog">Import</string>
+    <string name="engram_toast_importando">Importing…</string>
+
+    <string name="engram_dialog_eliminar_proyecto_title">Delete a project\'s memory</string>
+    <string name="engram_dialog_eliminar_proyecto_msg">Deletes (soft-delete, recoverable) the observations saved for that project in Engram\'s memory.</string>
+    <string name="engram_hint_nombre_proyecto">Project name</string>
+    <string name="engram_dialog_confirmar_eliminar_title">Delete \"%1$s\"?</string>
+    <string name="engram_dialog_confirmar_eliminar_msg">This deletes (soft-delete) the memory observations associated with this project.</string>
+    <string name="engram_btn_eliminar_dialog">Delete</string>
+
+    <string name="engram_sin_salida">(no output)</string>
+    <string name="engram_dialog_cerrar">Close</string>
+</resources>

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fila del árbol de archivos — la indentación por profundidad se aplica en código
+     (FileTreeAdapter, paddingStart del root) porque depende del nivel de anidamiento real,
+     no es fija por layout. Patrón inspirado en
+     referencia/ides/android-code-studio-dev/core/app/.../layout_filetree_item.xml. -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/file_tree_row_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="?attr/selectableItemBackground"
+    android:minHeight="36dp"
+    android:paddingEnd="12dp">
+
+    <ImageView
+        android:id="@+id/filetree_chevron"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginEnd="2dp"
+        android:src="@drawable/studio_ic_chevron_right" />
+
+    <ImageView
+        android:id="@+id/filetree_icon"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginEnd="8dp" />
+
+    <TextView
+        android:id="@+id/filetree_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/ide_text_primary"
+        android:textSize="13sp"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <ImageView
+        android:id="@+id/filetree_menu"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:padding="5dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/filetree_context_menu"
+        android:src="@drawable/studio_ic_more_vert" />
+
+</LinearLayout>

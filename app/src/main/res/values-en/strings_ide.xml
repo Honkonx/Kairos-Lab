@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ide_module_name">IDE (nvim + NvChad)</string>
+    <string name="ide_toast_installed">IDE installed</string>
+    <string name="ide_toast_install_failed">Failed — check ~/kairos_logs/install_ide.log</string>
+
+    <string name="ide_card_estado">STATUS</string>
+    <string name="ide_row_editor_label">Editor</string>
+    <string name="ide_row_editor_value">nvim</string>
+    <string name="ide_row_framework_label">Framework</string>
+    <string name="ide_row_framework_value">NvChad</string>
+    <string name="ide_row_ia_label">Built-in AI</string>
+    <string name="ide_row_ia_value">Copilot, CodeCompanion</string>
+
+    <string name="ide_btn_abrir_aqui">📝 Open nvim here</string>
+    <string name="ide_btn_abrir_proyecto">📂 Open project in nvim</string>
+    <string name="ide_btn_gestionar_proyectos">🗂 Manage projects</string>
+    <string name="ide_btn_checkhealth">🩺 Diagnostics (checkhealth)</string>
+    <string name="ide_btn_lazy_sync">🔄 Update plugins (Lazy sync)</string>
+    <string name="ide_toast_sync_plugins">Syncing plugins… this may take a few minutes</string>
+    <string name="ide_btn_reinstalar">↑ Install / reinstall</string>
+
+    <string name="ide_toast_checkhealth">Running checkhealth…</string>
+    <string name="ide_checkhealth_sin_reporte">No output — checkhealth did not generate a report</string>
+    <string name="ide_checkhealth_error">Error: %1$s</string>
+    <string name="ide_checkhealth_sin_salida">No output</string>
+    <string name="ide_dialog_checkhealth_title">Diagnostics — nvim checkhealth</string>
+    <string name="ide_dialog_cerrar">Close</string>
+
+    <string name="ide_toast_reinstalando">Reinstalling IDE…</string>
+    <string name="ide_toast_actualizado">IDE updated</string>
+    <string name="ide_toast_fallo">Failed — check ~/kairos_logs/install_ide.log</string>
+</resources>

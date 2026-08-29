@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rutas expuestas por el FileProvider "${TERMUX_PACKAGE_NAME}.apkbuilder" (ver
+  AndroidManifest.xml) — usado por ApkFragment.kt para compartir/instalar los .apk que
+  compil-apk-termux deja en <proyecto>/build/apk/final.apk dentro de ~/proyectos.
+
+  root-path con la ruta absoluta real de ~/proyectos (TermuxConstants.TERMUX_HOME_DIR_PATH +
+  "/proyectos") — no getFilesDir()/getExternalFilesDir() estándar de Android, porque Termux
+  usa su propia estructura de directorios bajo /data/data/com.termux/files/home (ver
+  TermuxConstants.java). Alcance mínimo a propósito: solo esta subcarpeta, no todo $HOME.
+-->
+<paths>
+    <root-path
+        name="apk_output"
+        path="data/data/com.termux/files/home/proyectos/" />
+</paths>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HermesGatewayFragment.kt -->
+    <string name="hermes_gateway_card_estado">GATEWAY STATUS</string>
+    <string name="hermes_gateway_label_estado">Status</string>
+    <string name="hermes_gateway_dash">—</string>
+    <string name="hermes_gateway_status_active">● Active</string>
+    <string name="hermes_gateway_status_stopped">○ Stopped</string>
+    <string name="hermes_gateway_label_gateway">Gateway</string>
+    <string name="hermes_gateway_toast_starting">Starting gateway…</string>
+    <string name="hermes_gateway_toast_started">Gateway started</string>
+    <string name="hermes_gateway_toast_stopped">Gateway stopped</string>
+    <string name="hermes_gateway_error_format">Error: %1$s</string>
+    <string name="hermes_gateway_btn_view_status">View status</string>
+    <string name="hermes_gateway_dialog_status_title">Gateway status</string>
+    <string name="hermes_gateway_dialog_status_body">Running: %1$b\nProvider: %2$s\nConfig saved: %3$b</string>
+    <string name="hermes_gateway_btn_close">Close</string>
+    <string name="hermes_gateway_btn_view_logs">View logs</string>
+    <string name="hermes_gateway_terminal_title">Hermes logs</string>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono genérico "archivo de código" — cuerpo de hoja + esquina doblada + glifo "</>" tallado
+     encima con alpha parcial, para que al tintar (app:tint) por lenguaje el glifo se distinga
+     del cuerpo por contraste de opacidad, no por un segundo color literal (el tint recolorea
+     todo el vector a un solo color). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M 14 2 H 6 a 2 2 0 0 0 -2 2 v 16 a 2 2 0 0 0 2 2 h 12 a 2 2 0 0 0 2 -2 V 8 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 14 2 v 6 h 6 z" />
+    <path
+        android:fillColor="#59000000"
+        android:pathData="M 9.5 12.5 L 7 15 l 2.5 2.5 1 -1 L 9 15 l 1.5 -1.5 z M 14.5 12.5 l -1 1 L 15 15 l -1.5 1.5 1 1 L 17 15 z" />
+</vector>

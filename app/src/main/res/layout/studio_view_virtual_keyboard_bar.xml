@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Contenido interno de VirtualKeyboardBar.kt — Ctrl/Alt/Shift (modificadores "sticky",
+     tap = próximo carácter, long-press = fijo) + Tab/Esc (envío directo con los modificadores
+     activos aplicados). Patrón de barra de teclas fija sobre el editor, adaptado de
+     referencia/interfaz/avnc-master (VirtualKeys.kt) — acá sin ViewPager/pages de texto porque
+     Kairos IDE ya tiene su propio buscador (EditorSearchController) y no necesita esa página. -->
+<HorizontalScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:scrollbars="none"
+    android:background="@color/ide_status_bar_bg">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="4dp">
+
+        <Button
+            android:id="@+id/vk_key_ctrl"
+            style="@style/VirtualKeyButton"
+            android:text="@string/vk_label_ctrl" />
+
+        <Button
+            android:id="@+id/vk_key_alt"
+            style="@style/VirtualKeyButton"
+            android:text="@string/vk_label_alt" />
+
+        <Button
+            android:id="@+id/vk_key_shift"
+            style="@style/VirtualKeyButton"
+            android:text="@string/vk_label_shift" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginHorizontal="4dp"
+            android:background="@color/ide_divider" />
+
+        <Button
+            android:id="@+id/vk_key_tab"
+            style="@style/VirtualKeyButton"
+            android:text="@string/vk_label_tab" />
+
+        <Button
+            android:id="@+id/vk_key_esc"
+            style="@style/VirtualKeyButton"
+            android:text="@string/vk_label_esc" />
+
+    </LinearLayout>
+
+</HorizontalScrollView>

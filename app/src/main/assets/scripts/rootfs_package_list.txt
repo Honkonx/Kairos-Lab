@@ -1,0 +1,77 @@
+# Lista canónica de paquetes del rootfs embebido de Kairos.
+#
+# Fuente única de verdad — debe reflejar exactamente lo que instala
+# modulos/kairos.sh (PASO 3 core, PASO 4 build, PASO 6 multimedia/utils).
+# Si se cambia la lista de paquetes en kairos.sh, actualizar acá también
+# (y viceversa) — build-rootfs.yml lee este archivo, kairos.sh no.
+#
+# Formato: un paquete por línea, "#" para comentarios, líneas vacías se
+# ignoran. Todos del repo termux-main (aarch64) — ver docs/bootstrap/ROOTFS_EMBEBIDO.md
+# para por qué PASO 5 (glibc) queda fuera de este archivo por ahora.
+#
+# Copia sincronizada en modulos/rootfs_package_list.txt (y su copia en
+# app/src/main/assets/scripts/) — esa es la que lee kairos_manager.py en
+# runtime (cmd_rootfs verify/check-updates) para saber qué paquetes son
+# "del rootfs". Si se edita acá, actualizar también esa copia.
+
+# ── PASO 3 — core (modulos/kairos.sh) ──
+python
+python-pip
+python-ensurepip-wheels
+nodejs-lts
+npm
+git
+curl
+wget
+tmux
+openssh
+openssh-sftp-server
+proot
+proot-distro
+busybox
+tar
+xz-utils
+unzip
+iproute2
+net-tools
+jq
+termux-api
+sqlite
+ca-certificates
+
+# ── PASO 4 — build/compilación (modulos/kairos.sh) ──
+build-essential
+clang
+make
+pkg-config
+binutils
+rust
+rust-std-aarch64-linux-android
+libffi
+openssl
+libopenblas
+
+# ── PASO 6 — multimedia + GPU + utilidades (modulos/kairos.sh) ──
+ffmpeg
+libjpeg-turbo
+libpng
+zlib
+ripgrep
+vulkan-icd
+vulkan-loader-generic
+nano
+lsof
+procps
+psmisc
+bc
+dos2unix
+
+# ── Agregado 2026-08-28 (docs/humano280.md) — paquetes generales, NO módulos completos ──
+# Criterio: usados por 3+ módulos independientes vía "pkg install", no exclusivos de un módulo.
+# NOTA: "bun" (pedido como ejemplo por el usuario) se investigó y se descarta — no existe como
+# paquete `pkg` en el repo real de Termux; freebuff.sh/hf.sh/ohmypi.sh lo instalan como binario
+# nativo desde un fork propio (github.com/Honkonx/bun-termux, .deb standalone) porque el binario
+# oficial de Bun (npm) segfaultea en Bionic/Termux — no hay nada que agregar acá para bun, sería
+# un paquete inexistente en packages.termux.dev.
+perl
+# usado por: ciberseguridad.sh, ide.sh, psqlformat.sh (además de perl.sh, su módulo dedicado)

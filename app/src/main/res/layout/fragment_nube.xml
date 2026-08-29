@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Nube"
+            android:textColor="?attr/kairosText"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="2dp"
+            android:paddingBottom="10dp"
+            android:text="Carpeta $HOME/nube expuesta como almacenamiento web — solo se ve lo que hay dentro de ella, nunca el resto del teléfono."
+            android:textColor="?attr/kairosText3"
+            android:textSize="12sp" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="?attr/kairosBg2"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:strokeColor="?attr/kairosBorder"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:id="@+id/nube_status_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/kairosText"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="○ servidor detenido" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="URL local (misma red / túnel activo):"
+                    android:textColor="?attr/kairosText3"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/nube_local_url"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textColor="?attr/kairosGreen"
+                    android:textIsSelectable="true"
+                    android:textSize="11sp"
+                    tools:text="—" />
+
+                <LinearLayout
+                    android:id="@+id/nube_public_url_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="URL pública (túnel):"
+                        android:textColor="?attr/kairosText3"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/nube_public_url"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:textColor="?attr/kairosBlue"
+                        android:textIsSelectable="true"
+                        android:textSize="11sp"
+                        tools:text="https://xxxx.trycloudflare.com/?token=…" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btn_nube_start"
+                        style="@style/NubeActionChip"
+                        android:text="▶ Iniciar servidor" />
+
+                    <TextView
+                        android:id="@+id/btn_nube_stop"
+                        style="@style/NubeActionChip"
+                        android:layout_marginEnd="0dp"
+                        android:text="⏹ Detener" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btn_nube_cloudflare"
+                        style="@style/NubeActionChip"
+                        android:text="☁ Cloudflare" />
+
+                    <TextView
+                        android:id="@+id/btn_nube_ngrok"
+                        style="@style/NubeActionChip"
+                        android:text="🚇 ngrok" />
+
+                    <TextView
+                        android:id="@+id/btn_nube_stop_tunnel"
+                        style="@style/NubeActionChip"
+                        android:layout_marginEnd="0dp"
+                        android:text="✕ No exponer" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/btn_nube_copy"
+                        style="@style/NubeActionChip"
+                        android:text="📋 Copiar URL" />
+
+                    <TextView
+                        android:id="@+id/btn_nube_share"
+                        style="@style/NubeActionChip"
+                        android:layout_marginEnd="0dp"
+                        android:text="↗ Compartir" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?attr/kairosDivider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <TextView
+            android:id="@+id/btn_nube_up"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="6dp"
+            android:text="⬆"
+            android:textColor="?attr/kairosText"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/nube_path_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:singleLine="true"
+            android:ellipsize="start"
+            android:fontFamily="monospace"
+            android:textColor="?attr/kairosText2"
+            android:textSize="12sp"
+            tools:text="/data/data/com.termux/files/home/nube" />
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/nube_files_recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false" />
+
+        <TextView
+            android:id="@+id/nube_empty_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:padding="32dp"
+            android:textColor="?attr/kairosText3"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="Carpeta vacía" />
+
+    </FrameLayout>
+
+</LinearLayout>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono nuevo (2026-08-26, rediseño grid/pestañas de Mini PC, ver
+     docs/mini-pc/MINIPC_TAB_2026-08-25.md sección "Ronda 4") — monitor con base, usado en las
+     tiles de "escritorio" (XFCE4 nativo, instalar/iniciar escritorio en distro). Mismo estilo
+     24x24 fillColor #FFF que el resto de ic_*.xml — el color real lo pone imageTintList en
+     runtime (EntornoFragment.actionTile()), no queda fijo a blanco. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 4 4 h 16 a 2 2 0 0 1 2 2 v 10 a 2 2 0 0 1 -2 2 h -6 v 2 h 3 v 2 H 7 v -2 h 3 v -2 H 4 a 2 2 0 0 1 -2 -2 V 6 a 2 2 0 0 1 2 -2 z M 4 6 v 10 h 16 V 6 H 4 z" />
+</vector>

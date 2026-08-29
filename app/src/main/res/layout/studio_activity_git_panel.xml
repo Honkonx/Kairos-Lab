@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/ide_background">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/ide_surface"
+        app:title="@string/git_panel_title"
+        app:titleTextColor="@color/ide_text_primary"
+        app:navigationIcon="@drawable/studio_ic_back" />
+
+    <!-- Aviso de estado real: Kairos no instalado / permiso RUN_COMMAND no concedido / carpeta
+         sin abrir / error real devuelto por git (ej. "not a git repository"). Oculto cuando no
+         hay nada que avisar. -->
+    <LinearLayout
+        android:id="@+id/status_banner"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/ide_surface"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/status_banner_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/ide_error"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/status_banner_action"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/branch_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/ide_accent"
+                android:textStyle="bold"
+                android:textSize="15sp"
+                android:text="@string/git_branch_placeholder" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/git_changes_title"
+                android:textColor="@color/ide_text_secondary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/changes_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="monospace"
+                android:textColor="@color/ide_text_primary"
+                android:textIsSelectable="true"
+                android:textSize="12sp"
+                android:text="@string/git_loading" />
+
+            <EditText
+                android:id="@+id/commit_message_input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@color/ide_surface"
+                android:hint="@string/git_commit_hint"
+                android:inputType="textMultiLine|textCapSentences"
+                android:minLines="2"
+                android:padding="8dp"
+                android:textColor="@color/ide_text_primary"
+                android:textColorHint="@color/ide_text_secondary"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/commit_button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/git_commit_button" />
+
+                <Button
+                    android:id="@+id/pull_button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:text="@string/git_pull_button" />
+
+                <Button
+                    android:id="@+id/push_button"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:text="@string/git_push_button" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/git_log_title"
+                android:textColor="@color/ide_text_secondary"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/log_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp"
+                android:fontFamily="monospace"
+                android:textColor="@color/ide_text_primary"
+                android:textIsSelectable="true"
+                android:textSize="12sp"
+                android:text="@string/git_loading" />
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</LinearLayout>

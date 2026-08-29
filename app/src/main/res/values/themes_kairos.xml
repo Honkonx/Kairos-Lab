@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Temas seleccionables de Kairos (2026-08-22, ver docs/humano/humano190.md) — 3 temas que
+         mapean los mismos ?attr/kairos* a paletas distintas. "Oscuro" es el default (mismos
+         valores que colors_kairos.xml, cero cambio visual para quien no toque el selector de
+         tema). "Señal" y "Claro" son las 2 direcciones nuevas. Todos extienden
+         Theme.TermuxActivity.DayNight.NoActionBar (themes.xml) para no perder ninguno de los
+         flags/atributos de terminal/drawer ya definidos ahí — solo agregan los ?attr/kairos*. -->
+
+    <style name="Theme.Kairos.Oscuro" parent="Theme.TermuxActivity.DayNight.NoActionBar">
+        <item name="kairosBg">@color/kairos_bg</item>
+        <item name="kairosBg2">@color/kairos_bg2</item>
+        <item name="kairosBg3">@color/kairos_bg3</item>
+        <item name="kairosBgElevated">@color/kairos_bg_elevated</item>
+        <item name="kairosBgSurface">@color/kairos_bg_surface</item>
+        <item name="kairosNavBg">@color/kairos_nav_bg</item>
+        <item name="kairosText">@color/kairos_text</item>
+        <item name="kairosText2">@color/kairos_text2</item>
+        <item name="kairosText3">@color/kairos_text3</item>
+        <item name="kairosBlue">@color/kairos_blue</item>
+        <item name="kairosGreen">@color/kairos_green</item>
+        <item name="kairosRed">@color/kairos_red</item>
+        <item name="kairosAmber">@color/kairos_amber</item>
+        <item name="kairosBorder">@color/kairos_border</item>
+        <item name="kairosDivider">@color/kairos_divider</item>
+        <item name="kairosStatusRunning">@color/kairos_status_running</item>
+        <item name="kairosStatusStopped">@color/kairos_status_stopped</item>
+        <item name="kairosStatusInstalling">@color/kairos_status_installing</item>
+        <item name="kairosStatusError">@color/kairos_status_error</item>
+        <item name="kairosStatusNotInstalled">@color/kairos_status_not_installed</item>
+    </style>
+
+    <style name="Theme.Kairos.Senal" parent="Theme.TermuxActivity.DayNight.NoActionBar">
+        <item name="kairosBg">@color/kairos_senal_bg</item>
+        <item name="kairosBg2">@color/kairos_senal_bg2</item>
+        <item name="kairosBg3">@color/kairos_senal_bg3</item>
+        <item name="kairosBgElevated">@color/kairos_senal_bg_elevated</item>
+        <item name="kairosBgSurface">@color/kairos_senal_bg_surface</item>
+        <item name="kairosNavBg">@color/kairos_senal_nav_bg</item>
+        <item name="kairosText">@color/kairos_senal_text</item>
+        <item name="kairosText2">@color/kairos_senal_text2</item>
+        <item name="kairosText3">@color/kairos_senal_text3</item>
+        <item name="kairosBlue">@color/kairos_senal_blue</item>
+        <item name="kairosGreen">@color/kairos_senal_green</item>
+        <item name="kairosRed">@color/kairos_senal_red</item>
+        <item name="kairosAmber">@color/kairos_senal_amber</item>
+        <item name="kairosBorder">@color/kairos_senal_border</item>
+        <item name="kairosDivider">@color/kairos_senal_divider</item>
+        <item name="kairosStatusRunning">@color/kairos_senal_status_running</item>
+        <item name="kairosStatusStopped">@color/kairos_senal_status_stopped</item>
+        <item name="kairosStatusInstalling">@color/kairos_senal_status_installing</item>
+        <item name="kairosStatusError">@color/kairos_senal_status_error</item>
+        <item name="kairosStatusNotInstalled">@color/kairos_senal_status_not_installed</item>
+    </style>
+
+    <style name="Theme.Kairos.Claro" parent="Theme.TermuxActivity.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/kairos_claro_bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="kairosBg">@color/kairos_claro_bg</item>
+        <item name="kairosBg2">@color/kairos_claro_bg2</item>
+        <item name="kairosBg3">@color/kairos_claro_bg3</item>
+        <item name="kairosBgElevated">@color/kairos_claro_bg_elevated</item>
+        <item name="kairosBgSurface">@color/kairos_claro_bg_surface</item>
+        <item name="kairosNavBg">@color/kairos_claro_nav_bg</item>
+        <item name="kairosText">@color/kairos_claro_text</item>
+        <item name="kairosText2">@color/kairos_claro_text2</item>
+        <item name="kairosText3">@color/kairos_claro_text3</item>
+        <item name="kairosBlue">@color/kairos_claro_blue</item>
+        <item name="kairosGreen">@color/kairos_claro_green</item>
+        <item name="kairosRed">@color/kairos_claro_red</item>
+        <item name="kairosAmber">@color/kairos_claro_amber</item>
+        <item name="kairosBorder">@color/kairos_claro_border</item>
+        <item name="kairosDivider">@color/kairos_claro_divider</item>
+        <item name="kairosStatusRunning">@color/kairos_claro_status_running</item>
+        <item name="kairosStatusStopped">@color/kairos_claro_status_stopped</item>
+        <item name="kairosStatusInstalling">@color/kairos_claro_status_installing</item>
+        <item name="kairosStatusError">@color/kairos_claro_status_error</item>
+        <item name="kairosStatusNotInstalled">@color/kairos_claro_status_not_installed</item>
+    </style>
+</resources>

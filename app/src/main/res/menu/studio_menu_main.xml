@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Iconos visibles en la toolbar (espacio real de IDE: guardar, terminal, build) — el
+         resto (abrir archivo/carpeta sueltos, proveedor de IA) va al overflow porque abrir
+         carpeta ahora tiene su propio flujo principal vía el explorador del sidebar. -->
+    <item
+        android:id="@+id/action_save_file"
+        android:title="@string/action_save_file"
+        android:icon="@drawable/studio_ic_save"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_search_in_file"
+        android:title="@string/action_search_in_file"
+        android:icon="@drawable/studio_ic_search"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_terminal"
+        android:title="@string/action_terminal"
+        android:icon="@drawable/studio_ic_terminal"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_build_apk"
+        android:title="@string/action_build_apk"
+        android:icon="@drawable/studio_ic_build"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_open_folder"
+        android:title="@string/action_open_folder"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_open_file"
+        android:title="@string/action_open_file"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_search_in_project"
+        android:title="@string/action_search_in_project"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_new_project"
+        android:title="@string/action_new_project"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_recent_projects"
+        android:title="@string/action_recent_projects"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_git"
+        android:title="@string/action_git"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_ai_settings"
+        android:title="@string/action_ai_settings"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_editor_settings"
+        android:title="@string/action_editor_settings"
+        app:showAsAction="never" />
+
+    <!-- Tema de Estudio, INDEPENDIENTE del tema del apk (ver StudioThemePrefs.kt,
+         docs/humano/humano202.md) — al overflow, mismo criterio que el resto de items de
+         configuración de esta lista. -->
+    <item
+        android:id="@+id/action_studio_theme"
+        android:title="@string/action_studio_theme"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_ask_ai"
+        android:title="@string/action_ask_ai"
+        app:showAsAction="never" />
+
+    <!-- Alternativa sin teclado al atajo Ctrl+P (ver MainActivity.onKeyShortcut). -->
+    <item
+        android:id="@+id/action_command_palette"
+        android:title="@string/action_command_palette"
+        app:showAsAction="never" />
+
+</menu>
