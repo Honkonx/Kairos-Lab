@@ -2,11 +2,7 @@
 .gradle/
 .kotlin/
 build/
-# Excepción: paquete Kotlin real llamado "build" (no directorio de salida de Gradle) — mismo
-# patrón de bug encontrado 3 veces (ver docs/humano/humano162.md, docs/humano/humano163.md): la regla "build/"
-# sin anclar matchea cualquier carpeta con ese nombre, incluyendo paquetes Kotlin legítimos.
-# La excepción de ide-app/ se retiró (humano164): esa carpeta se movió a
-# referencia/ides/ide-app-standalone/, ya gitignoreada como el resto de referencia/.
+# Excepción: paquete Kotlin real llamado "build" (no directorio de salida de Gradle).
 !app/src/main/java/com/termux/app/ui/studio/build/
 !app/src/main/java/com/termux/app/ui/studio/build/*.kt
 .build-tools/
@@ -19,92 +15,17 @@ local.properties
 *.keystore
 *.jks
 
-# Rootfs local (build_rootfs.py -> tar.xz copiado a mano en app/src/main/assets/, ver
-# docs/bootstrap/COMPILAR_LOCAL_ROOTFS_Y_APK_2026-08-24.md) — binario de ~300MB generado en
-# build time (local o CI), nunca código fuente. Anclado a app/src/main/assets/ para no
-# matchear otro archivo del mismo nombre en otra carpeta.
+# Rootfs local (build_rootfs.py -> tar.xz copiado a mano en app/src/main/assets/) — binario
+# generado en build time, nunca código fuente.
 /app/src/main/assets/kairos_rootfs.tar.xz
 .externalNativeBuild
 .cxx/
 *.zip
 release/
 *.so
-# Excepción (2026-08-19, humano164): "*.so" sin anclar bloquearía en silencio los binarios
-# vendorizados reales de X11 embebido si algún día se agregan/reemplazan — hoy siguen
-# trackeados solo porque ya estaban en el índice antes de que la regla importara.
 !x11-server/libs/**/*.so
 __pycache__/
 *.pyc
-
-# ── Config/scripts locales (no subir — no es documentación) ──
-sync_kairos.sh
-sync_kairos_gitlab.sh
-opencode.json
-.claude/*
-!.claude/memory/
-# Excepción 2026-08-18 (humano159): .claude/* bloqueaba TODO salvo memory/, incluyendo
-# rules/agents/skills — que sí viven en GitHub del lado de .opencode/ (mismo contenido,
-# ambas herramientas deben tener el mismo contexto en cualquier PC). settings.local.json
-# NO se agrega a propósito (convención de Claude Code: permisos/config personal de la
-# máquina, no de proyecto) — settings.json sí (config de MCP servers, sin secretos).
-!.claude/rules/
-!.claude/agents/
-!.claude/skills/
-!.claude/settings.json
-*.local
-
-# ── referencia/: proyectos externos copiados para análisis (no vendorizados),
-#    screenshots de errores y backups locales — nada de esto se sube. Se ignora
-#    referencia/* (cada carpeta directa) en vez de referencia/ completa para
-#    poder des-ignorar referencia/site/ explícitamente (ver excepción abajo) —
-#    git no permite re-incluir un archivo si un directorio padre está ignorado.
-referencia/*
-
-# EXCEPCIÓN: referencia/site/ sí estaba trackeado desde antes de esta
-# reorganización (assets con historial real en git, ver commit de la
-# reorganización 2026-07-28) — se mantiene trackeado en su nueva ruta.
-!referencia/site
-
-# EXCEPCIÓN: documentación de referencia/ (ÍNDICES/categorías) — la categorización
-# de los proyectos ES FÍSICA (2026-08-11, humano97 R2: 41 repos en sus carpetas), pero
-# los repos siguen siendo material externo no vendorizado y NO se trackean. Solo se
-# trackean estos .md. Creados 2026-08-11 (humano97 R2).
-# Nota: para re-incluir un .md en un subdirectorio hay que des-ignorar primero el
-# directorio padre (regla de git — !referencia/ia/) y luego re-ignorar los repos que
-# viven dentro de cada categoría (referencia/*/*/) para que no queden visibles.
-!referencia/README.md
-!referencia/index.md
-!referencia/ia/
-!referencia/ides/
-!referencia/emuladores/
-!referencia/termux/
-!referencia/interfaz/
-!referencia/herramientas/
-!referencia/ciberseguridad/
-!referencia/agentes/
-referencia/*/*/
-!referencia/ia/README.md
-!referencia/ides/README.md
-!referencia/emuladores/README.md
-!referencia/termux/README.md
-!referencia/interfaz/README.md
-!referencia/herramientas/README.md
-!referencia/ciberseguridad/README.md
-!referencia/agentes/README.md
-
-
-# ── ver/: mismo criterio que referencia/ — proyectos externos (+ sus .zip)
-# copiados solo para análisis/auditoría de ideas de UI, nunca vendorizados.
-ver/
-
-# ── Logs de build de GitHub Actions pegados para depurar (locales) ──
-log/
-
-# ── termux-ai-stack/: clon git real de github.com/Honkonx/termux-ai-stack,
-#    repo separado (remote propio) — nunca se trackea dentro de Kairos. Sin
-#    esta línea, "git add -A" lo agrega como repo embebido/gitlink por error
-#    (ya pasó una vez, ver docs/viejo/TERMUX_AI_STACK_SYNC.md).
-termux-ai-stack/
 
 # ── OS files ──
 .DS_Store
