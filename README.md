@@ -14,6 +14,8 @@
 
 <p align="center"><strong>🚀 Un solo APK para tener IA local y un stack completo de desarrollo en tu Android, sin root y sin salir de la app.</strong></p>
 
+*(English version: [`docs-en/README.md`](./docs-en/README.md))*
+
 Fork de [termux-app](https://github.com/termux/termux-app) con una interfaz nativa completa — nada de escribir comandos a mano salvo que quieras. Todo se instala, se enciende y se apaga tocando la pantalla.
 
 ## Estado del proyecto 🚧
