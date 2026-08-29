@@ -319,8 +319,18 @@ class BottomSheetInstalacion : DialogFragment() {
 
             // Install button with installation handling
             val needProot = requiresProot && !isProotInstalled()
+            // Estado inicial "ya instalando" (auditoría de UX de instalación 2026-08-29): esta
+            // hoja se puede reabrir para el MISMO módulo mientras una instalación anterior sigue
+            // en curso (ej. "Instalar en segundo plano" cierra la hoja de inmediato — ver
+            // startSilentInstall — y el usuario vuelve a tocar la fila del módulo antes de que
+            // termine, porque el registry todavía no cambió a installed=true). Antes de este fix
+            // el botón se mostraba clickeable como si nada, y tocarlo llamaba a installModule()
+            // de nuevo — el guard interno (ModuleController.activeInstalls) lo rechazaba, pero
+            // como acá el onProgress real es un lambda vacío ({ _ -> }), ese rechazo se traducía
+            // en un "falló"/notificación falsa (ver comentario de ModuleController.isInstalling).
+            val alreadyInstalling = com.termux.app.ModuleController.isInstalling(moduleId)
             val btn = TextView(context).apply {
-                text = buildButtonText()
+                text = if (alreadyInstalling) getString(R.string.install_sheet_btn_installing) else buildButtonText()
                 textSize = 14f
                 gravity = Gravity.CENTER
                 setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -335,9 +345,19 @@ class BottomSheetInstalacion : DialogFragment() {
                 layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).also {
                     it.topMargin = dp(24)
                 }
+                isEnabled = !alreadyInstalling
+                alpha = if (alreadyInstalling) 0.5f else 1f
                 setOnClickListener {
                     if (needProot) return@setOnClickListener
                     if (!isAdded) return@setOnClickListener
+                    // Chequeo ANTES de llamar a installModule() por cualquiera de las 3 vías de
+                    // abajo (limpia bloqueante, silenciosa, GitHub) — evita de raíz la
+                    // notificación/Snackbar falsa de "falló" para el caso de reabrir esta hoja
+                    // mientras el módulo ya está instalando.
+                    if (com.termux.app.ModuleController.isInstalling(moduleId)) {
+                        Toast.makeText(context, getString(R.string.install_sheet_already_installing, moduleName), Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
                     val variant = if (hasVariants) getVariantId(selectedVariant) else null
                     if (useGithubSource) {
                         startGithubInstall()
@@ -405,6 +425,9 @@ class BottomSheetInstalacion : DialogFragment() {
             }
             installBtn = btn
             addView(btn)
+            if (alreadyInstalling) {
+                pollInstallingButtonState(btn)
+            }
 
             // Cancel
             addView(TextView(context).apply {
@@ -448,6 +471,15 @@ class BottomSheetInstalacion : DialogFragment() {
         val appContext = requireContext().applicationContext
         val id = moduleId
         val name = moduleName
+        // Mismo guard que el botón bloqueante de arriba — ver su comentario y el de
+        // ModuleController.isInstalling(). El caller real (onClick de [btn]) ya chequea esto
+        // antes de entrar acá, pero se repite el chequeo en este método porque es privado y
+        // podría llamarse desde otro lado en el futuro sin pasar por ese guard.
+        if (com.termux.app.ModuleController.isInstalling(id)) {
+            Toast.makeText(appContext, getString(R.string.install_sheet_already_installing, name), Toast.LENGTH_SHORT).show()
+            dismissAllowingStateLoss()
+            return
+        }
         // Mismo criterio que BaseModuleFragment.installModuleInBackground() — con 4+ módulos
         // instalando ahora mismo, installModule() encola esta en vez de arrancarla; avisar del
         // lado del toast en vez de dejar que el usuario piense que ya arrancó.
@@ -495,6 +527,26 @@ class BottomSheetInstalacion : DialogFragment() {
             )
         }.start()
         dismissAllowingStateLoss()
+    }
+
+    /**
+     * Re-habilita [button] apenas [moduleId] deja de estar instalando — contraparte del estado
+     * inicial "alreadyInstalling" de [onCreateView]. Mismo guard de Fragment-adjunto (`isAdded`)
+     * que el resto del proyecto (`.claude/rules/kotlin-kairos-android-patterns.md`) y el mismo
+     * mecanismo de poll que BaseModuleFragment.pollInstallingButtonState() (duplicado acá en vez
+     * de compartido porque esta clase es un DialogFragment, no extiende BaseModuleFragment).
+     */
+    private fun pollInstallingButtonState(button: TextView) {
+        if (!isAdded) return
+        if (!com.termux.app.ModuleController.isInstalling(moduleId)) {
+            button.isEnabled = true
+            button.alpha = 1f
+            button.text = buildButtonText()
+            return
+        }
+        button.postDelayed({
+            if (isAdded) pollInstallingButtonState(button)
+        }, 1500)
     }
 
     private fun updateOriginGroup(group: LinearLayout) {

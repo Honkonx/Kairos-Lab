@@ -118,6 +118,8 @@
     <string name="install_sheet_status_changing_method">Cambiando método…</string>
     <string name="install_sheet_snackbar_success">✔ Instalación completada</string>
     <string name="install_sheet_snackbar_failed">✖ Instalación falló — log en ~/kairos_logs/install_%1$s.log</string>
+    <string name="install_sheet_already_installing">%1$s ya se está instalando — esperá a que termine</string>
+    <string name="install_sheet_btn_installing">⏳ Instalando…</string>
     <string name="install_sheet_btn_cancel">Cancelar</string>
     <string name="install_sheet_toast_silent_installing">Instalando %1$s en segundo plano…</string>
     <string name="install_sheet_toast_github_installing">Buscando e instalando %1$s desde GitHub…</string>

@@ -740,14 +740,62 @@ abstract class BaseModuleFragment : Fragment() {
         // navegando la app mientras el módulo se instala internamente (mismo Thread de
         // ModuleController.installModule, sin BottomSheet que bloquee). Cada módulo decide
         // qué variante pasar (n8n: udocker/proot-distro; hermes: ninguna).
+        //
+        // Feedback visual de "instalando" (pedido explícito del usuario, auditoría de UX de
+        // instalación 2026-08-29): antes el botón quedaba tapeable durante TODA la instalación,
+        // sin ningún indicio de que tocarlo de nuevo era un no-op — este era el otro lado del
+        // mismo bug que el guard de installModuleInBackground()/reinstallModuleService() de
+        // arriba (notificación falsa de "falló"): acá el problema es puramente de UI, no de
+        // lógica. moduleId ya refleja el estado real de ModuleController.isInstalling() al
+        // construir la pantalla (cubre navegar-y-volver mientras instala en segundo plano) y al
+        // tocar el botón (cubre el primer tap real) — pollInstallingButtonState() lo re-habilita
+        // solo cuando la instalación realmente termina, sin depender de que cada uno de los ~10
+        // callers de showNotInstalled() recuerde re-renderizar la pantalla en su onDone.
         if (onInstallSilently != null) {
-            container.addView(createActionButton(getString(R.string.base_module_install_background), ButtonStyle.PRIMARY) {
+            val moduleId = getModuleId()
+            val alreadyInstalling = com.termux.app.ModuleController.isInstalling(moduleId)
+            val installButton = createActionButton(
+                if (alreadyInstalling) getString(R.string.base_module_install_button_installing) else getString(R.string.base_module_install_background),
+                ButtonStyle.PRIMARY
+            ) {}
+            installButton.isEnabled = !alreadyInstalling
+            installButton.alpha = if (alreadyInstalling) 0.5f else 1f
+            installButton.setOnClickListener {
+                if (com.termux.app.ModuleController.isInstalling(moduleId)) return@setOnClickListener
+                installButton.isEnabled = false
+                installButton.alpha = 0.5f
+                (installButton as? TextView)?.text = getString(R.string.base_module_install_button_installing)
                 onInstallSilently()
-            })
+                pollInstallingButtonState(installButton, moduleId)
+            }
+            container.addView(installButton)
+            if (alreadyInstalling) {
+                pollInstallingButtonState(installButton, moduleId)
+            }
         }
         container.addView(createActionButton(getString(R.string.base_module_back), ButtonStyle.GHOST) {
             parentFragmentManager.popBackStack()
         })
+    }
+
+    /**
+     * Re-habilita [button] (texto + estado) apenas [moduleId] deja de estar instalando —
+     * ver comentario de [showNotInstalled]. Guard de Fragment-adjunto (`isAdded`) igual que el
+     * resto del proyecto (`.claude/rules/kotlin-kairos-android-patterns.md`): si el usuario
+     * navega a otra pantalla mientras esto sigue reintentando, la cadena de `postDelayed()` se
+     * corta acá en vez de seguir agendando callbacks contra un Fragment ya desadjuntado.
+     */
+    private fun pollInstallingButtonState(button: View, moduleId: String) {
+        if (!isAdded) return
+        if (!com.termux.app.ModuleController.isInstalling(moduleId)) {
+            button.isEnabled = true
+            button.alpha = 1f
+            (button as? TextView)?.text = getString(R.string.base_module_install_background)
+            return
+        }
+        button.postDelayed({
+            if (isAdded) pollInstallingButtonState(button, moduleId)
+        }, 1500)
     }
 
     // open: PythonFragment lo sobreescribe para además exigir el binario real con AND (ver
@@ -920,7 +968,17 @@ abstract class BaseModuleFragment : Fragment() {
      * funcionaba).
      */
     protected fun reinstallModuleService(onDone: (Boolean) -> Unit) {
-        com.termux.app.ModuleController.installModule(getModuleId(), requireContext(), null, true, {}) { ok ->
+        val id = getModuleId()
+        // Chequeo ANTES de llamar a installModule() (mismo mecanismo que
+        // installModuleInBackground() de más abajo — ver su comentario y el de
+        // ModuleController.isInstalling()): evita que un doble-tap en "Actualizar" mientras el
+        // módulo ya está instalando dispare una notificación falsa de "instalación falló".
+        if (com.termux.app.ModuleController.isInstalling(id)) {
+            toast(getString(R.string.base_module_already_installing, getModuleName()))
+            onDone(false)
+            return
+        }
+        com.termux.app.ModuleController.installModule(id, requireContext(), null, true, {}) { ok ->
             if (!isAdded) return@installModule
             requireActivity().runOnUiThread { if (isAdded) onDone(ok) }
         }
@@ -945,6 +1003,20 @@ abstract class BaseModuleFragment : Fragment() {
     protected fun installModuleInBackground(variant: String? = null, onDone: (Boolean) -> Unit) {
         val appContext = requireContext().applicationContext
         val id = getModuleId()
+        // Guard anti-duplicados del lado UI (pedido explícito del usuario, auditoría de UX de
+        // instalación 2026-08-29 — ver comentario de ModuleController.isInstalling()): antes
+        // este chequeo no existía acá, así que un doble-tap en "Instalar" mientras el módulo ya
+        // estaba instalando SÍ llegaba a installModule() — el guard interno (activeInstalls) lo
+        // rechazaba, pero como el onProgress real que pasa este método es un lambda vacío ({}),
+        // el mensaje "ya se está instalando" del guard se perdía en silencio y onComplete(false)
+        // disparaba la misma notificación Android que un fallo real ("install_failed"),
+        // engañando al usuario. Chequear acá evita llamar a installModule() del todo para el
+        // caso de doble-tap — respuesta inmediata y honesta, sin notificación falsa.
+        if (com.termux.app.ModuleController.isInstalling(id)) {
+            toast(getString(R.string.base_module_already_installing, getModuleName()))
+            onDone(false)
+            return
+        }
         // Límite de instalaciones simultáneas (pedido explícito del usuario, ver
         // InstallQueueManager/docs/arquitectura/COLA_INSTALACION_MODULOS.md): con 4+ módulos
         // instalando ahora mismo, installModule() encola esta en vez de arrancarla — antes de

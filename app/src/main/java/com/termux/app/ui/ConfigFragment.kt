@@ -105,6 +105,13 @@ class ConfigFragment : Fragment() {
         addClickableRow(generalContainer, getString(R.string.config_row_check_module_updates)) {
             runModuleVersionCheck()
         }
+        // Sincroniza los scripts on-device (~/scripts/install/<id>.sh) contra el repo público
+        // Kairos-Lab — ver KairosLabModuleSync.kt para el mecanismo completo (bug real que
+        // resuelve: los scripts extraídos de los assets del APK nunca se re-copian salvo que
+        // versionCode cambie, ver KairosBootstrap.isAlreadyExtracted()).
+        addClickableRow(generalContainer, getString(R.string.config_row_check_lab_updates)) {
+            runKairosLabModuleCheck()
+        }
         addToggleRow(generalContainer, getString(R.string.config_row_notify_modules_down),
             prefs.getBoolean("pref_notify_modules", true)) { checked ->
             // La detección real vive en ModulesFragment.pollStatus() (compara el estado
@@ -577,6 +584,95 @@ class ConfigFragment : Fragment() {
                         getString(R.string.config_progress_updates_available, withUpdate.size, withUpdate.joinToString(", ") { it.moduleId }),
                         detail
                     )
+                }
+            }
+        }.start()
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Verificar actualizaciones de módulos — Kairos-Lab (KairosLabModuleSync.kt). Distinto de
+    // runModuleVersionCheck() de arriba: ese compara la versión del BINARIO instalado contra
+    // npm/PyPI/GitHub Releases/apt (7-8 mecanismos distintos, cubre solo un subconjunto de
+    // módulos); este compara el SCRIPT .sh on-device (~/scripts/install/<id>.sh) contra el
+    // contenido real publicado en github.com/Honkonx/Kairos-Lab — cubre TODOS los módulos con
+    // script (sin importar cómo instalan su binario), y es lo único que resuelve el bug real de
+    // "un fix a un .sh no llega al dispositivo sin bump de versionCode" (ver cabecera de
+    // KairosLabModuleSync.kt).
+    // ────────────────────────────────────────────────────────────
+
+    private fun runKairosLabModuleCheck() {
+        val ctx = requireContext()
+        val progress = com.termux.app.util.ProgressDialogController(ctx)
+        progress.show(getString(R.string.config_progress_lab_updates_title), getString(R.string.config_progress_querying_lab))
+
+        Thread {
+            val result = try {
+                com.termux.app.util.KairosLabModuleSync.checkForUpdates(ctx)
+            } catch (e: Exception) {
+                com.termux.app.util.KairosLabModuleSync.CheckResult(false, error = e.message)
+            }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (!result.ok) {
+                    progress.failure(getString(R.string.config_lab_check_error), result.error ?: getString(R.string.config_unknown))
+                    return@runOnUiThread
+                }
+                val totalChecked = result.updatable.size + result.upToDate.size + result.newlyTracked.size
+                if (result.updatable.isEmpty()) {
+                    val msg = if (result.newlyTracked.isNotEmpty()) {
+                        getString(R.string.config_lab_all_uptodate_with_new, totalChecked, result.newlyTracked.size)
+                    } else {
+                        getString(R.string.config_lab_all_uptodate, totalChecked)
+                    }
+                    progress.success(msg)
+                    return@runOnUiThread
+                }
+                progress.dismiss()
+                showKairosLabUpdatesDialog(result.updatable)
+            }
+        }.start()
+    }
+
+    private fun showKairosLabUpdatesDialog(updatable: List<com.termux.app.util.KairosLabModuleSync.RemoteScript>) {
+        val ctx = requireContext()
+        val labels = updatable.map { it.moduleId }.toTypedArray()
+        val checked = BooleanArray(updatable.size) { true }
+        AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.config_lab_updates_dialog_title, updatable.size))
+            .setMultiChoiceItems(labels, checked) { _, which, isChecked -> checked[which] = isChecked }
+            .setPositiveButton(getString(R.string.config_lab_btn_update_selected)) { _, _ ->
+                val selected = updatable.filterIndexed { index, _ -> checked[index] }
+                if (selected.isEmpty()) {
+                    toast(getString(R.string.config_lab_toast_select_at_least_one))
+                } else {
+                    applyKairosLabUpdates(selected)
+                }
+            }
+            .setNeutralButton(getString(R.string.config_lab_btn_update_all)) { _, _ ->
+                applyKairosLabUpdates(updatable)
+            }
+            .setNegativeButton(getString(R.string.config_btn_cancel), null)
+            .show()
+    }
+
+    private fun applyKairosLabUpdates(scripts: List<com.termux.app.util.KairosLabModuleSync.RemoteScript>) {
+        val ctx = requireContext()
+        val progress = com.termux.app.util.ProgressDialogController(ctx)
+        progress.show(getString(R.string.config_progress_lab_updates_title), getString(R.string.config_lab_applying, scripts.size))
+
+        Thread {
+            val results = scripts.map { com.termux.app.util.KairosLabModuleSync.applyUpdate(ctx, it) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                val okCount = results.count { it.ok }
+                val failed = results.filterNot { it.ok }
+                if (failed.isEmpty()) {
+                    progress.success(getString(R.string.config_lab_apply_summary_ok_only, okCount))
+                } else {
+                    val detail = failed.joinToString("\n") { "${it.moduleId}: ${it.error ?: getString(R.string.config_unknown)}" }
+                    progress.success(getString(R.string.config_lab_apply_summary, okCount, failed.size), detail)
                 }
             }
         }.start()

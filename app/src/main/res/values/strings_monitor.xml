@@ -168,6 +168,7 @@
     <string name="monitor_cpu_usage">CPU: %1$d%% en uso</string>
     <string name="monitor_cpu_cores">%1$d núcleos</string>
     <string name="monitor_cpu_measuring">Midiendo…</string>
+    <string name="monitor_cpu_unavailable">No disponible en este dispositivo</string>
 
     <!-- Almacenamiento -->
     <string name="monitor_storage_no_permission">Sin permiso de almacenamiento</string>

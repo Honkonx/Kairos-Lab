@@ -727,8 +727,17 @@ class ChatFragment : Fragment() {
             getString(R.string.chat_cloud_not_connected)
         }
         Thread {
+            // Bug real confirmado por ADB (2026-08-29): en un dispositivo con Ollama
+            // instalado y corriendo de verdad (:11434 activo, confirmado con
+            // ModuleController.isRunning y curl), ".android_server_registry" no tenía
+            // NINGUNA clave "ollama.*" — el chat mostraba "Ollama Termux — No instalada"
+            // pese a que el módulo funcionaba. ModuleInstalled.isInstalled() ya existe
+            // para exactamente este caso (ver su comentario de clase: "ollama: registry
+            // no sabe pero el binario funciona" — mismo criterio que ya usa ModulesFragment
+            // para la lista principal) — un ModuleRegistry crudo, como el que había acá,
+            // es sordo a un módulo instalado a mano o cuyo registro nunca se backfilleó.
             val installed = try {
-                com.termux.app.data.ModuleRegistry(ctx).load().get("ollama.installed") == "true"
+                com.termux.app.data.ModuleInstalled.isInstalled(ctx, "ollama")
             } catch (_: Exception) { false }
             mMainHandler.post {
                 if (!isAdded) return@post
@@ -742,8 +751,9 @@ class ChatFragment : Fragment() {
         if (engine == ENGINE_OLLAMA) {
             val ctx = context ?: return
             Thread {
+                // Mismo fix que refreshEngineSubtitles() arriba — ver ese comentario.
                 val installed = try {
-                    com.termux.app.data.ModuleRegistry(ctx).load().get("ollama.installed") == "true"
+                    com.termux.app.data.ModuleInstalled.isInstalled(ctx, "ollama")
                 } catch (_: Exception) { false }
                 mMainHandler.post {
                     if (!isAdded) return@post

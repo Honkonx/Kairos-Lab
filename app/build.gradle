@@ -107,8 +107,12 @@ android {
     defaultConfig {
         minSdkVersion project.properties.minSdkVersion.toInteger()
         targetSdkVersion project.properties.targetSdkVersion.toInteger()
-        versionCode 126
-        versionName "0.126.0"
+        // Versionado propio de Kairos desde acá (antes seguía el contador heredado de
+        // termux-app, "0.126.0" — sin relación real con la madurez del proyecto). versionCode
+        // se mantiene monotónico (Android lo exige para cualquier mecanismo de actualización),
+        // versionName pasa a reflejar el estado real: beta temprana.
+        versionCode 127
+        versionName "0.1.0"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
@@ -216,14 +220,23 @@ android {
         noCompress += [".xz"]
     }
 
+    // Nombre del .apk generado: "Kairos" (no "termux-app" heredado del fork) + version real +
+    // variante + arquitectura legible (armv8 en vez del raw "arm64-v8a" de AGP; único ABI que
+    // soporta este proyecto - ver minSdk/ARM64 en CLAUDE.md - "universal" cuando no hay split
+    // por ABI, ver TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS en CLAUDE.md § Build).
+    def friendlyAbiName = { String rawAbi ->
+        if (rawAbi == null) return "universal"
+        if (rawAbi == "arm64-v8a") return "armv8"
+        return rawAbi
+    }
     applicationVariants.all { variant ->
         variant.outputs.all { output ->
             if (variant.buildType.name == "debug") {
                 def abi = output.getFilter(com.android.build.OutputFile.ABI)
-                outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "debug") + "_" + (abi ? abi : "universal") + ".apk")
+                outputFileName = new File("Kairos_" + android.defaultConfig.versionName + "_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "debug") + "_" + friendlyAbiName(abi) + ".apk")
             } else if (variant.buildType.name == "release") {
                 def abi = output.getFilter(com.android.build.OutputFile.ABI)
-                outputFileName = new File("termux-app_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "release") + "_" + (abi ? abi : "universal") + ".apk")
+                outputFileName = new File("Kairos_" + android.defaultConfig.versionName + "_" + (apkVersionTag ? apkVersionTag : project.ext.packageVariant + "-" + "release") + "_" + friendlyAbiName(abi) + ".apk")
             }
         }
     }

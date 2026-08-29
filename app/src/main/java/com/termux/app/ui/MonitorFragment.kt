@@ -1771,8 +1771,16 @@ class MonitorFragment : Fragment() {
                 lastCpuIdle = idle
             }
         } catch (_: Exception) {
+            // Bug real confirmado por ADB (run-as com.termux cat /proc/stat -> "Permission
+            // denied" en un Samsung SM-A566E/Android 16) — /proc/stat (y /proc/loadavg) no son
+            // legibles por la propia app en este dispositivo, a diferencia de /proc/meminfo
+            // (RAM, sí legible) — no es un bug intermitente, siempre falla acá. Antes este catch
+            // reusaba por error el string de almacenamiento (monitor_storage_read_error, copy-
+            // paste) mostrando "Error al leer almacenamiento" en la card de CPU — se corrige con
+            // un string propio y honesto, mismo criterio ya usado por readNetworkRate() cuando
+            // TrafficStats no está soportado.
             cpuCanvas.text = "—"
-            cpuLine1.text = getString(R.string.monitor_storage_read_error)
+            cpuLine1.text = getString(R.string.monitor_cpu_unavailable)
         }
     }
 
@@ -1788,6 +1796,19 @@ class MonitorFragment : Fragment() {
      * "qué GPU tiene este dispositivo y qué renderer está activo". Se consulta una sola
      * vez al abrir la pantalla (ver comentario de gpuLoaded arriba), no en cada tick de
      * polling.
+     *
+     * Bug real confirmado por ADB (2026-08-29): gpuDiagnostic().renderer depende de
+     * `glxinfo` (paquete `mesa-utils`, herramienta de X11/OpenGL de escritorio) — tiene
+     * sentido para el diagnóstico de aceleración GPU de Entorno (ahí SÍ importa si hay un
+     * renderer OpenGL corriendo dentro de Termux/proot), pero Monitor solo quiere mostrar
+     * "qué chip GPU tiene este teléfono", un dato de HARDWARE que no depende de tener X11
+     * instalado — la gran mayoría de instalaciones de Kairos nunca instalan mesa-utils, así
+     * que este dato literal de "glxinfo no instalado (pkg install mesa-utils)" terminaba
+     * siempre en pantalla, como si fuera un error, en vez de dato de dispositivo (ver
+     * kairos-product-philosophy.md: no hace falta terminal/paquetes para info básica).
+     * `gpu_type` (adreno/mali/xclipse, vía getprop — ver detectGpuType()) no depende de
+     * ningún paquete de Termux, así que Monitor lo traduce a un nombre legible y solo suma
+     * el renderer real de glxinfo cuando de verdad está disponible.
      */
     private fun refreshGpuInfo() {
         Thread {
@@ -1798,8 +1819,21 @@ class MonitorFragment : Fragment() {
                 gpuLoaded = true
                 deviceGpuValue.text = if (gpuInfo != null && gpuInfo.optBoolean("ok", false)) {
                     val type = gpuInfo.optString("gpu_type", "unknown")
-                    val renderer = gpuInfo.optString("renderer", "").ifBlank { "?" }
-                    getString(R.string.monitor_device_gpu_value, type, renderer)
+                    val label = when (type) {
+                        "adreno" -> "Qualcomm Adreno"
+                        "mali" -> "ARM Mali"
+                        "xclipse" -> "Samsung Xclipse"
+                        else -> null
+                    }
+                    val renderer = gpuInfo.optString("renderer", "")
+                    val hasRealRenderer = renderer.isNotBlank() &&
+                        !renderer.contains("no instalado") && renderer != "no detectado"
+                    when {
+                        label != null && hasRealRenderer -> getString(R.string.monitor_device_gpu_value, label, renderer)
+                        label != null -> label
+                        hasRealRenderer -> renderer
+                        else -> getString(R.string.monitor_device_gpu_unavailable)
+                    }
                 } else {
                     getString(R.string.monitor_device_gpu_unavailable)
                 }

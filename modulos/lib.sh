@@ -199,6 +199,13 @@ npm() {
 # más abajo (helper compartido en vez de repetir flock+lockfile en cada script).
 _KAIROS_PIP_LOCKFILE="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/kairos_pip.lock"
 
+# Timeout del flock: 300s -> 600s (2026-08-29, bug real confirmado en dispositivo). Con muchos
+# módulos basados en pip corriendo en la misma tanda (instalación masiva real observada en el
+# dispositivo), la cola puede tardar más de 5 minutos en liberarse — un módulo pip que quedaba
+# detrás abortaba duro (mistralvibe.sh, "no se pudo obtener el lock de pip tras 300s") aunque el
+# lock se hubiera liberado poco después. Afecta solo cuánto se espera antes de fallar, no cambia
+# ningún comportamiento para el caso exitoso — no debería afectar a ningún otro módulo pip.
+
 # Wrappers de los binarios "pip"/"pip3" en sí (mismo patrón que pkg()/npm() arriba) — cubren
 # los call-sites que SÍ invocan el binario pelado directo (udocker.sh/n8n.sh/entorno.sh:
 # "pip3 install udocker"/"pip install udocker"), a diferencia de pip_install() (arriba), que
@@ -206,13 +213,13 @@ _KAIROS_PIP_LOCKFILE="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/
 # ("$PIP_PYTHON" -m pip install ...) — una función bash de nombre "pip"/"pip3" nunca se
 # dispara para esa forma, solo para el nombre pelado. `command pip`/`command pip3` (no
 # `command -v`) bypassea a propósito esta misma función para no recursar.
-pip()  { ( flock -w 300 200 || { echo "[ERROR] pip: no se pudo obtener el lock de pip tras 300s (otra instalación lo tiene tomado)" >&2; exit 1; }; command pip "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"; }
-pip3() { ( flock -w 300 200 || { echo "[ERROR] pip3: no se pudo obtener el lock de pip tras 300s (otra instalación lo tiene tomado)" >&2; exit 1; }; command pip3 "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"; }
+pip()  { ( flock -w 600 200 || { echo "[ERROR] pip: no se pudo obtener el lock de pip tras 600s (otra instalación lo tiene tomado)" >&2; exit 1; }; command pip "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"; }
+pip3() { ( flock -w 600 200 || { echo "[ERROR] pip3: no se pudo obtener el lock de pip tras 600s (otra instalación lo tiene tomado)" >&2; exit 1; }; command pip3 "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"; }
 
 pip_install() {
   local _py="$1"; shift
   (
-    flock -w 300 200 || { echo "[ERROR] pip: no se pudo obtener el lock de pip tras 300s (otra instalación lo tiene tomado)" >&2; exit 1; }
+    flock -w 600 200 || { echo "[ERROR] pip: no se pudo obtener el lock de pip tras 600s (otra instalación lo tiene tomado)" >&2; exit 1; }
     "$_py" -m pip install "$@"
   ) 200>"$_KAIROS_PIP_LOCKFILE"
 }
@@ -226,14 +233,14 @@ pip_install() {
 _kairos_is_pip_module_call() { [ "$1" = "-m" ] && [ "$2" = "pip" ]; }
 python3() {
   if _kairos_is_pip_module_call "$@"; then
-    ( flock -w 300 200 || { echo "[ERROR] python3 -m pip: no se pudo obtener el lock de pip tras 300s" >&2; exit 1; }; command python3 "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"
+    ( flock -w 600 200 || { echo "[ERROR] python3 -m pip: no se pudo obtener el lock de pip tras 600s" >&2; exit 1; }; command python3 "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"
   else
     command python3 "$@"
   fi
 }
 python() {
   if _kairos_is_pip_module_call "$@"; then
-    ( flock -w 300 200 || { echo "[ERROR] python -m pip: no se pudo obtener el lock de pip tras 300s" >&2; exit 1; }; command python "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"
+    ( flock -w 600 200 || { echo "[ERROR] python -m pip: no se pudo obtener el lock de pip tras 600s" >&2; exit 1; }; command python "$@" ) 200>"$_KAIROS_PIP_LOCKFILE"
   else
     command python "$@"
   fi

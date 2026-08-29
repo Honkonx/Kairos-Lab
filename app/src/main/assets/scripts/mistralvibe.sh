@@ -248,6 +248,15 @@ else
   # docs/humano278.md): serializa con flock contra cualquier OTRO módulo instalando por pip
   # al mismo tiempo — confirmado en dispositivo que esta instalación falló mientras
   # ciberseguridad.sh corría pip install en paralelo.
+  # ANDROID_API_LEVEL/GYP_DEFINES (2026-08-29, confirmado contra el install.sh real de
+  # referencia/termux/core-termux-main/core/tools/ai/mistral-vibe/): sin esto, alguna
+  # dependencia nativa de mistral-vibe con un paso de build basado en gyp intenta
+  # autodetectar el NDK de Android y se queda esperando/tarda muchísimo más de lo normal —
+  # coincide con el síntoma real visto en este dispositivo (la instalación nunca terminaba
+  # dentro del timeout del lock de pip). GYP_DEFINES="android_ndk_path=''" le dice
+  # explícitamente que no hay NDK que buscar.
+  export ANDROID_API_LEVEL=24
+  export GYP_DEFINES="android_ndk_path=''"
   pip_install "$PIP_PYTHON" "$MISTRALVIBE_PKG" 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "pip install falló"
   # verify_binary_installed() en vez de command -v a secas (2026-08-22, ver docs/humano/humano201.md).
   verify_binary_installed vibe || error "vibe no ejecuta tras la instalación (revisá manualmente: vibe --version)"

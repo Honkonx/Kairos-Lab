@@ -18,7 +18,6 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.termux.R
@@ -34,15 +33,12 @@ class WizardPermissionsFragment : Fragment() {
     private var notifStatusText: TextView? = null
     private var continueButton: Button? = null
     private var notifResolved = false
+    // Se pone true la primera vez que el usuario toca "Conceder" en Notificaciones y lo
+    // mandamos a Ajustes (ver requestNotifPermission) — onResume() lo usa para saber si ya
+    // tuvo oportunidad de decidir y puede desbloquear "Continuar" aunque siga denegado
+    // (notificaciones es opcional, a diferencia de almacenamiento).
+    private var notifSettingsOpened = false
     private val handler = Handler(Looper.getMainLooper())
-
-    private val notifPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        notifResolved = true
-        updateNotifRow(granted)
-        maybeEnableContinue()
-    }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
@@ -115,6 +111,11 @@ class WizardPermissionsFragment : Fragment() {
             if (alreadyGranted) {
                 notifResolved = true
                 updateNotifRow(true)
+            } else if (notifSettingsOpened) {
+                // Volvió de Ajustes de notificaciones sin conceder — igual lo damos por
+                // resuelto (opcional) para no bloquear "Continuar" para siempre.
+                notifResolved = true
+                updateNotifRow(false)
             }
         }
         maybeEnableContinue()
@@ -188,7 +189,30 @@ class WizardPermissionsFragment : Fragment() {
             maybeEnableContinue()
             return
         }
-        notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notifResolved = true
+            updateNotifRow(true)
+            maybeEnableContinue()
+            return
+        }
+        // BUG REAL confirmado por ADB en dispositivo (Android 16/API 36, ver docs/humano/humanoXXX.md):
+        // gradle.properties tiene targetSdkVersion=28 (< 33/Tiramisu) — con targetSdk por debajo
+        // de 33, Android NUNCA muestra el diálogo runtime de POST_NOTIFICATIONS al llamar
+        // requestPermissions()/ActivityResultContracts.RequestPermission(); simplemente resuelve
+        // al instante con el estado de concesión actual (sin diálogo, sin interacción real del
+        // usuario) — confirmado con pm reset-permissions + logcat: cero actividad de
+        // PermissionController, el launcher devolvía "denegado" en el mismo frame del tap.
+        // Bumpear targetSdkVersion es un cambio de arquitectura aparte (afecta scoped storage,
+        // exported activities, foreground service types, etc. — no se toca acá sin permiso
+        // explícito). La única vía real de conceder el permiso en este targetSdk es Ajustes,
+        // igual que ya hace el permiso de almacenamiento arriba.
+        notifSettingsOpened = true
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
+        }
+        startActivity(intent)
     }
 
     private fun updateStorageRow(granted: Boolean) {

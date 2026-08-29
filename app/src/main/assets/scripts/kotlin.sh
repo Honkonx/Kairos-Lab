@@ -68,7 +68,20 @@ REGISTRY="$HOME/.android_server_registry"
 CHECKPOINT="$HOME/.install_kotlin_checkpoint"
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-install_single_pkg "kotlin" "kotlinc" kotlin
+# No usa install_single_pkg() (2026-08-29, bug real confirmado en dispositivo): ese
+# helper verifica con verify_binary_installed usando el flag default "--version", pero
+# kotlinc solo acepta "-version" (guion simple, error real: "error: invalid argument:
+# --version") — con el flag incorrecto kotlinc sale con exit 1 bajo bash (aunque sale 0
+# bajo sh/dash, diferencia real de shell confirmada probando ambos), así que
+# install_single_pkg reportaba "kotlin no disponible tras la instalación" pese a que el
+# paquete y el binario funcionaban perfectamente. Mismo patrón ya usado por
+# localtunnel.sh/typescript.sh para este caso (ver .claude/rules/empirical-verification-before-fix.md).
+if ! command -v kotlinc &>/dev/null || $FORCE; then
+  pkg_update_with_fallback
+  pkg install -y kotlin &>/dev/null || error "No se pudo instalar kotlin (pkg install kotlin falló)"
+fi
+verify_binary_installed kotlinc "-version" || error "kotlin no disponible tras la instalación"
+registry_install "kotlin" "$(kotlinc -version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
 
 notify_event "kotlin" "install_done" ""
 exit 0

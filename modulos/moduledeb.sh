@@ -357,18 +357,26 @@ _moduledeb_pack() {
   local _filelist="$MODULEDEB_BUILD_DIR/.filelist_${_id}_$$"
   _moduledeb_expand_files "$_manifest" "$_filelist"
 
+  # Copia BULK con tar en vez de "mkdir -p + cp -a" por archivo (2026-08-29, bug real
+  # confirmado: openclaw/hermes/markserv/nestjs/vercel con árboles node_modules/pip de
+  # decenas de miles de archivos hacían que este loop tardara minutos/nunca terminara —
+  # cada iteración forkea mkdir + cp, dos procesos nuevos por archivo). Primero se valida
+  # existencia (barato, solo "[ -e ]") y se arma una lista limpia de rutas reales; la copia
+  # en sí es UN solo "tar | tar" para todo el lote — tar sin --absolute-names pela el "/"
+  # inicial de cada miembro al crear el archivo, que es exactamente la misma convención que
+  # ya usaba el loop viejo ("_rel=${_path#/}"), así que la estructura resultante en
+  # "$_staging" es idéntica, solo que en una fracción del tiempo.
   local _collected=0 _missing_required=0
+  local _copylist="$MODULEDEB_BUILD_DIR/.copylist_${_id}_$$"
+  : > "$_copylist"
   while IFS= read -r _entry; do
     [ -z "$_entry" ] && continue
     local _required="false" _path="${_entry#??}"
     [ "${_entry:0:1}" = "R" ] && _required="true"
 
     if [ -e "$_path" ] || [ -L "$_path" ]; then
-      local _rel="${_path#/}"
-      mkdir -p "$_staging/$(dirname "$_rel")"
-      cp -a "$_path" "$_staging/$_rel"
+      printf '%s\n' "$_path" >> "$_copylist"
       _collected=$((_collected+1))
-      log "Incluido: $_path"
     elif [ "$_required" = "true" ]; then
       warn "Falta archivo REQUERIDO: $_path (¿'$_id' está realmente instalado en este device?)"
       _missing_required=$((_missing_required+1))
@@ -377,6 +385,16 @@ _moduledeb_pack() {
     fi
   done < "$_filelist"
   rm -f "$_filelist"
+
+  if [ "$_collected" -gt 0 ]; then
+    info "Copiando $_collected archivo(s) en bloque..."
+    if ! tar -cf - -T "$_copylist" 2>/dev/null | (cd "$_staging" && tar -xf -); then
+      rm -f "$_copylist"; rm -rf "$_staging"; trap - EXIT
+      error "Falló la copia en bloque (tar) — revisá permisos/espacio en $_staging"
+    fi
+    log "Copiados $_collected archivo(s) (bulk tar)"
+  fi
+  rm -f "$_copylist"
 
   if [ "$_missing_required" -gt 0 ]; then
     rm -rf "$_staging"; trap - EXIT

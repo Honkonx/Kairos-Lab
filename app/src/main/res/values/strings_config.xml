@@ -6,6 +6,7 @@
     <string name="config_toast_auto_start_on">Los módulos instalados se iniciarán al abrir Kairos (no al encender el teléfono)</string>
     <string name="config_row_check_system_packages">Comprobar paquetes del sistema</string>
     <string name="config_row_check_module_updates">Verificar actualizaciones de módulos (todas)</string>
+    <string name="config_row_check_lab_updates">Verificar actualizaciones de módulos (Kairos-Lab)</string>
     <string name="config_row_notify_modules_down">Notificaciones de módulos caídos</string>
     <string name="config_row_floating_widget">Widget flotante de acceso rápido</string>
     <string name="config_toast_grant_overlay">Concedé el permiso de superposición y volvé a activar el switch</string>
@@ -63,6 +64,18 @@
     <string name="config_module_no_data_fallback">sin datos</string>
     <string name="config_progress_all_uptodate">Todos los módulos chequeados están al día</string>
     <string name="config_progress_updates_available">%1$d módulo(s) con actualización disponible: %2$s</string>
+    <string name="config_progress_lab_updates_title">Módulos — Kairos-Lab</string>
+    <string name="config_progress_querying_lab">Consultando github.com/Honkonx/Kairos-Lab…</string>
+    <string name="config_lab_check_error">No se pudo consultar Kairos-Lab</string>
+    <string name="config_lab_all_uptodate">Todos los scripts de módulo están al día con Kairos-Lab (%1$d chequeados)</string>
+    <string name="config_lab_all_uptodate_with_new">Todos al día con Kairos-Lab (%1$d chequeados, %2$d nuevos registrados como referencia — sin marcar como pendientes)</string>
+    <string name="config_lab_updates_dialog_title">%1$d actualización(es) disponible(s)</string>
+    <string name="config_lab_btn_update_selected">Actualizar seleccionados</string>
+    <string name="config_lab_btn_update_all">Actualizar todos</string>
+    <string name="config_lab_applying">Actualizando %1$d módulo(s)…</string>
+    <string name="config_lab_apply_summary">%1$d actualizado(s) — %2$d con error</string>
+    <string name="config_lab_apply_summary_ok_only">%1$d módulo(s) actualizado(s) correctamente</string>
+    <string name="config_lab_toast_select_at_least_one">Elegí al menos un módulo</string>
     <string name="config_toast_creating_backup">Creando backup…</string>
     <string name="config_snackbar_backup_created">Backup creado: %1$s — %2$s</string>
     <string name="config_snackbar_backup_error">Error al respaldar: %1$s</string>

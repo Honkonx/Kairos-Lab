@@ -54,6 +54,16 @@ object ModuleController {
     // arrancar sin ningún flag especial.
     private val activeInstalls = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
+    // Lectura pública de [activeInstalls] (pedido explícito del usuario, auditoría de UX de
+    // instalación 2026-08-29): antes de este fix, un doble-tap en "Instalar" mientras el módulo
+    // ya estaba instalando pasaba de largo por el guard de arriba y terminaba disparando
+    // onComplete(false) → una notificación real de "instalación falló" totalmente engañosa
+    // (el módulo seguía instalando bien, solo el segundo intento fue rechazado). Los callers
+    // (BaseModuleFragment.installModuleInBackground/reinstallModuleService) ahora chequean esto
+    // ANTES de llamar a installModule(), así el guard interno de activeInstalls nunca se llega
+    // a ejercitar para el caso de doble-tap — evita la notificación falsa de raíz.
+    fun isInstalling(moduleId: String): Boolean = activeInstalls.contains(moduleId)
+
     // Antes duplicaba a mano el mismo bloque de env vars que ya vive en
     // util/ProcessBuilderExt.kt.applyTermuxEnv() (bug real de esta sesión, ver
     // docs/humano/humano63.md: 2 copias del mismo fix que podían quedar desincronizadas si
@@ -305,10 +315,20 @@ object ModuleController {
             // durante el arranque). Se agrega el mismo fallback de puerto acá para que la fuente
             // central sea al menos tan robusta como la que ya tenía OpenClawNative, en vez de
             // reescribir OpenClawNative para que sea más débil.
-            if (moduleId == "openclaw") {
-                return getModulePort(moduleId)?.let { ManagerNativeUtils.checkPort(it) } ?: false
-            }
-            return false
+            //
+            // Generalizado a TODOS los módulos con sesión tmux + puerto fijo (2026-08-29,
+            // bug real reportado por el usuario y confirmado con evidencia — Monitor/Chat
+            // mostraban Ollama "Detenido"/"inactivo" pese a estar corriendo y respondiendo en
+            // :11434): antes este fallback quedaba hardcodeado solo a "openclaw" pese a que el
+            // comentario de arriba ya explicaba el problema en términos generales — cualquier
+            // otro módulo tmux (ollama, n8n, opencode) con su sesión tmux muerta pero el
+            // proceso real todavía vivo/respondiendo el puerto (ej. iniciado a mano fuera de
+            // la app, o la sesión tmux killeada sin matar al hijo) caía igual en "false". Se
+            // reusa getModulePort(), la misma fuente que ya usa refreshAiEngines() de
+            // MonitorFragment para mostrar el puerto — ningún módulo pierde precisión: si no
+            // tiene puerto fijo, getModulePort() devuelve null y el resultado es exactamente
+            // el mismo "false" que antes.
+            return getModulePort(moduleId)?.let { ManagerNativeUtils.checkPort(it) } ?: false
         }
         getProcessName(moduleId)?.let { process ->
             return isProcessAlive(process)

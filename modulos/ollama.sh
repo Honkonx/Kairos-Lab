@@ -393,8 +393,23 @@ else
       # nodejs-lts es suficiente — no hace falta reinstalarlo.
 
       info "Instalando Ollama Termux vía npm..."
+      # Bug real confirmado en dispositivo (2026-08-29, ver docs/humano287.md/288.md): "npm
+      # install -g" corre el script "install" del paquete (node install.js) COMO PARTE del
+      # propio "npm install" — no queda diferido a cuando se corre "ollama-termux" a mano
+      # (el comentario original de abajo, sobre postinstall bloqueado por default, describe
+      # un mecanismo real de npm pero no aplica acá: el paquete declara un script "install",
+      # no "postinstall", y esos SÍ corren salvo --ignore-scripts explícito). Ese install.js
+      # es justo el que tiene el bug real de checksum (ver más abajo) — así que "npm install"
+      # YA falla acá con el mismo HTTP 404, antes de llegar siquiera al loop de
+      # "ollama-termux" de abajo. Además npm moderno hace rollback completo del paquete en
+      # cualquier fallo del script "install" (confirmado por ADB: el directorio
+      # node_modules/@mmmbuto/ollama-termux no existe tras el fallo) — no hay wrapper roto
+      # que limpiar acá, a diferencia del bug #2 documentado más abajo. Antes esto abortaba
+      # todo el módulo con error() sin darle nunca la chance al fallback de descarga directa
+      # de abajo — ahora solo advierte y sigue, dejando que ollama_binary_works() +
+      # ollama-termux + el fallback decidan si realmente no hay forma de instalar.
       retry_cmd npm install -g @mmmbuto/ollama-termux@latest || \
-        error "Error en npm install (3 intentos). Prueba --variant standard"
+        warn "npm install falló (3 intentos, bug real: install.js corre en el propio install y revienta con HTTP 404 de checksum) — probando de todas formas con ollama-termux/descarga directa"
 
       # Bug real confirmado (fix 2026-07-31, reporte del usuario con los comandos
       # manuales exactos que sí le funcionaron — coincide con el README real de
@@ -440,15 +455,127 @@ else
         done
       fi
 
+      # Fallback real (2026-08-29, permiso explícito del usuario para tocar este archivo
+      # protegido con ESTE fix puntual — ver docs/humano287.md): confirmado con curl/tar
+      # reales contra el Release oficial de GitHub que "ollama-termux" (el instalador que
+      # corre en el loop de arriba) SIEMPRE va a fallar con "HTTP 404" pidiendo
+      # "<tarball>.sha256" — ese checksum por-archivo nunca existió en ningún Release
+      # publicado del proyecto (confirmado con la API de GitHub: el Release solo trae el
+      # tarball + un "SHA256SUMS" combinado, nunca un ".sha256" individual — el propio
+      # install.js del paquete npm hardcodea "sha256Url = tarballUrl + '.sha256'", que no
+      # existe). El binario real SÍ está disponible y es válido (tarball descargado y
+      # verificado a mano contra SHA256SUMS en esta misma investigación) — el bug es la
+      # verificación hardcodeada del instalador upstream, no el Release en sí. En vez de
+      # depender de un fix upstream que puede tardar o nunca llegar, se baja el mismo
+      # tarball directo del Release y se verifica contra el SHA256SUMS real que sí publica,
+      # reusando la versión/repo real que "npm install -g" ya dejó instalados (sin
+      # hardcodear un número de versión que quedaría desactualizado en el próximo release).
+      # Descarga+verifica+instala el tarball directo de un Release real de GitHub —
+      # extraído a función para poder probar el repo OFICIAL primero y el fork propio
+      # (Honkonx/ollama-termux) solo como respaldo si el oficial falla, mismo patrón ya
+      # usado en codebuff.sh/codegraph.sh/mimocode.sh (original siempre primario, fork
+      # nunca reemplaza en silencio). Devuelve 0 si dejó el binario funcionando.
+      _ollama_direct_download() {
+        local _repo="$1" _version="$2"
+        local _tarball="ollama-termux-${_version}-android-arm64.tar.gz"
+        local _base_url="https://github.com/${_repo}/releases/download/v${_version}"
+        local _tmpdir; _tmpdir=$(mktemp -d)
+
+        info "Descargando $_tarball (v${_version}) directo del Release de ${_repo}..."
+        if curl -fsSL -o "$_tmpdir/$_tarball" "$_base_url/$_tarball" && \
+           curl -fsSL -o "$_tmpdir/SHA256SUMS" "$_base_url/SHA256SUMS"; then
+          local _expected _actual
+          _expected=$(grep -F "$_tarball" "$_tmpdir/SHA256SUMS" | awk '{print $1}' | head -1)
+          _actual=$(sha256sum "$_tmpdir/$_tarball" | awk '{print $1}')
+
+          if [ -n "$_expected" ] && [ "$_expected" = "$_actual" ]; then
+            info "Checksum verificado contra SHA256SUMS real del Release (${_repo}) — extrayendo..."
+            mkdir -p "$TERMUX_PREFIX/lib/ollama"
+            tar -xzf "$_tmpdir/$_tarball" -C "$_tmpdir"
+            rm -f "$TERMUX_PREFIX/bin/ollama"
+            cp -rf "$_tmpdir/lib/ollama/." "$TERMUX_PREFIX/lib/ollama/"
+            # Bug real encontrado y corregido en esta misma ronda de pruebas por ADB (primer
+            # intento de este fix dejaba "ollama" sin funcionar): el binario real del tarball
+            # vive en la raíz como "bin/ollama" (confirmado con "tar -tzf" real contra el
+            # Release), NO dentro de "lib/ollama/" — el "cp -rf lib/ollama/." de arriba nunca
+            # lo copiaba. Mismo destino que usa install.js real (OLLAMA_REAL_BIN =
+            # "$PREFIX/lib/ollama/ollama") — sin este paso el wrapper de bin/ollama hace exec
+            # a un archivo que no existe.
+            cp -f "$_tmpdir/bin/ollama" "$TERMUX_PREFIX/lib/ollama/ollama"
+            chmod +x "$TERMUX_PREFIX/lib/ollama/ollama" "$TERMUX_PREFIX/lib/ollama/llama-server" 2>/dev/null
+            # Mismo wrapper que escribe el install.js real upstream (writeOllamaWrapper())
+            # — se replica acá en vez de correr el instalador de nuevo, porque ya
+            # confirmamos que el paso que revienta es el de la descarga/checksum, no el
+            # de armar el wrapper.
+            cat > "$TERMUX_PREFIX/bin/ollama" << OLLAMA_WRAPPER
+#!/data/data/com.termux/files/usr/bin/sh
+PREFIX="\${PREFIX:-/data/data/com.termux/files/usr}"
+OLLAMA_REAL_BIN="\$PREFIX/lib/ollama/ollama"
+export LD_LIBRARY_PATH="/system/lib64:\$PREFIX/lib/ollama:\$PREFIX/lib/ollama/vulkan:\$PREFIX/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+exec "\$OLLAMA_REAL_BIN" "\$@"
+OLLAMA_WRAPPER
+            chmod 755 "$TERMUX_PREFIX/bin/ollama"
+            rm -rf "$_tmpdir"
+            return 0
+          fi
+          warn "Checksum no coincide en la descarga directa de ${_repo} (esperado=$_expected actual=$_actual) — no se instala nada sin verificar"
+        else
+          warn "No se pudo descargar el tarball/SHA256SUMS directo del Release de ${_repo} ($_base_url)"
+        fi
+        rm -rf "$_tmpdir"
+        return 1
+      }
+
+      # Fallback real (2026-08-29, permiso explícito del usuario para tocar este archivo
+      # protegido con ESTE fix puntual — ver docs/humano287.md): confirmado con curl/tar
+      # reales contra el Release oficial de GitHub que "ollama-termux" (el instalador que
+      # corre en el loop de arriba) SIEMPRE va a fallar con "HTTP 404" pidiendo
+      # "<tarball>.sha256" — ese checksum por-archivo nunca existió en ningún Release
+      # publicado del proyecto (confirmado con la API de GitHub: el Release solo trae el
+      # tarball + un "SHA256SUMS" combinado, nunca un ".sha256" individual — el propio
+      # install.js del paquete npm hardcodea "sha256Url = tarballUrl + '.sha256'", que no
+      # existe). El binario real SÍ está disponible y es válido (tarball descargado y
+      # verificado a mano contra SHA256SUMS en esta misma investigación) — el bug es la
+      # verificación hardcodeada del instalador upstream, no el Release en sí.
+      if ! ollama_binary_works; then
+        warn "ollama-termux no logró instalar el binario tras 3 intentos — probando descarga directa del Release (bug real: .sha256 por-archivo no existe, solo SHA256SUMS combinado)"
+
+        _ot_npm_root=$(npm root -g 2>/dev/null)
+        _ot_pkg_dir="$_ot_npm_root/@mmmbuto/ollama-termux"
+        _ot_version=$(grep -m1 '"version"' "$_ot_pkg_dir/package.json" 2>/dev/null | sed -E 's/.*"version"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')
+        _ot_repo=$(grep -m1 "GITHUB_REPO" "$_ot_pkg_dir/install.js" 2>/dev/null | sed -E "s/.*'([^']+)'.*/\1/")
+        # Bug real (confirmado por ADB, mismo hallazgo que el comentario de arriba): tras un
+        # "npm install" fallido, npm hace rollback completo — $_ot_pkg_dir nunca existe, así
+        # que el grep de arriba nunca encuentra nada en el caso real que dispara este
+        # fallback. "npm view" solo consulta metadata del registry (no corre ningún script
+        # del paquete, no necesita que la instalación haya funcionado) — es la única forma
+        # confiable de saber qué versión pedir al Release de GitHub en este escenario.
+        [ -z "$_ot_version" ] && _ot_version=$(npm view @mmmbuto/ollama-termux version 2>/dev/null | tr -d '\r\n')
+        [ -z "$_ot_repo" ] && _ot_repo="DioNanos/ollama-termux"
+
+        if [ -n "$_ot_version" ]; then
+          # Repo oficial primero, SIEMPRE — el fork propio (Honkonx/ollama-termux) es
+          # respaldo real, no reemplazo (ver .claude/rules — forks quedan como backup, no
+          # reemplazo del original, mismo criterio que codebuff/codegraph/mimocode).
+          # A esta fecha el fork todavía no publica Releases propios (confirmado en la
+          # investigación real de este bug) — el intento simplemente falla la descarga y
+          # cae al mensaje de error final, sin romper nada si eso cambia a futuro.
+          _ollama_direct_download "$_ot_repo" "$_ot_version" || \
+            { [ "$_ot_repo" != "Honkonx/ollama-termux" ] && _ollama_direct_download "Honkonx/ollama-termux" "$_ot_version"; }
+        else
+          warn "No se pudo determinar la versión de ollama-termux instalada (npm root -g / package.json) — no se puede armar la URL del Release para el fallback"
+        fi
+      fi
+
       if ollama_binary_works; then
         log "Ollama Termux instalado: $(ollama --version 2>/dev/null | head -1)"
       else
-        # Si ollama-termux tampoco lo dejó funcionando (falla de red al bajar el
-        # Release, GitHub rate-limit, etc.) — abortar en vez de marcar el
-        # checkpoint como hecho (mismo criterio que el resto de scripts de
-        # este proyecto: nunca dar por instalado algo sin verificar el binario
-        # real, ver docs/humano*.md).
-        error "Binario 'ollama' no funciona ni tras correr ollama-termux — probá --variant standard, o revisá conexión/GitHub"
+        # Si ni ollama-termux ni la descarga directa del Release dejaron el binario
+        # funcionando (falla de red, GitHub rate-limit, etc.) — abortar en vez de marcar
+        # el checkpoint como hecho (mismo criterio que el resto de scripts de este
+        # proyecto: nunca dar por instalado algo sin verificar el binario real, ver
+        # docs/humano*.md).
+        error "Binario 'ollama' no funciona ni tras correr ollama-termux ni tras la descarga directa del Release — probá --variant standard, o revisá conexión/GitHub"
       fi
 
       if command -v vulkaninfo &>/dev/null; then

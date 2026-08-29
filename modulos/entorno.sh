@@ -852,18 +852,27 @@ command -v proot-distro &>/dev/null || { echo "[ERROR] proot-distro no está ins
 # open display" — exactamente el síntoma reportado. Se agrega un retry loop real (hasta 10s,
 # mismo presupuesto de margen que ya usa el camino nativo) que ESPERA el socket antes de hacer
 # login, en vez de solo advertir y seguir.
+# Presupuesto de espera subido de 10s a 25s (bug real confirmado en dispositivo real,
+# 2026-08-29, reproducido dos veces seguidas con el mismo dispositivo): un X11Service recién
+# arrancado en frío (CmdEntryPoint.main() cargando libXlorie.so + inicializando Xlorie por
+# primera vez en el proceso ":xserver") puede tardar más de 10s en publicar el socket real —
+# el primer intento del día falló con "Socket X11 AUSENTE ... tras 10s" seguido de
+# "xfce4-session: Cannot open display", mientras que un segundo intento ~2 minutos después,
+# con el mismo proceso ":xserver" ya caliente, encontró el socket "presente (esperado 0s)" y
+# el escritorio arrancó bien. 25s da margen real para un arranque en frío sin alargar de más
+# el caso común (ya caliente sale del loop apenas el socket existe, no espera los 25s enteros).
 _TMP_HOST="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
 if [[ "$DISPLAY_VAL" == :* ]]; then
   _SOCK="$_TMP_HOST/.X11-unix/X${DISPLAY_VAL#:}"
   _waited=0
-  while [ ! -S "$_SOCK" ] && [ "$_waited" -lt 10 ]; do
+  while [ ! -S "$_SOCK" ] && [ "$_waited" -lt 25 ]; do
     sleep 1
     _waited=$((_waited + 1))
   done
   if [ -S "$_SOCK" ]; then
     echo "[OK] Socket X11 presente en $_SOCK (esperado ${_waited}s)"
   else
-    echo "[WARN] Socket X11 AUSENTE en $_SOCK tras 10s — ¿arrancaste el X11 embebido (Más → X11)? Se intenta igual, probablemente falle."
+    echo "[WARN] Socket X11 AUSENTE en $_SOCK tras 25s — ¿arrancaste el X11 embebido (Más → X11)? Se intenta igual, probablemente falle."
   fi
 fi
 

@@ -125,6 +125,8 @@
     <string name="base_module_back">← Volver</string>
     <string name="base_module_installing_background">Instalando %1$s en segundo plano…</string>
     <string name="base_module_install_failed_log_hint">Revisá ~/kairos_logs/install_%1$s.log</string>
+    <string name="base_module_already_installing">%1$s ya se está instalando — esperá a que termine</string>
+    <string name="base_module_install_button_installing">⏳ Instalando… esperá a que termine</string>
     <string name="base_module_update">🔄 Actualizar</string>
     <string name="base_module_updating">Actualizando %1$s…</string>
     <string name="base_module_updated">%1$s actualizado</string>

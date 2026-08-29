@@ -14,8 +14,6 @@
 
 <p align="center"><strong>🚀 Un solo APK para tener IA local y un stack completo de desarrollo en tu Android, sin root y sin salir de la app.</strong></p>
 
-*(English version: [`README.en.md`](./README.en.md))*
-
 Fork de [termux-app](https://github.com/termux/termux-app) con una interfaz nativa completa — nada de escribir comandos a mano salvo que quieras. Todo se instala, se enciende y se apaga tocando la pantalla.
 
 ## Estado del proyecto 🚧
@@ -111,6 +109,19 @@ correr programas de Windows directamente en Android.
 ## Capturas
 
 _Próximamente._
+
+## ¿Sigue siendo Termux? 🖥️
+
+Sí — Kairos es un fork directo de [termux-app](https://github.com/termux/termux-app), no una
+capa aparte sobre él. Mantiene el mismo paquete de Android (`com.termux`) y el mismo motor de
+terminal, así que la terminal completa sigue ahí (FAB flotante para mostrarla/ocultarla) para
+quien quiera usar comandos a mano. Podés instalar paquetes con `pkg`, correr scripts, usar `ssh`,
+todo lo que ya conocés de Termux normal — la interfaz nativa (módulos, botones, pantallas) es la
+forma recomendada de usar Kairos día a día, pero la terminal nunca se esconde ni se reemplaza,
+queda como vía de acceso directo para quien la prefiera.
+
+⚠️ Por compartir el mismo paquete `com.termux`, Kairos y Termux original **no pueden coexistir**
+instalados en el mismo dispositivo — instalar uno reemplaza al otro.
 
 ## Créditos y agradecimientos a terceros 🙏
 

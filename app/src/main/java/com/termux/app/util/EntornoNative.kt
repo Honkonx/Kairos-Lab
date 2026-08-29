@@ -237,13 +237,27 @@ object EntornoNative {
      * docs/humano/humano86.md) — 3ra copia del mismo bug ya arreglado en modulos/ollama.sh
      * y modulos/entorno.sh (bash): faltaba "cape" (Snapdragon 7+ Gen2, dispositivo real de
      * prueba de esta sesión) y otros codenames Qualcomm recientes.
+     *
+     * Bug real confirmado por ADB (2026-08-29, dispositivo Samsung SM-A566E/Galaxy A56,
+     * Exynos 1580): "ro.board.platform" solo devuelve "erd8855" en este dispositivo — NO
+     * matchea "s5e|exynos" y GPU quedaba en "unknown" mostrado en Monitor pese a que el
+     * chip es un Exynos/Xclipse real. El identificador real "s5e8855" vive en otras
+     * properties (`ro.hardware`, `ro.product.board`, `ro.soc.model`, confirmadas con
+     * `adb shell getprop` en el dispositivo real) — se concatenan todas las properties
+     * candidatas y se matchea contra el conjunto completo, en vez de una sola property que
+     * varía según fabricante/variante de chip. "erd" se agrega al patrón Xclipse/Exynos
+     * (Exynos Reference Design, confirmado real en este dispositivo).
      */
     private fun detectGpuType(): String {
-        val gpu = getSystemProperty("ro.board.platform")
+        val candidates = listOf(
+            "ro.board.platform", "ro.hardware", "ro.hardware.chipname",
+            "ro.product.board", "ro.soc.model"
+        )
+        val gpu = candidates.joinToString(" ") { getSystemProperty(it) }
         return when {
             Regex("sm|kona|lahaina|shima|cape|kalama|taro|pineapple|sun|parrot|khaje|monaco").containsMatchIn(gpu) -> "adreno"
             Regex("mt|t618|g610|g720").containsMatchIn(gpu) -> "mali"
-            Regex("s5e|exynos").containsMatchIn(gpu) -> "xclipse"
+            Regex("s5e|exynos|erd").containsMatchIn(gpu) -> "xclipse"
             else -> "unknown"
         }
     }
@@ -532,6 +546,17 @@ object EntornoNative {
         else -> null
     }
 
+    /** Mismo mapeo que session_cmd() en gui_start.sh (modulos/entorno.sh) — el binario real
+     *  que el camino "CON DISTRO" ejecuta dentro del proot, distinto del wrapper nativo que usa
+     *  desktopExecCmd() arriba (ver comentario real en startDistroDesktop()). */
+    private fun distroSessionCmd(de: String): String = when (de) {
+        "xfce4", "xfce" -> "xfce4-session"
+        "lxqt" -> "lxqt-session"
+        "openbox" -> "openbox-session"
+        "i3", "i3wm" -> "i3"
+        else -> "$de-session"
+    }
+
     fun desktopLabel(de: String): String = when (de) {
         "xfce4" -> "XFCE4"
         "lxqt" -> "LXQt"
@@ -697,14 +722,19 @@ object EntornoNative {
         val cmd = "bash '${guiStart.absolutePath}' --distro '$distro' '$de' >'${logFile.absolutePath}' 2>&1 &"
         val (_, shellOut, _) = ManagerNativeUtils.runShell(cmd, 15)
         WizardDebugLog.log("EntornoNative", "startDistroDesktop($distro,$de): $shellOut")
-        // Margen de verificación subido de 5s a 12s (bug real confirmado 2026-08-19, ver
-        // docs/mini-pc/AUDITORIA_ENTORNO_MINIPC_CODIGO_2026-08-19.md): gui_start.sh ahora
-        // espera hasta 10s DENTRO del script a que Xlorie (X11Service, proceso ":xserver"
-        // separado) publique el socket antes de recién hacer el login+exec de la sesión — con
-        // los 5s viejos, este chequeo de "alive" corría ANTES de que gui_start.sh hubiera
-        // siquiera terminado de esperar el socket, así que "no arrancó" se reportaba aunque el
-        // arranque real seguía en curso. 12s = 10s del retry loop + margen para dbus/sesión.
-        Thread.sleep(12000)
+        // Margen de verificación subido de 12s a 27s (bug real confirmado 2026-08-29 en
+        // dispositivo real, reproducido dos veces seguidas: el PRIMER intento del día con
+        // X11Service recién arrancado en frío falló con "Socket X11 AUSENTE ... tras 10s" y
+        // "xfce4-session: Cannot open display" en desktop_distro_kali_xfce4.log — Xlorie
+        // (CmdEntryPoint.main(), carga de libXlorie.so + init nativo en el proceso ":xserver"
+        // recién creado) tarda más de 10s en publicar el socket la primera vez que arranca
+        // (ART/carga de página en frío del .so nativo). Un SEGUNDO intento ~2 minutos después,
+        // con el mismo proceso ":xserver" ya caliente (X11Service.start() es idempotente, no
+        // reinicia si ya está corriendo), encontró el socket "presente (esperado 0s)" y el
+        // escritorio arrancó bien. gui_start.sh sube su propio retry loop de 10s a 25s (ver
+        // ese script) — 27s = 25s del retry loop + margen para dbus/sesión, mismo criterio que
+        // el 12s anterior (10s+2s) pero con el presupuesto real que exige un arranque en frío.
+        Thread.sleep(27000)
         // Bug real confirmado 2026-08-27 (ver docs/humano256.md, reporte de usuario: la app
         // dice "error al abrir" pero el entorno gráfico SÍ abre — falso negativo). Este chequeo
         // exigía `processRunning("proot-distro login")` — pero `proot-distro login` (paquete
@@ -725,9 +755,25 @@ object EntornoNative {
             rootfsBase -> "proot-distro/installed-rootfs/$distro"
             else -> "proot-distro/$distro"
         }
-        val alive = processRunning(distroRootfsMarker) &&
-            (processRunning("dbus-launch --exit-with-session") || desktopExecCmd(de)?.let(::processRunning) == true)
         val logTail = try { if (logFile.exists()) logFile.readText().takeLast(500) else "" } catch (_: Exception) { "" }
+        // Bug real confirmado 2026-08-29 en dispositivo real (falso positivo, mismo síntoma
+        // reportado por el usuario: la app decía éxito pero ningún escritorio se veía): este
+        // chequeo aceptaba `processRunning("dbus-launch --exit-with-session")` como suficiente,
+        // pero dbus-launch queda vivo varios segundos incluso cuando el hijo real
+        // (xfce4-session) murió al toque con "Cannot open display" (log real confirmado:
+        // "xfce4-session: Cannot open display: ." seguido de exit inmediato). El otro término
+        // del OR, `desktopExecCmd(de)` (usado por el camino NATIVO — devuelve el wrapper
+        // "startxfce4"), nunca podía aportar nada acá: gui_start.sh --distro nunca ejecuta ese
+        // wrapper, ejecuta directo el binario de sesión real vía su propio session_cmd()
+        // ("xfce4-session", "lxqt-session", etc.) — así que el check dependía en la práctica
+        // solo del dbus-launch colgado. Se reemplaza por processRunning(distroSessionCmd(de))
+        // (el proceso real que gui_start.sh --distro ejecuta, confirmado con evidencia real:
+        // "xfce4-session:6229" apareciendo en el log de un arranque exitoso) y se descarta
+        // explícitamente cualquier "alive" si el log contiene el error fatal real de X11.
+        val failedToOpenDisplay = logTail.contains("Cannot open display")
+        val alive = !failedToOpenDisplay &&
+            processRunning(distroRootfsMarker) &&
+            processRunning(distroSessionCmd(de))
         WizardDebugLog.log("EntornoNative", "startDistroDesktop($distro,$de): alive=$alive log=$logTail")
         if (!alive) {
             return JSONObject().put("ok", false)

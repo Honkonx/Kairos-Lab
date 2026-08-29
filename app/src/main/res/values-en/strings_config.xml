@@ -6,6 +6,7 @@
     <string name="config_toast_auto_start_on">Installed modules will start when Kairos opens (not when the phone turns on)</string>
     <string name="config_row_check_system_packages">Check system packages</string>
     <string name="config_row_check_module_updates">Check module updates (all)</string>
+    <string name="config_row_check_lab_updates">Check module updates (Kairos-Lab)</string>
     <string name="config_row_notify_modules_down">Notify when modules go down</string>
     <string name="config_row_floating_widget">Floating quick-access widget</string>
     <string name="config_toast_grant_overlay">Grant the overlay permission and turn the switch back on</string>
@@ -63,6 +64,18 @@
     <string name="config_module_no_data_fallback">no data</string>
     <string name="config_progress_all_uptodate">All checked modules are up to date</string>
     <string name="config_progress_updates_available">%1$d module(s) with an update available: %2$s</string>
+    <string name="config_progress_lab_updates_title">Modules — Kairos-Lab</string>
+    <string name="config_progress_querying_lab">Querying github.com/Honkonx/Kairos-Lab…</string>
+    <string name="config_lab_check_error">Could not reach Kairos-Lab</string>
+    <string name="config_lab_all_uptodate">All module scripts are up to date with Kairos-Lab (%1$d checked)</string>
+    <string name="config_lab_all_uptodate_with_new">All up to date with Kairos-Lab (%1$d checked, %2$d newly tracked as baseline — not flagged as pending)</string>
+    <string name="config_lab_updates_dialog_title">%1$d update(s) available</string>
+    <string name="config_lab_btn_update_selected">Update selected</string>
+    <string name="config_lab_btn_update_all">Update all</string>
+    <string name="config_lab_applying">Updating %1$d module(s)…</string>
+    <string name="config_lab_apply_summary">%1$d updated — %2$d failed</string>
+    <string name="config_lab_apply_summary_ok_only">%1$d module(s) updated successfully</string>
+    <string name="config_lab_toast_select_at_least_one">Select at least one module</string>
     <string name="config_toast_creating_backup">Creating backup…</string>
     <string name="config_snackbar_backup_created">Backup created: %1$s — %2$s</string>
     <string name="config_snackbar_backup_error">Error backing up: %1$s</string>
