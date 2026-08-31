@@ -77,7 +77,7 @@ jobs:
       # runtime. No se commitea al repo (es un artifact de build, igual que Vulkan-Headers
       # arriba) — se compila fresco en cada corrida de CI.
       - name: Instalar Go 1.26 (cross-compile cloudflared nativo)
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '1.26'
 
