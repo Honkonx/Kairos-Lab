@@ -96,7 +96,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload APK
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: Kairos-rootfs-${{ steps.resolve_tag.outputs.tag }}-${{ github.sha }}
           path: app/build/outputs/apk/debug/*.apk
