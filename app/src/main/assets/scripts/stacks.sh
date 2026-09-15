@@ -2,7 +2,7 @@
 # ============================================================
 #  kairos-app · stacks.sh (silent mode)
 #  Módulo Entornos de Prueba: catálogo de recetas de desarrollo
-#  (pedido explícito del usuario, ver docs/humano/humano116.md)
+#  (pedido explícito del usuario)
 #
 #  A diferencia del resto de modulos/*.sh, este NO instala un paquete
 #  propio — es un catálogo que reutiliza módulos ya existentes
@@ -46,7 +46,7 @@
 #                     distro: nodejs npm
 #    html             nativo: pkg python (sin build, `python3 -m http.server`)
 #                     distro: python3
-#                     (pedido explícito, ver docs/humano/humano118.md: "python,php,reac,
+#                     (pedido explícito: "python,php,reac,
 #                     vite,html,tyscript,javascript" — TS/JS ya cubiertos por react-vite,
 #                     este preset cierra el caso "solo HTML/CSS/JS vanilla sin Node")
 #    linux-completo   SIEMPRE vía proot-distro (nunca nativo) — instala una distro Linux
@@ -77,8 +77,8 @@
 #                            para arrancar cada pieza) — la UI filtra
 #                            estas líneas para mostrar el resultado.
 #
-#  MODO PROYECTO REAL (--project-path, agregado en v1.2.0, ver
-#  docs/humano/ del pedido "tengo un proyecto que usa python y sqlite en
+#  MODO PROYECTO REAL (--project-path, agregado en v1.2.0, a partir del
+#  pedido "tengo un proyecto que usa python y sqlite en
 #  backend y react+vite o html/javascript en frontend"):
 #    bash stacks.sh --project-path <carpeta> --project-action detect --silent
 #    bash stacks.sh --project-path <carpeta> --project-action install [--project-target native|distro|udocker] [--project-distro <nombre>] --silent
@@ -273,8 +273,23 @@ project_install_native() {
         || warn "pip install terminó con errores — revisá $plog"
     fi
   fi
-  if [ -f "$p/composer.json" ]; then
-    warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (instalá con 'pkg install php composer' manualmente)" | tee -a "$plog"
+  # Bug real confirmado por QA en dispositivo (docs/estructura/QA_STACKS_2026-09-15.md):
+  # esta rama NO instalaba el binario `php` en sí — solo avisaba de composer.json si
+  # existía, y un proyecto PHP sin composer.json (ej. solo *.php sueltos, mismo criterio
+  # de detección que project_detect()/detectProjectStack() en StacksFragment.kt) quedaba
+  # "Instalación de dependencias completa" sin que `php` estuviera realmente disponible —
+  # el comando sugerido `php -S 0.0.0.0:8080 -t .` fallaba recién al arrancar, con
+  # "The program php is not installed" — mismo patrón que las ramas node/python de
+  # arriba (instalar el binario del lenguaje si falta), que sí lo hacían bien.
+  if [ -f "$p/composer.json" ] || ls "$p"/*.php >/dev/null 2>&1; then
+    if ! command -v php &>/dev/null; then
+      step "Instalando PHP" | tee -a "$plog"
+      pkg_update_with_fallback
+      pkg install -y php >>"$plog" 2>&1 || error "No se pudo instalar php"
+    fi
+    if [ -f "$p/composer.json" ]; then
+      warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (instalá con 'pkg install php composer' manualmente)" | tee -a "$plog"
+    fi
   fi
   log "Instalación de dependencias completa — log: $plog"
 }
@@ -298,7 +313,7 @@ project_install_native() {
 # de proot-distro), en vez de solo chequear la ruta legacy a secas.
 _distro_is_installed() {
   local name="$1"
-  # Bug real de layout dual (ronda 2026-09-09, docs/humano328.md — mismo hallazgo ya
+  # Bug real de layout dual (ronda 2026-09-09 — mismo hallazgo ya
   # corregido en entorno.sh/_proot_distros() y en ciberseguridad.sh/cactus.sh): proot-distro
   # v5.x moderno usa containers/<name>/rootfs, "list-installed" ya no existe como
   # subcomando (error real a stderr) — "list -q" es el fallback confiable en cualquier
@@ -306,6 +321,25 @@ _distro_is_installed() {
   [ -d "$TERMUX_PREFIX/var/lib/proot-distro/containers/$name/rootfs" ] && return 0
   [ -d "$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$name" ] && return 0
   proot-distro list -q 2>/dev/null | grep -qx "$name"
+}
+
+# Resuelve la ruta REAL del rootfs de una distro ya instalada, en cualquiera de los 2
+# layouts posibles (mismo criterio dual que _distro_is_installed() de arriba y
+# rootfsParentDir() en EntornoNative.kt) — bug real confirmado por QA en dispositivo
+# (docs/estructura/QA_STACKS_2026-09-15.md): project_install_distro() hardcodeaba la ruta
+# legacy "installed-rootfs/$distro" a secas para copiar el proyecto adentro, así que en
+# proot-distro v5.x moderno (layout "containers/<name>/rootfs", el único presente en un
+# dispositivo real probado) el chequeo `[ -d "$rootfs" ]` fallaba SIEMPRE con "No se pudo
+# confirmar la instalación de '<distro>'" aunque la distro estuviera instalada de verdad
+# (confirmado con "proot-distro list" mostrándola como instalada). Devuelve string vacío
+# si no se encuentra en ningún layout.
+_distro_rootfs_dir() {
+  local name="$1"
+  if [ -d "$TERMUX_PREFIX/var/lib/proot-distro/containers/$name/rootfs" ]; then
+    echo "$TERMUX_PREFIX/var/lib/proot-distro/containers/$name/rootfs"
+  elif [ -d "$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$name" ]; then
+    echo "$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$name"
+  fi
 }
 
 # Instala proot-distro (si falta) + la distro pedida (si falta) — extraído de
@@ -374,6 +408,17 @@ _exec_in_target() {
 _install_essentials() {
   local where="$1" plog="$2"
   step "Instalando paquetes esenciales para programar (build tools, Python, Node, PHP, PostgreSQL, MariaDB, SQLite)" | tee -a "$plog"
+  # Self-heal "dpkg was interrupted" — bug real confirmado por QA en dispositivo
+  # (docs/estructura/QA_STACKS_2026-09-15.md): si un apt-get ANTERIOR dentro de esta misma
+  # distro/contenedor quedó interrumpido (kill/OOM/app cerrada a mitad de instalación — no
+  # hace falta que haya sido este mismo script), dpkg queda en estado "interrupted" y
+  # CUALQUIER "apt-get install" posterior en ese destino falla de inmediato con "E: dpkg was
+  # interrupted, you must manually run 'dpkg --configure -a'" — sin self-heal, esto rompía
+  # `_install_essentials()` para SIEMPRE hasta que el usuario entrara a mano por terminal
+  # (justo lo que `kairos-product-philosophy.md` pide evitar). Mismo patrón ya probado en
+  # modulos/entorno.sh (GPU_TYPE nativo) y modulos/ciberseguridad.sh
+  # (PASO 7b) — no se reinventa, se replica acá para el mismo destino (distro/udocker).
+  _exec_in_target "$where" "dpkg --configure -a >/dev/null 2>&1 || true" >/dev/null 2>&1
   _exec_in_target "$where" "env DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' $_ESSENTIAL_APT_PACKAGES" >>"$plog" 2>&1 \
     || warn "Algunos paquetes esenciales fallaron — revisá $plog"
 
@@ -387,10 +432,10 @@ _install_essentials() {
 }
 
 # Instalación REAL dentro de la distro (ya no es un MVP de "copiar y sugerir"
-# — ver docs/humano/ de este pedido: "automatizalo de verdad, al mismo nivel
+# — a partir del pedido: "automatizalo de verdad, al mismo nivel
 # que nativo/udocker"). Copia el proyecto dentro del rootfs real de la distro
-# ($TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/<distro>, misma ruta
-# que documenta entorno.sh) y después instala el set completo de paquetes
+# (resuelto vía _distro_rootfs_dir(), layout dual — ver ese comentario para el
+# bug real que esto reemplazó) y después instala el set completo de paquetes
 # esenciales (_install_essentials(), pedido 2026-09-03) + las dependencias
 # puntuales del proyecto (npm install / pip3 install -r requirements.txt)
 # DENTRO de la distro, vía "proot-distro login <distro> -- ..." — mismo
@@ -413,8 +458,8 @@ project_install_distro() {
     step "La distro '$distro' no está instalada todavía — instalando automáticamente" | tee -a "$plog"
     _ensure_distro_installed "$distro" 2>&1 | tee -a "$plog"
   fi
-  local rootfs="$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$distro"
-  [ -d "$rootfs" ] || error "No se pudo confirmar la instalación de '$distro' — revisá $plog"
+  local rootfs; rootfs="$(_distro_rootfs_dir "$distro")"
+  [ -n "$rootfs" ] && [ -d "$rootfs" ] || error "No se pudo confirmar la instalación de '$distro' — revisá $plog"
 
   local name; name="$(basename "$p")"
   step "Copiando $p dentro de la distro '$distro' (/root/$name)" | tee -a "$plog"
@@ -460,11 +505,15 @@ project_install_distro() {
       fi
       ;;
   esac
-  case " $tags " in
-    *" php "*)
-      warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (corré 'composer install' a mano dentro de la distro, ej. proot-distro login $distro)" | tee -a "$plog"
-      ;;
-  esac
+  # Bug real confirmado por QA en dispositivo (docs/estructura/QA_STACKS_2026-09-15.md): este
+  # aviso disparaba con SOLO el tag "php" (que project_detect() setea con composer.json O
+  # *.php sueltos, ver comentario ahí) sin chequear si composer.json existía de verdad — un
+  # proyecto PHP sin Composer (mismo caso real de qa-php, un *.php suelto) recibía igual
+  # "composer.json detectado", mensaje falso. Mismo fix ya aplicado en
+  # project_install_native() — chequear el archivo real antes de avisar.
+  if [ -f "$p/composer.json" ]; then
+    warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (corré 'composer install' a mano dentro de la distro, ej. proot-distro login $distro)" | tee -a "$plog"
+  fi
 
   log "Dependencias instaladas dentro de '$distro' (incluye paquetes esenciales para programar) — log: $plog"
 }
@@ -581,11 +630,11 @@ project_install_udocker() {
       fi
       ;;
   esac
-  case " $tags " in
-    *" php "*)
-      warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (corré 'composer install' a mano dentro del contenedor, ej. con --project-action logs o una terminal en el contenedor)" | tee -a "$plog"
-      ;;
-  esac
+  # Mismo bug real que project_install_distro() (ver comentario ahí) — chequear
+  # composer.json de verdad en vez de disparar con solo el tag "php".
+  if [ -f "$p/composer.json" ]; then
+    warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (corré 'composer install' a mano dentro del contenedor, ej. con --project-action logs o una terminal en el contenedor)" | tee -a "$plog"
+  fi
 
   log "Dependencias instaladas dentro del contenedor '$name' (imagen $image) — log: $plog"
 }
@@ -905,7 +954,7 @@ install_full_distro_preset() {
 }
 
 # ============================================================
-#  Paquetes extra por preset (2026-08-23, ver docs/humano209.md, pedido
+#  Paquetes extra por preset (2026-08-23, pedido
 #  explícito: "en entorno faltan muchas configuracion o lenjuagesm tipo
 #  fash api de python, entre muchos mas, investiga y agregalos") — el
 #  preset instala el runtime base (python3/nodejs/php), --extra agrega

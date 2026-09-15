@@ -148,6 +148,10 @@
     <string name="remote_msg_clave_reemplazada">Key replaced</string>
     <string name="remote_msg_conectando_a">Connecting to %1$s…</string>
     <string name="remote_msg_probe_no_respondio">The probe did not respond (it may still be working) — opening terminal…</string>
+    <string name="remote_dialog_title_hostkey_cambio">The server\'s key changed</string>
+    <string name="remote_dialog_msg_hostkey_cambio">The fingerprint of %1$s\'s key no longer matches the one Kairos had saved from a previous connection.\n\nBefore: %2$s\nNow: %3$s\n\nThis can mean the server was legitimately reinstalled or changed identity, or that someone is intercepting the connection (man-in-the-middle attack). If you did not reinstall or reconfigure this server, cancel and verify before continuing.</string>
+    <string name="remote_btn_hostkey_aceptar">I trust it, connect anyway</string>
+    <string name="remote_msg_hostkey_cambio_cancelado">Connection cancelled — the server\'s key does not match the saved one</string>
     <string name="remote_msg_ssh_iniciado">SSH started</string>
     <string name="remote_msg_no_se_pudo_iniciar">could not be started</string>
     <string name="remote_msg_ssh_detenido">SSH stopped</string>

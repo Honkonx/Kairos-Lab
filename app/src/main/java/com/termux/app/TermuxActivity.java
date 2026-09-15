@@ -252,6 +252,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private ConfigFragment mSettingsFragment;
     private StudioFragment mStudioFragment;
     private EntornoFragment mEntornoFragment;
+    private com.termux.app.ui.HomelabFragment mHomelabFragment;
     private Fragment mCurrentFragment;
     private int mCurrentTabId;
     private View mTerminalOverlay;
@@ -266,9 +267,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * Minimizar/Cerrar (ver applyTerminalModeUi()).
      */
     private boolean mTerminalAdaptedMode = false;
-    /** Refleja si la paleta Tokyo Night está aplicada AHORA MISMO (ver applyAdaptedTerminalColors()) —
-     *  necesario para no repetir el swap/backup cada vez que applyTerminalModeUi() corre sin que
-     *  el modo haya cambiado de verdad (se llama desde varios puntos de entrada). */
+    /** Solo informativo/depuración — la fuente de verdad real de "¿está la paleta Tokyo Night
+     *  aplicada ahora mismo?" es el estado en DISCO (existencia de terminal_adaptada_colors_backup
+     *  .properties/terminal_adaptada_no_previo.marker en getFilesDir()), no este campo — ver
+     *  applyAdaptedTerminalColors(). Bug real encontrado en auditoría (2026-09-15): este campo
+     *  vivía solo en memoria y se reseteaba a false en cada Activity/proceso nuevo; si el proceso
+     *  moría (kill por memoria baja, force-stop) mientras la terminal adaptada estaba activa,
+     *  colors.properties quedaba con Tokyo Night escrito y el backup real del usuario huérfano en
+     *  disco — al reabrir la app y entrar a la terminal CLÁSICA, applyAdaptedTerminalColors(false)
+     *  comparaba contra este campo (también false tras el proceso nuevo) y no hacía nada,
+     *  dejando la terminal clásica con los colores de la adaptada permanentemente hasta que el
+     *  usuario volviera a entrar/salir de modo adaptado en la misma sesión de proceso. */
     private boolean mAdaptedColorsActive = false;
     private String mTerminalAdaptedSessionName;
 
@@ -413,7 +422,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         super.onCreate(savedInstanceState);
 
-        // Bug real, 4to intento (2026-08-07, ver docs/humano/humano89.md): revertido del
+        // Bug real, 4to intento: revertido del
         // edge-to-edge manual (setDecorFitsSystemWindows(false) + 2 listeners de padding vía
         // WindowInsetsCompat, agregados en una ronda anterior) al modelo clásico que usa
         // termux-app real y todos los forks de referencia comparados — ninguno reimplementa
@@ -489,6 +498,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mPluginsFragment = new PluginsFragment();
             mStudioFragment = new StudioFragment();
             mEntornoFragment = new EntornoFragment();
+            mHomelabFragment = new com.termux.app.ui.HomelabFragment();
 
             getSupportFragmentManager().beginTransaction()
                 .add(R.id.fragment_container, mModulesFragment, "modules")
@@ -501,6 +511,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .add(R.id.fragment_container, mPluginsFragment, "plugins")
                 .add(R.id.fragment_container, mStudioFragment, "studio")
                 .add(R.id.fragment_container, mEntornoFragment, "entorno")
+                .add(R.id.fragment_container, mHomelabFragment, "homelab")
                 .hide(mChatFragment)
                 .hide(mMonitorFragment)
                 .hide(mFileManagerFragment)
@@ -510,6 +521,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .hide(mPluginsFragment)
                 .hide(mStudioFragment)
                 .hide(mEntornoFragment)
+                .hide(mHomelabFragment)
                 .commit();
 
             mCurrentFragment = mModulesFragment;
@@ -525,7 +537,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mPluginsFragment = (PluginsFragment) getSupportFragmentManager().findFragmentByTag("plugins");
             mStudioFragment = (StudioFragment) getSupportFragmentManager().findFragmentByTag("studio");
             mEntornoFragment = (EntornoFragment) getSupportFragmentManager().findFragmentByTag("entorno");
-            // Bug real confirmado por ADB (humano202, 2026-08-22 — freeze al cambiar de tema,
+            mHomelabFragment = (com.termux.app.ui.HomelabFragment) getSupportFragmentManager().findFragmentByTag("homelab");
+            // Bug real confirmado por ADB (2026-08-22 — freeze al cambiar de tema,
             // reproducido en vivo con uiautomator+logcat): esto ANTES reseteaba mCurrentFragment/
             // mCurrentTabId a Módulos sin condición, incluso cuando el usuario estaba parado en
             // OTRA pantalla (ej. Config) al momento de recreate() (el cambio de tema llama
@@ -542,12 +555,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             Fragment[] restoredFragments = {
                 mModulesFragment, mChatFragment, mMonitorFragment,
                 mFileManagerFragment, mTunnelFragment, mSettingsFragment, mNubeFragment,
-                mPluginsFragment, mStudioFragment, mEntornoFragment
+                mPluginsFragment, mStudioFragment, mEntornoFragment, mHomelabFragment
             };
             int[] restoredTabIds = {
                 R.id.nav_modules, R.id.nav_chat, R.id.nav_monitor,
                 R.id.nav_files, R.id.nav_tunnel, R.id.nav_settings, R.id.nav_nube,
-                R.id.nav_plugins, R.id.nav_studio, R.id.nav_minipc
+                R.id.nav_plugins, R.id.nav_studio, R.id.nav_minipc, R.id.nav_homelab
             };
             for (int i = 0; i < restoredFragments.length; i++) {
                 Fragment f = restoredFragments[i];
@@ -573,7 +586,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         FloatingActionButton fab = findViewById(R.id.fab_terminal);
         fab.setOnClickListener(v -> {
-            // Bug real reproducido por ADB (2026-09-03, ver docs/humano* de esta ronda —
+            // Bug real reproducido por ADB (2026-09-03 —
             // "el widget de acceso rápido a las terminales abiertas... no las abre"): esto
             // forzaba mTerminalAdaptedSessionName = null incondicionalmente ANTES de que
             // existiera el badge de contexto persistente (updateFabContextBadge(),
@@ -642,7 +655,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (mTermuxTerminalSessionActivityClient != null)
             mTermuxTerminalSessionActivityClient.onStart();
 
-        // Mismo wiring que termux-app real (ver docs/humano/humano89.md) — reactiva el
+        // Mismo wiring que termux-app real — reactiva el
         // mecanismo de margen de TermuxActivityRootView.onGlobalLayout() (caso borde de
         // teclados con fila de sugerencias, ver el JavaDoc completo de esa clase) cada vez
         // que la Activity vuelve a estar visible. Null-safe porque, a diferencia de
@@ -743,8 +756,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     @Override
     public void onBackPressed() {
-        // Pedido explícito del usuario (2026-09-08, docs/humano324.md — falta administrador de
-        // archivos/navegador embebidos "sin salir de la terminal adaptada"): si el panel
+        // Falta administrador de archivos/navegador embebidos "sin salir de la terminal
+        // adaptada": si el panel
         // embebido (ver showAdaptedPanel()) está abierto, atrás lo CIERRA a él (mismo criterio
         // que cerrar una pestaña de navegador con atrás), no minimiza toda la terminal — chequeo
         // ANTES del de mTerminalOverlay de abajo a propósito. TerminalBrowserFragment intercepta
@@ -773,7 +786,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             getSupportFragmentManager().popBackStack();
             return;
         }
-        // Bug real reportado (ver docs/humano231.md): con backstack ya vacío (switchFragment()
+        // Bug real reportado: con backstack ya vacío (switchFragment()
         // lo vacía en CADA cambio de tab, ver comentario en esa función más abajo), si el
         // usuario abrió el detalle de un módulo desde "Módulos", cambió a otro tab, y tocó
         // atrás parado en la raíz de ESE tab, no había nada que popear y la app se cerraba
@@ -781,7 +794,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // ahí (consumiendo el evento) en vez de cerrar la app; solo se cierra si ya se estaba
         // parado en Módulos sin backstack.
         if (mCurrentTabId != R.id.nav_modules) {
-            // Bug real confirmado en dispositivo (ADB, docs/humano246.md #4): llamar
+            // Bug real confirmado en dispositivo (ADB): llamar
             // switchFragment(R.id.nav_modules) ACÁ y recién después bottomNav.setSelectedItemId()
             // dejaba el contenido correcto (Módulos) pero el resaltado visual del
             // BottomNavigationView atascado en el tab anterior — switchFragment() ya deja
@@ -913,7 +926,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // day or night theme takes affect.
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
 
-        // Selector de tema visual Kairos (2026-08-22, ver docs/humano/humano190.md) — Oscuro/Señal/
+        // Selector de tema visual Kairos (2026-08-22) — Oscuro/Señal/
         // Claro, ver com.termux.app.util.KairosThemePrefs. Debe llamarse ANTES de
         // super.onCreate() (mismo requisito que setNightMode arriba) para que ?attr/kairos*
         // resuelva contra el tema elegido desde el primer layout inflado.
@@ -931,7 +944,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
     public void addTermuxActivityRootViewGlobalLayoutListener() {
-        // Null-safe (ver comentario en onStart(), docs/humano/humano89.md) — termux-app real no
+        // Null-safe (ver comentario en onStart()) — termux-app real no
         // necesita este guard porque ahí el root view existe desde onCreate().
         if (getTermuxActivityRootView() != null)
             getTermuxActivityRootView().getViewTreeObserver().addOnGlobalLayoutListener(getTermuxActivityRootView());
@@ -2033,18 +2046,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         else if (itemId == R.id.nav_plugins) target = mPluginsFragment;
         else if (itemId == R.id.nav_studio) target = mStudioFragment;
         else if (itemId == R.id.nav_minipc) target = mEntornoFragment;
+        else if (itemId == R.id.nav_homelab) target = mHomelabFragment;
         else if (itemId == R.id.nav_settings) target = mSettingsFragment;
         else target = mModulesFragment;
 
         if (target == null || target == mCurrentFragment) return;
 
-        // Log interno de Kairos, nivel NORMAL — navegación entre tabs (ver docs/humano231.md,
+        // Log interno de Kairos, nivel NORMAL — navegación entre tabs (ver
         // ConfigFragment "Log Kairos"). Se loguea el itemId numérico, no el nombre resuelto del
         // recurso: alcanza para correlacionar eventos en el log, sin resolver getResources()
         // acá adentro de un método ya recargado.
         com.termux.app.util.KairosLogger.log(this, "Nav", "switchFragment() -> itemId=" + itemId);
 
-        // Bug real reportado (2026-08-24, ver docs/humano211.md): tocar otro tab estando dentro
+        // Bug real reportado (2026-08-24): tocar otro tab estando dentro
         // de un módulo no hacía nada visible hasta salir del módulo con "atrás". Causa raíz:
         // ModuleDetailNavigator.navigate()/BaseModuleFragment.navigateTo() empujan el detalle
         // del módulo con replace(R.id.fragment_container, ...) + addToBackStack(null) — el mismo
@@ -2097,7 +2111,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     ViewGroup.LayoutParams.MATCH_PARENT));
                 mTerminalOverlay.setVisibility(View.GONE);
 
-                // Bug real, 4to intento (2026-08-07, ver docs/humano/humano89.md): acá vivía un
+                // Bug real, 4to intento (2026-08-07): acá vivía un
                 // listener manual de WindowInsetsCompat (padding a mano para status bar + IME)
                 // que ningún proyecto de referencia (ni termux-app real) necesita — revertido al
                 // mecanismo real de termux-app: asignar mTermuxActivityRootView de verdad y
@@ -2110,7 +2124,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 mTermuxActivityBottomSpaceView = mTerminalOverlay.findViewById(R.id.activity_termux_bottom_space_view);
                 if (mTermuxActivityRootView != null) {
                     mTermuxActivityRootView.setActivity(this);
-                    // Bug real confirmado 2026-09-08 (docs/humano324.md, "sigue el error de
+                    // Bug real confirmado 2026-09-08 ("sigue el error de
                     // superposición de la barra de notificaciones... toca bajar todas las
                     // opciones del apk de arriba un poquito"): el WindowInsetsListener de abajo
                     // depende de que el sistema realmente dispare onApplyWindowInsets() sobre
@@ -2131,8 +2145,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     mTermuxActivityRootView.setOnApplyWindowInsetsListener(new TermuxActivityRootView.WindowInsetsListener());
                     // El overlay se agrega con addContentView() cuando el despacho de insets del
                     // DecorView ya ocurrió, así que sin este requestApplyInsets() el listener de
-                    // arriba nunca recibía insets y no aplicaba el padding de la barra de estado
-                    // (ver docs/humano/humano93.md).
+                    // arriba nunca recibía insets y no aplicaba el padding de la barra de estado.
                     mTermuxActivityRootView.requestApplyInsets();
                     if (mPreferences.isTerminalMarginAdjustmentEnabled())
                         addTermuxActivityRootViewGlobalLayoutListener();
@@ -2149,13 +2162,13 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 setTerminalQuickSettingsButtonView();
                 setCustomCommandsDrawerView();
                 setMargins();
-                // Bug real confirmado (2026-08-01, ver docs/humano/humano* de esa ronda):
+                // Bug real confirmado (2026-08-01):
                 // "mTermuxActivityRootView" llegó a estar sin asignar en una ronda intermedia de
                 // esta sesión, lo que hacía que cualquier código que lo usara (ej. el mecanismo
                 // de margen de TermuxActivityRootView.onGlobalLayout()) tirara
                 // NullPointerException en silencio dentro del catch(Exception) genérico de este
                 // método. Ya no aplica — el campo se asigna arriba, justo después de inflar el
-                // overlay (ver docs/humano/humano89.md).
+                // overlay.
                 setTerminalAdaptedBarView();
             }
 
@@ -2165,7 +2178,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             if (show) {
                 mTerminalOverlay.bringToFront();
                 mTerminalView.requestFocus();
-                // Bug real confirmado 2026-09-08 (ver docs/humano324.md): la barra de estado
+                // Bug real confirmado 2026-09-08: la barra de estado
                 // (notificaciones/batería/red) tapaba visual Y TÁCTILMENTE terminal_adapted_bar
                 // (el botón ☰ recibía el gesto "abrir panel de notificaciones" del sistema en
                 // vez del tap, confirmado con QuickPanelLog/SHADE en logcat). Causa raíz real:
@@ -2270,7 +2283,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * abiertas... no las abre".
      */
     private String resolveFabBadgeSessionName() {
-        // Bug real reproducido por ADB (2026-09-03, ver docs/humano* de esta ronda — "al cerrar
+        // Bug real reproducido por ADB (2026-09-03 — "al cerrar
         // sigue el ícono"): esto confiaba en mTerminalAdaptedSessionName a ciegas — el campo se
         // setea en openTerminalWithCommand() (la última sesión nombrada abierta) pero NUNCA se
         // limpiaba cuando esa sesión terminaba, así que seguía "anunciando" un nombre de sesión
@@ -2309,9 +2322,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         View menuButton = mTerminalOverlay.findViewById(R.id.terminal_adapted_menu_button);
         View minimizeButton = mTerminalOverlay.findViewById(R.id.terminal_adapted_minimize_button);
         View closeButton = mTerminalOverlay.findViewById(R.id.terminal_adapted_close_button);
-        // Bug real reportado (2026-08-13, ver docs/humano/humano116.md): el sidebar de acciones
+        // Bug real reportado (2026-08-13): el sidebar de acciones
         // rápidas (left_drawer_adapted_content, ver populateAdaptedDrawerContent()) ya existía
-        // desde humano42, pero solo se podía abrir con un swipe desde el borde — sin ningún
+        // desde antes, pero solo se podía abrir con un swipe desde el borde — sin ningún
         // botón visible, poco descubrible. Este botón hace exactamente lo que ya hacía el swipe.
         if (menuButton != null) {
             // Estilo A (default) abre el sidebar de siempre; Estilo B abre las mismas acciones
@@ -2336,7 +2349,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 // Con un panel utilitario activo (Archivos/Navegador, ver showAdaptedPanel()),
                 // "Cerrar" cierra SOLO el panel — la sesión de terminal real sigue viva de
                 // fondo, no tiene sentido detenerla por cerrar una pestaña que no es ella (fix
-                // 2026-09-08, docs/humano325.md).
+                // 2026-09-08).
                 if (mAdaptedActivePanelTag != null) {
                     closeAdaptedPanel(mAdaptedActivePanelTag);
                     return;
@@ -2409,7 +2422,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Administrador de archivos SIN salir de la terminal adaptada, como pestaña propia — pedido
-     * explícito del usuario (2026-09-08, docs/humano324.md: "falta el administrador de
+     * explícito (2026-09-08: "falta el administrador de
      * archivos... debe ser [...] en una pestaña nueva"). Reusa `FileManagerFragment` tal cual
      * (misma pantalla que la pestaña Archivos del BottomNav) dentro del panel embebido.
      */
@@ -2420,8 +2433,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /**
-     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito del usuario (2026-09-08,
-     * docs/humano325.md: "agregar una opción de accesibilidad al panel/sidebar... para ajustar
+     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito (2026-09-08:
+     * "agregar una opción de accesibilidad al panel/sidebar... para ajustar
      * si se desea navegador y administrador de archivos en pantalla o pestaña"). Un solo switch
      * compartido entre Archivos y Navegador (el usuario lo describió como un único ajuste, sin
      * distinguir entre los dos): con "pestaña" (default, ON) ambos aparecen en
@@ -2467,7 +2480,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Navegador de propósito general SIN salir de la terminal adaptada, como pestaña propia —
-     * pedido explícito del usuario (2026-09-08, docs/humano324.md: "el navegador no es poner
+     * pedido explícito (2026-09-08: "el navegador no es poner
      * puertos, debe ser un navegador completo como tal en una pestaña nueva"). Usa
      * `TerminalBrowserFragment` (navegación libre real, barra de dirección editable — NO
      * `ModuleWebViewFragment`, que sandboxea a propósito por seguridad, ver su KDoc), precargado
@@ -2490,7 +2503,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * `terminal_adapted_panel_container` (activity_termux.xml) — cubre SOLO el área de
      * contenido (mismo `layout_below`/`layout_above` que `drawer_layout`), dejando
      * `terminal_adapted_bar` (título/☰/Minimizar/Cerrar/pestañas) siempre visible y funcional
-     * — corrección real 2026-09-08 (docs/humano325.md: "falta la opción de que sean pestañas"):
+     * — corrección real 2026-09-08 ("falta la opción de que sean pestañas"):
      * la primera versión cubría TODO el overlay, tapando la fila de pestañas mientras el panel
      * estaba activo. El título y el botón "Cerrar" de la barra existente se reusan acá (ver
      * setTerminalAdaptedBarView()) en vez de una franja propia duplicada. A diferencia del
@@ -2815,7 +2828,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             if (toolbarViewPager != null) toolbarViewPager.setVisibility(View.GONE);
             if (normalDrawerContent != null) normalDrawerContent.setVisibility(View.GONE);
             if (adaptedDrawerContent != null) adaptedDrawerContent.setVisibility(View.VISIBLE);
-            // Pedido explícito del usuario (docs/humano/humano42.md): "un sidebar oculto que se abra
+            // Pedido explícito: "un sidebar oculto que se abra
             // cuando deslicen... con otras opciones" — antes se bloqueaba cerrado del todo acá
             // (nunca deslizable), porque el contenido era la lista de sesiones genérica de
             // Termux, sin sentido en modo adaptado. Ahora que left_drawer_adapted_content tiene
@@ -2859,7 +2872,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Paleta Tokyo Night SOLO para la terminal ADAPTADA (mod), nunca para la terminal clásica
-     * (humano202, 2026-08-22 — pedido explícito: "toca modificar la terminal... la original la
+     * (2026-08-22 — pedido explícito: "toca modificar la terminal... la original la
      * dejamos como esta"). No hay hoy ningún mecanismo separado de colores por modo — Termux usa
      * un único `~/.termux/colors.properties` global (`TerminalColors.COLOR_SCHEME`, leído por
      * TermuxTerminalSessionActivityClient.checkForFontAndColors()) — así que "solo modo
@@ -2869,11 +2882,21 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * mezclarse con lo que el usuario edite a mano ahí mismo.
      */
     private void applyAdaptedTerminalColors(boolean useAdaptedColors) {
-        if (useAdaptedColors == mAdaptedColorsActive) return;
         try {
             File colorsFile = TermuxConstants.TERMUX_COLOR_PROPERTIES_FILE;
             File backupFile = new File(getFilesDir(), "terminal_adaptada_colors_backup.properties");
             File backupMarker = new File(getFilesDir(), "terminal_adaptada_no_previo.marker");
+            // Fuente de verdad real: el disco (¿existe un backup pendiente de restaurar?), no
+            // mAdaptedColorsActive — ese campo en memoria no sobrevive a que el proceso muera
+            // (ver su KDoc) mientras la terminal adaptada seguía activa, lo que dejaba
+            // colors.properties con Tokyo Night aplicado y el backup real del usuario huérfano en
+            // disco tras reabrir la app. Comparar contra el disco hace que esta función sea
+            // idempotente sin importar si el proceso es el mismo que aplicó el swap o uno nuevo.
+            boolean adaptedColorsOnDisk = backupFile.exists() || backupMarker.exists();
+            if (useAdaptedColors == adaptedColorsOnDisk) {
+                mAdaptedColorsActive = useAdaptedColors;
+                return;
+            }
             if (useAdaptedColors) {
                 if (!backupFile.exists() && !backupMarker.exists()) {
                     if (colorsFile.isFile()) {
@@ -2912,7 +2935,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** Paleta "Tokyo Night" (variante clásica, no Storm/Light) — valores públicos de
      *  https://github.com/enkia/tokyo-night-vscode-theme, ya validados como dirección de color
-     *  por el usuario (docs/humano/humano191.md: negro + azul + verde neón débil). */
+     *  (negro + azul + verde neón débil). */
     private static void writeTokyoNightColorsProperties(File colorsFile) throws IOException {
         try (FileWriter w = new FileWriter(colorsFile)) {
             w.write("background=#1a1b26\n");
@@ -2981,7 +3004,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     // Dependencias de backend IA local por módulo, para los chips de la barra adaptada (ver
-    // refreshAdaptedBarInfo() más abajo). Pedido explícito del usuario (docs/humano/humano169.md):
+    // refreshAdaptedBarInfo() más abajo). Pedido explícito:
     // "si estan en opencode ver si ollama/llama esta corriendo" — mapa chico y EXTENSIBLE a
     // propósito (moduleId -> lista de moduleId de los que depende), no una solución hardcodeada
     // solo para OpenCode: cualquier CLI futuro que dependa de un backend local (Ollama,
@@ -2996,7 +3019,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     // Comando "listar servidores MCP" por módulo, para el atajo del drawer adaptado (ver
-    // populateAdaptedDrawerContent()) — mismo pedido de humano169.md ("los mcp, añadir
+    // populateAdaptedDrawerContent()) — mismo pedido de arriba ("los mcp, añadir
     // opciones"). Solo se listan acá los CLIs con soporte MCP ya CONFIRMADO por otro código real
     // del proyecto: "claude mcp list" ya es un actionButton existente en ClaudeFragment.kt; para
     // "openclaw mcp ..." OpenClawNative.kt ya confirma (con cita a docs.openclaw.ai/cli/mcp) el
@@ -3139,8 +3162,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Pestañas reales para múltiples sesiones simultáneas visibles a la vez — Fase 1 del
-     * roadmap de terminal (pedido explícito del usuario, ver MEJORAS_PENDIENTES.md "Roadmap de
-     * terminal — 2 fases" y docs/humano318.md). Antes de esto, con 2+ CLIs de módulo corriendo
+     * roadmap de terminal (pedido explícito, ver MEJORAS_PENDIENTES.md "Roadmap de
+     * terminal — 2 fases"). Antes de esto, con 2+ CLIs de módulo corriendo
      * a la vez (ej. "Claude Code" y "OpenCode" abiertos juntos), cambiar de una a otra requería
      * el drawer lateral o el menú popup de ModulesFragment#showTerminalSessionsMenu() — ninguno
      * deja ver TODAS las sesiones activas de un vistazo mientras se usa la terminal.
@@ -3166,7 +3189,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
 
         java.util.List<String> sessionNames = getActiveModuleSessionNames();
-        // Pedido explícito del usuario (2026-09-08, docs/humano324.md: "administrador de
+        // Pedido explícito (2026-09-08: "administrador de
         // archivos, navegador... en una pestaña nueva") — Archivos/Navegador cuentan como
         // pestañas más, junto a las sesiones de terminal reales (ver showAdaptedPanel()).
         androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
@@ -3303,8 +3326,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         tab.setOnClickListener(v -> {
             // Si un panel utilitario (Archivos/Navegador) estaba visible, tocar una pestaña de
             // sesión real vuelve a mostrar la terminal — sin esto, la sesión cambiaba "detrás"
-            // del panel sin que el usuario viera el cambio (pedido explícito del usuario,
-            // 2026-09-08, docs/humano324.md — pestañas de terminal y paneles conviven en la
+            // del panel sin que el usuario viera el cambio (pedido explícito,
+            // 2026-09-08 — pestañas de terminal y paneles conviven en la
             // misma fila).
             if (isAdaptedPanelVisible()) hideAdaptedPanel();
             openTerminalWithCommand(null, sessionName);
@@ -3504,8 +3527,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 closeSurface.run();
                 showModuleLogDialog(moduleId);
             });
-            // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito,
-            // docs/humano/humano169.md: "los mcp, añadir opciones") — solo aparece para módulos
+            // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito:
+            // "los mcp, añadir opciones") — solo aparece para módulos
             // con soporte MCP confirmado (ver adaptedModuleMcpCommand()). Escribe el comando en
             // la MISMA sesión activa (mismo mecanismo que "Reiniciar módulo"/writeCommandOnceSessionReady
             // vía openTerminalWithCommand), no abre una sesión nueva.
@@ -3517,7 +3540,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 });
             }
         }
-        // Nueva opción de sidebar (2026-09-08, docs/humano325.md: "ve qué más opciones podemos
+        // Nueva opción de sidebar (2026-09-08: "ve qué más opciones podemos
         // meter en el sidebar/menu/panel de la terminal adaptable") — copiar todo el
         // texto+historial visible de la sesión al portapapeles, sin selección manual carácter
         // por carácter (útil para pegar la salida de un CLI en otra app/chat).
@@ -3525,7 +3548,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             closeSurface.run();
             copyAdaptedSessionTranscript();
         });
-        // Pedido explícito del usuario (2026-08-13, ver docs/humano/humano116.md): "poder
+        // Pedido explícito (2026-08-13): "poder
         // monitorear... ver las extenciones" desde la terminal adaptada. "Extensiones" son las
         // ExtraKeys (teclas extra) — el toolbar real (terminal_toolbar_view_pager) ya existe,
         // solo estaba forzado a GONE en modo adaptado (applyTerminalModeUi()); acá se hace
@@ -3557,7 +3580,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             toggleTerminalOverlay();
             switchFragment(R.id.nav_monitor);
         });
-        // Pedido explícito del usuario (2026-09-08, docs/humano324.md: "falta el administrador
+        // Pedido explícito (2026-09-08: "falta el administrador
         // de archivos, navegador... sin salir de la terminal adaptada") — a diferencia de
         // "Monitor" de arriba, estas 2 acciones NO minimizan el overlay ni navegan a otro tab:
         // abren un panel embebido (showAdaptedPanel()) que cubre solo el área de contenido, sin
@@ -3579,7 +3602,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             closeSurface.run();
             showAdaptedSplitModeDialog();
         });
-        // Pedido explícito del usuario (2026-09-08, docs/humano325.md): "agregar una opción de
+        // Pedido explícito (2026-09-08): "agregar una opción de
         // accesibilidad al panel/sidebar... para ajustar si se desea navegador y administrador
         // de archivos en pantalla o pestaña".
         addAdaptedDrawerAction(actions, "♿ Accesibilidad", v -> {
@@ -3875,7 +3898,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * mismo mecanismo genérico sin ninguna diferenciación).
      */
     public void openTerminalWithCommand(String command, String sessionName) {
-        // Pedido explícito del usuario (2026-08-13, ver docs/humano/humano118.md): toggle en
+        // Pedido explícito (2026-08-13): toggle en
         // Ajustes ("Terminal clásica (sin UI adaptada)", ver ConfigFragment.kt) — mismo
         // SharedPreferences "kairos_prefs" que ya usan los demás toggles de esa pantalla.
         boolean classicTerminalPreferred = getSharedPreferences("kairos_prefs", MODE_PRIVATE)
@@ -4204,7 +4227,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * Se llama desde BaseModuleFragment.stopModuleService() además del script de stop
      * normal, para que "detener" de verdad pare las dos cosas.
      */
-    // Bug real (2026-08-07, ver docs/humano/humano91.md): "al tocar cerrar de la terminal no
+    // Bug real (2026-08-07): "al tocar cerrar de la terminal no
     // se cierra bien... es como si se pusiera exit pero no se tocara enter" — antes esto
     // llamaba finishIfRunning() (terminal-emulator/, protegido) directo, que manda SIGKILL
     // solo al PID del shell. El shell corre con setsid() (termux.c), líder de su propio
@@ -4230,7 +4253,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // vez de llegar a un prompt de shell real. Fix: separar el "exit" en un
         // runnable con una pausa corta despues del Ctrl-C.
         try {
-            session.write("");
+            // Bug real (auditoria 2026-09-15): esta linea era un session.write("")
+            // sin efecto -- string vacio, cero bytes al pty -- dead code desde el
+            // commit original (2026-07-30) que la agrego. El Ctrl-C real es el
+            // write() de abajo (byte 0x03).
             session.write(""); // Ctrl-C: interrumpe cualquier job en foreground
         } catch (Exception ignored) {
             // Sesion ya sin pty valido -- el finishIfRunning() de abajo la limpia igual.
@@ -4255,7 +4281,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
     }
 
-    // Bug real confirmado en dispositivo (ADB, docs/humano246.md #5 "las terminales se siguen
+    // Bug real confirmado en dispositivo (ADB, "las terminales se siguen
     // quedando abiertas al darle cerrar sesión"): con una sesión adaptada abierta (ej. Claude
     // Code, bash PID padre + un hijo "claude" en foreground) se disparó "Cerrar sesión" y,
     // aunque el drawer se cerraba y la UI ya no mostraba la sesión, `ps` seguía mostrando AMBOS
@@ -4288,11 +4314,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         session.finishIfRunning();
     }
 
-    // Bug real reportado (ver docs/humano231.md): el botón "Salir (detener todo y cerrar)" de
+    // Bug real reportado: el botón "Salir (detener todo y cerrar)" de
     // ConfigFragment solo corría scripts de stop de módulos (ModuleController.stopAllModules)
     // y mataba el proceso entero con exitProcess(0) sin ningún delay — nunca tocaba las
     // TerminalSession abiertas, así que cualquier pty con un job en foreground (una TUI, un
-    // script) quedaba literalmente "esperando ENTER" (el mismo bug de humano91 que
+    // script) quedaba literalmente "esperando ENTER" (el mismo bug que
     // stopSessionByName() ya arregla para una sesión puntual) hasta que Android mataba el
     // proceso de golpe. A diferencia de stopSessionByName() (que espera 300ms+1500ms POR
     // sesión, pensado para cerrar una sesión sin apurar), acá la app entera se está cerrando —

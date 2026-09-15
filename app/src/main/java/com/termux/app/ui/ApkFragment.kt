@@ -76,7 +76,7 @@ class ApkFragment : BaseModuleFragment() {
     private var selectedApkPath: String? = null
     private var selectedApkValueText: TextView? = null
 
-    // ── Instrumentación sin root (fuente VictorH028/no-root-logger, ver docs/humano331.md) —
+    // ── Instrumentación sin root (fuente VictorH028/no-root-logger) —
     //    decompila con apktool el APK elegido arriba (reusa selectedApkPath/selectedApkName,
     //    no hace falta elegir el APK dos veces), permite buscar una clase Smali, elegir un
     //    método e inyectar un hook que manda logs a un servidor local (127.0.0.1:9999).
@@ -171,6 +171,11 @@ class ApkFragment : BaseModuleFragment() {
                 toast(if (ok) getString(R.string.apk_toast_updated, getModuleName()) else getString(R.string.apk_toast_update_failed))
             }
         }
+        // Tarea 3 (2026-09-15) — ver KDoc de BaseModuleFragment.runModuleDoctorForThis().
+        actionButton(getString(R.string.base_module_diagnose), GHOST) {
+            toast(getString(R.string.base_module_diagnosing, getModuleName()))
+            runModuleDoctorForThis()
+        }
         actionButton(getString(R.string.apk_btn_uninstall), DANGER) { confirmUninstall() }
     }
 
@@ -221,8 +226,8 @@ class ApkFragment : BaseModuleFragment() {
         val progress = com.termux.app.util.ProgressDialogController(requireContext())
         // allowBackground=true: compilar un APK (aapt2 → javac/kotlinc → d8 → zipalign →
         // apksigner) puede tardar varios minutos — mismo tratamiento que las descargas de
-        // modelos/imágenes (docs/humano247.md), el usuario puede seguir navegando mientras
-        // corre y se avisa por notificación al terminar.
+        // modelos/imágenes, se puede seguir navegando mientras corre y se avisa por
+        // notificación al terminar.
         progress.show(getString(R.string.apk_progress_title), getString(R.string.apk_progress_starting), allowBackground = true)
         val fullLog = StringBuilder()
 

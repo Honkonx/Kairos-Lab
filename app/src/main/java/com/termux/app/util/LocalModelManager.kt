@@ -66,6 +66,28 @@ object LocalModelManager {
             ?.map { LocalModel(it, it.name, it.length()) }
             ?: emptyList()
 
+    /**
+     * Heurística de nombre para distinguir un vision projector (mmproj) de un modelo de chat
+     * normal — ambos son archivos `.gguf`, pero un mmproj no puede cargarse solo (necesita
+     * `loadMultimodalProjector()` sobre un modelo de texto ya cargado, ver LLMInference.cpp/
+     * `docs/ia-local/LLAMA_CPP_EMBEBIDO.md`). Convención real de la comunidad de llama.cpp/
+     * Hugging Face (ej. `mmproj-model-f16.gguf`, `mmproj-Qwen2-VL-...gguf`) — no hay un campo
+     * de metadata GGUF estándar que lo marque de forma más confiable sin cargar el archivo
+     * completo (GGUFReader solo lee context_length/chat_template, no arquitectura del modelo).
+     */
+    @JvmStatic
+    fun isMmproj(file: File): Boolean = file.name.contains("mmproj", ignoreCase = true)
+
+    /** [listModels] sin los archivos que [isMmproj] identifica como vision projector — la lista real de modelos de chat seleccionables (ver ChatFragment/LocalAIFragment). */
+    @JvmStatic
+    fun listChatModels(context: Context): List<LocalModel> =
+        listModels(context).filterNot { isMmproj(it.file) }
+
+    /** Subconjunto de [listModels] que [isMmproj] identifica como vision projector. */
+    @JvmStatic
+    fun listMultimodalProjectors(context: Context): List<LocalModel> =
+        listModels(context).filter { isMmproj(it.file) }
+
     @JvmStatic
     fun deleteModel(context: Context, name: String): Boolean {
         val f = File(modelsDir(context), name)

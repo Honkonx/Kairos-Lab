@@ -54,7 +54,9 @@
     <string name="chat_ollama_inactive">Ollama inactive</string>
     <string name="chat_no_local_models_toast">No local models — download one from Local AI</string>
     <string name="chat_no_ollama_models_toast">No Ollama models downloaded</string>
-    <string name="chat_image_discarded_local">Image discarded: the local engine doesn\'t support images</string>
+    <string name="chat_image_discarded_local">Image discarded: import a vision projector (mmproj) from "Local AI" to attach images with a local model</string>
+    <string name="chat_image_local_loading_mmproj">Loading vision projector…</string>
+    <string name="chat_image_local_mmproj_failed">Could not load the vision projector (mmproj): %1$s</string>
     <string name="chat_image_discarded_no_vision">Image discarded: \"%1$s\" doesn\'t support images (confirmed by Ollama)</string>
     <string name="chat_temperature_label">Temperature: %1$.2f</string>
     <string name="chat_context_size_label">Context size: %1$d tokens</string>
@@ -195,4 +197,18 @@
     <string name="module_adapter_port_suffix"> · :%1$s</string>
     <string name="module_adapter_starting_n8n">↓ Starting… (may take ~40s)</string>
     <string name="module_adapter_starting">↓ Starting…</string>
+
+    <!-- Web search without an API key (WebSearchService.kt, DuckDuckGo scraping) — different
+         from the "Web search" above (Ollama, requires an API key). -->
+    <string name="chat_websearch_button_label">🔍 Search</string>
+    <string name="chat_websearch_dialog_title">Search the web</string>
+    <string name="chat_websearch_dialog_hint">What do you want to search for…</string>
+    <string name="chat_websearch_dialog_search">Search</string>
+    <string name="chat_websearch_usage">Usage: %1$s &lt;query&gt; — e.g. \"%1$s weather in Buenos Aires\". No API key — scrapes DuckDuckGo directly.</string>
+    <string name="chat_websearch_searching_status">🔍 Searching the web…</string>
+    <string name="chat_websearch_results_header">🔍 Results for \"%1$s\":</string>
+    <string name="chat_websearch_empty">No results for \"%1$s\" — DuckDuckGo answered, but found nothing.</string>
+    <string name="chat_websearch_blocked">The search was blocked by DuckDuckGo (reason: %1$s) — it\'s not that there are no results, the site flagged this as an automated request. Try again in a few minutes.</string>
+    <string name="chat_websearch_circuit_open">Too many blocks in a row — search is paused for ~%1$d minute(s) before retrying, to avoid making the block worse.</string>
+    <string name="chat_websearch_error">Connection error while searching the web: %1$s</string>
 </resources>

@@ -13,9 +13,9 @@
 #    - Drivers GPU según hardware (Adreno/Mali/Xclipse/genérico)
 #    - Tools de escritorio en el HOST (best-effort): xfce4 xfce4-goodies
 #      tigervnc x11vnc pavucontrol — dbus-launch ya viene con el paquete "dbus"
-#      en Termux, "dbus-x11" (nombre de Debian/Ubuntu) no existe acá, ver
-#      docs/humano216.md (checkpoint entorno_desktop_tools)
-#    - Base para CLIs de IA en el HOST (best-effort): python3 nodejs-lts git
+#      en Termux, "dbus-x11" (nombre de Debian/Ubuntu) no existe acá
+#      (checkpoint entorno_desktop_tools)
+#    - Base para CLIs de IA en el HOST (best-effort): python nodejs-lts git
 #      curl (checkpoint entorno_ai_tools)
 #    - Crea ~/scripts/entorno/ (scripts de gestión): tx11_start/stop,
 #      vnc_start/stop, pulse_start/stop, gpu_env.sh, x11_setup_env.sh,
@@ -25,7 +25,7 @@
 #      distros, socket visible dentro de la distro, GPU y pulseaudio — para
 #      entender por qué NO se renderiza la GUI dentro de una distro proot
 #
-#  NOTA X11 (ronda 2026-08-13, ver docs/humano/humano100.md): Kairos ya NO usa la
+#  NOTA X11 (desde la ronda 2026-08-13): Kairos ya NO usa la
 #  app externa Termux:X11 (com.termux.x11). El servidor X11 va embebido en el APK
 #  (Xlorie, proceso ":xserver" vía X11Service, ver docs/x11/X11_EMBEBIDO.md).
 #  Este instalador solo registra el modo embebido en el registry; los scripts
@@ -65,7 +65,7 @@
 #  VERSIÓN: 1.4.0 | Agosto 2026 (agrega webapp_launchers.sh — lanzadores
 #  .desktop para las WebUIs de otros módulos de Kairos ya instalados
 #  (n8n/Ollama/OpenClaw/OpenCode/IA Local), patrón url_to_app.sh de RDeX
-#  (referencia/termux/RDeX-main), ver docs/humano/humano170.md)
+#  (referencia/termux/RDeX-main))
 #
 #  VERSIÓN ANTERIOR: 1.3.0 (adaptado de install_entorno.sh v1.1.0;
 #  añade diagnose, scripts gui_* / x11_setup_env / distro_setup_gui /
@@ -154,11 +154,11 @@ ENTORNO_SCRIPTS="$TERMUX_HOME/scripts/entorno"
 
 # ── Helpers compartidas (log/warn/error/info/step/titulo/check_done/mark_done/
 #    notify_event/registry_write/mirrors) ──
-# Fuenteado en lugar de copiado: antes (bug humano57, ver docs/humano/humano57.md)
-# este script definía log/warn/error/check_done/mark_done y copiaba notify_event()
+# Fuenteado en lugar de copiado: antes (bug real) este script definía
+# log/warn/error/check_done/mark_done y copiaba notify_event()
 # inline, con SILENT=0/1 mientras lib.sh espera true/false — causaba
 # "notify_event: command not found" al final de TODA instalación. Desde el refactor
-# de la ronda 2026-08-13 (humano103) se alinea el flag y se sourcea lib.sh como
+# de la ronda 2026-08-13 se alinea el flag y se sourcea lib.sh como
 # el resto de módulos.
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
@@ -173,7 +173,7 @@ update_registry() {
 _check_gpu() {
   local gpu
   gpu=$(getprop ro.board.platform 2>/dev/null)
-  # Codenames Adreno ampliados (2026-08-06, ver docs/humano/humano77.md) — la
+  # Codenames Adreno ampliados (2026-08-06) — la
   # lista original no cubría "cape" (Snapdragon 7+ Gen 2 / SM7475, chip real
   # del POCO F5 usado para probar esta sesión, confirmado "GPU: unknown" en
   # log real) ni otros codenames Qualcomm recientes.
@@ -182,7 +182,7 @@ _check_gpu() {
     *mt*|*t618*|*g610*|*g720*)          echo "mali"; return ;;
     *s5e*|*exynos*)                     echo "xclipse"; return ;;
   esac
-  # Fallback vía sysfs (ronda 2026-09-09, docs/humano328.md, App-Installer/domain/
+  # Fallback vía sysfs (ronda 2026-09-09, App-Installer/domain/
   # installers/gpu_native.sh:26-34) — señal de REFUERZO cuando ro.board.platform trae un
   # codename no cubierto por la lista de arriba (mismo bug de clase que "cape" antes de
   # ampliarse) — /sys/class/kgsl/kgsl-3d0/gpu_model solo existe en dispositivos con GPU
@@ -198,7 +198,7 @@ _check_gpu() {
 _install_proot_distro() {
   titulo "proot-distro"
   command -v proot-distro &>/dev/null && { log "proot-distro ya instalado"; return 0; }
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md: esta función corre
+  # Bug real, mismo patrón que bug #21 (VNC): esta función corre
   # después de check_done "entorno_pkg_update" (gate de una sola vez por checkpoint) — en
   # una reinstalación parcial (checkpoint ya marcado en una corrida previa) el mirror puede
   # haberse roto entretanto y este "pkg install" fallaría sin pista útil.
@@ -225,7 +225,7 @@ _install_udocker() {
 }
 
 _install_x11() {
-  # Desde la ronda 2026-08-13 (ver docs/humano/humano100.md) Kairos NO usa la app
+  # Desde la ronda 2026-08-13, Kairos NO usa la app
   # externa Termux:X11 (com.termux.x11): el servidor X va embebido en el propio APK
   # (X11Service, proceso ":xserver", ver docs/x11/X11_EMBEBIDO.md). Por eso
   # acá no hay APK que descargar — solo se registra el modo embebido en el registry
@@ -243,7 +243,7 @@ _install_pulseaudio() {
   if command -v pulseaudio &>/dev/null; then
     log "PulseAudio ya instalado"
   else
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC).
     pkg_update_with_fallback
     pkg install -y pulseaudio || error "No se pudo instalar pulseaudio"
     log "PulseAudio instalado"
@@ -264,7 +264,7 @@ _install_pulseaudio() {
       log "PulseAudio TCP configurado (127.0.0.1)"
     }
     # module-sles-source: passthrough de micrófono Android→proot (ronda 2026-09-09,
-    # docs/humano328.md, hallazgo real de referencia/ciberseguridad/proot-distro-kali/
+    # hallazgo real de referencia/ciberseguridad/proot-distro-kali/
     # desktop.sh:36-37) — módulo PulseAudio que captura audio real vía OpenSL ES de
     # Android (AAudio no tiene fuente de captura equivalente, por eso es un módulo
     # separado del "sink" de arriba). Sin esto, cualquier app dentro de una distro/DE que
@@ -284,7 +284,7 @@ _install_gpu_native() {
   titulo "GPU nativa — $GPU_TYPE"
   case "$GPU_TYPE" in
     adreno)
-      # Bug real confirmado por ADB (2026-09-14, docs/humano336.md): "mesa-zink" y
+      # Bug real confirmado por ADB (2026-09-14): "mesa-zink" y
       # "mesa-vulkan-icd-freedreno-dri3" NUNCA existieron como paquetes reales en el repo
       # de Termux (confirmado con "apt-cache search mesa"/"apt-cache search mesa-vulkan" en
       # dispositivo real — 0 resultados para esos 2 nombres) — "pkg install -y mesa-zink
@@ -299,7 +299,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s vulkan-loader-generic &>/dev/null; then
         log "GPU Adreno: mesa + vulkan-loader-generic ya instalados"
       else
-        # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+        # Bug real, mismo patrón que bug #21 (VNC).
         pkg_update_with_fallback
         pkg install -y mesa vulkan-loader-generic || \
           warn "GPU Adreno: algunos paquetes fallaron (puede que ya estén)"
@@ -319,7 +319,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s virglrenderer-android &>/dev/null && dpkg -s angle-android &>/dev/null; then
         log "GPU Mali: mesa + virglrenderer-android + angle-android ya instalados"
       else
-        # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+        # Bug real, mismo patrón que bug #21 (VNC).
         pkg_update_with_fallback
         pkg install -y mesa virglrenderer-android angle-android || \
           warn "GPU Mali: algunos paquetes fallaron (puede que ya estén)"
@@ -340,7 +340,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s virglrenderer-android &>/dev/null && dpkg -s angle-android &>/dev/null; then
         log "GPU Xclipse: mesa + virglrenderer-android ya instalados"
       else
-        # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+        # Bug real, mismo patrón que bug #21 (VNC).
         pkg_update_with_fallback
         pkg install -y mesa virglrenderer-android angle-android || \
           warn "GPU Xclipse: algunos paquetes fallaron"
@@ -353,22 +353,21 @@ _install_gpu_native() {
         log "mesa (softGPU llvmpipe) ya instalado"
       else
         warn "GPU no detectada — instalando mesa (softGPU llvmpipe)"
-        # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+        # Bug real, mismo patrón que bug #21 (VNC).
         pkg_update_with_fallback
         pkg install -y mesa || true
       fi
       GPU_METHOD="llvmpipe"
       ;;
   esac
-  # mesa-demos (glxinfo/glxgears) — bug real (docs/humano281.md, pedido explícito del
-  # usuario): el diagnóstico de GPU (EntornoNative.kt gpuDiagnostic()) sugería "pkg install
-  # mesa-utils" en un mensaje de texto pero nunca lo instalaba de verdad, así que el propio
-  # comando sugerido nunca funcionaba solo. Corregido 2026-09-14 (docs/humano336.md): el
-  # paquete real en el repo de Termux se llama "mesa-demos", no "mesa-utils" (ese nombre no
-  # existe acá — confirmado con "apt-cache search mesa" en dispositivo real) — mismo bug de
-  # nombre de paquete que mesa-zink/mesa-vulkan-icd-freedreno-dri3 de arriba. Se instala
-  # acá, una sola vez, para todas las ramas de GPU_TYPE (diagnóstico real, no específico de
-  # un driver).
+  # mesa-demos (glxinfo/glxgears) — bug real: el diagnóstico de GPU (EntornoNative.kt
+  # gpuDiagnostic()) sugería "pkg install mesa-utils" en un mensaje de texto pero nunca lo
+  # instalaba de verdad, así que el propio comando sugerido nunca funcionaba solo. Corregido
+  # 2026-09-14: el paquete real en el repo de Termux se llama "mesa-demos", no "mesa-utils"
+  # (ese nombre no existe acá — confirmado con "apt-cache search mesa" en dispositivo real)
+  # — mismo bug de nombre de paquete que mesa-zink/mesa-vulkan-icd-freedreno-dri3 de arriba.
+  # Se instala acá, una sola vez, para todas las ramas de GPU_TYPE (diagnóstico real, no
+  # específico de un driver).
   dpkg -s mesa-demos &>/dev/null || pkg install -y mesa-demos || \
     warn "mesa-demos no se pudo instalar (glxinfo/glxgears no van a estar disponibles para diagnóstico)"
 }
@@ -379,7 +378,7 @@ _install_gpu_native() {
 # bug de layout dual ya confirmado y corregido en EntornoNative.rootfsParentDir() (Kotlin)
 # y en modulos/ciberseguridad.sh/modulos/cactus.sh (ver comentarios ahí, "2 BUGS REALES
 # confirmados por ADB, proot-distro v5.8.0") — este chequeo bash NUNCA se había alineado a
-# esos 3 (ronda 2026-09-09, docs/humano328.md, hallazgo de referencia/mini-pc). Se prueba
+# esos 3 (ronda 2026-09-09, hallazgo de referencia/mini-pc). Se prueba
 # el layout moderno primero (versión real que trae Termux hoy), legacy como fallback, y
 # "list -q" como último recurso confiable en cualquier versión (mismo criterio que
 # ciberseguridad.sh/cactus.sh).
@@ -552,7 +551,7 @@ TX11STOP
   cat > "$ENTORNO_SCRIPTS/vnc_start.sh" << 'VNCSTART'
 #!/data/data/com.termux/files/usr/bin/bash
 export DISPLAY=:1
-# Fix real (humano181, bug 3 "al darle iniciar da error"): TigerVNC exige contraseña
+# Fix real (bug real: "al darle iniciar da error"): TigerVNC exige contraseña
 # interactiva (vncpasswd) en el primer uso — vncInstall() solo deja un aviso pero
 # nada la fuerza. Con stdin sin tty (este script corre vía ProcessBuilder desde
 # EntornoNative.vncStart(), sin stdin interactivo), vncserver/tigervncserver no
@@ -565,7 +564,7 @@ export DISPLAY=:1
 # (comportamiento estándar, sin este flag).
 VNC_EXTRA_ARGS=""
 [ -f "$HOME/.vnc/passwd" ] || VNC_EXTRA_ARGS="-SecurityTypes None"
-# Geometría parametrizable (ronda 2026-09-09, docs/humano328.md, hallazgo de
+# Geometría parametrizable (ronda 2026-09-09, hallazgo de
 # referencia/termux/modded-ubuntu vncstart-fhd/vncstart-qhd + geometría-por-DE de
 # referencia/ciberseguridad/kali-proot) — antes hardcodeada a 1920x1080 sin forma de
 # ajustarla para pantallas más chicas/grandes. Lee VNC_GEOMETRY del registry si el
@@ -652,7 +651,7 @@ case "$GPU_METHOD" in
     export GALLIUM_DRIVER=zink
     export MESA_GL_VERSION_OVERRIDE=4.3COMPAT
     export MESA_GLES_VERSION_OVERRIDE=3.2
-    # 3 confirmaciones independientes (ronda 2026-09-09, docs/humano328.md):
+    # 3 confirmaciones independientes (ronda 2026-09-09):
     # referencia/ciberseguridad/proot-distro-kali/desktop.sh:41-49,
     # referencia/emuladores/MiceWine-Application-master/EnvVars.java:105-108, y el propio
     # hallazgo cruzado de docs/mini-pc/AUDITORIA_PROOT_DISTRO_2026-09-08.md — ninguna se
@@ -673,7 +672,7 @@ case "$GPU_METHOD" in
     export MESA_GLES_VERSION_OVERRIDE=3.2
     export LIBGL_DRI3_DISABLE=1 ;;
   turnip)
-    # Fix real (roadmap Mini PC item 1, docs/humano/humano181.md bug 5 "en gpu falta
+    # Fix real (roadmap Mini PC item 1, bug "en gpu falta
     # wrapper, zink, turnip o panfrot" — nunca cerrado del todo: setGpuMethod("turnip")
     # ya instalaba paquetes desde 2026-08-xx pero este case nunca existió, así que la
     # variable real que activa el driver freedreno nativo (paquete apt
@@ -688,7 +687,7 @@ case "$GPU_METHOD" in
     # declara gpuMethodOptions() para este método.
     export MESA_LOADER_DRIVER_OVERRIDE=zink
     export TU_DEBUG=noconform
-    # Ampliado (ronda 2026-09-09, docs/humano328.md, hallazgo cruzado de
+    # Ampliado (ronda 2026-09-09, hallazgo cruzado de
     # referencia/herramientas/App-Installer/domain/installers/gpu_proot.sh:8-52 +
     # referencia/emuladores/xow64-wine-ar37rs/xow64:377-398): el bug original de
     # gpu_env.sh (setGpuMethod("turnip") elegía el método pero ninguna variable real se
@@ -708,7 +707,7 @@ case "$GPU_METHOD" in
     # nunca activaba el driver. GALLIUM_DRIVER=panfrost es el nombre real del backend
     # Gallium en Mesa upstream — no verificado en dispositivo real todavía, declarado
     # "experimental" en gpuMethodOptions() a propósito.
-    # Valores GL/GLES/GLSL corregidos (ronda 2026-09-09, docs/humano328.md, hallazgo de
+    # Valores GL/GLES/GLSL corregidos (ronda 2026-09-09, hallazgo de
     # referencia/emuladores/xow64-wine-ar37rs/xow64:1859-1870,1921-1932) — los valores
     # anteriores (4.3COMPAT/3.2) eran una copia literal del caso zink de arriba, nunca
     # confirmados contra Panfrost real; Panfrost (driver Mali nativo, sin capa de
@@ -723,7 +722,7 @@ case "$GPU_METHOD" in
   llvmpipe)
     export GALLIUM_DRIVER=llvmpipe ;;
   wrapper)
-    # "Wrapper" real (corregido 2026-08-28, docs/humano281.md — el usuario aclaró
+    # "Wrapper" real (corregido 2026-08-28 — se aclaró
     # explícitamente que NO es ANGLE/OpenGL/EGL, es Vulkan puro, una capa ENCIMA del driver
     # Vulkan nativo del propio dispositivo, y SOLO funciona en modo nativo, nunca dentro de
     # proot-distro). Identificado en referencia/termux/termux-desktop-main/docs/
@@ -750,8 +749,8 @@ GPUENVEOF
   # loguearse a mano (portado de "pdrun"/packinstall.sh de termux-desktop-main, ver
   # referencia/termux/termux-desktop-main/distro-container-setup). Usado por los
   # lanzadores .desktop que EntornoNative.distroAppInstall()/generateDesktopLaunchers()
-  # generan para apps instaladas dentro de una distro (catálogo de apps, ver
-  # docs/humano/humano118.md). DISPLAY fijo :1 — el X11 embebido de Kairos (Xlorie,
+  # generan para apps instaladas dentro de una distro (catálogo de apps).
+  # DISPLAY fijo :1 — el X11 embebido de Kairos (Xlorie,
   # X11Service), NUNCA :0 (Termux:X11 externo, no se usa en Kairos).
   cat > "$ENTORNO_SCRIPTS/pdrun" << 'PDRUNEOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -767,7 +766,7 @@ shift
 
 usb_bind_args() {
   local args="--bind /storage:/storage --bind /mnt/media_rw:/mnt/media_rw"
-  # Bind de nodos GPU (ronda 2026-09-09, docs/humano328.md, hallazgo de severidad alta con
+  # Bind de nodos GPU (ronda 2026-09-09, hallazgo de severidad alta con
   # cadena causal completa: referencia/emuladores/DroidDesk-main/termux-linux-setup.sh:
   # 491-495) — sin bindear los device nodes reales al namespace proot, CUALQUIER driver
   # Mesa dentro de una distro cae a software rendering (llvmpipe) sin importar qué
@@ -807,7 +806,7 @@ fi
 # XDG_RUNTIME_DIR se traduce a la ruta de la distro: el host lo ve en $PREFIX/tmp/... que
 # con --shared-tmp mapea a /tmp/... dentro de la distro.
 ENV_PREFIX=""
-# Ampliada (ronda 2026-09-09, docs/humano328.md): antes solo reenviaba 4 de las variables
+# Ampliada (ronda 2026-09-09): antes solo reenviaba 4 de las variables
 # GPU reales que gpu_env.sh puede exportar — turnip/zink ahora exportan varias más (ver
 # case "$GPU_METHOD" arriba en este mismo archivo) que nunca llegaban a la distro porque
 # proot no comparte entorno automáticamente y esta lista era la única vía de forward.
@@ -906,7 +905,7 @@ session_cmd() {
   esac
 }
 
-# Sincronización de portapapeles Android↔X11 (ronda 2026-09-09, docs/humano328.md, hallazgo
+# Sincronización de portapapeles Android↔X11 (ronda 2026-09-09, hallazgo
 # de referencia/termux/Termux_XFCE/domain/termux_env.sh:738-759) — polling cada 800ms
 # comparando ambos lados, sincroniza el que cambió al otro, con memoria de último valor
 # visto de CADA lado para no generar un loop de eco (escribir de vuelta lo que se acaba de
@@ -947,7 +946,7 @@ if [ -n "$SDK" ] && [ "$SDK" -ge 31 ]; then
   echo "[WARN] Android SDK $SDK: si la DE muere sola o la pantalla queda en negro, desactivá 'Phantom process killer' en Opciones de desarrollador."
 fi
 
-# Detección de sesión duplicada (ronda 2026-09-09, docs/humano328.md, hallazgo de
+# Detección de sesión duplicada (ronda 2026-09-09, hallazgo de
 # referencia/termux/Termux_XFCE/adapters/output/display_x11.sh:15-72) — antes este script
 # lanzaba una segunda sesión ciegamente si ya había una DE viva sobre el mismo DISPLAY, dos
 # gestores de ventana compitiendo por el mismo :1. Chequeo real (no solo diagnóstico
@@ -991,7 +990,7 @@ if [ "$MODE" = "native" ]; then
   _setup_clipboard_sync "xclip -o -selection clipboard" "xclip -selection clipboard"
   SESSION_CMD=$(session_cmd "$DE")
   # dbus-run-session en vez de dbus-launch --exit-with-session (ronda 2026-09-09,
-  # docs/humano328.md, hallazgo de referencia/termux/linux-on-android/scripts/
+  # hallazgo de referencia/termux/linux-on-android/scripts/
   # 04-start-desktop.sh, causa raíz documentada explícitamente ahí): dbus-launch arranca
   # el daemon y el comando en paralelo, SIN garantía de que el bus esté listo antes de que
   # la DE intente hablar con él — carrera real, no solo teórica, que coincide con la
@@ -1072,7 +1071,7 @@ if ! $USE_GPU; then
   INNER="export LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe GALLIUM_DRIVER=llvmpipe; $INNER"
 fi
 
-# Fix real (humano181, bug 5 "en gpu falta wrapper, zink, turnip o panfrot"): las variables
+# Fix real (bug: "en gpu falta wrapper, zink, turnip o panfrot"): las variables
 # GPU aceleradas (GALLIUM_DRIVER=zink/virpipe/etc., seteadas por gpu_env.sh según lo elegido
 # en "⚙ Configurar método GPU" → EntornoNative.setGpuMethod()) se sourceaban en ESTE shell
 # (host) más arriba pero nunca se pasaban al `env` explícito de `proot-distro login ... --
@@ -1085,8 +1084,8 @@ fi
 # Panfrost puro (sin VirGL) siguen sin soporte real en gpu_env.sh — eso sí es feature
 # faltante, no se inventa acá.
 #
-# Bug real confirmado 2026-08-27 (ver docs/humano256.md, reporte de usuario: fondo NEGRO al
-# abrir un entorno gráfico en distro, pero el panel/resto sí carga): el fix de arriba (humano181)
+# Bug real confirmado 2026-08-27 (reporte de usuario: fondo NEGRO al
+# abrir un entorno gráfico en distro, pero el panel/resto sí carga): el fix anterior
 # construía GPU_ENV_ARGS leyendo $GALLIUM_DRIVER/$MESA_GL_VERSION_OVERRIDE/etc DIRECTO del shell
 # actual — pero este bloque "modo distro" nunca sourcea gpu_env.sh (a diferencia del modo nativo,
 # línea ~754 arriba), así que esas variables SIEMPRE estaban unset acá, sin importar qué método
@@ -1106,7 +1105,7 @@ if $USE_GPU; then
   [ -n "$MESA_GL_VERSION_OVERRIDE" ] && GPU_ENV_ARGS="$GPU_ENV_ARGS MESA_GL_VERSION_OVERRIDE=$MESA_GL_VERSION_OVERRIDE"
   [ -n "$MESA_GLES_VERSION_OVERRIDE" ] && GPU_ENV_ARGS="$GPU_ENV_ARGS MESA_GLES_VERSION_OVERRIDE=$MESA_GLES_VERSION_OVERRIDE"
   [ -n "$LIBGL_DRI3_DISABLE" ] && GPU_ENV_ARGS="$GPU_ENV_ARGS LIBGL_DRI3_DISABLE=$LIBGL_DRI3_DISABLE"
-  # Ampliada (ronda 2026-09-09, docs/humano328.md) — mismo motivo que el forward de pdrun
+  # Ampliada (ronda 2026-09-09) — mismo motivo que el forward de pdrun
   # más arriba en este archivo: turnip/zink ahora exportan variables que esta whitelist
   # nunca reenviaba, así que el método turnip no hacía nada útil dentro de una distro pese
   # a que gpu_env.sh sí las exportara del lado host.
@@ -1122,7 +1121,7 @@ else
 fi
 
 # dbus-run-session preferido sobre dbus-launch (mismo motivo que el modo nativo más
-# arriba, ronda 2026-09-09, docs/humano328.md) — el chequeo real de qué binario existe
+# arriba, ronda 2026-09-09) — el chequeo real de qué binario existe
 # ocurre DENTRO de la distro en runtime (el "command -v" de host no aplica al binario de
 # la distro), así que se intenta dbus-run-session primero y se cae a dbus-launch si no
 # existe, todo dentro del mismo comando ejecutado en el proot.
@@ -1173,7 +1172,7 @@ pkill -f 'dbus-run-session' 2>/dev/null
 pkill -f 'proot-distro login' 2>/dev/null
 pkill -f 'tigervncserver' 2>/dev/null
 
-# Fix real (humano181, bug 6 "instalo nativo y luego abrir con distro da error"): pkill
+# Fix real (bug: "instalo nativo y luego abrir con distro da error"): pkill
 # solo manda SIGTERM y retorna al toque, sin esperar a que el proceso termine de verdad —
 # xfce4-session/proot-distro login pueden tardar >0s en apagarse limpio. showConflictDialog()
 # (EntornoFragment.kt) reintenta el arranque del OTRO modo apenas stopDesktopSession()
@@ -1188,7 +1187,7 @@ for _i in 1 2 3; do
 done
 echo "[OK] Sesiones de escritorio detenidas"
 
-# Limpieza de locks stale de TigerVNC (ronda 2026-09-09, docs/humano328.md, hallazgo
+# Limpieza de locks stale de TigerVNC (ronda 2026-09-09, hallazgo
 # convergente de referencia/termux/modded-ubuntu/distro/vncstop y
 # referencia/ciberseguridad/kali-proot/builder/gui.sh vncstop() y
 # referencia/ciberseguridad/proot-distro-nethunter/VNC/kgui): "pkill -f tigervncserver" de
@@ -1223,7 +1222,7 @@ GUISTOPEOF
   # KNOWN_DESKTOPS usa para el host (installDesktop() en EntornoNative.kt). "kde"
   # agregada (roadmap Mini PC item 2, MEJORAS_PENDIENTES.md 2026-08-28) SOLO acá, vía
   # distro — KDE Plasma no existe como paquete pkg nativo de Termux (fuera de alcance
-  # del repo x11-packages, confirmado bug real docs/humano/humano116.md sobre
+  # del repo x11-packages, confirmado bug real sobre
   # "plasma"), así que EntornoNative.KNOWN_DESKTOPS (el picker NATIVO, host) sigue sin
   # "kde" a propósito — ver EntornoNative.KNOWN_DESKTOPS_DISTRO para el abanico
   # ampliado que sí usa el picker "con distro".
@@ -1252,7 +1251,7 @@ case "$DE" in
   *) echo "[ERROR] DE desconocida: $DE (soportadas: xfce4, lxqt, mate, kde)" >&2; exit 1 ;;
 esac
 
-# Chequeo de espacio real ANTES de instalar (ronda 2026-09-09, docs/humano328.md, hallazgo
+# Chequeo de espacio real ANTES de instalar (ronda 2026-09-09, hallazgo
 # de referencia/ciberseguridad/pocket-kali/install.sh:66-85) — EntornoDistrosTab.kt avisa
 # el costo estimado de KDE (~1.5-2GB) solo por TEXTO, sin validar espacio real disponible;
 # un DE pesado a mitad de "apt-get install" con el disco lleno deja el dpkg del contenedor
@@ -1275,7 +1274,7 @@ echo "[STEP] Configurando GUI en la distro: $DISTRO (dbus-x11 + $DE${LITE:+ [lit
 # ahí). "timeout -k 10 900" acota el intento a 15 minutos + SIGKILL a los 10s si
 # el SIGTERM no alcanza (proot arma su propio árbol de procesos, ver comentario
 # de ciberseguridad.sh); el self-heal "dpkg --configure -a" YA vivía dentro del
-# bash -c de abajo desde antes (humano281) — se agrega acá la limpieza de
+# bash -c de abajo desde antes — se agrega acá la limpieza de
 # procesos huérfanos de ESTE contenedor específico ANTES de reintentar, mismo
 # criterio (no garantiza el 100% de los casos, reduce la chance real).
 pkill -9 -f "proot-distro login $DISTRO" 2>/dev/null
@@ -1294,7 +1293,7 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
       mate)  _SESSION_BIN=mate-session ;;
       kde)   _SESSION_BIN=startplasma-x11 ;;
     esac
-    # Fix real (humano181, bug 1 "da error al instalar entorno gráfico en la distro"):
+    # Fix real (bug: "da error al instalar entorno gráfico en la distro"):
     # antes toda la salida de apt-get iba a /dev/null — si la instalación fallaba (mirror
     # caído, sin red dentro del proot, paquete no encontrado, disco lleno), el único rastro
     # era el "[ERROR] La instalación de la DE falló..." genérico de más abajo, sin ninguna
@@ -1309,21 +1308,29 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
     # el paquete quedó instalado. _apt_install_repair intenta el install, y si falla corre
     # "apt --fix-broken install -y" una vez (dependencias rotas, mirror caído a mitad de
     # descarga) y reintenta el install original antes de rendirse — mismo criterio ya usado
-    # por el self-heal "dpkg --configure -a" de arriba (docs/humano269.md), extendido al
+    # por el self-heal "dpkg --configure -a" de arriba, extendido al
     # paso de instalación en sí, no solo al estado previo de dpkg.
     _apt_install_repair() {
       local out rc
       out="$(apt-get install -y "$@" 2>&1)"; rc=$?
       if [ $rc -ne 0 ]; then
-        out="$out"$'\n'"[reparando dependencias rotas] apt --fix-broken install -y"$'\n'"$(apt --fix-broken install -y 2>&1)"
-        out="$out"$'\n'"[reintentando] apt-get install -y $*"$'\n'"$(apt-get install -y "$@" 2>&1)"; rc=$?
+        # $'\n' (ANSI-C quoting) no funciona anidado dentro del "bash -c '...'" que envuelve
+        # a toda esta función — ver comentario completo más abajo donde se corrigió el mismo
+        # bug en _APT_LOG (2026-09-15). Fix idéntico acá: newline literal embebido dentro de
+        # comillas dobles en vez de $'\n'.
+        out="$out
+[reparando dependencias rotas] apt --fix-broken install -y
+$(apt --fix-broken install -y 2>&1)"
+        out="$out
+[reintentando] apt-get install -y $*
+$(apt-get install -y "$@" 2>&1)"; rc=$?
       fi
       printf '%s' "$out"
       return $rc
     }
     if command -v apt-get >/dev/null 2>&1; then
       # dpkg --configure -a self-heal (mismo patrón ya usado en ciberseguridad.sh PASO 7b,
-      # ver comentario ahí): bug real confirmado por ADB (docs/humano269.md) — si un paso
+      # ver comentario ahí): bug real confirmado por ADB — si un paso
       # apt ANTERIOR dentro de este mismo contenedor (ej. kali-tools-top10 en el flujo de
       # ciberseguridad --variant pro-gui) quedó interrumpido a mitad de un dpkg (kill por
       # falta de memoria durante una instalación masiva de módulos en paralelo, señal 15),
@@ -1332,12 +1339,12 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
       # dpkg --configure -a" (bug real confirmado: un apostrofe literal en este comentario,
       # dentro del bloque bash -c de comillas simples de mas abajo, cortaba la comilla externa
       # antes de tiempo y truncaba el script real ejecutado dentro del proot (error real:
-      # unexpected end of file from if command, ver docs/humano281.md) — sin este self-heal,
+      # unexpected end of file from if command) — sin este self-heal,
       # ese estado roto se propagaba de
       # ciberseguridad.sh (Kali headless) a este script (GUI), haciendo fallar la GUI aunque
       # el motivo real no tuviera nada que ver con dbus-x11/xfce4/tigervnc.
       dpkg --configure -a >/dev/null 2>&1 || true
-      # udisks2 postinst hang bajo proot (ronda 2026-09-09, docs/humano328.md, hallazgo
+      # udisks2 postinst hang bajo proot (ronda 2026-09-09, hallazgo
       # convergente de referencia/ciberseguridad/kali-proot y proot-distro-kali): el
       # postinst REAL de udisks2 intenta hablar con polkit/dbus del sistema completo, que
       # no corre entero dentro de un proot — el paquete se cuelga a mitad de "apt-get
@@ -1352,10 +1359,25 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
         mkdir -p /var/lib/dpkg/info 2>/dev/null
         [ -f /var/lib/dpkg/info/udisks2.postinst ] || echo "" > /var/lib/dpkg/info/udisks2.postinst 2>/dev/null
       fi
-      _APT_LOG="$(apt-get update -y 2>&1)"; _APT_LOG="$_APT_LOG"$'\n'
+      # $'\n' (ANSI-C quoting) NO funciona anidado dentro del "bash -c '...'" ya abierto
+      # más arriba en este mismo script generado — mismo bug de clase que el printf ya
+      # documentado más abajo (comentario "Bug real confirmado por ADB 2026-09-14"): un
+      # single quote no se puede escapar dentro de otro single quote. A diferencia del
+      # printf (que rompía TODO el resto del script porque el contenido entre el quote que
+      # se cerraba de más y el que reabría tenía espacios/&&/> sin comillas), acá el bash
+      # exterior solo alcanza a mangled "$'\n'" en literal "$n" (2 chars: $ + n) porque el
+      # hueco sin comillas entre el cierre y la reapertura son justo "\n" sin espacio real
+      # — no corrompe el script (confirmado con bash -n), pero "$n" se expande después como
+      # la variable $n (vacía) en vez de insertar un salto de línea real: el separador entre
+      # tandas de _APT_LOG en el log de diagnóstico (mostrado con "tail -c 500" al fallar)
+      # queda pegado sin salto de línea. Fix: newline literal embebido dentro de comillas
+      # dobles (inertes acá, no rompen el quote exterior single) en vez de $'\n'.
+      _APT_LOG="$(apt-get update -y 2>&1)"
+      _APT_LOG="$_APT_LOG
+"
       case "$DE" in
         xfce4)
-          # xfce4-whiskermenu-plugin (ronda 2026-09-09, docs/humano328.md, hallazgo de
+          # xfce4-whiskermenu-plugin (ronda 2026-09-09, hallazgo de
           # referencia/ciberseguridad/proot-distro-nethunter/install-nethunter.sh:804-895):
           # menú de aplicaciones con buscador en vivo — liviano (~1-2MB), instalable en
           # ambas variantes lite/completa. Best-effort ("|| true"): si el mirror no lo
@@ -1366,7 +1388,8 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
             apt-get install -y xfce4-whiskermenu-plugin >/dev/null 2>&1 || true
           else
             _APT_LOG="$_APT_LOG$(_apt_install_repair dbus-x11 xfce4 xfce4-goodies tigervnc-standalone-server)" || \
-                   _APT_LOG="$_APT_LOG"$'\n'"$(_apt_install_repair dbus-x11 xfce4 tigervnc-standalone-server)"
+                   _APT_LOG="$_APT_LOG
+$(_apt_install_repair dbus-x11 xfce4 tigervnc-standalone-server)"
             apt-get install -y xfce4-whiskermenu-plugin >/dev/null 2>&1 || true
           fi ;;
         lxqt)  _APT_LOG="$_APT_LOG$(_apt_install_repair dbus-x11 lxqt tigervnc-standalone-server)" ;;
@@ -1377,7 +1400,8 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
             _APT_LOG="$_APT_LOG$(_apt_install_repair dbus-x11 mate-desktop-environment-core tigervnc-standalone-server)"
           else
             _APT_LOG="$_APT_LOG$(_apt_install_repair dbus-x11 mate-desktop-environment tigervnc-standalone-server)" || \
-                   _APT_LOG="$_APT_LOG"$'\n'"$(_apt_install_repair dbus-x11 task-mate-desktop tigervnc-standalone-server)"
+                   _APT_LOG="$_APT_LOG
+$(_apt_install_repair dbus-x11 task-mate-desktop tigervnc-standalone-server)"
           fi ;;
         kde)
           # kde-plasma-desktop = metapaquete mínimo real de Debian/Ubuntu (Plasma sin
@@ -1451,9 +1475,9 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
     else
       echo "[WARN] gestor de paquetes desconocido — instalá la DE manualmente dentro de la distro"
     fi
-    # dbus-run-session preferido (mismo motivo que gui_start.sh, ronda 2026-09-09,
-    # docs/humano328.md) — chequeo real dentro de la propia distro en runtime, no del host.
-    # Bug real confirmado por ADB (2026-09-14, docs/humano336.md, bash -x trace en
+    # dbus-run-session preferido (mismo motivo que gui_start.sh, ronda 2026-09-09)
+    # — chequeo real dentro de la propia distro en runtime, no del host.
+    # Bug real confirmado por ADB (2026-09-14, bash -x trace en
     # dispositivo real): esta línea vivía con el formato de printf entre comillas simples,
     # pero está anidada dentro del bloque bash -c de comillas simples de más arriba — en
     # bash NO se puede anidar comillas simples dentro de otras comillas simples (no existe
@@ -1605,21 +1629,21 @@ _install_desktop_tools() {
     warn "Android SDK $_sdk: desactivá 'Disable phantom process killer' en Opciones de desarrollador para que la DE no muera sola (patrón termux-desktop)"
   fi
   if command -v pkg &>/dev/null; then
-    # Bug #21 arreglado (auditoría ADB, ver docs/humano/humano193.md): faltaba pkg_update_with_fallback()
+    # Bug #21 arreglado (auditoría ADB): faltaba pkg_update_with_fallback()
     # antes de este "pkg install" — el fix del bug de mirror roto (2026-08-12) nunca se propagó
     # a esta función específica, así que "Visor VNC (:5901)" fallaba siempre con
     # "No mirror or mirror group selected" + "curl: command not found" sin ningún indicio real.
     pkg_update_with_fallback
-    # Bug real confirmado por auditoría de código (2026-09-14, docs/humano337.md): xfce4,
+    # Bug real confirmado por auditoría de código (2026-09-14): xfce4,
     # xfce4-goodies y tigervnc viven en el repo separado "x11-repo" de termux/x11-packages —
     # nunca se habilitaba acá (mismo repo que EntornoNative.installDesktop() sí habilita vía
     # ensureX11Repo() desde hace tiempo, pero ese fix nunca se propagó a esta función bash
     # gemela). Sin "x11-repo" habilitado, el "pkg install" de abajo fallaba para estos 3
     # paquetes específicos, silenciado por el "|| warn" (mismo patrón exacto que ya escondió
     # el bug de "dbus-x11" documentado abajo, y el mismo patrón que rompió mesa-zink/
-    # mesa-vulkan-icd-freedreno-dri3 en _install_gpu_native(), ver docs/humano336.md).
+    # mesa-vulkan-icd-freedreno-dri3 en _install_gpu_native()).
     pkg install -y x11-repo || true
-    # Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por
+    # Bug real encontrado 2026-08-24 (pruebas funcionales reales por
     # ADB): "dbus-x11" NO es un paquete real de Termux (confirmado con `pkg search dbus` — solo
     # existen "dbus"/"dbus-glib"/etc., ninguno "dbus-x11"; ese nombre es la convención de
     # Debian/Ubuntu, que sí separa dbus-launch en un paquete aparte). Con un nombre de paquete
@@ -1640,9 +1664,18 @@ _install_desktop_tools() {
 _install_ai_tools() {
   titulo "Base CLIs de IA en HOST (best-effort)"
   if command -v pkg &>/dev/null; then
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC).
     pkg_update_with_fallback
-    pkg install -y python3 nodejs-lts git curl || \
+    # Bug real confirmado contra el índice apt real de Termux (2026-09-15,
+    # packages.termux.dev/apt/termux-main Packages, aarch64): "python3" NUNCA existió
+    # como nombre de paquete — el paquete real se llama "python" (provee el binario
+    # /usr/bin/python3, ver stacks.sh native_package_for_preset() que ya distinguía esto
+    # bien: "python" para pkg install, "python3" solo como nombre de binario a chequear).
+    # Mismo patrón exacto que mesa-zink/dbus-x11/mesa-vulkan-icd-freedreno-dri3: con un
+    # nombre de paquete inválido en la lista, "pkg install"
+    # falla de forma atómica para TODOS los paquetes (ni nodejs-lts/git/curl se instalaban
+    # nunca), silenciado sin distinción por el "|| warn" de abajo.
+    pkg install -y python nodejs-lts git curl || \
       warn "Algunos paquetes de base IA fallaron (puede que ya estén)"
   else
     warn "pkg no disponible — no se instaló la base de IA"

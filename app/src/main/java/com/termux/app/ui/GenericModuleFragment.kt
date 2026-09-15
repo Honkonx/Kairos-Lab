@@ -198,7 +198,7 @@ class GenericModuleFragment : BaseModuleFragment() {
 
         // "Usar Ollama/llama-server local" — SOLO para los 3 CLIs de i-Haklab confirmados
         // con soporte real de endpoint OpenAI-compatible custom (investigación contra cada
-        // repo real, ver docs/humano/humano116.md y LocalCliProviderNative.kt): qwencode
+        // repo real, ver LocalCliProviderNative.kt): qwencode
         // (.qwen/.env), mimocode (mimocode.jsonc provider "custom"), mistralvibe
         // (config.toml [[providers]] backend=generic). Los otros 4 candidatos del mismo
         // lote (freebuff/codebuff/minimaxcli/copilotcli) están atados a su propio backend
@@ -225,6 +225,15 @@ class GenericModuleFragment : BaseModuleFragment() {
                 updateModuleService { ok ->
                     toast(if (ok) getString(R.string.generic_module_toast_updated, m.name) else getString(R.string.generic_module_toast_update_failed, m.id))
                 }
+            }
+            // Tarea 3 (2026-09-15) — ver KDoc de BaseModuleFragment.runModuleDoctorForThis().
+            // GenericModuleFragment arma su propia sección de mantenimiento (no usa
+            // addMaintenanceCard()) porque además tiene el botón "Actualizar" con texto propio
+            // (m.name en vez de getModuleName()) — se agrega el mismo botón acá para cubrir los
+            // ~20 módulos CLI genéricos que no tienen Fragment dedicado.
+            actionButton(getString(R.string.base_module_diagnose), GHOST) {
+                toast(getString(R.string.base_module_diagnosing, m.name))
+                runModuleDoctorForThis()
             }
             actionButton(getString(R.string.generic_module_btn_uninstall), DANGER) {
                 confirmUninstall(m)
@@ -375,7 +384,7 @@ class GenericModuleFragment : BaseModuleFragment() {
         private const val ARG_WEBVIEW_URL = "module_webview_url"
         private const val ARG_TERMINAL_COMMAND = "module_terminal_command"
 
-        // Investigación 2026-08-13 (ver docs/humano/humano116.md): de los 7 CLIs candidatos
+        // Investigación 2026-08-13: de los 7 CLIs candidatos
         // de i-Haklab (freebuff/codebuff/copilotcli/minimaxcli/mimocode/mistralvibe/
         // qwencode), solo estos 3 confirman soporte real de endpoint OpenAI-compatible
         // custom contra su repo/documentación real — ver LocalCliProviderNative.kt.

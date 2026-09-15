@@ -75,6 +75,14 @@ class VerificarFragment : BaseModuleFragment() {
                     toast(if (ok) getString(R.string.verificar_updated_toast, getModuleName()) else getString(R.string.verificar_update_failed_toast))
                 }
             }
+            // Tarea 3 (2026-09-15) — ver KDoc de BaseModuleFragment.runModuleDoctorForThis().
+            // Distinto del botón "Ejecutar verificación" de arriba (verificar.sh --all, chequea
+            // TODOS los módulos vía bash): esto diagnostica el módulo "verificar" en sí mismo
+            // (registry/binario/script propio), mismo patrón que el resto de pantallas.
+            actionButton(getString(R.string.base_module_diagnose), GHOST) {
+                toast(getString(R.string.base_module_diagnosing, getModuleName()))
+                runModuleDoctorForThis()
+            }
             actionButton(getString(R.string.verificar_uninstall_button), DANGER) {
                 com.termux.app.ModuleController.uninstallModule(getModuleId()) { ok ->
                     if (!isAdded) return@uninstallModule

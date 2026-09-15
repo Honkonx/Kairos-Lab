@@ -24,17 +24,16 @@ import com.termux.app.util.kairosThemeColor
 import com.termux.app.util.applyTermuxEnv
 
 /**
- * Pantalla "⚙ Configuración" de IA Local — llama.cpp (2026-08-23, ver docs/humano209.md,
- * pedido explícito del usuario: "contexto, token, threads entre otras opciones que estan en la
- * pantalla principal no pasaron a configuracion"). Recibe TODA la card "PARÁMETROS" que antes
- * vivía en `LlamaServerFragment.buildParamsCard()` — mismo archivo de config
- * (`~/.llamaserver_user_config`), mismas claves, mismo comportamiento, solo cambia la pantalla.
+ * Pantalla "⚙ Configuración" de IA Local — llama.cpp (2026-08-23): agrupa contexto, tokens,
+ * threads y demás opciones que antes quedaban sueltas en la pantalla principal. Recibe TODA la
+ * card "PARÁMETROS" que antes vivía en `LlamaServerFragment.buildParamsCard()` — mismo archivo
+ * de config (`~/.llamaserver_user_config`), mismas claves, mismo comportamiento, solo cambia la
+ * pantalla.
  *
- * 2026-08-24 (ver docs/humano210.md, corrección explícita: "en ia local ahi dos tuercas una en
- * la pantalla principal y otra dentro de catalogo, deja todo dentro de la tuerca en la pantalla
- * principal") — absorbe también las cards MOTOR/PARÁMETROS que antes vivían en
- * `LocalAIConfigFragment` (ahora eliminado), reachable desde el "⚙" propio del catálogo GGUF
- * (`LocalAIFragment`). Mismas `SharedPreferences kairos_llm_prefs`, mismas claves, mismo
+ * 2026-08-24 — unifica en una sola "tuerca" de configuración lo que antes estaba repartido entre
+ * la pantalla principal y el catálogo: absorbe también las cards MOTOR/PARÁMETROS que antes
+ * vivían en `LocalAIConfigFragment` (ahora eliminado), reachable desde el "⚙" propio del catálogo
+ * GGUF (`LocalAIFragment`). Mismas `SharedPreferences kairos_llm_prefs`, mismas claves, mismo
  * comportamiento — el motor embebido que usa `ChatFragment` es un subsistema DISTINTO del
  * servidor HTTP `llama-server` de arriba (uno corre dentro del proceso de la app, el otro es un
  * binario aparte con su propio puerto), pero para el usuario ambos son "la configuración de IA
@@ -43,7 +42,8 @@ import com.termux.app.util.applyTermuxEnv
 class LlamaServerConfigFragment : BaseModuleFragment() {
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-    // LLAMA_SERVER_API_KEY (apiKeyInput) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    // LLAMA_SERVER_API_KEY (apiKeyInput) — un secreto guardado nunca se vuelve a mostrar,
+    // y esto evita que un overlay malicioso capture toques sobre el campo.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -373,7 +373,8 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
             // Paridad con OllamaConfigFragment's "Reiniciar"/"Detalle del proceso" (auditoría
             // de paridad de opciones, 2026-08-28) — antes solo llama.cpp tenía "Actualizar"/
             // "Desinstalar" acá, sin forma de reiniciar el servicio ni ver su estado real sin
-            // salir a la terminal (ver .claude/rules/kairos-product-philosophy.md).
+            // salir a la terminal (Kairos existe para que el usuario no tenga que vivir en la
+            // terminal — cualquier función real de un módulo debería tener un camino de UI).
             actionButton(getString(R.string.llamaserver_config_btn_reiniciar), GHOST) { restartService() }
             actionButton(getString(R.string.llamaserver_config_btn_detalle_proceso), GHOST) { showProcessDetail() }
             // Paridad con OllamaConfigFragment's "Info GPU" (auditoría de paridad de opciones,
@@ -386,6 +387,11 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
                 updateModuleService { ok ->
                     toast(if (ok) getString(R.string.llamaserver_config_toast_actualizado_ok) else getString(R.string.llamaserver_config_toast_actualizado_fail))
                 }
+            }
+            // Tarea 3 (2026-09-15) — ver KDoc de BaseModuleFragment.runModuleDoctorForThis().
+            actionButton(getString(R.string.base_module_diagnose), GHOST) {
+                toast(getString(R.string.base_module_diagnosing, getModuleName()))
+                runModuleDoctorForThis()
             }
             actionButton(getString(R.string.llamaserver_config_btn_desinstalar), DANGER) { confirmUninstallModule() }
         }

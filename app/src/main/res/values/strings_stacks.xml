@@ -92,6 +92,26 @@
     <string name="stacks_toast_invalid_port">Puerto inválido</string>
     <string name="stacks_toast_starting_tunnel">Iniciando túnel Cloudflare en :%1$d…</string>
 
+    <!-- ── Monorepos (2026-09-15) — proyecto padre con varios sub-proyectos de stacks
+         distintos, ej. "proyecto-0/frontend" (Node) + "proyecto-0/backend" (Python) ── -->
+    <string name="stacks_btn_detect_subprojects">🧩 Detectar sub-proyectos</string>
+    <string name="stacks_no_subprojects_found">No se detectaron sub-proyectos con stack propio en las subcarpetas</string>
+    <string name="stacks_monorepo_detected_title">%1$s — sub-proyectos detectados</string>
+    <string name="stacks_subproject_label">%1$s (%2$s)</string>
+    <string name="stacks_monorepo_confirm_button">Agregar como monorepo</string>
+    <string name="stacks_monorepo_simple_button">Agregar como proyecto simple</string>
+    <string name="stacks_monorepo_card_title">MONOREPO</string>
+    <string name="stacks_monorepo_description">Este proyecto tiene varios sub-proyectos con stacks distintos — cada uno se instala/arranca por separado, con su propio destino y comando.</string>
+    <string name="stacks_monorepo_card_subprojects">SUB-PROYECTOS</string>
+    <string name="stacks_btn_start_all">▶ Iniciar todos</string>
+    <string name="stacks_btn_rescan_subprojects">🔄 Detectar de nuevo</string>
+    <string name="stacks_no_new_subprojects">No se encontraron sub-proyectos nuevos</string>
+    <string name="stacks_no_subprojects">Este proyecto no tiene sub-proyectos registrados</string>
+    <string name="stacks_hint_delay_seconds">Delay entre inicios, en segundos (opcional, 0 = sin delay)</string>
+    <string name="stacks_dialog_start_all_title">Iniciar todos los sub-proyectos</string>
+    <string name="stacks_dialog_start_all_message">Se inician en el orden en que aparecen en la lista — no se resuelve el orden de dependencias automáticamente (ej. si el backend necesita estar arriba antes que el frontend, usá el delay o iniciá a mano en el orden que corresponda).</string>
+    <string name="stacks_toast_starting_all">Iniciando %1$d sub-proyecto(s)…</string>
+
     <!-- ═══════════════════════════════════════════════════════════
          RepoFragment.kt (repo_*)
          ═══════════════════════════════════════════════════════════ -->

@@ -152,3 +152,47 @@ Java_com_termux_llm_LlamaEngine_benchModel(JNIEnv* env, jobject /*unused*/, jlon
     std::string result       = llmInference->benchModel(pp, tg, pl, nr);
     return env->NewStringUTF(result.c_str());
 }
+
+// Soporte multimodal (imagen+texto) — ver LLMInference.h/.cpp para el diseño completo.
+extern "C" JNIEXPORT void JNICALL
+Java_com_termux_llm_LlamaEngine_loadMultimodalProjector(JNIEnv* env, jobject thiz, jlong modelPtr,
+                                                           jstring mmprojPath, jboolean useGpu) {
+    jboolean    isCopy       = true;
+    const char* pathCstr     = env->GetStringUTFChars(mmprojPath, &isCopy);
+    auto*       llmInference = reinterpret_cast<LLMInference*>(modelPtr);
+    try {
+        llmInference->loadMultimodalProjector(pathCstr, useGpu);
+    } catch (std::exception& error) {
+        env->ReleaseStringUTFChars(mmprojPath, pathCstr);
+        env->ThrowNew(env->FindClass("java/lang/IllegalStateException"), error.what());
+        return;
+    }
+    env->ReleaseStringUTFChars(mmprojPath, pathCstr);
+}
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_termux_llm_LlamaEngine_supportsVision(JNIEnv* env, jobject thiz, jlong modelPtr) {
+    auto* llmInference = reinterpret_cast<LLMInference*>(modelPtr);
+    return llmInference->supportsVision() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_termux_llm_LlamaEngine_startCompletionWithImage(JNIEnv* env, jobject thiz, jlong modelPtr,
+                                                            jstring prompt, jbyteArray imageBytes) {
+    jboolean    isCopy       = true;
+    const char* promptCstr   = env->GetStringUTFChars(prompt, &isCopy);
+    jbyte*      imageCstr    = env->GetByteArrayElements(imageBytes, &isCopy);
+    jsize       imageLen     = env->GetArrayLength(imageBytes);
+    auto*       llmInference = reinterpret_cast<LLMInference*>(modelPtr);
+    try {
+        llmInference->startCompletionWithImage(
+            promptCstr, reinterpret_cast<const unsigned char*>(imageCstr), (size_t) imageLen);
+    } catch (std::exception& error) {
+        env->ReleaseStringUTFChars(prompt, promptCstr);
+        env->ReleaseByteArrayElements(imageBytes, imageCstr, JNI_ABORT);
+        env->ThrowNew(env->FindClass("java/lang/IllegalStateException"), error.what());
+        return;
+    }
+    env->ReleaseStringUTFChars(prompt, promptCstr);
+    env->ReleaseByteArrayElements(imageBytes, imageCstr, JNI_ABORT);
+}

@@ -2,6 +2,7 @@
 // para la nota de atribución completa.
 
 #include "LLMInference.h"
+#include "mtmd-helper.h"
 #include <android/log.h>
 #include <cstring>
 #include <iomanip>
@@ -133,6 +134,7 @@ LLMInference::loadModel(const char *model_path, float minP, float temperature, f
         model_params.load_mode = LLAMA_LOAD_MODE_NONE;
     }
     model_params.n_gpu_layers = nGpuLayers;
+    _nThreads = nThreads;
     _model = llama_model_load_from_file(model_path, model_params);
     if (!_model) {
         LOGe("failed to load model from %s", model_path);
@@ -220,6 +222,134 @@ LLMInference::loadModel(const char *model_path, float minP, float temperature, f
         }
         llama_memory_clear(llama_get_memory(_ctx), true);
     }
+}
+
+void
+LLMInference::loadMultimodalProjector(const char *mmprojPath, bool useGpu) {
+    if (!_model) {
+        throw std::runtime_error("loadMultimodalProjector() failed: no hay modelo de texto cargado (llamar loadModel() primero)");
+    }
+    if (_mtmdCtx) {
+        mtmd_free(_mtmdCtx);
+        _mtmdCtx = nullptr;
+    }
+    _lastErrorLog.clear();
+    mtmd_context_params mparams = mtmd_context_params_default();
+    mparams.use_gpu = useGpu;
+    mparams.n_threads = _nThreads;
+    // warmup=false: el warmup de mtmd corre un encode de imagen dummy al cargar — en un
+    // dispositivo ya limitado de RAM/tiempo de arranque no vale la pena pagar ese costo antes
+    // de que el usuario adjunte una imagen real (a diferencia del warmup de loadModel(), que sí
+    // es barato — un solo token de texto).
+    mparams.warmup = false;
+    _mtmdCtx = mtmd_init_from_file(mmprojPath, _model, mparams);
+    if (!_mtmdCtx) {
+        LOGe("failed to load mmproj from %s", mmprojPath);
+        std::string reason = _lastErrorLog.empty() ? "no further detail from ggml" : _lastErrorLog;
+        throw std::runtime_error("loadMultimodalProjector() failed: " + reason);
+    }
+    if (!mtmd_support_vision(_mtmdCtx)) {
+        // El archivo cargó como mtmd_context válido pero no es un projector de VISION (podría
+        // ser uno de audio-only, ej. Whisper-encoder) — Kairos solo tiene UI para adjuntar
+        // imágenes hoy, así que este mmproj no sirve para lo que el caller lo pidió.
+        mtmd_free(_mtmdCtx);
+        _mtmdCtx = nullptr;
+        throw std::runtime_error("loadMultimodalProjector() failed: el mmproj no soporta imágenes (mtmd_support_vision=false)");
+    }
+}
+
+bool
+LLMInference::supportsVision() const {
+    return _mtmdCtx != nullptr && mtmd_support_vision(_mtmdCtx);
+}
+
+void
+LLMInference::startCompletionWithImage(const char *query, const unsigned char *imageBytes, size_t imageLen) {
+    if (!_mtmdCtx) {
+        throw std::runtime_error("startCompletionWithImage() failed: no hay mmproj cargado (llamar loadMultimodalProjector() primero)");
+    }
+
+    _responseGenerationTime = 0;
+    _responseNumTokens = 0;
+    _response.clear();
+    _cacheResponseTokens.clear();
+    _skipNextDecode = false;
+
+    struct mtmd_helper_bitmap_wrapper bitmapResult =
+        mtmd_helper_bitmap_init_from_buf(_mtmdCtx, imageBytes, imageLen, /*placeholder=*/false);
+    if (!bitmapResult.bitmap) {
+        throw std::runtime_error("startCompletionWithImage() failed: no se pudo decodificar la imagen (formato no soportado o archivo corrupto)");
+    }
+
+    // Un turno con imagen SIEMPRE reprocesa la conversación completa en vez de usar el prompt
+    // incremental (_prevLen) que startCompletion() usa para texto puro — mtmd_helper_eval_chunks()
+    // necesita un n_past explícito y coherente con TODO lo que ya está en la KV-cache de la
+    // secuencia 0, y mezclar eso con el esquema de slicing por caracteres de _formattedMessages
+    // agregaría una fuente real de bugs de sincronización para el primer paso de esta función.
+    // Mismo mecanismo que ya usa el camino !_storeChats de startCompletion() — limpiar la
+    // KV-cache y volver a alimentar todo. _prevLen se recalcula al final del turno (stopCompletion(),
+    // sin cambios) así que los turnos de TEXTO siguientes después de este siguen pudiendo usar el
+    // camino incremental con normalidad.
+    llama_memory_clear(llama_get_memory(_ctx), true);
+    _prevLen = 0;
+
+    addChatMessage(query, "user");
+
+    const char *marker = mtmd_default_marker();
+    // El marker reemplaza al placeholder de imagen dentro del texto ya templateado — se
+    // antepone al mensaje del usuario en el ARRAY de _messages (antes de aplicar el chat
+    // template), no al `query` crudo, para que el template del modelo (roles, separadores)
+    // siga aplicándose normalmente alrededor del marker.
+    std::string markedContent = std::string(marker) + "\n" + query;
+    free(const_cast<char *>(_messages.back().content));
+    _messages.back().content = strdup(markedContent.c_str());
+
+    int new_len = llama_chat_apply_template(
+        _chatTemplate, _messages.data(), _messages.size(), true,
+        _formattedMessages.data(), _formattedMessages.size()
+    );
+    if (new_len > (int) _formattedMessages.size()) {
+        _formattedMessages.resize(new_len);
+        new_len = llama_chat_apply_template(
+            _chatTemplate, _messages.data(), _messages.size(), true,
+            _formattedMessages.data(), _formattedMessages.size()
+        );
+    }
+    if (new_len < 0) {
+        mtmd_bitmap_free(bitmapResult.bitmap);
+        throw std::runtime_error("startCompletionWithImage() failed: llama_chat_apply_template() falló");
+    }
+    std::string formattedPrompt(_formattedMessages.begin(), _formattedMessages.begin() + new_len);
+
+    mtmd_input_text text;
+    text.text = formattedPrompt.c_str();
+    text.text_len = formattedPrompt.size();
+    text.add_special = true;
+    text.parse_special = true;
+
+    mtmd_input_chunks *chunks = mtmd_input_chunks_init();
+    const mtmd_bitmap *bitmaps[1] = { bitmapResult.bitmap };
+    int32_t tokenizeResult = mtmd_tokenize(_mtmdCtx, chunks, &text, bitmaps, 1);
+    mtmd_bitmap_free(bitmapResult.bitmap);
+    if (tokenizeResult != 0) {
+        mtmd_input_chunks_free(chunks);
+        throw std::runtime_error("startCompletionWithImage() failed: mtmd_tokenize() devolvió " + std::to_string(tokenizeResult));
+    }
+
+    llama_pos newNPast = 0;
+    int32_t evalResult = mtmd_helper_eval_chunks(
+        _mtmdCtx, _ctx, chunks, /*n_past=*/0, /*seq_id=*/0,
+        (int32_t) llama_n_batch(_ctx), /*logits_last=*/true, &newNPast
+    );
+    mtmd_input_chunks_free(chunks);
+    if (evalResult != 0) {
+        throw std::runtime_error("startCompletionWithImage() failed: mtmd_helper_eval_chunks() devolvió " + std::to_string(evalResult));
+    }
+
+    // Los logits del último token ya están listos (logits_last=true) — completionLoop() debe
+    // samplear directo en su primera vuelta, no repetir un llama_decode() con un _batch vacío.
+    _batch.n_tokens = 0;
+    _skipNextDecode = true;
 }
 
 void
@@ -351,13 +481,20 @@ std::string
 LLMInference::completionLoop() {
     uint32_t contextSize = llama_n_ctx(_ctx);
     _nCtxUsed = llama_memory_seq_pos_max(llama_get_memory(_ctx), 0) + 1;
-    if (_nCtxUsed + _batch.n_tokens > (int) contextSize) {
-        throw std::runtime_error("context size reached");
-    }
 
     auto start = ggml_time_us();
-    if (llama_decode(_ctx, _batch) < 0) {
-        throw std::runtime_error("llama_decode() failed");
+    if (_skipNextDecode) {
+        // Ver startCompletionWithImage(): mtmd_helper_eval_chunks() ya decodificó el prompt
+        // completo (texto+imagen) y dejó los logits del último token listos — no hay nada en
+        // _batch para decodificar de nuevo en esta primera vuelta.
+        _skipNextDecode = false;
+    } else {
+        if (_nCtxUsed + _batch.n_tokens > (int) contextSize) {
+            throw std::runtime_error("context size reached");
+        }
+        if (llama_decode(_ctx, _batch) < 0) {
+            throw std::runtime_error("llama_decode() failed");
+        }
     }
 
     _currToken = llama_sampler_sample(_sampler, _ctx, -1);
@@ -424,6 +561,7 @@ LLMInference::~LLMInference() {
         free(const_cast<char *>(message.role));
         free(const_cast<char *>(message.content));
     }
+    if (_mtmdCtx) mtmd_free(_mtmdCtx);
     if (_ctx) llama_free(_ctx);
     if (_model) llama_model_free(_model);
     if (_sampler) llama_sampler_free(_sampler);

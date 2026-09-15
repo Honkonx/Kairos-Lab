@@ -20,7 +20,7 @@
 #                           _install_legacy_clean(): npm no puede instalar
 #                           nada más nuevo que @2.1.111 en Termux desde que
 #                           Anthropic pasó a distribuir binarios glibc sin
-#                           parchear vía npm, docs/humano274.md)
+#                           parchear vía npm)
 #    --source <fuente>     clean (default) | github (restore backup)
 #    --version latest      Usar versión más reciente (solo native, default en
 #                           modo silencioso — ver "$SILENT && USE_LATEST=true")
@@ -36,10 +36,10 @@
 #  conocido-bueno + reintento a "latest" de downloads.claude.ai + legacy npm
 #  como red de seguridad de fondo — ver _download_and_patch_native() y
 #  "INSTALACIÓN LEGACY" más abajo). VERSIÓN 4.2.0 (Agosto 2026): deprecado
-#  "legacy" como opción real de instalación (docs/humano274.md), modules.json
+#  "legacy" como opción real de instalación, modules.json
 #  ya no la ofrece. Fallback real: si la descarga/verificación de la versión
 #  "latest" falla, reintenta con el pin viejo conocido-bueno (variante
-#  native, no legacy) en vez de abortar (docs/humano275.md).
+#  native, no legacy) en vez de abortar.
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -87,7 +87,7 @@ case "$INSTALL_MODE" in
   native|elf|glibc)  INSTALL_MODE="native" ;;
   legacy|npm|node)   INSTALL_MODE="legacy" ;;
   "")
-    # Bug real evitado (2026-08-27, docs/humano274.md): modules.json ya no
+    # Bug real evitado (2026-08-27): modules.json ya no
     # ofrece "legacy" como variante elegible (hasVariants:false, un solo
     # installMethod) — BottomSheetInstalacion.kt manda variant=null en ese
     # caso, así que "--variant" nunca llega desde la app en modo silencioso.
@@ -106,11 +106,30 @@ CHECKPOINT="$HOME/.install_claude_checkpoint"
 CLAUDE_VERSION_LEGACY="2.1.111"
 
 # Pin de respaldo, SOLO usado si la consulta real a "latest" falla (ver
-# _install_native_clean() más abajo) — 2.1.152, pedido explícito del usuario
-# (docs/humano274.md, 2026-08-27): versión confirmada estable en uso real,
-# preferida sobre refrescar el pin a ciegas a cada rato con la última que
-# devuelva la API (que puede no estar tan probada todavía).
-CLAUDE_VERSION_NATIVE="2.1.152"
+# _install_native_clean() más abajo) — versión confirmada estable en uso
+# real (2026-08-27), preferida sobre refrescar el pin a ciegas a cada rato
+# con la última que devuelva la API (que puede no estar tan probada todavía).
+#
+# Actualizado 2026-09-15 (auditoría de seguridad de esta sesión): el pin
+# anterior, 2.1.152, caía dentro del rango vulnerable de 2 CVE reales
+# confirmados en github.com/anthropics/claude-code/security/advisories —
+# GHSA-7835-87q9-rgvv (CVE-2026-55607, HIGH, sandbox-escape vía confusión de
+# path en git worktree) y GHSA-fg94-h982-f3mm (CVE-2026-54316, MODERATE,
+# exfiltración de datos vía WebFetch a huggingface.co pre-aprobado) — ambos
+# afectan versiones < 2.1.163 (el fix real de Anthropic para los dos). Se
+# actualiza a 2.1.272, confirmada como la versión real más reciente
+# publicada consultando el mismo endpoint que usa _install_native_clean()
+# para "latest" (https://downloads.claude.ai/claude-code-releases/latest,
+# HTTP 200, devuelve "2.1.272" en texto plano) — se verificó además que
+# manifest.json de esa versión sigue el mismo formato que
+# _download_and_patch_native() espera (campo
+# platforms.linux-arm64.checksum) y que el binario
+# linux-arm64/claude responde HTTP 200, así que el mecanismo de
+# descarga/checksum de este script sigue siendo compatible sin cambios.
+# Revisadas las 10 advisories públicas del repo (todas anteriores a 2.1.163,
+# ninguna más nueva sin fix) — no hay indicio de otro CVE real sin corregir
+# entre 2.1.163 y 2.1.272.
+CLAUDE_VERSION_NATIVE="2.1.272"
 NATIVE_BINARY="$HOME/.local/share/claude-code/claude"
 NATIVE_WRAPPER="$HOME/.local/bin/claude"
 LEGACY_WRAPPER="$TERMUX_PREFIX/bin/claude"
@@ -359,11 +378,12 @@ _ensure_nodejs() {
     fi
   fi
   info "Instalando Node.js..."
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+  # Bug real, mismo patrón que bug #21 (VNC): pkg update puede fallar de
+  # forma transitoria, hay que reintentar con fallback antes de instalar.
   pkg_update_with_fallback
   pkg install nodejs-lts -y -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" || error "Error instalando nodejs-lts"
-  # Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): "npm install -g
+  # Bug real (auditoría 2026-08-05): "npm install -g
   # npm" sobreescribe el npm parcheado para Termux (shebang sin /usr/bin/env, que acá
   # no existe) con uno genérico del registry — "bad interpreter" en cualquier npm
   # posterior. El npm que trae nodejs-lts ya alcanza.
@@ -378,7 +398,8 @@ _ensure_glibc() {
   [ ! -f "$PATCHELF" ] && NEED_INSTALL=true
   if $NEED_INSTALL; then
     info "Instalando glibc-runner + patchelf-glibc..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC): pkg update puede fallar de
+    # forma transitoria, hay que reintentar con fallback antes de instalar.
     pkg_update_with_fallback
     pkg install -y glibc-repo || true
     pkg update -y -o Dpkg::Options::="--force-confdef" \
@@ -435,8 +456,8 @@ _validate_legacy_cli() {
 # Descarga + verifica SHA256 + parchea el binario de una versión concreta.
 # Devuelve 0/1 en vez de abortar con error() — así _install_native_clean()
 # puede reintentar con el pin viejo conocido-bueno cuando la versión "latest"
-# falla, en vez de matar la instalación entera (pedido explícito del usuario,
-# docs/humano274.md/humano275.md: "si da error que instale la version vieja").
+# falla, en vez de matar la instalación entera (pedido explícito: "si da
+# error que instale la version vieja").
 _download_and_patch_native() {
   local VERSION="$1"
   local DL="https://downloads.claude.ai/claude-code-releases/${VERSION}"
@@ -504,10 +525,9 @@ _download_and_patch_native() {
 #  error() — _install_native_clean() cae al mecanismo viejo COMPLETO (pin +
 #  reintento a "latest" oficial + legacy npm de fondo) si esto falla por
 #  cualquier motivo. Verificación de POST-CONDICIÓN real (no solo que el
-#  archivo exista) antes de devolver éxito — ver
-#  .claude/rules/empirical-verification-before-fix.md: si "--version" no
-#  responde, se hace rollback y se devuelve 1 para que el caller no lo dé por
-#  instalado.
+#  archivo exista) antes de devolver éxito — mismo patrón que otros casos
+#  conocidos: si "--version" no responde, se hace rollback y se devuelve 1
+#  para que el caller no lo dé por instalado.
 # ════════════════════════════════════════════════════════════
 _download_wallentx_native() {
   local INSTALL_DIR; INSTALL_DIR="$(dirname "$NATIVE_BINARY")"
@@ -645,7 +665,7 @@ _install_native_clean() {
     info "Versión: v${VERSION}"
   fi
 
-  # Fallback real (pedido explícito del usuario, docs/humano275.md): el método
+  # Fallback real (pedido explícito del usuario): el método
   # "nuevo" (VERSION resuelta arriba, típicamente "latest") se intenta primero;
   # si la descarga/checksum/patchelf falla por CUALQUIER motivo (release nueva
   # todavía sin binario linux-arm64 publicado, CDN caído, corrupción de red),
@@ -710,11 +730,23 @@ SETTINGS
   ver_check=$("$NATIVE_WRAPPER" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
   [ -n "$ver_check" ] && VERSION="$ver_check"
 
-  _update_registry "$VERSION" "native"
-  mark_done "claude_install"
-
-  [ -n "$ver_check" ] && log "Claude native v${ver_check} funcionando ✓" || \
-    warn "Wrapper creado pero --version no respondió"
+  # Bug real corregido (auditoría 2026-09-15): a diferencia de
+  # _download_wallentx_native() (método primario, arriba — YA descartaba el
+  # binario y devolvía 1 si "--version" no respondía), este camino "clásico"
+  # (fallback) solo emitía un warn() pero igual llamaba a _update_registry()/
+  # mark_done() sin condición — registry_install() (lib.sh) escribe
+  # "installed=true" incondicionalmente, así que un wrapper que NO EJECUTA de
+  # verdad (patchelf con interprete equivocado, glibc-runner roto, etc.)
+  # quedaba marcado como instalado igual. Mismo patrón de bug ya documentado
+  # en otros casos conocidos (#28/#29/#30).
+  if [ -n "$ver_check" ]; then
+    _update_registry "$VERSION" "native"
+    mark_done "claude_install"
+    log "Claude native v${ver_check} funcionando ✓"
+  else
+    warn "Wrapper creado pero --version no respondió — no se marca como instalado"
+    registry_write claude "installed=false" "method=native" "location=termux_native" "reason=binario_no_ejecuta"
+  fi
 }
 
 # ════════════════════════════════════════════════════════════
@@ -740,7 +772,7 @@ _install_native_github() {
 # ════════════════════════════════════════════════════════════
 #  INSTALACIÓN LEGACY — limpia (npm multi-estrategia)
 #
-#  LIMITACIÓN REAL CONFIRMADA (2026-08-27, docs/humano274.md): Anthropic
+#  LIMITACIÓN REAL CONFIRMADA (2026-08-27): Anthropic
 #  cambió el modelo de distribución del paquete npm @anthropic-ai/claude-code
 #  a partir de una versión posterior a 2.1.111 — pasó de un CLI en JS puro
 #  (bin: cli.js, corrido con node) a un binario nativo compilado por

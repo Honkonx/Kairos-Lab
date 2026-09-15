@@ -159,7 +159,7 @@ else
   # nunca se había portado a esta copia usada por la app.
   if $_GLIBC_MISSING; then
     info "glibc no detectado — instalando glibc-repo..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC).
     pkg_update_with_fallback
     pkg install -y glibc-repo \
       -o Dpkg::Options::="--force-confdef" \
@@ -177,7 +177,7 @@ else
 
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC).
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
@@ -240,19 +240,28 @@ fi
 
 # ── PASO 3 — Verificar + registry ─────────────────────────────
 step "PASO 3 — Verificación y registro"
-_AGY_VER=$(agy --version 2>/dev/null | grep -oE '[0-9]+\.[0-9.]+' | head -1)
-if [ -n "$_AGY_VER" ]; then
-  log "Antigravity CLI v${_AGY_VER} funcional"
-else
-  warn "No se pudo verificar versión — puede requerir autenticación al ejecutar"
+# Bug real corregido (auditoría 2026-09-15): antes, si "agy --version" no
+# devolvía versión parseable, el script solo emitía un warn() pero igual
+# llamaba a update_registry() sin condición — registry_install() (lib.sh)
+# escribe "installed=true" incondicionalmente, así que un binario que NO
+# EJECUTA de verdad (el propio not_covered de --describe-files ya admite
+# que puede faltar LSE atomics/glibc-runner) quedaba marcado como instalado
+# igual — mismo patrón de bug ya documentado en otros casos conocidos
+# (#28/#29/#30). Se usa
+# verify_binary_installed() (ejecuta agy --version de verdad, chequea exit
+# code) como gate real antes de escribir installed=true.
+if verify_binary_installed agy; then
+  _AGY_VER=$(agy --version 2>/dev/null | grep -oE '[0-9]+\.[0-9.]+' | head -1)
+  log "Antigravity CLI v${_AGY_VER:-desconocida} funcional"
   # No escribir un placeholder tipo "installed" acá — el registry solo debe
   # tener una versión real parseada o quedar vacío (ModulesFragment/ModuleListAdapter
   # ya filtran versión vacía con isNotEmpty(); un string como "installed" en cambio
   # se concatena tal cual como "v$version" en la card del módulo → "vinstalled").
-  _AGY_VER=""
+  update_registry "${_AGY_VER}"
+else
+  warn "agy no ejecuta tras la instalación (posible falta de LSE atomics/glibc-runner en este dispositivo) — no se marca como instalado"
+  registry_write antigravity "installed=false" "location=termux_native" "binary=$TERMUX_PREFIX/bin/agy" "reason=binary_no_ejecuta"
 fi
-
-update_registry "${_AGY_VER}"
 rm -f "$CHECKPOINT"
 AGY_INSTALL_OK=1
 

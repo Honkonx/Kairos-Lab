@@ -14,6 +14,10 @@
     <!-- Labels de la card ESTADO -->
     <string name="entorno_label_gpu">GPU</string>
     <string name="entorno_label_metodo">Método</string>
+    <!-- Tarea 1 (2026-09-15): formato usado cuando el backend GPU real confirmado (renderer/
+         vulkan reales) difiere del método pedido por el usuario — ej. "turnip → llvmpipe
+         (fallback)" cuando Turnip cayó en silencio a software. -->
+    <string name="entorno_metodo_fallback_formato">%1$s → %2$s (fallback)</string>
     <string name="entorno_label_x11">X11</string>
     <string name="entorno_label_vnc">VNC</string>
     <string name="entorno_label_pulseaudio">PulseAudio</string>
@@ -241,7 +245,7 @@
     <string name="entorno_mensaje_xfce_iniciado">XFCE4 iniciado sobre el X11 embebido</string>
     <string name="entorno_error_xfce_instalado_no_iniciado">XFCE4 instalado pero no se pudo iniciar</string>
 
-    <!-- Fix docs/humano283.md: abrir el visor X11 ya no es automático al iniciar un escritorio (nativo o en distro) — queda como acción explícita del Snackbar. -->
+    <!-- Fix: abrir el visor X11 ya no es automático al iniciar un escritorio (nativo o en distro) — queda como acción explícita del Snackbar. -->
     <string name="entorno_snackbar_escritorio_listo">Escritorio listo</string>
     <string name="entorno_snackbar_accion_abrir_x11">Abrir X11</string>
 
@@ -301,8 +305,15 @@
     <!-- Diagnóstico GPU -->
     <string name="entorno_toast_diagnosticando_gpu">Diagnosticando GPU…</string>
     <string name="entorno_error_no_pudo_diagnosticar_gpu">No se pudo diagnosticar la GPU</string>
-    <string name="entorno_gpu_diagnostico_mensaje">GPU detectada: %1$s\nMétodo activo: %2$s\n\nRenderer OpenGL: %3$s\nDispositivo Vulkan: %4$s\n\nDrivers instalados:\n%5$s</string>
+    <!-- Tarea 1 (2026-09-15): "Método activo" renombrado a "Método configurado" — era lo
+         PEDIDO por el usuario (entorno.gpu_method), no lo que terminó cargado de verdad.
+         %6$s es el backend real confirmado (EntornoNative.classifyActiveGpuBackend(), a
+         partir del renderer/dispositivo Vulkan reales de arriba). -->
+    <string name="entorno_gpu_diagnostico_mensaje">GPU detectada: %1$s\nMétodo configurado: %2$s\nBackend real confirmado: %6$s\n\nRenderer OpenGL: %3$s\nDispositivo Vulkan: %4$s\n\nDrivers instalados:\n%5$s</string>
     <string name="entorno_dialog_diagnostico_gpu_titulo">Diagnóstico GPU</string>
+    <!-- Tarea 1 (2026-09-15): apendizada al mensaje de arriba solo cuando gpu_mismatch=true
+         (el método pedido no coincide con el backend real confirmado). -->
+    <string name="entorno_gpu_diagnostico_advertencia_fallback">\n\n⚠️ El método configurado (%1$s) no se activó — el sistema cayó en silencio a %2$s. Probá otro método desde \"Configurar método GPU\".</string>
 
     <!-- Método GPU -->
     <string name="entorno_error_no_pudo_leer_gpu">No se pudo leer el tipo de GPU</string>
@@ -323,7 +334,7 @@
     <string name="entorno_depth_24bit">24 bit (color completo)</string>
     <string name="entorno_depth_16bit">16 bit (más liviano)</string>
     <string name="entorno_toast_iniciando_vnc">Iniciando VNC…</string>
-    <!-- Orientación (docs/humano283.md, pedido explícito: faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig(), no un toggle cosmético. -->
+    <!-- Orientación (faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig(), no un toggle cosmético. -->
     <string name="entorno_label_orientacion">Orientación</string>
     <string name="entorno_orientacion_horizontal">Horizontal</string>
     <string name="entorno_orientacion_vertical">Vertical (invierte ancho/alto)</string>

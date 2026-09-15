@@ -36,8 +36,7 @@ object ModuleController {
     // sobrevive para retener ese estado por su cuenta.
     private val runningInstalls = java.util.concurrent.ConcurrentHashMap<String, Process>()
 
-    // Guard anti-duplicados (pedido explícito del usuario, docs/humano269.md, auditoría
-    // 2026-08-27): antes NADA impedía llamar a installModule() dos veces para el MISMO
+    // Guard anti-duplicados (auditoría 2026-08-27): antes NADA impedía llamar a installModule() dos veces para el MISMO
     // moduleId mientras la primera seguía en curso (ej. tocar "Instalar" en Ollama variante
     // standard y, sin esperar, volver a tocar "Instalar" con variante gpu) — cada llamada
     // lanzaba su propio Thread + proceso independiente, y ambos terminaban peleando por el
@@ -65,9 +64,9 @@ object ModuleController {
     fun isInstalling(moduleId: String): Boolean = activeInstalls.contains(moduleId)
 
     // Antes duplicaba a mano el mismo bloque de env vars que ya vive en
-    // util/ProcessBuilderExt.kt.applyTermuxEnv() (bug real de esta sesión, ver
-    // docs/humano/humano63.md: 2 copias del mismo fix que podían quedar desincronizadas si
-    // una se corregía y la otra no) — ahora delega en la función compartida y solo agrega
+    // util/ProcessBuilderExt.kt.applyTermuxEnv() (bug real: 2 copias del mismo fix que podían
+    // quedar desincronizadas si una se corregía y la otra no) — ahora delega en la función
+    // compartida y solo agrega
     // TERM/LANG, que ese helper no necesita para el resto de la app.
     private fun applyTermuxEnv(pb: ProcessBuilder) {
         pb.applyTermuxEnvShared()
@@ -84,12 +83,12 @@ object ModuleController {
      * escuchando: una race de cientos de ms mientras el proceso hijo termina de bindear el
      * puerto, o un caso donde el script "tiene éxito" según su propia lógica interna sin que
      * el puerto real llegue a abrirse. Mismo patrón de "checkpoint marcado sin verificar" que
-     * ya se corrigió del lado bash en varios módulos esta sesión (n8n/OpenCode/Ollama, ver
-     * docs/humano*.md rondas 38-41) — esto agrega una SEGUNDA capa de verificación real, del
-     * lado Kotlin, independiente de que el script haya hecho bien o mal su propio chequeo.
+     * ya se corrigió del lado bash en varios módulos (n8n/OpenCode/Ollama) — esto agrega una
+     * SEGUNDA capa de verificación real, del lado Kotlin, independiente de que el script haya
+     * hecho bien o mal su propio chequeo.
      */
     // n8n corre en proot (n8n_start.sh) — el boot completo del entorno proot + node.js puede
-    // tardar bien más de 8s (bug real reportado, ver docs/humano/humano57.md: "n8n... dura
+    // tardar bien más de 8s (bug real reportado: "n8n... dura
     // mucho" y el switch reportaba error aunque el módulo seguía arrancando bien, solo más
     // lento que el timeout). Sin esto, waitForPortOpen() cortaba a los 8s y startModule()
     // reportaba una falla falsa mientras n8n todavía estaba subiendo.
@@ -114,7 +113,7 @@ object ModuleController {
         return false
     }
 
-    // Bug real (2026-08-07, ver docs/humano/humano91.md): "Ollama queda atascado en
+    // Bug real (2026-08-07): "Ollama queda atascado en
     // Iniciando…" — una de las causas encontradas es que process.waitFor() acá (y en
     // stopModule() abajo) es SIN timeout, a diferencia de ManagerNativeUtils.runExec()/
     // runShell() (mismo proyecto), que sí usan waitFor(timeout, TimeUnit) +
@@ -139,7 +138,7 @@ object ModuleController {
     // depender de @JvmOverloads acá.
     fun startModule(moduleId: String, context: android.content.Context? = null, onResult: (Boolean, String) -> Unit) {
         val script = getModuleStartScript(moduleId) ?: return onResult(false, "Unknown module")
-        // Log interno de Kairos, nivel NORMAL — ciclo de vida de módulos (ver docs/humano231.md).
+        // Log interno de Kairos, nivel NORMAL — ciclo de vida de módulos.
         // context puede ser null en el overload legacy de 2 argumentos; sin Context no hay forma
         // de leer las SharedPreferences del nivel configurado, así que ese caso queda sin
         // loguear acá (comportamiento honesto, no un no-op silencioso disfrazado de cobertura).
@@ -151,7 +150,7 @@ object ModuleController {
                 pb.redirectErrorStream(true)
                 val process = pb.start()
                 val outputBuilder = StringBuilder()
-                // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md — probando
+                // Bug real confirmado por ADB (2026-08-24 — probando
                 // el switch de n8n desde la UI real, la app entera crasheaba y reiniciaba en
                 // loop cada ~2min): sin try/catch acá, destroyForcibly() más abajo cierra los
                 // streams del proceso mientras este Thread está bloqueado en readText() —
@@ -255,9 +254,9 @@ object ModuleController {
     /**
      * "Salir" (Config) — pedido explícito del usuario: detener todos los servicios en
      * ejecución y cerrar la app, "como si pusiera exit en la terminal" (a diferencia de un
-     * botón de "cerrar app" genérico, que el propio usuario descartó — ver
-     * docs/humano/humano67.md: eso no se puede lograr de forma confiable desde dentro de la
-     * app, requiere "Forzar cierre" de Android). Esto sí es real: para cada módulo con
+     * botón de "cerrar app" genérico, que se descartó: eso no se puede lograr de forma
+     * confiable desde dentro de la app, requiere "Forzar cierre" de Android). Esto sí es
+     * real: para cada módulo con
      * script de stop conocido (los mismos de [getModuleStopInfo]) que esté corriendo, corre
      * su stop script real — el mismo camino que usa el switch de cada módulo, uno por uno.
      * onComplete llega siempre en background thread, no en UI — el caller decide cómo cerrar
@@ -292,14 +291,14 @@ object ModuleController {
         // "pgrep -f redis-server &>/dev/null && REDIS_RUNNING=true"): tres servidores
         // independientes (mariadbd, postgres, redis-server) — el módulo cuenta como
         // "corriendo" si CUALQUIERA de los tres está vivo. Causa raíz REAL confirmada por ADB
-        // en vivo (2026-09-08, ver docs/humano326.md, ronda de consolidación de módulos): no
+        // en vivo (2026-09-08): no
         // era un tema de nombre de binario ni de flags de pgrep — ningún flag de pgrep
         // funciona acá, porque el pgrep que lanza la app (dominio SELinux "untrusted_app_27")
         // nunca es ancestro de mariadbd/postgres/redis-server (viven en el árbol de la sesión
         // de terminal de TermuxService, un árbol hermano) y Yama ptrace_scope=1 bloquea ver
         // vía /proc a cualquier proceso que no sea descendiente directo, aunque comparta UID.
         // Fix real: chequeo de puerto TCP (mismo criterio que "pg_isready" ya usa del lado
-        // shell en postgres_start.sh, ver modulos/db.sh bug #31) en vez de mirar procesos.
+        // shell en postgres_start.sh) en vez de mirar procesos.
         if (moduleId == "db") {
             return ManagerNativeUtils.checkPort(3306) || ManagerNativeUtils.checkPort(5432) || ManagerNativeUtils.checkPort(6379)
         }
@@ -353,7 +352,7 @@ object ModuleController {
         // Fallback para un futuro módulo con nombre de proceso fijo pero SIN puerto conocido
         // (hoy ningún caller real llega hasta acá — "db" usa checkPort() directo y "remote" ya
         // tiene puerto vía getModulePort(), ver isRunning() arriba). Causa raíz REAL confirmada
-        // por ADB en vivo (2026-09-08, ver docs/humano326.md): ningún flag de pgrep ("-x", sin
+        // por ADB en vivo (2026-09-08): ningún flag de pgrep ("-x", sin
         // flag, "-f") es confiable acá — es una restricción de Android (Yama ptrace_scope=1 +
         // dominio SELinux "untrusted_app_27" del proceso de la app, confirmado con `ps -Z`) que
         // impide ver vía /proc procesos que no son descendientes directos del propio pgrep,
@@ -406,7 +405,7 @@ object ModuleController {
     fun installLogFile(moduleId: String): File =
         File(HOME, "kairos_logs").apply { mkdirs() }.resolve("install_$moduleId.log")
 
-    // Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): instalar un
+    // Bug real (auditoría 2026-08-05): instalar un
     // módulo con 2 variantes (ej. Ollama gpu/standard, n8n proot/udocker) hacía que el
     // segundo intento SOBREESCRIBIERA el log del primero en installLogFile() — si el
     // primer intento (ej. Ollama GPU) fallaba y el usuario reintentaba con otra
@@ -421,8 +420,8 @@ object ModuleController {
 
     // force=false (default) preserva el comportamiento de BottomSheetInstalacion.kt (una
     // instalación nueva no debe forzar nada). force=true es lo que usa
-    // BaseModuleFragment.reinstallModuleService() — bug real (auditoría 2026-08-05, ver
-    // docs/humano65.md/humano66.md): sin --force, re-ejecutar el script de instalación de
+    // BaseModuleFragment.reinstallModuleService() — bug real (auditoría 2026-08-05): sin
+    // --force, re-ejecutar el script de instalación de
     // un módulo YA instalado es casi siempre un no-op (todos los scripts chequean
     // "command -v X && ! $FORCE" y salen temprano) — el botón "Reinstalar/Actualizar" que
     // ya existía en 7 módulos no actualizaba nada en la práctica, solo lo aparentaba.
@@ -439,7 +438,7 @@ object ModuleController {
         onProgress: (String) -> Unit,
         onComplete: (Boolean) -> Unit
     ) {
-        // Bug real confirmado (auditoría ADB 2026-08-22, ver docs/humano/humano189.md, bug #26):
+        // Bug real confirmado (auditoría ADB 2026-08-22):
         // módulos CONTENEDOR ("languages"/"packages" — ver ModuleInstalled.kt línea ~95, sin
         // instalador propio a propósito, script="" en el catálogo) llegaban hasta acá igual
         // que un módulo normal — installScriptFile() interpreta CUALQUIER script en blanco
@@ -492,7 +491,7 @@ object ModuleController {
         InstallQueueManager.submit(onQueued = { onProgress(INSTALL_QUEUED_MESSAGE) }) {
         Thread {
             // Reintento automático de UNA sola vez para la excepción transitoria real
-            // confirmada en dispositivo (2026-09-03, ver docs/humano317.md/humano318.md):
+            // confirmada en dispositivo (2026-09-03):
             // instalaciones concurrentes bajo carga pesada (varios módulos a la vez) a veces
             // fallan con InterruptedIOException("read interrupted by close() on another
             // thread!") dentro de process.inputStream.bufferedReader().forEachLine — investigado
@@ -518,7 +517,7 @@ object ModuleController {
                         pb.redirectErrorStream(true)
                         val process = pb.start()
                         runningInstalls[moduleId] = process
-                        // Bug real (2026-08-06, ver docs/humano/humano77.md): BufferedWriter solo
+                        // Bug real (2026-08-06): BufferedWriter solo
                         // vuelca a disco cuando su buffer interno se llena o el bloque .use{}
                         // cierra el writer (o sea, cuando el proceso hijo termina). Si el script
                         // se cuelga sin terminar (ej. "pkg install" sin timeout esperando red), el
@@ -547,7 +546,7 @@ object ModuleController {
                         installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
                             try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
                         }
-                        // Bug real (ver docs/humano/humano166.md/humano167.md, "al instalar un plugin no sale
+                        // Bug real ("al instalar un plugin no sale
                         // instalado y todavía da la opción de instalar"): ModuleInstalled cachea el
                         // registry (30s) y el binario/verificación en vivo (10s/30s) — sin invalidar acá,
                         // un fragment que releía el estado justo después de que este script terminara
@@ -703,9 +702,8 @@ object ModuleController {
     }
 
     /**
-     * Desinstala un módulo — pedido explícito del usuario (auditoría 2026-08-05, ver
-     * docs/humano65.md/humano66.md: "en ningún tab o menú... sale para desinstalar
-     * módulos"). Alcance DELIBERADAMENTE conservador: detiene el módulo si está corriendo,
+     * Desinstala un módulo — pedido explícito (auditoría 2026-08-05: "en ningún tab o menú...
+     * sale para desinstalar módulos"). Alcance DELIBERADAMENTE conservador: detiene el módulo si está corriendo,
      * borra su carpeta de scripts propia (~/scripts/<id>/, y ~/scripts/<id>-udocker/ para
      * n8n), borra su(s) checkpoint(s) de instalación y sus líneas del registry — deja el
      * módulo como si nunca se hubiera instalado desde el punto de vista de la app, lista
@@ -754,7 +752,21 @@ object ModuleController {
         }
     }
 
-    private data class DeepUninstallPlan(val command: String, val description: String)
+    // backupPaths (2026-09-15, ver docs/referencias/herramientas/REFERENCIA_VIBEWORKS.md y
+    // MEJORAS_PENDIENTES.md § "Módulos — backup + rollback automático al reinstalar"): rutas
+    // DEDICADAS del módulo que [command] borra con "rm -rf"/"rm -f" (nunca gestionadas por un
+    // paquete real de pkg/npm/pip) — [cleanReinstallModule] las mueve (no copia, ver
+    // ModuleBackupManager.moveFileOrDir()) a un respaldo temporal antes de correr [command], y
+    // las restaura automáticamente si la reinstalación posterior falla su verificación. Vacía a
+    // propósito para los planes que desinstalan vía "npm uninstall -g"/"pkg uninstall -y"/
+    // "pip uninstall": mover esos archivos a mano por fuera del gestor de paquetes
+    // desincronizaría su base de datos interna — ver el comentario largo en
+    // ModuleBackupManager.kt para el razonamiento completo.
+    private data class DeepUninstallPlan(
+        val command: String,
+        val description: String,
+        val backupPaths: List<String> = emptyList()
+    )
 
     // Mapa moduleId → comando de desinstalación REAL, construido revisando cómo cada
     // modulos/<id>.sh instala su binario (ver reporte de esta ronda). Solo cubre módulos
@@ -775,7 +787,8 @@ object ModuleController {
         "claude" -> when (readRegistryValue("claude", "method")) {
             "native" -> DeepUninstallPlan(
                 "rm -rf \"$HOME/.local/share/claude-code\" \"$HOME/.local/bin/claude\"",
-                "Binario nativo de Claude Code eliminado (~/.local/share/claude-code, ~/.local/bin/claude)"
+                "Binario nativo de Claude Code eliminado (~/.local/share/claude-code, ~/.local/bin/claude)",
+                backupPaths = listOf("$HOME/.local/share/claude-code", "$HOME/.local/bin/claude")
             )
             "legacy" -> DeepUninstallPlan(
                 "npm uninstall -g @anthropic-ai/claude-code",
@@ -783,7 +796,7 @@ object ModuleController {
             )
             else -> null
         }
-        // codex.sh: rediseño 2026-09-09 (docs/humano328.md) — 3 canales reales posibles, leídos
+        // codex.sh: rediseño 2026-09-09 — 3 canales reales posibles, leídos
         // de "codex.channel" (escrito al final de codex.sh en las 3 ramas):
         //   · "termux" (default): @mmmbuto/codex-cli-termux vía npm — "npm uninstall" se lleva
         //     también el symlink $PREFIX/bin/codex que el propio npm creó.
@@ -799,11 +812,16 @@ object ModuleController {
         "codex" -> when (readRegistryValue("codex", "channel")) {
             "termux-fallback" -> DeepUninstallPlan(
                 "rm -rf \"$TERMUX_PREFIX_PATH/opt/codex-wallentx\" \"$TERMUX_PREFIX_PATH/bin/codex\"",
-                "Binario del respaldo nativo de Codex eliminado ($TERMUX_PREFIX_PATH/opt/codex-wallentx)"
+                "Binario del respaldo nativo de Codex eliminado ($TERMUX_PREFIX_PATH/opt/codex-wallentx)",
+                backupPaths = listOf("$TERMUX_PREFIX_PATH/opt/codex-wallentx", "$TERMUX_PREFIX_PATH/bin/codex")
             )
             "vl" -> DeepUninstallPlan(
                 "npm uninstall -g @mmmbuto/codex-vl; rm -f \"$TERMUX_PREFIX_PATH/bin/codex\"",
-                "Paquete npm '@mmmbuto/codex-vl' desinstalado (y el alias codex -> codex-vl)"
+                "Paquete npm '@mmmbuto/codex-vl' desinstalado (y el alias codex -> codex-vl)",
+                // Solo el symlink/alias "codex" -> "codex-vl" (rm -f explícito, dedicado) —
+                // el paquete npm real "@mmmbuto/codex-vl" queda fuera a propósito, ver
+                // comentario de [backupPaths] en la data class de arriba.
+                backupPaths = listOf("$TERMUX_PREFIX_PATH/bin/codex")
             )
             "termux" -> DeepUninstallPlan(
                 "npm uninstall -g @mmmbuto/codex-cli-termux",
@@ -820,7 +838,8 @@ object ModuleController {
         // etc.), que si están compartidos con otros paquetes de Termux.
         "opencode" -> DeepUninstallPlan(
             "rm -f \"$TERMUX_PREFIX_PATH/bin/opencode\"; rm -rf \"$TERMUX_PREFIX_PATH/lib/opencode\"",
-            "Binario y runtime de OpenCode eliminados ($TERMUX_PREFIX_PATH/bin/opencode, $TERMUX_PREFIX_PATH/lib/opencode)"
+            "Binario y runtime de OpenCode eliminados ($TERMUX_PREFIX_PATH/bin/opencode, $TERMUX_PREFIX_PATH/lib/opencode)",
+            backupPaths = listOf("$TERMUX_PREFIX_PATH/bin/opencode", "$TERMUX_PREFIX_PATH/lib/opencode")
         )
         "freebuff" -> DeepUninstallPlan("npm uninstall -g freebuff", "Paquete npm 'freebuff' desinstalado")
         "codebuff" -> DeepUninstallPlan("npm uninstall -g codebuff", "Paquete npm 'codebuff' desinstalado")
@@ -857,7 +876,12 @@ object ModuleController {
             )
             "termux_npm" -> DeepUninstallPlan(
                 "npm uninstall -g @mmmbuto/ollama-termux; rm -f \"$TERMUX_PREFIX_PATH/bin/ollama\"",
-                "Paquete npm '@mmmbuto/ollama-termux' desinstalado y binario 'ollama' eliminado"
+                "Paquete npm '@mmmbuto/ollama-termux' desinstalado y binario 'ollama' eliminado",
+                // El binario real de Ollama (descargado aparte por el wrapper npm, puede pesar
+                // cientos de MB — ver comentario de ollama.sh PASO 2) es exactamente el caso
+                // que motiva mover en vez de copiar en ModuleBackupManager. El paquete npm
+                // 'ollama-termux' en sí queda fuera del respaldo (gestionado por npm).
+                backupPaths = listOf("$TERMUX_PREFIX_PATH/bin/ollama")
             )
             else -> null
         }
@@ -917,7 +941,12 @@ object ModuleController {
         // 2026-08-19, ver AUDITORIA_MODULOS_IA_DEV_VS_REFERENCIA_2026-08-19.md).
         "hf" -> DeepUninstallPlan(
             "rm -f \"$HOME/.local/bin/hf\"; rm -rf \"$HOME/.cache/huggingface\" \"$HOME/.config/huggingface\"",
-            "Binario de Hugging Face CLI y su config/caché eliminados (~/.local/bin/hf, ~/.cache/huggingface, ~/.config/huggingface)"
+            "Binario de Hugging Face CLI y su config/caché eliminados (~/.local/bin/hf, ~/.cache/huggingface, ~/.config/huggingface)",
+            backupPaths = listOf(
+                "$HOME/.local/bin/hf",
+                "$HOME/.cache/huggingface",
+                "$HOME/.config/huggingface"
+            )
         )
         else -> null
     }
@@ -994,32 +1023,58 @@ object ModuleController {
      * [deepUninstallModule] (borra el paquete real de ESE módulo, best-effort, sin tocar
      * runtimes compartidos) seguido de [installModule] con force=true desde cero.
      *
+     * Backup + rollback automático (2026-09-15, ver ModuleBackupManager.kt y
+     * MEJORAS_PENDIENTES.md § "Módulos — backup + rollback automático al reinstalar"): antes de
+     * llamar a [deepUninstallModule] — o sea, ANTES de que borre nada — se respalda todo lo que
+     * esa función va a tocar ([ModuleBackupManager.createBackup]). Si la reinstalación
+     * posterior falla su misma verificación de siempre (exitCode != 0 del script, que ya corre
+     * `verify_binary_installed()` de lib.sh del lado bash — verificación empírica de
+     * post-condición real, no solo el exit code), el respaldo se restaura solo
+     * ([ModuleBackupManager.restoreBackup]); si la reinstalación sale bien, el respaldo se
+     * descarta ([ModuleBackupManager.discardBackup]) — no se acumula historial (v1: una sola
+     * copia de la última reinstalación). Genérico para cualquier módulo que pase por acá,
+     * incluidos los módulos marcados como "protegidos" (no se tocan sin permiso explícito) — esta
+     * capa vive enteramente en Kotlin, no toca ningún script de modulos/.
+     *
      * Ambos pasos ya son thread-safe por su cuenta (cada uno lanza su propio Thread) — acá solo
-     * se encadena el callback de deepUninstallModule() con la llamada a installModule(), sin
-     * lanzar un Thread propio extra. onComplete combina los dos mensajes de resultado en uno
-     * solo, para que la UI muestre un único diálogo/Toast con el resultado completo del combo
-     * en vez de dos notificaciones separadas.
+     * se encadena el callback de deepUninstallModule() con la llamada a installModule(), salvo
+     * por el propio createBackup() (I/O de archivos, movido a un Thread dedicado para no
+     * bloquear al caller, que hoy es un click de UI — ver PluginsFragment.confirmCleanReinstall()).
+     * onComplete combina los mensajes de resultado en uno solo, para que la UI muestre un único
+     * Toast/Snackbar con el resultado completo del combo en vez de notificaciones separadas.
      */
     fun cleanReinstallModule(moduleId: String, onComplete: (Boolean, String) -> Unit) {
-        deepUninstallModule(moduleId) { _, uninstallMessage ->
-            installModule(
-                moduleId,
-                variant = null,
-                force = true,
-                onProgress = {},
-                onComplete = { installOk ->
-                    val finalMessage = if (installOk) {
-                        "$uninstallMessage Reinstalado desde cero correctamente."
-                    } else {
-                        "$uninstallMessage La reinstalación falló — revisá ~/kairos_logs/install_$moduleId.log."
+        Thread {
+            val backupPaths = deepUninstallPlan(moduleId)?.backupPaths.orEmpty()
+            val backedUp = com.termux.app.util.ModuleBackupManager.createBackup(moduleId, backupPaths)
+            deepUninstallModule(moduleId) { _, uninstallMessage ->
+                installModule(
+                    moduleId,
+                    variant = null,
+                    force = true,
+                    onProgress = {},
+                    onComplete = { installOk ->
+                        val finalMessage = if (installOk) {
+                            com.termux.app.util.ModuleBackupManager.discardBackup(moduleId)
+                            "$uninstallMessage Reinstalado desde cero correctamente."
+                        } else {
+                            val restored = backedUp && com.termux.app.util.ModuleBackupManager.restoreBackup(moduleId)
+                            if (restored) com.termux.app.data.ModuleInstalled.invalidate(moduleId)
+                            val restoreNote = if (restored) {
+                                " Se restauró automáticamente la versión anterior del módulo."
+                            } else {
+                                ""
+                            }
+                            "$uninstallMessage La reinstalación falló — revisá ~/kairos_logs/install_$moduleId.log.$restoreNote"
+                        }
+                        onComplete(installOk, finalMessage)
                     }
-                    onComplete(installOk, finalMessage)
-                }
-            )
-        }
+                )
+            }
+        }.start()
     }
 
-    // Bug real (2026-08-06, ver docs/humano/humano83.md): n8n tiene 2 variantes (proot/udocker,
+    // Bug real (2026-08-06): n8n tiene 2 variantes (proot/udocker,
     // ver modulos/n8n.sh) con scripts de control y nombre de sesión tmux DISTINTOS
     // ("scripts/n8n/*_servidor.sh" + sesión "n8n-server" para proot vs.
     // "scripts/n8n-udocker/*.sh" + sesión "n8n-udocker" para udocker) — pero
@@ -1042,7 +1097,7 @@ object ModuleController {
         "openclaw" -> "$HOME/scripts/openclaw/openclaw_start.sh"
         "opencode" -> "$HOME/scripts/opencode/opencode_start.sh"
         "remote" -> "$HOME/scripts/remote/ssh_start.sh"
-        // Rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md).
+        // Rama "llama-server-and-terminal-ux" (2026-08-05).
         "llamaserver" -> "$HOME/scripts/llamaserver/start.sh"
         // Módulo Base de Datos (2026-08-10): wrappers en ~/scripts/db/ que arrancan
         // ambos servidores (mysql_start.sh + postgres_start.sh, ver modulos/db.sh).
@@ -1051,6 +1106,10 @@ object ModuleController {
         // apagado por defecto, solo arranca cuando el usuario prende el switch en
         // CactusFragment.kt (docs/arquitectura/PROPUESTA_ORQUESTACION_CRUZADA_2026-08-25.md).
         "cactus" -> "$HOME/scripts/cactus/start.sh"
+        // Servicio Syncthing (ronda 2026-09-15, ver MEJORAS_PENDIENTES.md "Módulos nuevos") —
+        // mismo patrón tmux+start/stop que cactus, sin Fragment propio (GenericModuleFragment
+        // ya cubre hasSwitch+webviewUrl genéricamente, ver modulos/syncthing.sh PASO 2).
+        "syncthing" -> "$HOME/scripts/syncthing/start.sh"
         else -> null
     }
 
@@ -1063,6 +1122,7 @@ object ModuleController {
         "llamaserver" -> "$HOME/scripts/llamaserver/stop.sh"
         "db" -> "$HOME/scripts/db/stop.sh"
         "cactus" -> "$HOME/scripts/cactus/stop.sh"
+        "syncthing" -> "$HOME/scripts/syncthing/stop.sh"
         else -> null
     }
 
@@ -1073,6 +1133,7 @@ object ModuleController {
         "opencode" -> "opencode"
         "llamaserver" -> "llamaserver"
         "cactus" -> "cactus-server"
+        "syncthing" -> "syncthing-server"
         else -> null
     }
 
@@ -1085,9 +1146,24 @@ object ModuleController {
     // Puerto real por módulo (ver waitForPortOpen()) — mismos valores que "port" en
     // modules.json para cada módulo con start script. Se hardcodea acá (mismo criterio que
     // getModuleStartScript/getTmuxSession de arriba) en vez de parsear modules.json de nuevo
-    // — ModuleController no tiene Context a mano para leer assets, y estos 5 valores son
+    // — ModuleController no tiene Context a mano para leer assets, y estos 8 valores son
     // estables (cambia el puerto de un módulo, cambia acá también, no es algo que varíe en
-    // runtime).
+    // runtime). Esta tabla sigue siendo la fuente de verdad real (kotlin-kairos-android-
+    // patterns.md § "modules.json es un dato auxiliar") — modules.json es solo verificación
+    // cruzada, nunca se lee en runtime para resolver un puerto.
+    //
+    // Auditoría 2026-09-15 (Tarea 2): comparados los 8 valores de acá contra "port" en
+    // app/src/main/assets/modules.json, uno por uno — 7/8 ya coincidían exactamente. Único
+    // desajuste real encontrado: "cactus" tenía port=8977 acá pero modules.json traía
+    // "port": "" (vacío) — el campo nunca se había completado al agregar el módulo, pese a que
+    // modulos/cactus.sh sí define un puerto real fijo (CACTUS_SERVE_PORT default 8977, "cactus
+    // serve --port 8977"). Este valor Kotlin ya era el correcto (confirmado contra el script) —
+    // se corrigió el campo modules.json para que deje de mentir en GenericModuleFragment.kt
+    // (que muestra "port" del JSON como fila "Puerto" en la pantalla de detalle del módulo,
+    // camino separado de este getModulePort()). Cross-check automatizado agregado en
+    // ModuleControllerTest.kt ("el puerto de ModuleController coincide con el de modules_json
+    // cuando modules_json trae uno") — falla ruidosamente si un módulo nuevo se agrega con
+    // valores distintos entre las dos tablas.
     private fun getModulePort(id: String): Int? = when (id) {
         "ollama" -> 11434
         "n8n" -> 5678
@@ -1097,6 +1173,7 @@ object ModuleController {
         "llamaserver" -> 8085
         "db" -> 3306
         "cactus" -> 8977
+        "syncthing" -> 8384
         else -> null
     }
 

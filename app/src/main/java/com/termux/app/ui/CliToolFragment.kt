@@ -20,8 +20,7 @@ import org.json.JSONObject
 /**
  * Describe qué soporta realmente cada CLI de agente de IA que cae en [CliToolFragment] —
  * confirmado leyendo cada `modulos/<id>.sh` + docs oficiales reales de cada proyecto (nunca
- * asumido), ver reporte de la ronda 2026-08-17 (docs/humano/ pendiente de numeración) que
- * originó este archivo. NO agregar una entrada nueva sin confirmar la sintaxis real del CLI.
+ * asumido). NO agregar una entrada nueva sin confirmar la sintaxis real del CLI.
  *
  * - [authCommand] es un subcomando real de shell confirmado (ej. "kimi login"). Cuando es
  *   `null` pero [hasAuth] es `true`, el CLI SÍ soporta autenticarse (env var de API key y/o un
@@ -32,8 +31,8 @@ import org.json.JSONObject
  *   simples) antes de pasarse a [BaseModuleFragment.launchTerminalCommand].
  * - [localProviderCapable] replica el mismo botón "PROVEEDOR IA LOCAL" (Ollama/llama-server)
  *   que ya vive en GenericModuleFragment.kt para qwencode/mimocode/mistralvibe (investigación
- *   2026-08-13, ver docs/humano/humano116.md) — se repite acá porque esos 3 módulos migran de
- *   fragment, no porque el original se haya tocado.
+ *   2026-08-13) — se repite acá porque esos 3 módulos migran de fragment, no porque el
+ *   original se haya tocado.
  */
 // Nota i18n: los campos de texto puro (labels/hints que el usuario LEE) se guardan como
 // @StringRes Int en vez de String — CLI_MODULE_CONFIGS es un val de nivel de archivo,
@@ -65,8 +64,8 @@ data class CliModuleConfig(
     // status") sobre la carpeta del proyecto. null si el CLI no tiene esta capacidad.
     val analyzeProjectTemplate: String? = null,
     // Bug real confirmado 2026-08-24 por PRUEBA REAL en el dispositivo, vía la terminal
-    // real de la app (no solo por ADB directo, ver docs/humano216.md): toda sesión de
-    // terminal real de Kairos hereda LD_PRELOAD=.../libtermux-exec-ld-preload.so (confirmado
+    // real de la app (no solo por ADB directo): toda sesión de terminal real de Kairos
+    // hereda LD_PRELOAD=.../libtermux-exec-ld-preload.so (confirmado
     // con "env | sort" DENTRO de una sesión real) — necesario para que los shims npm con
     // shebang "#!/usr/bin/env" (ver bug #8, ExpoFragment.kt) resuelvan bien, pero ROMPE
     // cualquier binario glibc-patcheado (patchelf --set-interpreter) o basado en Bun:
@@ -607,6 +606,13 @@ class CliToolFragment : BaseModuleFragment() {
                 updateModuleService { ok ->
                     toast(if (ok) getString(R.string.clitool_toast_updated, moduleName) else getString(R.string.clitool_toast_update_failed, moduleId))
                 }
+            }
+            // Tarea 3 (2026-09-15) — ver KDoc de BaseModuleFragment.runModuleDoctorForThis().
+            // Cubre los ~15 CLIs de IA (freebuff/codebuff/copilotcli/kimi/kilo/cursor/hf/pi/...)
+            // que ModuleDetailNavigator enruta acá en vez de a un Fragment dedicado.
+            actionButton(getString(R.string.base_module_diagnose), GHOST) {
+                toast(getString(R.string.base_module_diagnosing, moduleName))
+                runModuleDoctorForThis()
             }
             actionButton(getString(R.string.clitool_btn_uninstall), DANGER) { confirmUninstall() }
         }

@@ -23,7 +23,7 @@ import com.termux.app.util.kairosThemeColor
  * `docs/mini-pc/MOCKUPS_NAVEGACION_2026-08-25.md`, canvas "Bottom Sheet"). El ítem "X11" salió
  * del listado en la misma ronda — sus acciones se fusionaron dentro de Mini PC
  * (`EntornoFragment`, ver `docs/mini-pc/MINIPC_TAB_2026-08-25.md`) — así que esta grilla arranca
- * con los 5 destinos restantes de `more_nav_menu.xml` (esa es la fuente real de los `R.id.nav_*`
+ * con los destinos restantes de `more_nav_menu.xml` (esa es la fuente real de los `R.id.nav_*`
  * — [MENU_ITEMS] abajo es solo la representación visual en grilla de esos mismos IDs, no un
  * catálogo independiente; si `more_nav_menu.xml` gana/pierde un ítem, esta lista se actualiza
  * a mano en la misma ronda).
@@ -33,11 +33,15 @@ import com.termux.app.util.kairosThemeColor
  * necesitaba gestos de swipe/grilla). Éste sí es el patrón real: una hoja deslizable con una
  * grilla de accesos, que un `AlertDialog`/`PopupMenu` de lista no puede dar.
  *
- * Fusión Sistema→Monitor (2026-08-26, ver docs/humano/humano225.md): el ítem "Sistema" salió
+ * Fusión Sistema→Monitor (2026-08-26): el ítem "Sistema" salió
  * de la grilla — SystemFragment.kt se eliminó por completo, su contenido (RAM, almacenamiento,
  * info de dispositivo) se portó a MonitorFragment.kt como sección "DISPOSITIVO". Mismo criterio
  * que la salida de "X11" documentada arriba: si more_nav_menu.xml gana/pierde un ítem, esta
  * lista se actualiza a mano en la misma ronda.
+ *
+ * "Homelab" agregado 2026-09-15 (pedido explícito del usuario, ver `docs/modulos/HOMELAB.md`) —
+ * pantalla de panel/dashboard con servicios self-hosted externos + accesos rápidos a lo que
+ * Kairos ya expone (Remote/SSH, módulos con servicio HTTP corriendo).
  */
 class MoreBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -59,6 +63,7 @@ class MoreBottomSheetFragment : BottomSheetDialogFragment() {
             MoreItem(R.id.nav_tunnel, R.drawable.ic_tunnel, ctx.getString(R.string.more_sheet_tunnel)),
             MoreItem(R.id.nav_nube, R.drawable.ic_cloud, ctx.getString(R.string.more_sheet_nube)),
             MoreItem(R.id.nav_plugins, R.drawable.ic_store, ctx.getString(R.string.more_sheet_plugins)),
+            MoreItem(R.id.nav_homelab, R.drawable.ic_homelab, ctx.getString(R.string.more_sheet_homelab)),
             MoreItem(R.id.nav_settings, R.drawable.ic_settings, ctx.getString(R.string.more_sheet_config))
         )
     }

@@ -168,6 +168,13 @@ class OllamaConfigFragment : BaseModuleFragment() {
             actionButton(getString(R.string.ollama_config_btn_detalle_proceso), GHOST) { showProcessDetail() }
             actionButton(getString(R.string.ollama_config_btn_info_gpu), GHOST) { showGpuInfo() }
             actionButton(getString(R.string.ollama_config_btn_actualizar), GHOST) { updateOllama() }
+            // Tarea 3 (2026-09-15) — ver KDoc de BaseModuleFragment.runModuleDoctorForThis().
+            // Ollama no pasa por addMaintenanceCard()/GenericModuleFragment (Fragment dedicado,
+            // mantenimiento consolidado acá desde 2026-08-23) — se agrega el mismo botón acá.
+            actionButton(getString(R.string.base_module_diagnose), GHOST) {
+                toast(getString(R.string.base_module_diagnosing, getModuleName()))
+                runModuleDoctorForThis()
+            }
             actionButton(getString(R.string.ollama_config_btn_desinstalar), DANGER) { confirmUninstallModule() }
         }
 
@@ -197,7 +204,7 @@ class OllamaConfigFragment : BaseModuleFragment() {
             .show()
     }
 
-    // Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): no se puede usar el
+    // Bug real (auditoría 2026-08-05): no se puede usar el
     // helper genérico updateModuleService() a secas — ollama.sh exige --variant en modo silent.
     private fun updateOllama() {
         val variant = com.termux.app.data.ModuleRegistry(requireContext()).load().get("ollama.install_mode")

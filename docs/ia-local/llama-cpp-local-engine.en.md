@@ -76,6 +76,35 @@ before accepting the file: real GGUF magic bytes, downloaded size against the se
 `Content-Length`, and a real free-disk-space check (with a safety margin) before writing the
 first byte — if there isn't enough space, the download doesn't even start.
 
+## Multimodal support (image + text)
+
+The in-process engine (`kairos_llm`, the one used by the chat tab) supports real multimodal
+GGUF models — image + text, via llama.cpp's `libmtmd` library. It isn't an experimental fork:
+`libmtmd` was already being compiled as part of Kairos's build (it's a dependency of the
+`llama-server` binary), so adding support to the in-process engine meant linking a component
+that already existed in the project, without changing the vendored llama.cpp version or the
+Vulkan/NDK build pipeline.
+
+How an image turn works:
+
+- The text model is loaded first, and on top of it, the multimodal projector (`mmproj`) — a
+  second `.gguf` file that ships alongside certain vision models (following the
+  `mmproj-*.gguf` naming convention).
+- Text and image are tokenized together and processed in a single pass.
+- **Deliberate limitation**: a turn with an image always reprocesses the whole conversation from
+  scratch (it doesn't reuse the incremental cache that text-only turns use) — mixing both
+  schemes would have been a real source of synchronization bugs for a first pass. Text turns
+  that come AFTER one with an image go back to being incremental as normal.
+- On the "Local AI" screen, `.gguf` files that Kairos detects as a multimodal projector (by
+  name) get their own icon/label under "Downloaded models".
+- In the chat, the image-attach button (which already existed for Ollama) is also enabled for
+  local models as soon as at least one multimodal projector has been imported — it reuses the
+  same picker and image compression already used for Ollama, no new picker involved.
+
+**Still missing**: an explicit way to manually pair a model with its projector when several are
+imported (today it heuristically uses the most recently imported one), multimodal support in
+`llama-server` (the HTTP binary, for external consumers), and audio/video support.
+
 ## Configurable `llama-server` parameters
 
 `llama-server`'s configuration (context size, threads, GPU offload layers, optional API key,

@@ -21,9 +21,8 @@ import java.io.File
  */
 object EntornoNative {
 
-    // "kali" agregada 2026-08-26 (pedido explícito del usuario: "en Mini PC nunca sale
-    // disponible la distro Kali y debería salir" — faltaba del catálogo por completo, ver
-    // docs/humano/humano226.md). A diferencia del resto de esta lista, "kali" NO es un alias
+    // "kali" agregada 2026-08-26 — faltaba del catálogo por completo (Kali nunca aparecía
+    // como distro disponible en Mini PC). A diferencia del resto de esta lista, "kali" NO es un alias
     // oficial de proot-distro (confirmado en modulos/ciberseguridad.sh PASO 7: proot-distro
     // v5.6.0+ ya no tiene un alias curado "kali" — hay que instalar la imagen OCI completa
     // "kalilinux/kali-rolling" con "-n kali" para que quede con ese nombre de contenedor). Se
@@ -61,7 +60,7 @@ object EntornoNative {
     private val CONFIRMED = listOf("ubuntu", "debian", "alpine")
     private val EXPERIMENTAL = listOf("archlinux", "fedora", "void", "kali", "manjaro", "rockylinux", "opensuse-tumbleweed")
 
-    // Bug real reportado (2026-08-13, ver docs/humano/humano116.md): "plasma" quedó en esta
+    // Bug real reportado (2026-08-13): "plasma" quedó en esta
     // lista pero NUNCA puede instalarse — KDE Plasma está fuera de alcance del repo nativo
     // termux/x11-packages (confirmado: solo se ofrece vía proot-distro con pacman/apt, no
     // existe como paquete pkg de Termux) — installDesktop("plasma") fallaba siempre con
@@ -234,10 +233,10 @@ object EntornoNative {
 
     /**
      * Mismo mapeo que _check_gpu() en menu_entorno.sh/entorno.sh — getprop, no dmesg
-     * (Android 15 pide root para dmesg). Codenames Adreno ampliados (2026-08-06, ver
-     * docs/humano/humano86.md) — 3ra copia del mismo bug ya arreglado en modulos/ollama.sh
-     * y modulos/entorno.sh (bash): faltaba "cape" (Snapdragon 7+ Gen2, dispositivo real de
-     * prueba de esta sesión) y otros codenames Qualcomm recientes.
+     * (Android 15 pide root para dmesg). Codenames Adreno ampliados (2026-08-06) — 3ra
+     * copia del mismo bug ya arreglado en modulos/ollama.sh y modulos/entorno.sh (bash):
+     * faltaba "cape" (Snapdragon 7+ Gen2, dispositivo real de prueba) y otros codenames
+     * Qualcomm recientes.
      *
      * Bug real confirmado por ADB (2026-08-29, dispositivo Samsung SM-A566E/Galaxy A56,
      * Exynos 1580): "ro.board.platform" solo devuelve "erd8855" en este dispositivo — NO
@@ -263,7 +262,7 @@ object EntornoNative {
         }
     }
 
-    // Bug real (2026-08-06, ver docs/humano/humano86.md): installDesktop() (y las demás
+    // Bug real (2026-08-06): installDesktop() (y las demás
     // llamadas a "pkg update" de este archivo) usan ManagerNativeUtils.runExec() —
     // ProcessBuilder directo, SIN pasar por bash — así que nunca se benefician de
     // pkg_update_with_fallback() (modulos/lib.sh), el reintento-con-otro-mirror que sí
@@ -274,7 +273,7 @@ object EntornoNative {
     // por algún motivo, cae a un "pkg update -y" plano (comportamiento anterior), nunca
     // deja el update sin intentar.
     //
-    // Bug real #2 (auditoría 2026-08-12, ver docs/humano/humano98.md): el patrón de "$out"
+    // Bug real #2 (auditoría 2026-08-12): el patrón de "$out"
     // que dispara el reintento de mirror en pkg_update_with_fallback() (modulos/lib.sh) no
     // incluía "No mirror or mirror group selected" — el mensaje real que devuelve `pkg`
     // (scripts/pkg.in, select_mirror()) cuando el dispositivo nunca corrió el
@@ -292,7 +291,7 @@ object EntornoNative {
         return ManagerNativeUtils.runShell(cmd, timeoutSeconds)
     }
 
-    // Bug real #3 (auditoría 2026-08-12, ver docs/humano/humano98.md): xfce4/lxqt/mate/plasma
+    // Bug real #3 (auditoría 2026-08-12): xfce4/lxqt/mate/plasma
     // viven en el repo separado de Termux "x11-repo" (termux/termux-packages,
     // x11-packages/) — NUNCA se habilita en ningún flujo de Kairos (ni modulos/entorno.sh,
     // ni EntornoNative.kt), así que "pkg install xfce4" fallaba con "unable to locate
@@ -346,6 +345,79 @@ object EntornoNative {
         return File(socketPath).exists()
     }
 
+    // ═══════════════════════════════════════════════════════════
+    //  Backend GPU REAL confirmado en runtime — vs. el simplemente PEDIDO
+    //  (entorno.gpu_method en el registry, seteado por setGpuMethod()). Bug real (Tarea 1,
+    //  auditoría 2026-09-15): pedir "turnip" puede terminar en "failed to load driver: zink"
+    //  y caer en silencio a software (ver el comentario real de gpuMethodOptions() más abajo,
+    //  "confirmado roto en al menos 1 chip Adreno real") — antes status()/gpuDiagnostic()
+    //  mostraban directo el valor pedido del registry, nunca lo que terminó cargado de verdad.
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * Clasifica el backend GPU REALMENTE activo a partir de lecturas runtime reales (mismo
+     * `glxinfo -B`/`vulkaninfo --summary` que ya usa gpuDiagnostic()) — nunca el valor pedido.
+     * Heurística best-effort (no hay una API que devuelva "el driver Gallium/Vulkan cargado"
+     * de forma estructurada en Termux) documentada acá para que quede claro qué evidencia usa
+     * cada rama, siguiendo empirical-verification-before-fix.md: el renderer OpenGL (Mesa
+     * gallium) dice si cayó a software puro (llvmpipe/softpipe) o a un driver real
+     * (zink/virgl/panfrost/freedreno); cuando el renderer es zink o llvmpipe puro, el
+     * `deviceName` de Vulkan detrás distingue "zink sobre Turnip/freedreno real" (aceleración
+     * real) de "zink sobre llvmpipe/swiftshader/lavapipe" (software con otro nombre) — y,
+     * cuando el renderer es llvmpipe pero Vulkan SÍ reporta un vendor real (no software), es
+     * el caso de "wrapper" (Vulkan nativo puro, nunca toca la ruta GL — ver el comentario real
+     * de "wrapper" en gpuMethodOptions()).
+     */
+    private fun classifyActiveGpuBackend(renderer: String, vulkanDevice: String): String {
+        val r = renderer.lowercase()
+        val v = vulkanDevice.lowercase()
+        val vulkanIsSoftware = v.isBlank() || v.contains("llvmpipe") || v.contains("swiftshader") || v.contains("lavapipe")
+        return when {
+            r.contains("llvmpipe") || r.contains("softpipe") -> when {
+                !vulkanIsSoftware && (v.contains("freedreno") || v.contains("turnip")) -> "turnip"
+                !vulkanIsSoftware -> "wrapper"
+                else -> "llvmpipe"
+            }
+            r.contains("zink") && (v.contains("freedreno") || v.contains("turnip") || v.contains("adreno")) -> "turnip"
+            r.contains("zink") && !vulkanIsSoftware -> "zink"
+            r.contains("zink") -> "llvmpipe"
+            r.contains("virgl") || r.contains("virtio") -> "virgl"
+            r.contains("panfrost") -> "panfrost"
+            r.contains("freedreno") -> "turnip"
+            else -> "unknown"
+        }
+    }
+
+    // Cache corto — evita spawnear glxinfo/vulkaninfo en CADA poll de status() (cada 3s
+    // mientras la pestaña Sistema está visible, ver BaseModuleFragment.terminalStatusPollRunnable)
+    // — se refresca de verdad como mucho cada ACTIVE_GPU_CACHE_TTL_MS, o al toque cuando
+    // gpuDiagnostic() (acción explícita del usuario) ya pagó el costo real de esa misma lectura.
+    @Volatile private var activeGpuBackendCache: Pair<Long, String>? = null
+    private const val ACTIVE_GPU_CACHE_TTL_MS = 15000L
+
+    /**
+     * Backend GPU real confirmado en runtime — null si el servidor X11 embebido no está
+     * corriendo (sin ningún cliente GL/Vulkan real arriba para consultar, no hay nada que
+     * confirmar todavía; el caller cae al método configurado tal cual en ese caso).
+     */
+    private fun confirmedActiveGpuBackend(): String? {
+        if (!(processRunning(":xserver") && isX11SocketAlive())) return null
+        val now = System.currentTimeMillis()
+        val cached = activeGpuBackendCache
+        if (cached != null && now - cached.first < ACTIVE_GPU_CACHE_TTL_MS) return cached.second
+        val renderer = if (binaryAvailable("glxinfo")) {
+            ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, "-c", "glxinfo -B 2>/dev/null | grep 'OpenGL renderer'"), 8)
+                .second.substringAfter(":").trim()
+        } else ""
+        val vulkan = if (binaryAvailable("vulkaninfo")) {
+            ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, "-c", "vulkaninfo --summary 2>/dev/null | grep deviceName"), 8)
+                .second.substringAfter(":").trim()
+        } else ""
+        val backend = classifyActiveGpuBackend(renderer, vulkan)
+        activeGpuBackendCache = now to backend
+        return backend
+    }
+
     fun status(): JSONObject {
         val reg = ManagerNativeUtils.readRegistry()
         val installed = reg["entorno.installed"] == "true"
@@ -355,8 +427,8 @@ object EntornoNative {
         // estaba instalada vía "pm list packages". Desde que X11/Xlorie quedó embebido en
         // el propio APK (X11Service, proceso ":xserver" — ver docs/arquitectura/
         // X11_EMBEBIDO.md), Entorno usa ese servidor embebido en vez de la app externa
-        // (pedido explícito del usuario, "como ya tenemos x11/xlorie en el apk debe abrir
-        // ahi directamente", ver docs/humano/humano98.md) — el servidor embebido siempre
+        // (ya que X11/Xlorie viene embebido en el propio APK, debe abrir directo
+        // ahí) — el servidor embebido siempre
         // está disponible (ships en el APK), y su estado real es si el proceso ":xserver"
         // está vivo, igual que X11Fragment.isXServerProcessAlive() pero vía pgrep (este
         // object no tiene Context para usar ActivityManager).
@@ -365,11 +437,19 @@ object EntornoNative {
         val vncRunning = processRunning("Xtightvnc") || processRunning("Xvnc")
         val pulseRunning = processRunning("pulseaudio")
         val installedDesktops = KNOWN_DESKTOPS.filter { desktopBinaryExists(it) }
+        // Backend real confirmado (Tarea 1) — null cuando X11 no está corriendo, en cuyo caso
+        // gpuMethodActive cae al método configurado tal cual (nada que confirmar todavía).
+        val activeBackend = confirmedActiveGpuBackend()
+        val gpuMethodActive = activeBackend ?: gpuMethod
+        val gpuMismatch = activeBackend != null && gpuMethod != "auto" && activeBackend != "unknown" && activeBackend != gpuMethod
         return JSONObject().apply {
             put("ok", true)
             put("installed", installed)
             put("gpu", gpu)
             put("gpu_method", gpuMethod)
+            put("gpu_method_active", gpuMethodActive)
+            put("gpu_method_confirmed", activeBackend != null)
+            put("gpu_mismatch", gpuMismatch)
             put("x11_apk_installed", x11ApkInstalled)
             put("x11_running", x11Running)
             put("vnc_running", vncRunning)
@@ -412,14 +492,14 @@ object EntornoNative {
     // URL a una futura Release pública de kairos-lab — TODAVÍA NO PUBLICADA (mismo patrón
     // deliberado que RootfsInstaller.ROOTFS_TAR_URL: apunta al repo PÚBLICO kairos-lab, nunca
     // al privado, para que el día que se publique la Release esto funcione sin tocar código
-    // de nuevo — ver docs/humano267.md). Evaluado en docs/humano334.md a partir de una pregunta
-    // real del usuario ("¿un .deb de Kali no es más rápido?"): la respuesta real es que un
+    // de nuevo). Evaluado a partir de una pregunta real ("¿un .deb de Kali no es más
+    // rápido?"): la respuesta real es que un
     // .deb no aplica acá (Kali no vive en la base de dpkg de Termux, vive como rootfs de
     // proot-distro), pero el mismo mecanismo que ya usan distroBackup()/distroRestore()
     // (tar.gz de containers/<name>) SÍ sirve — confirmado en dispositivo real: 513MB
     // comprimidos (887MB sin comprimir) con exactamente este comando. Evita que la instalación
     // dependa de tirar en vivo de los mirrors oficiales de Kali (la causa real del
-    // reintento-con-backoff de más abajo, docs/humano330.md).
+    // reintento-con-backoff de más abajo).
     private const val KALI_PREBUILT_RELEASE_TAG = "kali-rootfs-2026.09.14"
     private const val KALI_PREBUILT_TAR_URL =
         "https://github.com/Honkonx/kairos-lab/releases/download/$KALI_PREBUILT_RELEASE_TAG/kali-rootfs-aarch64.tar.gz"
@@ -502,13 +582,13 @@ object EntornoNative {
         insufficientSpaceError(600)?.let { return it }
         // Puede tardar varios minutos (descarga del rootfs) — timeout generoso; el
         // caller ya corre esto en un Thread propio, no bloquea el hilo de UI. Subido
-        // de 600s a 900s (bug real reportado, ver docs/humano/humano57.md: "da error
+        // de 600s a 900s (bug real reportado: "da error
         // al instalar la distro" — en conexiones lentas, un rootfs de varios cientos
         // de MB puede no alcanzar a bajar en 10 minutos; el timeout mataba el proceso
         // a mitad de descarga y se reportaba como error genérico).
         //
-        // Bug de diagnosticabilidad real (auditoría 2026-08-05, ver docs/humano65.md/
-        // humano66.md): esta operación (y el resto de EntornoNative) no dejaba NINGÚN
+        // Bug de diagnosticabilidad real (auditoría 2026-08-05): esta operación (y el resto
+        // de EntornoNative) no dejaba NINGÚN
         // rastro persistente — a diferencia de ModuleController.installModule(), que
         // escribe a ~/kairos_logs/install_<modulo>.log, un fallo acá solo mostraba un
         // Snackbar genérico ("Instalación de X falló") y el detalle real (json.output)
@@ -522,7 +602,7 @@ object EntornoNative {
         } else {
             listOf(TERMUX_PROOT_DISTRO_PATH, "install", name)
         }
-        // Reintento simple con backoff (ronda 2026-09-09, docs/humano328.md, hallazgo de
+        // Reintento simple con backoff (ronda 2026-09-09, hallazgo de
         // referencia/mini-pc — antes un solo intento, sin ningún reintento si "proot-distro
         // install" fallaba a mitad de descarga por un corte de red puntual, mismo espíritu
         // que _apt_install_repair() ya usa para el paso de instalar el DE dentro de la
@@ -541,7 +621,7 @@ object EntornoNative {
             return JSONObject().put("ok", false).put("error", "Instalación de $name falló")
                 .put("output", output.takeLast(500))
         }
-        // Self-heal de /etc/resolv.conf (ronda 2026-09-09, docs/humano328.md, hallazgo de
+        // Self-heal de /etc/resolv.conf (ronda 2026-09-09, hallazgo de
         // referencia/ciberseguridad/pocket-kali/install.sh:296-300) — un rootfs recién
         // extraído puede no traer resolv.conf configurado, dejando la distro sin DNS en el
         // primer "apt-get update" (fallo silencioso "no se puede resolver el mirror",
@@ -576,10 +656,9 @@ object EntornoNative {
     // ═══════════════════════════════════════════════════════════
     //  Storage compartido automático — portado de usb_bind_args()/--shared-home/
     //  --shared-tmp de termux-desktop-main (ver referencia/termux/termux-desktop-main/
-    //  distro-container-setup, funciones usb_bind_args()/usb_mounts()). Pedido explícito
-    //  del usuario (docs/humano/humano118.md, PLAN_EXPANSION_HOMELAB_2026-08-13 §2.7):
-    //  storage compartido SIN que el usuario configure nada, en CUALQUIER
-    //  "proot-distro login" que dispare Kairos.
+    //  distro-container-setup, funciones usb_bind_args()/usb_mounts()). Objetivo (ver
+    //  PLAN_EXPANSION_HOMELAB_2026-08-13 §2.7): storage compartido SIN que el usuario
+    //  configure nada, en CUALQUIER "proot-distro login" que dispare Kairos.
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -592,7 +671,7 @@ object EntornoNative {
      */
     private fun usbBindArgs(): List<String> {
         val args = mutableListOf("--bind", "/storage:/storage", "--bind", "/mnt/media_rw:/mnt/media_rw")
-        // Bind de nodos GPU (ronda 2026-09-09, docs/humano328.md) — mismo fix aplicado en
+        // Bind de nodos GPU (ronda 2026-09-09) — mismo fix aplicado en
         // usb_bind_args() de modulos/entorno.sh (pdrun) — sin esto, cualquier login desde
         // el lado Kotlin (no solo pdrun del lado bash) cae a software rendering. Ver ese
         // comentario para la explicación causal completa.
@@ -703,8 +782,8 @@ object EntornoNative {
      * (termux/termux-packages, x11-packages/) — xfce4/lxqt/mate existen tal cual.
      *
      * Timeout subido de 300s a 900s y `pkg update -y` best-effort antes de instalar (mirrors
-     * caídos causaban "unable to locate package" en vez de un timeout real, ver
-     * docs/humano/humano57.md). NOTA (2026-08-13, ver docs/humano/humano116.md): esa misma
+     * caídos causaban "unable to locate package" en vez de un timeout real). NOTA
+     * (2026-08-13): esa misma
      * ronda diagnosticó mal el caso de `plasma` — el "unable to locate package" ahí NO era
      * por timeout/mirror, era porque KDE Plasma no existe como paquete pkg de Termux (fuera
      * de alcance del repo x11-packages, solo instalable vía proot-distro) — quitado de
@@ -739,9 +818,8 @@ object EntornoNative {
     /**
      * Lanza el DE elegido sobre el servidor X11 EMBEBIDO (Xlorie/X11Service, display fijo
      * ":1" — ver docs/x11/X11_EMBEBIDO.md). Reemplaza el flujo anterior que
-     * arrancaba Termux:X11 (app externa, tx11_start.sh) sobre DISPLAY=:0 — pedido explícito
-     * del usuario, "como ya tenemos x11/xlorie en el apk debe abrir ahi directamente" (ver
-     * docs/humano/humano98.md).
+     * arrancaba Termux:X11 (app externa, tx11_start.sh) sobre DISPLAY=:0 — ya que X11/Xlorie
+     * viene embebido en el propio APK, debe abrir directo ahí.
      *
      * El CALLER (EntornoFragment, que sí tiene Context) es responsable de arrancar
      * X11Service ANTES de invocar esta función — este object no puede arrancar un Service
@@ -773,7 +851,7 @@ object EntornoNative {
             ?: return JSONObject().put("ok", false).put("error", "Escritorio desconocido: $de")
         // Antes de arrancar el DE, no después — xfdesktop escanea ~/Desktop al levantar
         // la sesión, así que los íconos deben existir ya en ese momento (ver
-        // generateDesktopLaunchers() más abajo, docs/humano/humano115.md). Mismo criterio
+        // generateDesktopLaunchers() más abajo). Mismo criterio
         // para ~/.config/autostart/ (generateAutostartEntries()) — la sesión (xfce4-session
         // et al.) también lo lee al levantar.
         generateDesktopLaunchers()
@@ -868,8 +946,8 @@ object EntornoNative {
         // ese script) — 27s = 25s del retry loop + margen para dbus/sesión, mismo criterio que
         // el 12s anterior (10s+2s) pero con el presupuesto real que exige un arranque en frío.
         Thread.sleep(27000)
-        // Bug real confirmado 2026-08-27 (ver docs/humano256.md, reporte de usuario: la app
-        // dice "error al abrir" pero el entorno gráfico SÍ abre — falso negativo). Este chequeo
+        // Bug real confirmado 2026-08-27 (la app decía "error al abrir" pero el entorno
+        // gráfico SÍ abría — falso negativo). Este chequeo
         // exigía `processRunning("proot-distro login")` — pero `proot-distro login` (paquete
         // Python real, confirmado leyendo commands/login/__init__.py del proot-distro instalado
         // en el dispositivo) termina con `os.execvpe(proot_bin, proot_args, child_env)`: REEMPLAZA
@@ -949,7 +1027,7 @@ object EntornoNative {
             return JSONObject().put("ok", false).put("error", "No se pudo instalar ${desktopLabel(de)} en $distro")
                 .put("output", output.takeLast(500))
         }
-        // Bug real confirmado por ADB (docs/humano249.md, 2026-08-26): el selector "¿Cuál
+        // Bug real confirmado por ADB (2026-08-26): el selector "¿Cuál
         // escritorio iniciar en <distro>?" (promptDistroDesktopStart(), EntornoFragment.kt)
         // ofrecía SIEMPRE los 3 KNOWN_DESKTOPS, sin importar cuál de ellos se había instalado
         // de verdad en ESA distro — el usuario podía elegir "xfce4" para una distro donde solo
@@ -971,8 +1049,8 @@ object EntornoNative {
             ?.split(",")?.filter { it.isNotBlank() && it in KNOWN_DESKTOPS_DISTRO } ?: emptyList()
 
     // ═══════════════════════════════════════════════════════════
-    //  Fondo de pantalla — pedido explícito del usuario (docs/humano249.md ronda,
-    //  "incluso poder cambiar la imagen de fondo etc"). Mecanismo real por DE (confirmado
+    //  Fondo de pantalla — poder cambiar la imagen de fondo del escritorio desde la app.
+    //  Mecanismo real por DE (confirmado
     //  contra la documentación oficial de cada proyecto — no verificado en vivo dentro de
     //  una sesión gráfica real del dispositivo, ver nota de "pendiente de confirmación
     //  visual" en docs/arquitectura/DEPURACION_COMPLETA_2026-08-26.md):
@@ -1134,8 +1212,8 @@ object EntornoNative {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Lanzadores gráficos (~/Desktop/*.desktop) — pedido explícito del usuario
-    //  (docs/humano/humano115.md): poder abrir los CLIs de Kairos (Claude Code, n8n,
+    //  Lanzadores gráficos (~/Desktop/*.desktop) — objetivo: poder abrir los CLIs de
+    //  Kairos (Claude Code, n8n,
     //  OpenCode, Codex) DENTRO del escritorio XFCE4 nativo, no solo desde la terminal
     //  adaptada de la app. XFCE4 ya lee ~/Desktop/*.desktop de fábrica (formato
     //  freedesktop.org estándar, Desktop Entry Specification) — no requiere ningún
@@ -1432,7 +1510,7 @@ object EntornoNative {
         if (binaryAvailable("tigervncserver")) {
             return JSONObject().put("ok", true).put("message", "TigerVNC ya estaba instalado")
         }
-        // Bug real confirmado por auditoría de código (2026-09-14, docs/humano337.md) — mismo
+        // Bug real confirmado por auditoría de código (2026-09-14) — mismo
         // patrón exacto que ya rompió xfce4/lxqt/mate en installDesktop() antes de agregarle
         // ensureX11Repo() (línea 724 de este archivo): TigerVNC vive en el repo separado
         // "x11-repo" de termux/x11-packages, nunca instalado por acá — "pkg install -y
@@ -1442,8 +1520,7 @@ object EntornoNative {
         // todavía (empirical-verification-before-fix.md) — el fix es mecánicamente idéntico al
         // ya verificado en installDesktop(), mismo `ensureX11Repo()` reusado.
         ensureX11Repo()
-        // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop(),
-        // ver docs/humano/humano57.md).
+        // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop()).
         pkgUpdateWithFallback()
         val (rc, out, err) = ManagerNativeUtils.runExec(listOf(TERMUX_PKG_PATH, "install", "-y", "tigervnc"), 300)
         if (rc != 0) {
@@ -1513,7 +1590,7 @@ object EntornoNative {
         if (password.length < 6) return JSONObject().put("ok", false).put("error", "La contraseña debe tener al menos 6 caracteres (límite real de VNC)")
         val vncDir = File(ManagerNativeUtils.home, ".vnc")
         if (!vncDir.exists()) vncDir.mkdirs()
-        // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): runExecWithStdin
+        // Bug real confirmado por ADB (2026-08-24): runExecWithStdin
         // invocaba el binario por nombre relativo ("vncpasswd"/"tigervncpasswd") — mismo patrón
         // ya confirmado roto para Hermes (ProcessBuilder no resuelve PATH en este entorno).
         // Ruta absoluta = mismo fix que TERMUX_HERMES_PATH/TERMUX_CACTUS_PATH.
@@ -1539,8 +1616,8 @@ object EntornoNative {
         val stopScript = File(scriptsDir, "vnc_stop.sh")
         if (stopScript.exists()) ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, stopScript.absolutePath), 15)
 
-        // Default 1280x720 (no 1920x1080) — pedido explícito del usuario: "por defecto X11 y
-        // VNC debe estar en horizontal con 1280x720p" (2026-09-03, ver docs/humano316.md). Solo
+        // Default 1280x720 (no 1920x1080) — objetivo: por defecto X11 y
+        // VNC deben estar en horizontal con 1280x720p (2026-09-03). Solo
         // afecta este fallback (geometry inválido/vacío) y el preseleccionado del Spinner de
         // promptVncConfig() en EntornoFragment.kt — vnc_start.sh (script fijo generado por
         // modulos/entorno.sh, PROTEGIDO, usado por el botón "Iniciar VNC" simple sin diálogo de
@@ -1550,7 +1627,7 @@ object EntornoNative {
         val baseArgs = mutableListOf(":1", "-geometry", safeGeometry, "-depth", safeDepth.toString(), "-localhost")
         if (!requirePassword) baseArgs.addAll(listOf("-SecurityTypes", "None"))
 
-        // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): mismo patrón de
+        // Bug real confirmado por ADB (2026-08-24): mismo patrón de
         // nombre relativo que vncpasswd arriba — ruta absoluta = mismo fix.
         val (rc1, out1, err1) = ManagerNativeUtils.runExec(listOf(TERMUX_VNCSERVER_PATH) + baseArgs, 30)
         if (rc1 == 0) {
@@ -1589,21 +1666,34 @@ object EntornoNative {
         val gpuType = detectGpuType()
         val reg = ManagerNativeUtils.readRegistry()
         val method = reg["entorno.gpu_method"]?.takeIf { it.isNotBlank() } ?: "auto"
-        val renderer = if (binaryAvailable("glxinfo")) {
+        val rawRenderer = if (binaryAvailable("glxinfo")) {
             ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, "-c", "glxinfo -B 2>/dev/null | grep 'OpenGL renderer'"), 10)
-                .second.substringAfter(":").trim().ifEmpty { "no detectado" }
-        } else "glxinfo no instalado (pkg install mesa-demos)"
-        val vulkan = if (binaryAvailable("vulkaninfo")) {
+                .second.substringAfter(":").trim()
+        } else ""
+        val rawVulkan = if (binaryAvailable("vulkaninfo")) {
             ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, "-c", "vulkaninfo --summary 2>/dev/null | grep deviceName"), 10)
-                .second.substringAfter(":").trim().ifEmpty { "no detectado" }
-        } else "no detectado"
+                .second.substringAfter(":").trim()
+        } else ""
+        val renderer = rawRenderer.ifEmpty { "no detectado" }.let {
+            if (!binaryAvailable("glxinfo")) "glxinfo no instalado (pkg install mesa-demos)" else it
+        }
+        val vulkan = rawVulkan.ifEmpty { "no detectado" }
         val (_, drivers, _) = ManagerNativeUtils.runExec(
             listOf(TERMUX_BASH_PATH, "-c", "pkg list-installed 2>/dev/null | grep -E 'mesa|vulkan|virgl|angle|turnip|panfrost' | cut -d/ -f1"), 15
         )
+        // Backend real confirmado (Tarea 1) — mismas lecturas raw de arriba, clasificadas con
+        // el mismo criterio que confirmedActiveGpuBackend(); esta llamada ya pagó el costo real
+        // de glxinfo/vulkaninfo, se aprovecha para refrescar el cache corto de status() también
+        // (evita repetir la misma lectura si el usuario abre "Sistema" justo después).
+        val activeBackend = classifyActiveGpuBackend(rawRenderer, rawVulkan)
+        activeGpuBackendCache = System.currentTimeMillis() to activeBackend
+        val mismatch = method != "auto" && activeBackend != "unknown" && activeBackend != method
         return JSONObject().apply {
             put("ok", true)
             put("gpu_type", gpuType)
             put("gpu_method", method)
+            put("gpu_method_active", activeBackend)
+            put("gpu_mismatch", mismatch)
             put("renderer", renderer)
             put("vulkan_device", vulkan)
             put("drivers_installed", drivers.ifBlank { "ninguno" })
@@ -1618,7 +1708,7 @@ object EntornoNative {
      * GPU (zink/virgl/panfrost/wrapper/llvmpipe) que setGpuMethod() ya permite elegir. Se usa
      * glxgears en vez de glmark2 porque ya viene con mesa-demos (paquete que setGpuMethod()/
      * entorno.sh ya instalan para TODOS los métodos, ver el `+ "mesa-demos"` en cada rama de
-     * arriba — nombre real corregido 2026-09-14, docs/humano336.md, antes decía "mesa-utils"
+     * arriba — nombre real corregido 2026-09-14, antes decía "mesa-utils"
      * que no existe en el repo de Termux) — glmark2 es un paquete nuevo que ningún flujo de
      * Kairos instala hoy, agregarlo
      * ampliaría el scope de instalación sin necesidad real cuando glxgears ya resuelve el
@@ -1702,17 +1792,16 @@ object EntornoNative {
     /** Métodos válidos según el tipo de GPU detectado — mismo árbol que el case de submenu_interfaz [0]. */
     fun gpuMethodOptions(): JSONObject {
         val gpuType = detectGpuType()
-        // "wrapper" corregido 2026-08-28 (docs/humano281.md — el usuario aclaró que NO es
-        // ANGLE/OpenGL/EGL: es Vulkan puro, una capa ENCIMA del driver Vulkan real del
-        // dispositivo, y SOLO funciona en modo nativo, nunca dentro de proot-distro — ver
-        // gpu_env.sh case "wrapper" en entorno.sh para el detalle de por qué queda confinado
-        // a nativo automáticamente). Paquete real: vulkan-wrapper-android
-        // (referencia/termux/termux-desktop-main/docs/hw-acceleration.md +
-        // enable-hw-acceleration, release real en github.com/sabamdarif/termux-desktop) —
-        // agregado como opción universal en las 3 ramas, cierre real del pedido original
-        // (docs/humano/humano181.md "en gpu falta wrapper, zink, turnip o panfrot").
+        // "wrapper" corregido 2026-08-28 — NO es ANGLE/OpenGL/EGL: es Vulkan puro, una
+        // capa ENCIMA del driver Vulkan real del dispositivo, y SOLO funciona en modo
+        // nativo, nunca dentro de proot-distro — ver gpu_env.sh case "wrapper" en
+        // entorno.sh para el detalle de por qué queda confinado a nativo automáticamente.
+        // Paquete real: vulkan-wrapper-android (referencia/termux/termux-desktop-main/
+        // docs/hw-acceleration.md + enable-hw-acceleration, release real en
+        // github.com/sabamdarif/termux-desktop) — agregado como opción universal en las 3
+        // ramas, cierre real del gap original ("en GPU falta wrapper, zink, turnip o panfrost").
         val (labels, values) = when (gpuType) {
-            // "Turnip" marcado como experimental en el label (2026-09-14, docs/humano336.md)
+            // "Turnip" marcado como experimental en el label (2026-09-14)
             // — antes era el único método sin la etiqueta "(experimental)" pese a estar en el
             // mismo estado "no verificado en dispositivo real" que panfrost/virgl (ver
             // comentario real de gpu_env.sh case "turnip"). Confirmado roto en un Adreno real
@@ -1738,7 +1827,7 @@ object EntornoNative {
 
     /** Instala los paquetes del método elegido y guarda entorno.gpu_method en el registry — mismo case que el menú original. */
     fun setGpuMethod(method: String): JSONObject {
-        // Bug real confirmado por ADB (2026-09-14, docs/humano336.md): "mesa-zink",
+        // Bug real confirmado por ADB (2026-09-14): "mesa-zink",
         // "mesa-vulkan-icd-freedreno-dri3", "mesa-panfrost" y "mesa-utils" NUNCA existieron
         // como paquetes reales en el repo de Termux (confirmado con "apt-cache search mesa"
         // en dispositivo real — 0 resultados para los 4 nombres). Zink y Panfrost son
@@ -1764,8 +1853,7 @@ object EntornoNative {
             else -> return JSONObject().put("ok", false).put("error", "Método GPU desconocido: $method")
         }
         if (packages.isNotEmpty()) {
-            // pkg update -y best-effort + timeout subido (mismo criterio que
-            // installDesktop(), ver docs/humano/humano57.md).
+            // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop()).
             pkgUpdateWithFallback()
             ManagerNativeUtils.runExec(listOf(TERMUX_PKG_PATH, "install", "-y") + packages, 600)
         }
@@ -1792,7 +1880,7 @@ object EntornoNative {
         // mismo (ver comentario arriba); el driver ya se instala en este paso, solo falta
         // reiniciar el X11 embebido para que las variables nuevas de gpu_env.sh apliquen.
         val note = if (method == "turnip") " (driver Turnip instalado — no verificado en dispositivo real todavía)" else ""
-        // Fix (ronda Termux-Desktops-main, ver docs/humano/): este mensaje seguía diciendo
+        // Fix (ronda Termux-Desktops-main): este mensaje seguía diciendo
         // "reiniciá Termux:X11" — texto heredado de cuando Kairos usaba la app externa
         // com.termux.x11. Desde 2026-08-13 el servidor es el X11 embebido (Xlorie,
         // X11Service) — reiniciarlo es "Detener servidor X11" + volver a abrirlo desde
@@ -1888,7 +1976,7 @@ object EntornoNative {
     }
 
     /**
-     * Restaurar distro desde un .tar.gz de distroBackup() (ronda 2026-09-09, docs/humano328.md,
+     * Restaurar distro desde un .tar.gz de distroBackup() (ronda 2026-09-09,
      * hallazgo real: existía backup sin su función simétrica). Extrae SOBRE el layout moderno
      * (containers/) — si el backup viene de una versión vieja de proot-distro con el layout
      * legacy, se extrae igual dentro de containers/ (proot-distro moderno no lee
@@ -1917,7 +2005,7 @@ object EntornoNative {
 
     /**
      * `proot-distro reset <name>` / `rename <old> <new>` — comandos nativos de proot-distro,
-     * nunca expuestos desde Kairos (ronda 2026-09-09, docs/humano328.md). "reset" reinstala la
+     * nunca expuestos desde Kairos (ronda 2026-09-09). "reset" reinstala la
      * distro desde cero sin que el usuario tenga que eliminar+reinstalar a mano (distroRemove()
      * + distroInstall() por separado, perdiendo el paso intermedio si algo falla a mitad de
      * camino). Mismo patrón de validación que distroInstall()/distroRemove().
@@ -2156,9 +2244,8 @@ object EntornoNative {
         JSONObject().put("ok", true).put("apps", JSONArray(loadDistroApps()))
 
     // ── Contenedores — udocker ──────────────────────────────────
-    // Feature nueva (2026-08-06, ver docs/humano/humano86.md, pedido explícito del
-    // usuario): "usar la terminal adaptada para udocker, ejecutar más cosas ahí ya que es
-    // un contenedor" — hasta ahora udocker solo se usaba para arrancar n8n en background
+    // Feature nueva (2026-08-06) — objetivo: usar la terminal adaptada para udocker,
+    // ejecutar más cosas ahí ya que es un contenedor — hasta ahora udocker solo se usaba para arrancar n8n en background
     // (modulos/n8n.sh), sin ninguna forma de abrir una sesión interactiva ADENTRO del
     // contenedor (equivalente a "docker exec -it"). El comentario de arriba del archivo
     // ("se dejaron afuera udocker run/list/setup") describía el alcance de la ronda
@@ -2179,7 +2266,7 @@ object EntornoNative {
         if (!udockerAvailable()) {
             return JSONObject().put("ok", false).put("error", "udocker no está instalado")
         }
-        // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): los 4 usos de
+        // Bug real confirmado por ADB (2026-08-24): los 4 usos de
         // "udocker" en este archivo invocaban el binario por nombre relativo — mismo patrón ya
         // confirmado roto para Hermes/vncserver (ProcessBuilder no resuelve PATH acá). Ruta
         // absoluta (TERMUX_UDOCKER_PATH, ya definida en ProcessBuilderExt.kt y usada por
@@ -2264,8 +2351,8 @@ object EntornoNative {
 
     /**
      * Fuerza el default de orientación horizontal del visor X11 embebido (Xlorie) — bug real
-     * reportado por el usuario: "por defecto X11 y VNC debe estar en horizontal con 1280x720p"
-     * pero arrancaba en vertical (2026-09-03, ver docs/humano316.md).
+     * reportado: por defecto X11 y VNC deben estar en horizontal con 1280x720p,
+     * pero arrancaba en vertical (2026-09-03).
      *
      * Causa raíz confirmada leyendo `x11-server/src/main/java/com/termux/x11/MainActivity.java`
      * (PROTEGIDO — no se toca, solo se lee): esa Activity ya tiene un mecanismo real de forzar

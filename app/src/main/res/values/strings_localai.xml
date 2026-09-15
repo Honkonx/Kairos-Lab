@@ -132,6 +132,8 @@
     <string name="localai_toast_picker_error">No se pudo abrir el selector: %1$s</string>
     <string name="localai_import_dialog_title">Importar modelo</string>
     <string name="localai_import_dialog_message">Se va a copiar al almacenamiento privado de la app. Puede tardar según el tamaño del archivo.</string>
+    <string name="localai_mmproj_label">vision projector (mmproj)</string>
+    <string name="localai_mmproj_hint">💡 Para adjuntar imágenes en el chat con un modelo local, importá también su vision projector (archivo "mmproj-*.gguf") con el botón "Importar" de arriba.</string>
     <string name="localai_import_progress_title">Importando modelo</string>
     <string name="localai_import_progress_message">Copiando archivo…</string>
     <string name="localai_toast_name_required">El nombre es obligatorio</string>

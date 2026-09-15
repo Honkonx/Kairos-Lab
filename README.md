@@ -86,7 +86,22 @@ teléfono reemplace a una PC chica para desarrollo, no solo para probar cosas.
 
 🧪 **Entornos de prueba automáticos.** Le apuntás a la carpeta de un proyecto (Node, Python,
 PHP...) y la app detecta sola qué stack usa, instala lo que hace falta y lo corre — con la
-opción de exponerlo a internet con un túnel, sin salir de la app.
+opción de exponerlo a internet con un túnel, sin salir de la app. También detecta monorepos
+(varios sub-proyectos dentro de una misma carpeta, como `frontend/`+`backend/`) y los maneja por
+separado, con un botón para iniciarlos todos juntos.
+
+🏠 **Homelab.** Un panel que reúne lo que el propio Kairos ya expone (SSH, módulos con servicio
+corriendo) con una lista de tus otros servicios self-hosted en la red local (Docker/Portainer,
+Pi-hole, Proxmox, o cualquier panel HTTP) — todo en un solo lugar, sin abrir una app distinta
+por cada servicio.
+
+🤖 **Bot de Telegram.** Además de mandar notificaciones, ahora también recibe comandos: arrancar
+o parar un módulo, o consultar qué está corriendo, directo desde un chat de Telegram — con lista
+blanca de un solo usuario y confirmación en dos pasos para acciones riesgosas.
+
+🔍 **Búsqueda web sin API key, en el chat.** Además de la búsqueda de Ollama (que pide una clave
+gratuita), el chat local tiene un comando `/buscar` que no necesita ninguna cuenta ni clave para
+traer resultados reales de la web.
 
 🍷 **A futuro: Windows en el teléfono.** Está planeado sumar Wine con FEXCore y DXVK para poder
 correr programas de Windows directamente en Android.

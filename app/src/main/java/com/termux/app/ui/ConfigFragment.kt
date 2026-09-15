@@ -54,7 +54,8 @@ class ConfigFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla guarda el
-        // token de bot de Telegram (tokenInput más abajo) — ver .claude/rules/kairos-secrets-never-revealed.md.
+        // token de bot de Telegram (tokenInput más abajo) — un secreto guardado nunca se
+        // vuelve a mostrar, y esto evita que un overlay malicioso capture toques sobre el campo.
         view.filterTouchesWhenObscured = true
         val prefs = requireContext().getSharedPreferences(PREFS_NAME, 0)
 
@@ -94,7 +95,7 @@ class ConfigFragment : Fragment() {
 
         val generalContainer = view.findViewById<LinearLayout>(R.id.general_container)
         val interfazContainer = view.findViewById<LinearLayout>(R.id.interfaz_container)
-        // Selector de tema visual (2026-08-22, ver docs/humano/humano190.md, pedido explícito del
+        // Selector de tema visual (2026-08-22, pedido explícito del
         // usuario: "no es eliminar la tematica/tema/estilo que tenemos es agregar una opcion
         // para cambiar el tema... dejar el que tenemos, añadir ese que te dije y tambien un
         // modo claro"). Recreate() es el único mecanismo real para que un cambio de
@@ -110,7 +111,7 @@ class ConfigFragment : Fragment() {
         // recreación de Activities y la persistencia por su cuenta — no hace falta recreate()
         // manual como con el picker de tema.
         addLanguagePickerRow(interfazContainer)
-        // "Log Kairos" — pedido explícito del usuario (ver docs/humano231.md): "un log interno
+        // "Log Kairos" — pedido explícito del usuario: "un log interno
         // completo del apk incluso de la terminal [...] Ojo, NO debe ser log de módulos, es log
         // completo del APK en sí". Reusa InlineThemePicker.row (mismo componente que la fila de
         // Tema de arriba) en vez de BaseModuleFragment.dropdownRow() — ConfigFragment no extiende
@@ -122,7 +123,7 @@ class ConfigFragment : Fragment() {
             prefs.edit().putBoolean("pref_auto_start", checked).apply()
             if (checked) toast(getString(R.string.config_toast_auto_start_on))
         }
-        // Bug real (2026-08-22, ver docs/humano/humano191.md, pedido explícito del usuario): esta fila
+        // Bug real (2026-08-22, pedido explícito del usuario): esta fila
         // duplicaba (peor, más incompleta) lo que MonitorFragment.kt ya hace bien — Monitor
         // detecta el ESTADO real (PowerManager + setting global del phantom process killer),
         // cubre tanto batería como phantom killer, y ofrece 3 vías de fix (root/nmap-auto/
@@ -133,7 +134,7 @@ class ConfigFragment : Fragment() {
         // Misma acción que la pantalla opcional del wizard (RootfsInstaller/cmd_rootfs
         // sync) — acá se puede repetir cuando el usuario quiera, no solo en el primer
         // arranque. Pedido explícito del usuario: "esta opción también debe estar en
-        // el apk", ver docs/humano/humano11.md.
+        // el apk".
         addClickableRow(generalContainer, getString(R.string.config_row_check_system_packages)) {
             runRootfsCheck()
         }
@@ -160,15 +161,14 @@ class ConfigFragment : Fragment() {
             prefs.edit().putBoolean("pref_notify_modules", checked).apply()
         }
 
-        // Bug real (2026-08-07, ver docs/humano/humano91.md): "Node proot"/"Python"/
+        // Bug real (2026-08-07): "Node proot"/"Python"/
         // "Claude Code"/"Dashboard" quedaban en "—" para siempre — ningún código en este
         // archivo los volvía a tocar. "Dashboard" además referencia un módulo ya eliminado
-        // del stack por completo (ver .claude/rules/scripts-rule.md: "dashboard ❌
-        // eliminado"), y Python/Claude Code duplican info que ya se muestra de verdad en
+        // del stack por completo, y Python/Claude Code duplican info que ya se muestra de verdad en
         // sus propias pantallas de módulo — se quitan en vez de fingir que son reales.
         // Sección TERMINAL — mejora de menor esfuerzo ya identificada (ver MEJORAS_PENDIENTES.md,
         // "Terminal sin personalizar por CLI", idea 2) para el pedido explícito del usuario
-        // "mejorar la terminal de los modulos" (2026-08-12, ver docs/humano/humano99.md): fzf y
+        // "mejorar la terminal de los modulos" (2026-08-12): fzf y
         // zsh-autosuggestions son paquetes/plugin reales sin empaquetado custom, se ofrecen acá
         // como instalación opcional en vez de forzarlos en todos los módulos.
         val terminalContainer = view.findViewById<LinearLayout>(R.id.terminal_container)
@@ -181,7 +181,7 @@ class ConfigFragment : Fragment() {
         addClickableRow(terminalContainer, getString(R.string.config_row_set_nvim_editor)) {
             setNvimAsDefaultEditor()
         }
-        // Pedido explícito del usuario (2026-08-13, ver docs/humano/humano115.md): "facilitar
+        // Pedido explícito del usuario (2026-08-13): "facilitar
         // los paquetes para usar teclado y mouse sea por otg o bluetooth" — Android ya soporta
         // teclado/mouse externo de forma nativa en cualquier vista con foco (incluida
         // TerminalView) sin ningún paquete/driver adicional; lo que faltaba era visibilidad de
@@ -234,7 +234,7 @@ class ConfigFragment : Fragment() {
             prefs.edit().putBoolean("pref_terminal_sessions_indicator", checked).apply()
         }
 
-        // Pedido explícito del usuario (2026-08-13, ver docs/humano/humano118.md): poder
+        // Pedido explícito del usuario (2026-08-13): poder
         // elegir entre el modo "adaptado" (barra de info + sidebar de acciones rápidas, el
         // default de Kairos para CLIs) y la terminal clásica de Termux (sesión normal, sin la
         // UI encima) — leído por TermuxActivity.openTerminalWithCommand() antes de decidir
@@ -246,7 +246,7 @@ class ConfigFragment : Fragment() {
         // créala solo con simple y adaptada por ahora", aclarado en la misma ronda a "Clásica y
         // Adaptada" — "Simple" es la Fase 2 todavía sin contenido real, se agrega cuando lo
         // tenga). Reusa InlineThemePicker, el mismo componente "casilla al tocar salen las demás
-        // opciones" ya pedido para Tema/Idioma (docs/humano/humano202.md) — sigue guardando el
+        // opciones" ya pedido para Tema/Idioma — sigue guardando el
         // mismo boolean pref_classic_terminal que ya leen TermuxActivity/ConfigExportManager,
         // solo cambia la presentación de switch a selector.
         val adaptedStyleOptions = listOf(
@@ -325,7 +325,7 @@ class ConfigFragment : Fragment() {
         }
         rootInfoRow.addView(rootInfoValue)
         infoContainer.addView(rootInfoRow)
-        // Fix 2026-09-14 (docs/humano334.md): hasRoot() cacheaba un timeout como "false" para
+        // Fix 2026-09-14: hasRoot() cacheaba un timeout como "false" para
         // siempre — si el primer chequeo coincidía con el diálogo del gestor de root sin
         // responder a tiempo, el usuario quedaba viendo "sin root" para siempre aunque después
         // otorgara el permiso. RootAccess.hasRoot() ya no cachea timeouts, pero acá además se
@@ -381,7 +381,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<View>(R.id.btn_import_config).setOnClickListener { confirmPickImportConfig() }
         view.findViewById<View>(R.id.btn_export_diagnostics).setOnClickListener { confirmExportDiagnostics() }
         view.findViewById<View>(R.id.btn_reinstall).setOnClickListener { showReinstallDialog() }
-        // Pedido explícito del usuario (auditoría 2026-08-05, ver docs/humano65.md/humano66.md):
+        // Pedido explícito del usuario (auditoría 2026-08-05):
         // "en ningún tab o menú... sale para desinstalar módulos" — a diferencia de "Reinstalar
         // stack" (arriba, borra TODO), esto es por módulo individual.
         addClickableRow(generalContainer, getString(R.string.config_row_uninstall_module), R.drawable.ic_uninstall) { showUninstallModuleDialog() }
@@ -395,7 +395,7 @@ class ConfigFragment : Fragment() {
         // que quedó huérfana de UI. Va en Ajustes (no por módulo) porque
         // ModuleDoctor.runDiagnosticsForAll() ya evalúa el catálogo completo de una vez.
         addClickableRow(generalContainer, getString(R.string.config_row_module_doctor)) { runGlobalModuleDoctor() }
-        // Pedido explícito del usuario (ver docs/humano/humano68.md): "la opcion de salir que
+        // Pedido explícito del usuario: "la opcion de salir que
         // mate todos los servicios y luego cierre la app como si pusiera exit en la terminal" —
         // distinto de un botón genérico "cerrar app" (que el propio usuario descartó en la
         // ronda anterior, ver humano67.md, por no ser algo que una app pueda lograr de forma
@@ -408,7 +408,7 @@ class ConfigFragment : Fragment() {
 
     // ────────────────────────────────────────────────────────────
     // Notificaciones Telegram — pedido explícito del usuario (2026-08-13, ver
-    // docs/humano/humano118.md, plan en docs/mini-pc/PLAN_EXPANSION_HOMELAB_2026-08-13.md
+    // plan en docs/mini-pc/PLAN_EXPANSION_HOMELAB_2026-08-13.md
     // sección 4): ítem de mayor valor/menor esfuerzo de la auditoría de referencia/ciberseguridad/
     // i-Haklab-master (patrón walkie-tg). Sección armada 100% en código (sin XML propio para el
     // header+card, mismo criterio de siempre) — desde la reorganización en tabs (2026-09-03) vive
@@ -472,6 +472,92 @@ class ConfigFragment : Fragment() {
         }
         cardBody.addView(testRow)
 
+        // Bot de Telegram entrante (TelegramBotService.kt, docs/modulos/TELEGRAM_BOT.md) —
+        // switch dedicado en la misma tarjeta, reusa token/chat id de arriba en vez de pedirlos
+        // de nuevo (el mismo chat id configurado es, a la vez, destino de notificaciones
+        // salientes y ÚNICO emisor autorizado a mandar comandos entrantes — ver whitelist
+        // fail-closed en TelegramBotService.isAuthorized()).
+        val botToggleRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).also { it.topMargin = dp(14) }
+        }
+        val botToggleLabel = TextView(ctx).apply {
+            text = getString(R.string.config_telegram_bot_toggle_label)
+            textSize = 13f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
+        }
+        val botToggleSwitch = SwitchCompat(ctx).apply {
+            isChecked = prefs.getBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, false)
+        }
+        botToggleRow.addView(botToggleLabel)
+        botToggleRow.addView(botToggleSwitch)
+        cardBody.addView(botToggleRow)
+
+        val botStatusText = TextView(ctx).apply {
+            text = getString(
+                if (botToggleSwitch.isChecked) R.string.config_telegram_bot_status_on
+                else R.string.config_telegram_bot_status_off
+            )
+            textSize = 11f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            setPadding(0, dp(2), 0, 0)
+        }
+        cardBody.addView(botStatusText)
+
+        // Guard de reentrancia: revertir botToggleSwitch.isChecked PROGRAMÁTICAMENTE desde
+        // dentro de su propio listener dispara el listener de nuevo (comportamiento estándar de
+        // CompoundButton) — sin este guard, el revert de la rama "faltan campos"/"no arrancó"
+        // hacía correr también la rama "else" (apagar) en la misma pasada, mostrando un segundo
+        // toast falso de "Bot detenido" encima del toast real del error.
+        var suppressBotToggleEvents = false
+        botToggleSwitch.setOnCheckedChangeListener { _, checked ->
+            if (suppressBotToggleEvents) return@setOnCheckedChangeListener
+            if (checked) {
+                val token = tokenInput.text.toString().trim()
+                val chatId = chatIdInput.text.toString().trim()
+                if (token.isBlank() || chatId.isBlank()) {
+                    toast(getString(R.string.config_toast_telegram_fill_fields))
+                    suppressBotToggleEvents = true
+                    botToggleSwitch.isChecked = false
+                    suppressBotToggleEvents = false
+                    return@setOnCheckedChangeListener
+                }
+                // Guarda al activar — mismo criterio que testTelegramConfig(): lo que queda en
+                // uso es exactamente lo que el usuario ve en pantalla en ese momento.
+                prefs.edit()
+                    .putString(TelegramNotifier.PREF_BOT_TOKEN, token)
+                    .putString(TelegramNotifier.PREF_CHAT_ID, chatId)
+                    .putBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, true)
+                    .apply()
+                val started = com.termux.app.TelegramBotService.start(ctx)
+                if (started) {
+                    botStatusText.text = getString(R.string.config_telegram_bot_status_on)
+                    toast(getString(R.string.config_toast_telegram_bot_started))
+                    // Batería agresiva por fabricante (Samsung/Xiaomi/MIUI/...) puede matar un
+                    // foreground service de larga duración tras horas en background — reusa el
+                    // helper ya existente (BatteryRestrictionHelper.kt, ronda 2026-08-01) en vez
+                    // de reinventar la lista de excepciones por fabricante.
+                    com.termux.app.util.BatteryRestrictionHelper.requestDisableBatteryRestrictions(requireActivity())
+                } else {
+                    // Fail-closed real: TelegramBotService.start() se niega a arrancar sin
+                    // token/chat id — no debería pasar acá (ya se validó arriba), pero si pasa
+                    // (ej. race guardando prefs) no se deja el switch prendido mintiendo el estado.
+                    suppressBotToggleEvents = true
+                    botToggleSwitch.isChecked = false
+                    suppressBotToggleEvents = false
+                    prefs.edit().putBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, false).apply()
+                    toast(getString(R.string.config_toast_telegram_fill_fields))
+                }
+            } else {
+                prefs.edit().putBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, false).apply()
+                com.termux.app.TelegramBotService.stop(ctx)
+                botStatusText.text = getString(R.string.config_telegram_bot_status_off)
+                toast(getString(R.string.config_toast_telegram_bot_stopped))
+            }
+        }
+
         // tab_notificaciones es un contenedor dedicado (sin spacer final que esquivar,
         // a diferencia de antes de la reorganización en tabs) — se agrega directo al final.
         outerContainer.addView(header)
@@ -516,7 +602,7 @@ class ConfigFragment : Fragment() {
                     if (!isAdded) return@stopAllModules
                     requireActivity().runOnUiThread {
                         if (!isAdded) return@runOnUiThread
-                        // Bug real reportado (ver docs/humano231.md): "Salir" solo detenía
+                        // Bug real reportado: "Salir" solo detenía
                         // scripts de módulos (arriba) y cerraba de golpe con exitProcess(0) —
                         // nunca tocaba las TerminalSession abiertas, dejando cualquier pty con
                         // un job en foreground esperando ENTER. TermuxActivity.requestExitAllSessions()
@@ -562,7 +648,7 @@ class ConfigFragment : Fragment() {
     /**
      * fzf es un paquete real de Termux (`pkg install fzf`). zsh-autosuggestions NO tiene
      * paquete propio — es un plugin de Oh My Zsh que se clona a mano (confirmado vía
-     * WebSearch, docs/humano/humano99.md): requiere zsh + git + Oh My Zsh (instalador
+     * WebSearch): requiere zsh + git + Oh My Zsh (instalador
      * oficial en modo `--unattended`, sin prompts) + clonar el plugin + activarlo en
      * `~/.zshrc`. No cambia el shell por defecto de la sesión — el usuario sigue entrando
      * a `zsh` a mano cuando quiera probarlo, mismo criterio que el resto de módulos
@@ -647,7 +733,7 @@ class ConfigFragment : Fragment() {
     // ────────────────────────────────────────────────────────────
 
     // Migrado a ProgressDialogController (quick win de la auditoría de referencia/,
-    // 2026-08-05, ver docs/humano70.md — "extenderlo más allá de Entorno") — antes era un
+    // 2026-08-05 — "extenderlo más allá de Entorno") — antes era un
     // AlertDialog+ProgressBar armado a mano que solo mostraba el resultado final en un Toast
     // que desaparece solo; ahora el resultado queda visible en el propio diálogo.
     private fun runRootfsCheck() {
@@ -1136,8 +1222,8 @@ class ConfigFragment : Fragment() {
     }
 
     // ────────────────────────────────────────────────────────────
-    // Log Kairos — log interno transversal de la app (ver com.termux.app.util.KairosLogger,
-    // docs/humano231.md). Distinto del log de instalación por módulo (~/kairos_logs/
+    // Log Kairos — log interno transversal de la app (ver com.termux.app.util.KairosLogger).
+    // Distinto del log de instalación por módulo (~/kairos_logs/
     // install_<modulo>.log, ModuleController.installLogFile()), que ya existe y no se toca acá.
     // ────────────────────────────────────────────────────────────
 

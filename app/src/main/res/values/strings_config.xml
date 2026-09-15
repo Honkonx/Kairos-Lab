@@ -24,7 +24,7 @@
     <string name="config_row_set_nvim_editor">✏️ Definir nvim como editor por defecto</string>
     <string name="config_row_external_input">⌨ Usar teclado/mouse externo (OTG/Bluetooth)</string>
     <!-- Casilla desplegable de modo de terminal (2026-09-08, reemplaza el switch binario de
-         arriba — ver docs/humano/ de esta ronda: mockups A/B del artifact de terminal adaptada).
+         arriba — mockups A/B del artifact de terminal adaptada).
          Arranca con 2 opciones (Clásica/Adaptada); "Simple" (Fase 2) se agrega cuando esa
          evolución tenga contenido real. Sigue guardando el mismo boolean pref_classic_terminal
          que ya lee TermuxActivity/ConfigExportManager — solo cambia la presentación. -->
@@ -60,6 +60,34 @@
     <string name="config_telegram_test_message">Kairos: notificación de prueba ✅</string>
     <string name="config_snackbar_telegram_sent">Mensaje de prueba enviado — Telegram configurado correctamente</string>
     <string name="config_snackbar_telegram_error">Error al enviar: %1$s</string>
+    <!-- Bot de Telegram entrante (TelegramBotService.kt, docs/modulos/TELEGRAM_BOT.md) — switch
+         dedicado en la misma tarjeta de Telegram, reusa token/chat id ya guardados arriba. -->
+    <string name="config_telegram_bot_toggle_label">🤖 Bot de Telegram (recibir comandos)</string>
+    <string name="config_telegram_bot_status_on">Activo — escuchando comandos</string>
+    <string name="config_telegram_bot_status_off">Detenido</string>
+    <string name="config_toast_telegram_bot_started">Bot de Telegram iniciado</string>
+    <string name="config_toast_telegram_bot_stopped">Bot de Telegram detenido</string>
+    <!-- TelegramBotService.kt — notificación foreground + respuestas del bot a comandos. -->
+    <string name="telegram_bot_channel_name">Bot de Telegram</string>
+    <string name="telegram_bot_notification_title">Bot de Telegram activo</string>
+    <string name="telegram_bot_notification_text">Escuchando comandos — tocá para volver a Kairos</string>
+    <string name="telegram_bot_unknown_command">Comando no reconocido. Probá /help</string>
+    <string name="telegram_bot_starting">⏳ Iniciando %1$s…</string>
+    <string name="telegram_bot_start_ok">✅ %1$s iniciado</string>
+    <string name="telegram_bot_start_fail">❌ No se pudo iniciar %1$s\n%2$s</string>
+    <string name="telegram_bot_stop_usage">Uso: /stop &lt;modulo&gt;</string>
+    <string name="telegram_bot_not_running">%1$s no está corriendo</string>
+    <string name="telegram_bot_confirm_stop">¿Detener %1$s?</string>
+    <string name="telegram_bot_stop_ok">✅ %1$s detenido</string>
+    <string name="telegram_bot_stop_fail">❌ No se pudo detener %1$s</string>
+    <string name="telegram_bot_stop_cancelled">Cancelado — %1$s sigue corriendo</string>
+    <string name="telegram_bot_status_header">📋 Módulos corriendo:</string>
+    <string name="telegram_bot_status_none">Ningún módulo corriendo ahora mismo.</string>
+    <string name="telegram_bot_status_error">Error al leer el estado de los módulos: %1$s</string>
+    <string name="telegram_bot_ssh_running">🟢 Remote/SSH corriendo en el puerto %1$d</string>
+    <string name="telegram_bot_ssh_stopped">⚪ Remote/SSH no está corriendo</string>
+    <string name="telegram_bot_help">Comandos disponibles:\n/status — módulos corriendo\n/start &lt;modulo&gt; — iniciar un módulo\n/stop &lt;modulo&gt; — detener un módulo (pide confirmación)\n/ssh — estado de Remote/SSH\n/help — esta ayuda</string>
+    <string name="telegram_bot_already_processed">Ya procesado</string>
     <string name="config_exit_dialog_title">Salir de Kairos</string>
     <string name="config_exit_dialog_message">Esto detiene todos los módulos en ejecución (Ollama, n8n, OpenClaw, OpenCode, Remote, llama-server) y cierra la app por completo, como si escribieras \"exit\" en cada terminal.</string>
     <string name="config_btn_exit">Salir</string>
@@ -207,7 +235,7 @@
     <string name="vnc_viewer_reason_connection_lost">conexión perdida</string>
     <string name="vnc_viewer_open_keyboard">Abrir teclado</string>
 
-    <!-- Menú de 3 puntos + orientación, ver docs/humano316.md -->
+    <!-- Menú de 3 puntos + orientación -->
     <string name="vnc_viewer_open_menu">Más opciones</string>
     <string name="vnc_viewer_menu_minimize">Minimizar (sigue conectado)</string>
     <string name="vnc_viewer_menu_orientation">Orientación…</string>

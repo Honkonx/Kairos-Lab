@@ -59,6 +59,34 @@
     <string name="config_telegram_test_message">Kairos: test notification ✅</string>
     <string name="config_snackbar_telegram_sent">Test message sent — Telegram is configured correctly</string>
     <string name="config_snackbar_telegram_error">Error sending: %1$s</string>
+    <!-- Incoming Telegram bot (TelegramBotService.kt, docs/modulos/TELEGRAM_BOT.md) — dedicated
+         switch in the same Telegram card, reuses the token/chat id already saved above. -->
+    <string name="config_telegram_bot_toggle_label">🤖 Telegram bot (receive commands)</string>
+    <string name="config_telegram_bot_status_on">Active — listening for commands</string>
+    <string name="config_telegram_bot_status_off">Stopped</string>
+    <string name="config_toast_telegram_bot_started">Telegram bot started</string>
+    <string name="config_toast_telegram_bot_stopped">Telegram bot stopped</string>
+    <!-- TelegramBotService.kt — foreground notification + bot replies to commands. -->
+    <string name="telegram_bot_channel_name">Telegram bot</string>
+    <string name="telegram_bot_notification_title">Telegram bot active</string>
+    <string name="telegram_bot_notification_text">Listening for commands — tap to return to Kairos</string>
+    <string name="telegram_bot_unknown_command">Unrecognized command. Try /help</string>
+    <string name="telegram_bot_starting">⏳ Starting %1$s…</string>
+    <string name="telegram_bot_start_ok">✅ %1$s started</string>
+    <string name="telegram_bot_start_fail">❌ Could not start %1$s\n%2$s</string>
+    <string name="telegram_bot_stop_usage">Usage: /stop &lt;module&gt;</string>
+    <string name="telegram_bot_not_running">%1$s is not running</string>
+    <string name="telegram_bot_confirm_stop">Stop %1$s?</string>
+    <string name="telegram_bot_stop_ok">✅ %1$s stopped</string>
+    <string name="telegram_bot_stop_fail">❌ Could not stop %1$s</string>
+    <string name="telegram_bot_stop_cancelled">Cancelled — %1$s is still running</string>
+    <string name="telegram_bot_status_header">📋 Running modules:</string>
+    <string name="telegram_bot_status_none">No modules are running right now.</string>
+    <string name="telegram_bot_status_error">Error reading module status: %1$s</string>
+    <string name="telegram_bot_ssh_running">🟢 Remote/SSH running on port %1$d</string>
+    <string name="telegram_bot_ssh_stopped">⚪ Remote/SSH is not running</string>
+    <string name="telegram_bot_help">Available commands:\n/status — running modules\n/start &lt;module&gt; — start a module\n/stop &lt;module&gt; — stop a module (asks for confirmation)\n/ssh — Remote/SSH status\n/help — this help</string>
+    <string name="telegram_bot_already_processed">Already processed</string>
     <string name="config_exit_dialog_title">Exit Kairos</string>
     <string name="config_exit_dialog_message">This stops every running module (Ollama, n8n, OpenClaw, OpenCode, Remote, llama-server) and closes the app completely, as if you typed \"exit\" in every terminal.</string>
     <string name="config_btn_exit">Exit</string>
@@ -202,7 +230,7 @@
     <string name="vnc_viewer_reason_connection_lost">connection lost</string>
     <string name="vnc_viewer_open_keyboard">Open keyboard</string>
 
-    <!-- 3-dot menu + orientation, see docs/humano316.md -->
+    <!-- 3-dot menu + orientation -->
     <string name="vnc_viewer_open_menu">More options</string>
     <string name="vnc_viewer_menu_minimize">Minimize (stays connected)</string>
     <string name="vnc_viewer_menu_orientation">Orientation…</string>

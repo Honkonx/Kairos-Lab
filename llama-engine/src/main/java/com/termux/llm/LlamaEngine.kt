@@ -157,6 +157,47 @@ class LlamaEngine {
         return sb.toString()
     }
 
+    /**
+     * Carga el vision projector (mmproj) para el modelo YA cargado por [load] — ver
+     * `LLMInference::loadMultimodalProjector` para el detalle completo. Bloqueante, correr en
+     * background Thread. Lanza [IllegalStateException] si el mmproj no es compatible con el
+     * modelo de texto cargado o no soporta imágenes.
+     */
+    fun loadMultimodalProjector(mmprojPath: String, useGpu: Boolean = true) {
+        verifyHandle()
+        loadMultimodalProjector(nativePtr, mmprojPath, useGpu)
+    }
+
+    /** true si ya se cargó un mmproj compatible con imágenes vía [loadMultimodalProjector]. */
+    fun supportsVision(): Boolean {
+        if (nativePtr == 0L) return false
+        return supportsVision(nativePtr)
+    }
+
+    /**
+     * Igual que [streamResponse] pero adjunta una imagen a este turno — requiere
+     * [loadMultimodalProjector] ya exitoso (ver [supportsVision]). A diferencia del turno de
+     * solo texto, un turno con imagen siempre reprocesa la conversación completa (sin el
+     * prompt incremental de KV-cache) — ver el comentario de `startCompletionWithImage` en
+     * LLMInference.cpp para el porqué. `imageBytes` es el archivo de imagen crudo (JPEG/PNG/...,
+     * lo que soporte stb_image — Kairos manda JPEG re-comprimido, ver ChatFragment.encodeImageForOllama),
+     * NO un bitmap decodificado.
+     */
+    fun streamResponseWithImage(query: String, imageBytes: ByteArray, onToken: (String) -> Unit) {
+        verifyHandle()
+        val ptr = nativePtr
+        startCompletionWithImage(ptr, query, imageBytes)
+        try {
+            while (nativePtr != 0L) {
+                val piece = completionLoop(nativePtr)
+                if (piece == "[EOG]") break
+                if (piece.isNotEmpty()) onToken(piece)
+            }
+        } finally {
+            if (nativePtr != 0L) stopCompletion(nativePtr)
+        }
+    }
+
     fun benchModel(pp: Int, tg: Int, pl: Int, nr: Int): String {
         verifyHandle()
         return benchModel(nativePtr, pp, tg, pl, nr)
@@ -193,4 +234,8 @@ class LlamaEngine {
     private external fun completionLoop(modelPtr: Long): String
     private external fun stopCompletion(modelPtr: Long)
     private external fun benchModel(modelPtr: Long, pp: Int, tg: Int, pl: Int, nr: Int): String
+
+    private external fun loadMultimodalProjector(modelPtr: Long, mmprojPath: String, useGpu: Boolean)
+    private external fun supportsVision(modelPtr: Long): Boolean
+    private external fun startCompletionWithImage(modelPtr: Long, prompt: String, imageBytes: ByteArray)
 }

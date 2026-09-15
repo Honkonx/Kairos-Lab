@@ -148,6 +148,10 @@
     <string name="remote_msg_clave_reemplazada">Clave reemplazada</string>
     <string name="remote_msg_conectando_a">Conectando a %1$s…</string>
     <string name="remote_msg_probe_no_respondio">No respondió el probe (puede seguir funcionando igual) — abriendo terminal…</string>
+    <string name="remote_dialog_title_hostkey_cambio">La clave del servidor cambió</string>
+    <string name="remote_dialog_msg_hostkey_cambio">La huella (fingerprint) de la clave de %1$s ya no coincide con la que Kairos tenía guardada de una conexión anterior.\n\nAntes: %2$s\nAhora: %3$s\n\nEsto puede significar que el servidor se reinstaló o cambió de identidad legítimamente, o que alguien está interceptando la conexión (ataque man-in-the-middle). Si no reinstalaste ni reconfiguraste este servidor, cancelá y verificá antes de continuar.</string>
+    <string name="remote_btn_hostkey_aceptar">Confío, conectar igual</string>
+    <string name="remote_msg_hostkey_cambio_cancelado">Conexión cancelada — la clave del servidor no coincide con la guardada</string>
     <string name="remote_msg_ssh_iniciado">SSH iniciado</string>
     <string name="remote_msg_no_se_pudo_iniciar">no se pudo iniciar</string>
     <string name="remote_msg_ssh_detenido">SSH detenido</string>

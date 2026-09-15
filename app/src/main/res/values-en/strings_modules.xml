@@ -89,7 +89,7 @@
     <string name="codex_card_sesion">SESSION</string>
     <string name="codex_btn_resume_session">🕒 Resume last session</string>
     <string name="codex_btn_install_change_channel">⚙ Install / change channel</string>
-    <!-- Real variant selector (2026-09-09 round, see docs/humano328.md): "Normal" (termux
+    <!-- Real variant selector (2026-09-09 round): "Normal" (termux
          channel, DioNanos/codex-termux, with an automatic fallback to wallentx/codex-termux if
          the npm path fails) vs "VL" (DioNanos/codex-vl, with code-mode, no fallback — opt-in). -->
     <string name="codex_variant_dialog_title">Choose variant — Codex CLI</string>
@@ -143,6 +143,9 @@
     <string name="base_module_updating">Updating %1$s…</string>
     <string name="base_module_updated">%1$s updated</string>
     <string name="base_module_update_failed">Failed — check ~/kairos_logs/install_%1$s.log</string>
+    <string name="base_module_diagnose">🩺 Diagnose</string>
+    <string name="base_module_diagnosing">Diagnosing %1$s…</string>
+    <string name="base_module_doctor_not_found">%1$s not found in the module catalog</string>
     <string name="base_module_uninstall">🗑 Uninstall</string>
     <string name="base_module_deep_uninstall_checkbox">Deep uninstall (also removes the real package, not just the state)</string>
     <string name="base_module_confirm_uninstall_title">Uninstall %1$s?</string>

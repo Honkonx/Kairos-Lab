@@ -91,6 +91,11 @@ target_include_directories(
         ${GGML_DIR}/include
         ${GGML_DIR}/src
         ${LLAMA_DIR}/include
+        # libmtmd (soporte multimodal — imagen+texto, ver LLMInference.h/.cpp) ya se compila
+        # como parte del árbol de tools/ de llama.cpp (LLAMA_BUILD_TOOLS=ON, dependencia dura
+        # de llama-server, ver comentario de más abajo) — no hace falta ningún add_subdirectory
+        # nuevo, solo exponer sus headers e linkear el target "mtmd" que ya existe.
+        ${LLAMA_DIR}/tools/mtmd
 )
 target_compile_options(
         kairos_llm
@@ -103,9 +108,19 @@ target_compile_options(
 # de upstream, que no tiene lugar en una app sin permiso de red para esto.
 # Los pocos helpers que hacían falta están reimplementados localmente
 # sobre la API C de llama.h (ver LLMInference.cpp).
+#
+# "mtmd" (soporte multimodal real de llama.cpp mainline — carga de un mmproj/vision
+# projector + inferencia imagen+texto, ver LLMInference.h/.cpp) SÍ se linkea: el target ya
+# existe y se compila siempre que LLAMA_BUILD_TOOLS/LLAMA_BUILD_SERVER estén en ON (ver
+# ../../build.gradle, rama llama-server-and-terminal-ux — llama-server depende de mtmd
+# igual, así que esto no agrega compilación nueva al build, solo expone lo que ya se
+# construye a kairos_llm también). BUILD_SHARED_LIBS=ON lo deja como libmtmd.so — necesita
+# copiarse junto al resto de los .so de ggml/llama al instalar el APK (AGP ya lo hace solo,
+# mismo mecanismo que libggml-*.so/libllama.so, sin script de copia manual como
+# llama-server porque acá NO es un ejecutable standalone).
 target_link_libraries(
         kairos_llm
-        android log llama vulkan
+        android log llama vulkan mtmd
 )
 # -z max-page-size=16384: requisito real de Google Play desde nov-2025 (dispositivos con
 # páginas de memoria de 16KB, ver docs/referencias/REFERENCIA_PODROID.md, "Profundización" 2026-08-01).
@@ -148,7 +163,7 @@ target_link_options(
 )
 
 # llama-server (binario ejecutable real de llama.cpp, servidor HTTP compatible OpenAI) —
-# rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md/humano72.md).
+# rama "llama-server-and-terminal-ux" (2026-08-05).
 # Copiado a un directorio de assets generado (KAIROS_LLAMA_SERVER_OUT_DIR, pasado desde
 # ../../../build.gradle) en vez de quedar solo en el directorio de build interno de CMake, para
 # que AGP lo empaquete en la APK como assets/scripts/llama-server (extraído a Termux por
@@ -162,7 +177,7 @@ target_link_options(
 # add_subdirectory distinto), no acá. Fix intento #2: la forma OUTPUT (DEPENDS en vez de TARGET)
 # no tiene esa restricción, más un add_custom_target(... ALL) para engancharlo al build.
 #
-# Bug real de build (2026-08-06, ver docs/humano/humano81.md): "ALL" en add_custom_target NO
+# Bug real de build (2026-08-06): "ALL" en add_custom_target NO
 # alcanzaba — confirmado leyendo la lista EXPLÍCITA de targets que AGP le pasa a ninja en un log
 # real de CI (mismo mecanismo ya documentado arriba: AGP enumera targets vía File API y se los
 # pasa a ninja por nombre, uno por uno) — esa lista tenía "kairos_llm", "llama-server", "mtmd",
@@ -180,7 +195,7 @@ target_link_options(
 # arrastre como prerequisito de su propio build. add_dependencies() no tiene la restricción de
 # "mismo directorio" de add_custom_command(TARGET ...) — funciona con cualquier target visible
 # en el árbol completo del proyecto.
-# Bug real (2026-08-06, ver docs/humano/humano83.md): confirmado en dispositivo real que el
+# Bug real (2026-08-06): confirmado en dispositivo real que el
 # binario SÍ se extrae ahora (fix de arriba funcionó) pero falla al ejecutar: "CANNOT LINK
 # EXECUTABLE: library libllama-server-impl.so not found". BUILD_SHARED_LIBS=ON (ver
 # ../../build.gradle) hace que llama-server sea un ejecutable DINÁMICAMENTE linkeado contra
@@ -194,7 +209,7 @@ target_link_options(
 # add_subdirectory) — filtrado a mano con un comando de shell en vez de glob de CMake, porque
 # file(GLOB) corre en tiempo de CONFIGURE (cuando bin/ todavía no existe), y acá hace falta que
 # corra en tiempo de BUILD, después de que ninja ya generó los .so reales.
-# Bug real (2026-08-06, ver docs/humano/humano84.md): un "bash -c '...'" con comillas/redirects
+# Bug real (2026-08-06): un "bash -c '...'" con comillas/redirects
 # embebidos directo acá se corrompía al pasar por 2 capas de escapado de shell (CMake -> ninja ->
 # sh) — confirmado en log real de CI: "cp: target '2': No such file or directory". Fix: un
 # script .sh real (copy_shared_libs.sh, al lado de este CMakeLists.txt), invocado con

@@ -56,8 +56,8 @@
         android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar"
         tools:targetApi="m">
 
-        <!-- Bug real, 4to intento (2026-08-07, ver docs/humano/humano89.md): las 3 rondas
-             anteriores (humano77/humano83/humano86) parchearon un modelo de edge-to-edge
+        <!-- Bug real, 4to intento (2026-08-07): las 3 rondas
+             anteriores parchearon un modelo de edge-to-edge
              manual (setDecorFitsSystemWindows(false) + padding vía WindowInsetsCompat en
              TermuxActivity.java) que NINGÚN proyecto de referencia usa — ni termux-app real
              (github.com/termux/termux-app), ni los forks locales comparados
@@ -67,8 +67,8 @@
              KeyboardUtils.setSoftInputModeAdjustResize(activity) llamado por CÓDIGO (ver
              TermuxTerminalViewClient.setSoftKeyboardState() y TermuxActivity.onCreate()),
              no una declaración estática en el manifest. Revertido a coincidir con eso —
-             confirmado que el bug se reproducía igual CON este flag (humano86) que SIN él
-             (humano77) en 3 ROMs distintas, así que nunca fue la variable que decidía nada. -->
+             confirmado que el bug se reproducía igual CON este flag que SIN él
+             en 3 ROMs distintas, así que nunca fue la variable que decidía nada. -->
         <activity
             android:name=".app.TermuxActivity"
             android:exported="true"
@@ -129,7 +129,7 @@
              onResume() vuelve a disparar beginInstall() — un SEGUNDO kairos.sh (modo silent)
              corriendo en paralelo al primero, que sigue vivo en el hilo de la instancia
              vieja. Mismo patrón de bug ya confirmado en este wizard para
-             setupBootstrapIfNeeded() sin guard de concurrencia (ver docs/humano/humano58.md:
+             setupBootstrapIfNeeded() sin guard de concurrencia (bug real ya confirmado:
              "corrompía $PREFIX"). Fix: declarar configChanges acá, igual que ya hace
              TermuxActivity (línea ~75) y VncViewerActivity (línea ~136) para este mismo tipo
              de riesgo — Android entrega onConfigurationChanged() en vez de recrear la
@@ -144,9 +144,9 @@
         <!-- Visor VNC embebido (VncClient/VncCanvasView, com.termux.app.vnc) — conecta al
              vncserver/tigervncserver que ya arranca EntornoNative.vncStart() en 127.0.0.1:5901
              (o al -vnc propio de QEMU en 5902, ver QemuFragment.kt/bootVmVnc()). Ver
-             docs/x11/X11_EMBEBIDO.md / docs/humano/humano136.md.
-             android:screenOrientation="sensorLandscape" (2026-09-03, ver docs/humano316.md): bug
-             real reportado por el usuario — el escritorio remoto (TigerVNC default 1280x720,
+             docs/x11/X11_EMBEBIDO.md.
+             android:screenOrientation="sensorLandscape" (2026-09-03): bug
+             real reportado — el escritorio remoto (TigerVNC default 1280x720,
              QEMU/guest lo que sea) es siempre horizontal, pero esta Activity nunca fijaba
              orientación propia y heredaba portrait del sistema en la mayoría de teléfonos,
              mostrando el framebuffer horizontal chico y letterboxed dentro de una ventana
@@ -168,7 +168,7 @@
              X11Service (ver docs/x11/X11_EMBEBIDO.md). launchMode singleTask +
              configChanges + PiP igual que termux-x11 standalone (MainActivity gestiona
              orientation/fullscreen/cutout por código).
-             android:taskAffinity propio (bug real 2026-08-18, ver docs/humano/): sin esto,
+             android:taskAffinity propio (bug real 2026-08-18): sin esto,
              esta Activity comparte la misma task que TermuxActivity (ambas usan el
              taskAffinity por defecto = applicationId), así que el finishAffinity() y el
              moveTaskToBack(true) del diálogo "Salir de X11"
@@ -480,6 +480,15 @@
             android:name=".app.X11Service"
             android:exported="false"
             android:process=":xserver"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Bot de Telegram entrante (fase 2 de las notificaciones Telegram, ver
+             TelegramBotService.kt y docs/modulos/TELEGRAM_BOT.md) — long-polling de getUpdates,
+             corre en el proceso PRINCIPAL (a diferencia de X11Service) porque llama directo a
+             ModuleController. -->
+        <service
+            android:name=".app.TelegramBotService"
+            android:exported="false"
             android:foregroundServiceType="dataSync" />
 
 

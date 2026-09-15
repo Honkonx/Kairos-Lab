@@ -25,8 +25,8 @@ class RemoteFragment : BaseModuleFragment() {
     override fun getModuleName() = getString(R.string.remote_module_name)
 
     // Anti-tapjacking (hallazgo de auditoría referencia/ia/*, 2026-08-31): esta pantalla
-    // gestiona/importa claves SSH (RemoteManager.kt — ver .claude/rules/kairos-secrets-never-revealed.md)
-    // — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
+    // gestiona/importa claves SSH (RemoteManager.kt — un secreto guardado nunca se vuelve a
+    // mostrar) — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
     // (Reemplazar/Borrar clave) sin que el usuario lo note. Se setea de forma PROGRAMÁTICA (no
     // hay <layout> propio de este Fragment, comparte fragment_module_detail.xml con el resto de
     // BaseModuleFragment) porque Android no soporta este atributo a nivel de Fragment, solo de
@@ -56,7 +56,7 @@ class RemoteFragment : BaseModuleFragment() {
     // actualiza en updateInfoRows() igual que el resto de filas de INFO (nunca se arma a mano
     // en otro lado, para no tener 2 fuentes de la misma respuesta).
     private var usbConnectRow: View? = null
-    // Switches reales (2026-08-22, ver docs/humano/humano193.md) — reemplazan los pares de botones
+    // Switches reales (2026-08-22) — reemplazan los pares de botones
     // Iniciar/Detener de SSH y del túnel Cloudflare. El comentario viejo de línea ~77
     // ("BaseModuleFragment provides only buttons") ya no aplica — ver
     // BaseModuleFragment.switchRow(). Sincronizados en updateInfoRows() con el estado real
@@ -102,9 +102,9 @@ class RemoteFragment : BaseModuleFragment() {
     // switches, seguridad SSH), se usa un enfoque de visibilidad: cada pestaña se construye
     // igual que antes (agregando directo a `container`), y section() registra qué vistas de
     // `container` pertenecen a qué pestaña para poder mostrar/ocultar por índice después.
-    // Terminología corregida 2026-08-27 (ver docs/humano256.md — bug real confirmado: la app
-    // tenía estos dos roles exactamente invertidos respecto al modelo del usuario). Definición
-    // real del usuario: "Emisor" = Kairos ACTIVA ssh y da la IP/clave para que ALGUIEN MÁS lo
+    // Terminología corregida 2026-08-27 (bug real confirmado: la app
+    // tenía estos dos roles exactamente invertidos respecto al modelo esperado). Definición
+    // real: "Emisor" = Kairos ACTIVA ssh y da la IP/clave para que ALGUIEN MÁS lo
     // controle (rol de servidor); "Receptor" = NOSOTROS ponemos la IP/clave para controlar
     // OTROS dispositivos/VPS (rol de cliente). Antes estaba al revés (Receptor=servidor,
     // Emisor=cliente) — se renombraron constantes/funciones/comentarios, la lógica de cada
@@ -199,8 +199,7 @@ class RemoteFragment : BaseModuleFragment() {
         // getModuleStartScript()/getModuleStopInfo() para "remote") pero por un camino
         // paralelo sin waitForPortOpen()/ModuleEventBridge.notifySessionEvent() — dos
         // sistemas leyendo/escribiendo el mismo estado de formas distintas, el mismo
-        // patrón de bug que ya causó problemas reales en este proyecto (ver
-        // .claude/rules/kotlin-kairos-android-patterns.md). El resto de acciones de
+        // patrón de bug que ya causó problemas reales en este proyecto. El resto de acciones de
         // RemoteManager (info, add-key, password, connections, fingerprint, panel de
         // seguridad) no son lifecycle de módulo — no tienen equivalente en
         // ModuleController y se quedan como están.
@@ -268,7 +267,7 @@ class RemoteFragment : BaseModuleFragment() {
             toast(getString(R.string.remote_msg_comando_copiado, USB_ADB_FORWARD_CMD))
         }
         actionButton(getString(R.string.remote_btn_copiar_comando_ssh_usb), GHOST) { copyUsbConnectCommand() }
-        // Bug real (auditoria 2026-08-05, ver docs/humano65.md/humano66.md): ningun modulo sin
+        // Bug real (auditoria 2026-08-05): ningun modulo sin
         // CLI dedicada (Python/Ollama/n8n/Expo/Remote) tenia forma de actualizar desde la app.
         // Consolidado 2026-08-19 (auditoría de consistencia de menús) en la card MANTENIMIENTO
         // compartida (ver BaseModuleFragment.addMaintenanceCard()) — antes este botón vivía
@@ -424,8 +423,7 @@ class RemoteFragment : BaseModuleFragment() {
     // ---------------------------------------------------------------------
     private fun runRemoteAction(action: String, vararg extraArgs: String, silent: Boolean = true) {
         // applicationContext resuelto ANTES de entrar al Thread (mismo patrón que
-        // nativeLibraryDir en TunnelManager, ver .claude/rules/kotlin-kairos-android-patterns.md)
-        // — el Fragment puede desadjuntarse mientras el hilo corre, pero un Context de
+        // nativeLibraryDir en TunnelManager) — el Fragment puede desadjuntarse mientras el hilo corre, pero un Context de
         // aplicación sigue siendo válido igual, a diferencia de requireContext() llamado tarde.
         val appContext = context?.applicationContext
         Thread {
@@ -1260,11 +1258,15 @@ class RemoteFragment : BaseModuleFragment() {
 
     /**
      * Sonda TCP rápida al host:puerto guardado (RemoteManager.probeAndTouchClientConnection,
-     * corre en background — NUNCA red en el hilo de UI) y, responda o no, abre la sesión de
-     * terminal real con el comando `ssh` armado por RemoteManager.buildClientConnectCommand()
-     * — reusa BaseModuleFragment.launchTerminalCommand(), nunca reimplementa el manejo de
-     * terminal. Si el probe falla se avisa con un Snackbar pero se conecta igual: un firewall
-     * que bloquea el probe puede seguir dejando pasar SSH real, así que no bloquea el intento.
+     * corre en background — NUNCA red en el hilo de UI) + chequeo de cambio de host key
+     * (RemoteManager.checkHostKeyStatus() — quick-win de referencia rikkahub-agent, ver
+     * docs/referencias/agentes/REFERENCIA_RIKKAHUB_AGENT.md punto 4) y, según el resultado,
+     * abre la sesión de terminal real con el comando `ssh` armado por
+     * RemoteManager.buildClientConnectCommand() — reusa BaseModuleFragment.launchTerminalCommand(),
+     * nunca reimplementa el manejo de terminal. Si el probe falla se avisa con un Snackbar
+     * pero se conecta igual: un firewall que bloquea el probe puede seguir dejando pasar SSH
+     * real, así que no bloquea el intento. Si la host key CAMBIÓ, en cambio, sí se frena —
+     * ver [confirmHostKeyChangedAndConnect].
      */
     private fun connectToClient(conn: RemoteManager.SshClientConnection) {
         toast(getString(R.string.remote_msg_conectando_a, conn.alias))
@@ -1274,16 +1276,56 @@ class RemoteFragment : BaseModuleFragment() {
             } catch (_: Exception) {
                 false
             }
+            val hostKeyCheck = try {
+                RemoteManager.checkHostKeyStatus(conn.host, conn.port)
+            } catch (_: Exception) {
+                RemoteManager.HostKeyCheckResult(RemoteManager.HostKeyStatus.NEW)
+            }
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 if (!reachable) {
                     Snackbar.make(requireView(), getString(R.string.remote_msg_probe_no_respondio), Snackbar.LENGTH_SHORT).show()
                 }
-                launchTerminalCommand(RemoteManager.buildClientConnectCommand(conn), sessionName = conn.alias)
-                if (reachable) renderClientConnections()
+                if (hostKeyCheck.status == RemoteManager.HostKeyStatus.CHANGED) {
+                    confirmHostKeyChangedAndConnect(conn, hostKeyCheck)
+                } else {
+                    launchTerminalCommand(RemoteManager.buildClientConnectCommand(conn), sessionName = conn.alias)
+                    if (reachable) renderClientConnections()
+                }
             }
         }.start()
+    }
+
+    /**
+     * Diálogo de "la clave del servidor cambió" — el mismo espíritu que
+     * StrictHostKeyChecking=accept-new de JSch (ver referencia citada arriba), adaptado a
+     * Kairos: no falla en silencio (el usuario nunca ve por qué no conectó) ni acepta en
+     * silencio (mismo riesgo de MITM que motivó el hallazgo) — muestra el fingerprint viejo
+     * y el nuevo y deja que el usuario decida. Aceptar llama a
+     * RemoteManager.forgetHostKey() ANTES de abrir la terminal (si no, el `ssh` real seguiría
+     * viendo la entrada vieja en known_hosts y rechazando la conexión de todas formas).
+     */
+    private fun confirmHostKeyChangedAndConnect(conn: RemoteManager.SshClientConnection, check: RemoteManager.HostKeyCheckResult) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.remote_dialog_title_hostkey_cambio))
+            .setMessage(getString(R.string.remote_dialog_msg_hostkey_cambio, conn.host, check.oldFingerprint, check.newFingerprint))
+            .setPositiveButton(getString(R.string.remote_btn_hostkey_aceptar)) { _, _ ->
+                Thread {
+                    RemoteManager.forgetHostKey(conn.host)
+                    if (!isAdded) return@Thread
+                    requireActivity().runOnUiThread {
+                        if (!isAdded) return@runOnUiThread
+                        launchTerminalCommand(RemoteManager.buildClientConnectCommand(conn), sessionName = conn.alias)
+                        renderClientConnections()
+                    }
+                }.start()
+            }
+            .setNegativeButton(getString(R.string.remote_btn_cancelar)) { _, _ ->
+                toast(getString(R.string.remote_msg_hostkey_cambio_cancelado))
+            }
+            .setCancelable(false)
+            .show()
     }
 
     // Periodically fetch remote info and update the INFO card.

@@ -42,14 +42,26 @@ internal class EntornoSistemaTab(private val fragment: EntornoFragment) {
                     Snackbar.make(fragment.requireView(), fragment.getString(R.string.entorno_error_no_pudo_diagnosticar_gpu), Snackbar.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
-                val message = fragment.getString(
+                // Tarea 1 (2026-09-15): "Método activo" mostraba directo lo PEDIDO
+                // (entorno.gpu_method), nunca lo que terminó cargado de verdad — ver
+                // classifyActiveGpuBackend()/gpu_mismatch en EntornoNative.gpuDiagnostic().
+                val configuredMethod = json.optString("gpu_method")
+                val activeBackend = json.optString("gpu_method_active", configuredMethod)
+                var message = fragment.getString(
                     R.string.entorno_gpu_diagnostico_mensaje,
                     json.optString("gpu_type"),
-                    json.optString("gpu_method"),
+                    configuredMethod,
                     json.optString("renderer"),
                     json.optString("vulkan_device"),
-                    json.optString("drivers_installed")
+                    json.optString("drivers_installed"),
+                    activeBackend
                 )
+                if (json.optBoolean("gpu_mismatch", false)) {
+                    message += fragment.getString(
+                        R.string.entorno_gpu_diagnostico_advertencia_fallback,
+                        configuredMethod, activeBackend
+                    )
+                }
                 AlertDialog.Builder(fragment.requireContext())
                     .setTitle(fragment.getString(R.string.entorno_dialog_diagnostico_gpu_titulo))
                     .setMessage(message)

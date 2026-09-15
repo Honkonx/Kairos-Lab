@@ -92,6 +92,26 @@
     <string name="stacks_toast_invalid_port">Invalid port</string>
     <string name="stacks_toast_starting_tunnel">Starting Cloudflare tunnel on :%1$d…</string>
 
+    <!-- ── Monorepos (2026-09-15) — parent project with several sub-projects on different
+         stacks, e.g. "project-0/frontend" (Node) + "project-0/backend" (Python) ── -->
+    <string name="stacks_btn_detect_subprojects">🧩 Detect sub-projects</string>
+    <string name="stacks_no_subprojects_found">No sub-projects with their own stack were detected in the subfolders</string>
+    <string name="stacks_monorepo_detected_title">%1$s — sub-projects detected</string>
+    <string name="stacks_subproject_label">%1$s (%2$s)</string>
+    <string name="stacks_monorepo_confirm_button">Add as monorepo</string>
+    <string name="stacks_monorepo_simple_button">Add as simple project</string>
+    <string name="stacks_monorepo_card_title">MONOREPO</string>
+    <string name="stacks_monorepo_description">This project has several sub-projects with different stacks — each one installs/starts separately, with its own target and command.</string>
+    <string name="stacks_monorepo_card_subprojects">SUB-PROJECTS</string>
+    <string name="stacks_btn_start_all">▶ Start all</string>
+    <string name="stacks_btn_rescan_subprojects">🔄 Detect again</string>
+    <string name="stacks_no_new_subprojects">No new sub-projects were found</string>
+    <string name="stacks_no_subprojects">This project has no registered sub-projects</string>
+    <string name="stacks_hint_delay_seconds">Delay between starts, in seconds (optional, 0 = no delay)</string>
+    <string name="stacks_dialog_start_all_title">Start all sub-projects</string>
+    <string name="stacks_dialog_start_all_message">They start in the order they appear in the list — dependency order isn\'t resolved automatically (e.g. if the backend needs to be up before the frontend, use the delay or start them manually in the right order).</string>
+    <string name="stacks_toast_starting_all">Starting %1$d sub-project(s)…</string>
+
     <!-- ═══════════════════════════════════════════════════════════
          RepoFragment.kt (repo_*)
          ═══════════════════════════════════════════════════════════ -->

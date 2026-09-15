@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HomelabFragment.kt — strings visibles al usuario (español) -->
+
+    <string name="homelab_title">Homelab</string>
+    <string name="homelab_subtitle">Panel de tu red — este dispositivo y tus servicios self-hosted</string>
+
+    <string name="more_sheet_homelab">Homelab</string>
+
+    <!-- Sección "Este dispositivo" -->
+    <string name="homelab_section_este_dispositivo">ESTE DISPOSITIVO</string>
+    <string name="homelab_device_remote">Remote (SSH)</string>
+    <string name="homelab_device_sin_modulos_http">Ningún módulo con servicio HTTP corriendo ahora mismo</string>
+    <string name="homelab_status_activo">Activo</string>
+
+    <!-- Sección "Servicios" -->
+    <string name="homelab_section_servicios">SERVICIOS</string>
+    <string name="homelab_servicios_vacio">Todavía no agregaste ningún servicio. Tocá \"Agregar\" para sumar un NAS, Pi-hole, Proxmox u otro panel de tu red.</string>
+    <string name="homelab_btn_agregar">+ Agregar</string>
+    <string name="homelab_btn_abrir">Abrir</string>
+    <string name="homelab_btn_guardar">Guardar</string>
+    <string name="homelab_btn_eliminar">Eliminar</string>
+    <string name="homelab_btn_cancelar">Cancelar</string>
+
+    <!-- Tipos de servicio -->
+    <string name="homelab_type_docker">Docker / Portainer</string>
+    <string name="homelab_type_pihole">Pi-hole</string>
+    <string name="homelab_type_proxmox">Proxmox</string>
+    <string name="homelab_type_http">HTTP genérico</string>
+    <string name="homelab_type_otro">Otro</string>
+
+    <!-- Diálogo agregar/editar servicio -->
+    <string name="homelab_dialog_title_agregar">Agregar servicio</string>
+    <string name="homelab_dialog_title_editar">Editar servicio</string>
+    <string name="homelab_hint_nombre">Nombre (ej. NAS de casa)</string>
+    <string name="homelab_hint_url">URL o IP:puerto (ej. 192.168.1.50:9000)</string>
+    <string name="homelab_hint_usuario_opcional">Usuario (opcional)</string>
+    <string name="homelab_hint_token_opcional">Token / contraseña (opcional)</string>
+    <string name="homelab_hint_token">Token / contraseña nuevo</string>
+    <string name="homelab_msg_url_vacia">Falta la URL/IP del servicio</string>
+    <string name="homelab_msg_token_vacio">El token/contraseña no puede estar vacío</string>
+
+    <!-- Menú de una card de servicio (long-press) -->
+    <string name="homelab_menu_editar">Editar</string>
+    <string name="homelab_menu_agregar_token">Agregar token</string>
+    <string name="homelab_menu_reemplazar_token">Reemplazar token</string>
+    <string name="homelab_menu_borrar_token">Borrar token</string>
+    <string name="homelab_menu_eliminar">Eliminar servicio</string>
+    <string name="homelab_dialog_title_eliminar_servicio">Eliminar servicio</string>
+    <string name="homelab_dialog_msg_eliminar_servicio">¿Eliminar \"%1$s\"? Esta acción no se puede deshacer.</string>
+    <string name="homelab_dialog_msg_borrar_token">¿Borrar el token/contraseña guardado de \"%1$s\"?</string>
+</resources>

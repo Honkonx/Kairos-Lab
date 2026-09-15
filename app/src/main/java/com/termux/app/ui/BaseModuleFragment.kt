@@ -22,6 +22,9 @@ import com.google.android.material.tabs.TabLayout
 import com.termux.R
 import java.io.File
 import com.termux.app.util.kairosThemeColor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 abstract class BaseModuleFragment : Fragment() {
 
@@ -114,7 +117,7 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * FAB real, flotante sobre el `ScrollView` (2026-08-23, ver docs/humano209.md — antes
+     * FAB real, flotante sobre el `ScrollView` (2026-08-23 — antes
      * `fragment_module_detail.xml` era un `ScrollView` raíz sin lugar para superponer nada, así
      * que la acción principal de una pantalla terminaba siendo "un botón más" arriba de la
      * lista; ahora hay un `fab_slot` real). Usar para LA acción principal de la pantalla (ej.
@@ -149,8 +152,8 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * Fila compacta de modelo/ítem (2026-08-23, ver docs/humano209.md — mockup aprobado por el
-     * usuario, "no es quitar opciones es reorganizarlas [...] toca organizar bien y bonito").
+     * Fila compacta de modelo/ítem (2026-08-23 — mockup aprobado, "no es quitar opciones es
+     * reorganizarlas [...] toca organizar bien y bonito").
      * Reemplaza el patrón viejo de una card entera de solo-lectura por ítem — un swatch
      * (ícono/color de estado), nombre + subtítulo en una sola fila, y contenido final opcional
      * (pill/botón chico) a la derecha. Pensado para listas de modelos (Ollama/IA Local) pero
@@ -498,8 +501,8 @@ abstract class BaseModuleFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
             when (style) {
                 ButtonStyle.PRIMARY -> {
-                    // Dirección acordada en docs/humano/humano191.md (mockup /design, sección "Mockup
-                    // de componentes"): el botón primario "escandilaba" con relleno sólido verde
+                    // Dirección acordada en mockup /design, sección "Mockup
+                    // de componentes": el botón primario "escandilaba" con relleno sólido verde
                     // saturado (#22C55E) + texto negro. Reemplazado por relleno azul tenue
                     // (14% opacidad de kairosBlue) + borde, con ripple/elevación reales — el
                     // verde neón queda reservado como acento fino (pill(), switches), nunca como
@@ -578,8 +581,8 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * Fila "dropdown + switch bloqueado" — pedido explícito del usuario (2026-08-22, ver
-     * docs/humano/humano192.md): reemplaza el antipatrón de N botones para una sola decisión
+     * Fila "dropdown + switch bloqueado" — pedido explícito (2026-08-22): reemplaza el
+     * antipatrón de N botones para una sola decisión
      * excluyente (ej. OpenCode tenía 2 botones de puerto + un switch aparte; Entornos de
      * Prueba tenía 3 botones de destino + Iniciar/Detener separados). Un solo dropdown para
      * elegir la opción + un switch que la bloquea mientras está encendido — no se puede
@@ -713,8 +716,8 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Fila "solo dropdown" — versión sin switch de [dropdownSwitchRow], para elegir entre 3+
      * opciones mutuamente excluyentes que NO son un encendido/apagado (ej. sqlmap tiene 4
-     * acciones distintas con targets/params propios, no un simple toggle — ver docs/humano/humano194.md
-     * y docs/humano/humano195.md, diferido en la ronda anterior a falta de este componente). El botón
+     * acciones distintas con targets/params propios, no un simple toggle — diferido en la
+     * ronda anterior a falta de este componente). El botón
      * que dispara la acción elegida sigue siendo un botón normal aparte, este componente solo
      * resuelve la selección de modo.
      */
@@ -837,7 +840,7 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Re-habilita [button] (texto + estado) apenas [moduleId] deja de estar instalando —
      * ver comentario de [showNotInstalled]. Guard de Fragment-adjunto (`isAdded`) igual que el
-     * resto del proyecto (`.claude/rules/kotlin-kairos-android-patterns.md`): si el usuario
+     * resto del proyecto (patrón estándar de Kairos para callbacks async): si el usuario
      * navega a otra pantalla mientras esto sigue reintentando, la cadena de `postDelayed()` se
      * corta acá en vez de seguir agendando callbacks contra un Fragment ya desadjuntado.
      */
@@ -856,10 +859,10 @@ abstract class BaseModuleFragment : Fragment() {
 
     // open: PythonFragment lo sobreescribe para además exigir el binario real con AND (ver
     // isTermuxBinaryAvailable) — es el módulo con más evidencia real de tener el registry
-    // desincronizado del dispositivo (docs/humano*.md 2026-07-31), un caso más estricto que
+    // desincronizado del dispositivo (2026-07-31), un caso más estricto que
     // el OR de acá abajo (registry dice instalado pero el binario está roto).
     //
-    // Fix 2026-08-13 (ver docs/humano/humano118.md — bug de clase conocida: el registry
+    // Fix 2026-08-13 (bug de clase conocida: el registry
     // puede desincronizarse del dispositivo real): antes esto solo leía el registry directo,
     // sin ningún fallback — cualquier Fragment que no overrideara este método (la mayoría)
     // no tenía forma de detectar un módulo instalado a mano en terminal (bypaseando la app).
@@ -871,7 +874,7 @@ abstract class BaseModuleFragment : Fragment() {
     // Fix 2026-08-15 (ModuleDoctor + verificación en vivo): se sube a isInstalledRobust()
     // (registry O binario O estrategia en vivo de LIVE_FALLBACK con cache de 10s) para que
     // el estado de cada módulo refleje el filesystem real — el registry puede quedar como
-    // installed=true sin que el binario exista (ver humano118) y viceversa. El poll de
+    // installed=true sin que el binario exista y viceversa. El poll de
     // ModulesFragment sigue usando isInstalled() (más barato); acá la robustez vale la pena
     // porque cada visita al detalle es puntual, no periódica.
     protected open fun isModuleInstalled(): Boolean {
@@ -891,6 +894,37 @@ abstract class BaseModuleFragment : Fragment() {
         val ctx = requireContext()
         Thread {
             val summary = com.termux.app.util.ModuleDoctor.runDiagnosticsForAll(ctx)
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread { if (isAdded) toast(summary) }
+        }.start()
+    }
+
+    /**
+     * Tarea 3 (2026-09-15): [runModuleDoctor] de arriba (ModuleDoctor sobre TODO el catálogo)
+     * solo tenía un caller real (`ConfigFragment.runGlobalModuleDoctor()`, Ajustes → "Diagnóstico
+     * de módulos") — nunca se había expuesto un diagnóstico ESCOPEADO a un módulo puntual desde
+     * su propia pantalla de detalle, pese a que `ModuleDoctor.runDiagnostics(context, modules)`
+     * ya acepta cualquier lista (no hace falta tocar ModuleDoctor.kt: alcanza con pasarle una
+     * lista de un solo elemento). Agregado acá (BaseModuleFragment, clase base de ~33 Fragments
+     * de módulo) en vez de en cada Fragment individual — los callers reales
+     * (`addMaintenanceCard()` más abajo, `GenericModuleFragment`, `CliToolFragment`,
+     * `OllamaConfigFragment`, `LlamaServerConfigFragment`) solo agregan un `actionButton()` más
+     * a una sección de mantenimiento que ya existía, sin reimplementar el diagnóstico en sí.
+     */
+    protected fun runModuleDoctorForThis() {
+        if (!isAdded) return
+        val ctx = requireContext()
+        val id = getModuleId()
+        Thread {
+            val self = com.termux.app.data.ModuleCatalog.load(ctx).firstOrNull { it.id == id }
+            if (!isAdded) return@Thread
+            if (self == null) {
+                requireActivity().runOnUiThread {
+                    if (isAdded) toast(getString(R.string.base_module_doctor_not_found, id))
+                }
+                return@Thread
+            }
+            val summary = com.termux.app.util.ModuleDoctor.runDiagnostics(ctx, listOf(self))
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread { if (isAdded) toast(summary) }
         }.start()
@@ -949,8 +983,7 @@ abstract class BaseModuleFragment : Fragment() {
      * Pedido explícito del usuario (docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md,
      * Fase 3): "una opción para cerrar la terminal de un módulo puntual desde la pantalla de ESE
      * módulo" — no un botón global que pueda cerrar cualquier sesión. [onDone] siempre corre en
-     * el hilo principal, con el mismo guard `isAdded` que el resto de helpers de esta clase
-     * (`.claude/rules/kotlin-kairos-android-patterns.md`).
+     * el hilo principal, con el mismo guard `isAdded` que el resto de helpers de esta clase.
      */
     protected fun closeTerminalSession(sessionName: String = getModuleName(), onDone: (() -> Unit)? = null) {
         val act = activity as? com.termux.app.TermuxActivity ?: return
@@ -1018,7 +1051,7 @@ abstract class BaseModuleFragment : Fragment() {
      * estado. [onDone] SIEMPRE llega en el hilo principal y con el Fragment confirmado
      * adjunto — antes cada Fragment (N8nFragment, OllamaFragment, etc.) tenía que acordarse
      * de guardar ese guard él mismo en su propio callback, y no todos lo hacían. Bug real
-     * confirmado con stacktrace (ver docs/humano/humano57.md):
+     * confirmado con stacktrace:
      * `IllegalStateException: Fragment N8nFragment... not attached to an activity` — el
      * usuario tocaba "Iniciar n8n" (que puede tardar bastante en proot) y navegaba a otra
      * pantalla antes de que el callback llegara; `requireActivity()` reventaba porque el
@@ -1035,8 +1068,8 @@ abstract class BaseModuleFragment : Fragment() {
 
     /**
      * [startModuleService] con polling corto (2-3s) mientras se espera el callback final —
-     * hallazgo de UX homelab pendiente de adoptar (2026-08-22, ver docs/humano/humano194.md/
-     * humano201.md, patrón Umbrel): un arranque que puede tardar 5-60s (Ollama cargando el
+     * hallazgo de UX homelab pendiente de adoptar (2026-08-22, patrón Umbrel): un arranque que
+     * puede tardar 5-60s (Ollama cargando el
      * modelo, servicios con health-check propio) se sentía "colgado" mientras la UI solo
      * esperaba el único callback final, sin ninguna señal intermedia de que sigue trabajando.
      * [onPoll] corre cada [intervalMs] mientras la instalación/arranque sigue en curso — un
@@ -1087,15 +1120,15 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Reinstala/actualiza el módulo (`ModuleController.installModule()`, sin variante
      * específica, con `--force`). Mismo guard de Fragment-adjunto que
-     * [startModuleService]/[stopModuleService] — bug real confirmado (ver
-     * docs/humano/humano63.md, auditoría de arquitectura central): 7 módulos (Antigravity,
+     * [startModuleService]/[stopModuleService] — bug real confirmado (auditoría de
+     * arquitectura central): 7 módulos (Antigravity,
      * Engram, Codex, Claude, Hermes, OpenCode, OpenClaw) llamaban a
      * `ModuleController.installModule()` DIRECTO desde su botón "Reinstalar/Actualizar", sin
      * pasar por ningún helper — mismo crash real ya corregido acá para start/stop
      * (`IllegalStateException: Fragment ... not attached to an activity`), solo que en la ruta
      * de reinstalación, que puede tardar minutos (n8n ~5min, OpenClaw ~2min).
      *
-     * force=true (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): sin esto, este botón
+     * force=true (auditoría 2026-08-05): sin esto, este botón
      * era casi siempre un no-op — todos los scripts de instalación chequean "command -v X && !
      * $FORCE" y salen temprano si el binario ya existe, así que "Reinstalar/Actualizar" nunca
      * bajaba una versión nueva de nada, solo lo aparentaba (el usuario reportó "en ningún
@@ -1125,7 +1158,7 @@ abstract class BaseModuleFragment : Fragment() {
     protected fun updateModuleService(onDone: (Boolean) -> Unit) = reinstallModuleService(onDone)
 
     /**
-     * Instalación en segundo plano SIN bloquear la UI (pedido 2026-08-13, ver humano101):
+     * Instalación en segundo plano SIN bloquear la UI (pedido 2026-08-13):
      * el usuario toca "Instalar en segundo plano" en el fragment y sigue navegando mientras
      * el módulo se instala internamente. Mismo mecanismo real que el BottomSheet
      * (ModuleController.installModule → Thread → bash <script> --silent), solo que sin
@@ -1197,8 +1230,7 @@ abstract class BaseModuleFragment : Fragment() {
      * 526 call-sites sin compilador local disponible es un riesgo desproporcionado). [work]
      * corre en background; [onResult] corre en el hilo principal SOLO si el Fragment sigue
      * adjunto tanto antes como después de saltar al hilo principal — mismo doble guard `isAdded`
-     * que el patrón manual ya usaba en todo el codebase (ver
-     * `.claude/rules/kotlin-kairos-android-patterns.md`).
+     * que el patrón manual ya usaba en todo el codebase.
      *
      * Agregado 2026-08-25 SOLO como helper disponible — no reemplaza ningún `Thread {}`
      * existente en el resto del codebase; la adopción queda para rondas futuras, módulo por
@@ -1222,7 +1254,7 @@ abstract class BaseModuleFragment : Fragment() {
      * Extraído acá (2026-08-31) porque 4 Fragments (`ModelsFragment`, `OllamaConfigFragment`,
      * `RepoFragment`, `QemuFragment` — este último con el nombre `runOnMainThread`)
      * reimplementaban a mano esta función privada, byte-por-byte idéntica en los 3 primeros —
-     * hallazgo real de la auditoría de código de esta ronda (docs/humano291.md). Usar desde
+     * hallazgo real de la auditoría de código de esta ronda. Usar desde
      * dentro de un `Thread { ... runOnMain { ... } }` propio; para el patrón completo
      * "trabajo en background + resultado en UI" preferir [runInBackground] directamente.
      */
@@ -1252,6 +1284,11 @@ abstract class BaseModuleFragment : Fragment() {
                     toast(if (ok) getString(R.string.base_module_updated, getModuleName()) else getString(R.string.base_module_update_failed, getModuleId()))
                 }
             }
+            // Tarea 3 (2026-09-15) — ver KDoc de [runModuleDoctorForThis].
+            actionButton(getString(R.string.base_module_diagnose), ButtonStyle.GHOST) {
+                toast(getString(R.string.base_module_diagnosing, getModuleName()))
+                runModuleDoctorForThis()
+            }
             actionButton(getString(R.string.base_module_uninstall), ButtonStyle.DANGER) { confirmUninstallModule() }
         }
     }
@@ -1261,6 +1298,23 @@ abstract class BaseModuleFragment : Fragment() {
      * confirmUninstall()/PluginsFragment.confirmUninstall() — reusable acá porque solo
      * depende de getModuleId()/getModuleName(), ya disponibles en cualquier subtipo. Ver
      * KDoc de [addMaintenanceCard].
+     *
+     * Ejemplo de integración real de [com.termux.app.util.ActionApprovalGate] (2026-09-15,
+     * ver `docs/referencias/agentes/REFERENCIA_AGENT_NEXUS.md`/`REFERENCIA_RIKKAHUB_AGENT.md`):
+     * la rama de desinstalación PROFUNDA (borra el paquete real instalado, no solo el estado
+     * interno de Kairos) pasa por el gate antes de llamar a `deepUninstallModule()` — el
+     * `AlertDialog` de acá arriba SIGUE siendo el mecanismo real de consentimiento humano para
+     * este caso (tap directo del usuario, con el checkbox marcado), así que el presenter
+     * pasado al gate resuelve de inmediato ("ya se preguntó, ya se confirmó"). Lo que el gate
+     * agrega, real y no cosmético: (1) corre la política real de
+     * `ActionType.MODULE_UNINSTALL_DEEP` (`ApprovalPolicy.ALWAYS_ASK` — nunca puede quedar
+     * "recordado", ni por un bug futuro que intente ofrecer esa opción acá); (2) deja un log de
+     * auditoría real en `KairosLogger` de cada desinstalación profunda pedida/aprobada. Un
+     * futuro caller NO iniciado por un tap directo (el bot de Telegram, un Agente Kairos)
+     * pasaría acá un [com.termux.app.util.ActionApprovalGate.ApprovalPresenter] real — que
+     * muestra su propio mecanismo de confirmación (ej. teclado inline de Telegram) y llama a
+     * `resolve()` recién cuando el usuario responda de verdad — en vez de resolver
+     * inmediatamente como acá, donde el "sí" ya ocurrió en el diálogo de arriba.
      */
     protected fun confirmUninstallModule() {
         val deepCheckbox = android.widget.CheckBox(requireContext()).apply {
@@ -1274,12 +1328,31 @@ abstract class BaseModuleFragment : Fragment() {
             .setView(deepCheckbox)
             .setPositiveButton(getString(R.string.base_module_uninstall_btn)) { _, _ ->
                 if (deepCheckbox.isChecked) {
-                    com.termux.app.ModuleController.deepUninstallModule(getModuleId()) { ok, message ->
-                        if (!isAdded) return@deepUninstallModule
-                        requireActivity().runOnUiThread {
-                            if (!isAdded) return@runOnUiThread
-                            toast(message)
-                            if (ok) parentFragmentManager.popBackStack()
+                    val moduleId = getModuleId()
+                    val ctx = requireContext().applicationContext
+                    CoroutineScope(Dispatchers.Main).launch {
+                        val approved = com.termux.app.util.ActionApprovalGate.requestApproval(
+                            context = ctx,
+                            actionType = com.termux.app.util.ActionApprovalGate.ActionType.MODULE_UNINSTALL_DEEP,
+                            moduleId = moduleId,
+                            detail = "Desinstalación profunda de ${getModuleName()} — borra el paquete real instalado (npm/binario/etc.), no solo el estado interno de Kairos.",
+                        ) { request ->
+                            // El AlertDialog de arriba ya es el consentimiento humano real para
+                            // este caso — ver KDoc de confirmUninstallModule() más arriba.
+                            com.termux.app.util.ActionApprovalGate.resolve(request.callId, approved = true)
+                        }
+                        if (!isAdded) return@launch
+                        if (!approved) {
+                            toast(getString(R.string.base_module_uninstall_failed, getModuleName()))
+                            return@launch
+                        }
+                        com.termux.app.ModuleController.deepUninstallModule(moduleId) { ok, message ->
+                            if (!isAdded) return@deepUninstallModule
+                            requireActivity().runOnUiThread {
+                                if (!isAdded) return@runOnUiThread
+                                toast(message)
+                                if (ok) parentFragmentManager.popBackStack()
+                            }
                         }
                     }
                 } else {

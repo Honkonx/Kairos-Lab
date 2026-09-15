@@ -40,8 +40,8 @@ import com.termux.app.util.kairosThemeColor
  * inicializar queda oculta detrás de la elección del modelo, nunca un
  * toggle separado de "engine".
  *
- * Decisión "tab independiente vs. chat de Ollama" (feedback directo del
- * usuario tras probar la pantalla, docs/humano*.md de esta ronda): NO se
+ * Decisión "tab independiente vs. chat de Ollama" (feedback directo tras
+ * probar la pantalla): NO se
  * crea una pantalla de chat nueva. ChatFragment YA es un chat unificado —
  * el mismo selector de modelo lista tanto los remotos de Ollama como los
  * .gguf locales (marcados con 📱), y decide qué motor usar según cuál se
@@ -56,7 +56,7 @@ class LocalAIFragment : Fragment() {
     /**
      * Modelo del catálogo curado — ver CATALOG más abajo. `creator` agrupa visualmente el
      * catálogo (headers de sección, mismo patrón que ModelsFragment.CatalogCategory para
-     * Ollama, ver docs/humano* de la ronda de paridad de catálogos) — el ORDEN de declaración
+     * Ollama, ronda de paridad de catálogos) — el ORDEN de declaración
      * de CATALOG es el orden real de renderizado (por creador, familia y tamaño ascendente
      * dentro de cada creador, ya resuelto a mano en la lista de abajo — no hay sort() en
      * runtime, ver comentario de CATALOG).
@@ -454,9 +454,9 @@ class LocalAIFragment : Fragment() {
         }
         scroll.addView(root, ViewGroup.LayoutParams(MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        // Título simple, sin ícono de Configuración propio (2026-08-24, ver docs/humano210.md).
-        // Corrección explícita del usuario: "en ia local ahi dos tuercas [...] deja todo dentro
-        // de la tuerca en la pantalla principal" — este catálogo se abre DESDE la pantalla
+        // Título simple, sin ícono de Configuración propio (2026-08-24) — antes había dos
+        // tuercas (dos accesos a configuración); toda la configuración se dejó dentro de la
+        // tuerca de la pantalla principal — este catálogo se abre DESDE la pantalla
         // principal de IA Local (LlamaServerFragment), que ya tiene su propia "⚙" única con
         // TODA la configuración (incluida la de este catálogo, ahora en LlamaServerConfigFragment).
         root.addView(TextView(ctx).apply {
@@ -516,6 +516,18 @@ class LocalAIFragment : Fragment() {
                     setOnClickListener { showAddModelDialog() }
                     layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
                 })
+            })
+            // Descubribilidad del soporte multimodal (2026-09-15) — "Importar" ya sirve para
+            // traer un mmproj-*.gguf (mismo botón, se detecta por nombre, ver
+            // LocalModelManager.isMmproj()); sin este texto no habría forma de que el usuario
+            // supiera que el chat puede adjuntar imágenes con el motor local — toda función
+            // real necesita un camino de UI descubrible, no solo funcionar si el usuario ya
+            // sabía qué buscar.
+            addView(TextView(ctx).apply {
+                text = getString(R.string.localai_mmproj_hint)
+                textSize = 11f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+                setPadding(0, dp(8), 0, 0)
             })
         })
 
@@ -589,8 +601,13 @@ class LocalAIFragment : Fragment() {
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(0, dp(7), 0, dp(7))
             }
+            // Vision projector (mmproj, ver LocalModelManager.isMmproj()) — soporte multimodal
+            // 2026-09-15, ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md sección "Soporte multimodal".
+            // Distinto ícono/subtítulo porque NO es un modelo de chat seleccionable por sí solo
+            // (ChatFragment ya lo excluye del selector, ver LocalModelManager.listChatModels()).
+            val isMmproj = LocalModelManager.isMmproj(model.file)
             row.addView(TextView(ctx).apply {
-                text = "🧠"
+                text = if (isMmproj) "🖼️" else "🧠"
                 textSize = 14f
                 gravity = Gravity.CENTER
                 background = android.graphics.drawable.GradientDrawable().apply {
@@ -614,7 +631,11 @@ class LocalAIFragment : Fragment() {
                     // de ModelsFragment/CATALOG de Ollama, que sí tiene el dato investigado por
                     // modelo) — factor 1.2x sobre el tamaño en disco como estimación razonable
                     // (pesos + overhead de contexto/KV cache chico), solo informativo.
-                    text = "%.1f GB  ·  ~%.1f GB RAM".format(fileGb, fileGb * 1.2)
+                    text = if (isMmproj) {
+                        "%.1f GB  ·  %s".format(fileGb, getString(R.string.localai_mmproj_label))
+                    } else {
+                        "%.1f GB  ·  ~%.1f GB RAM".format(fileGb, fileGb * 1.2)
+                    }
                     textSize = 11f
                     setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
                 })
@@ -724,7 +745,7 @@ class LocalAIFragment : Fragment() {
                 })
                 if (exceedsRam) {
                     // No bloquea la descarga, solo avisa — mismo criterio que
-                    // ModelsFragment.renderCatalogTab (docs/humano/humano194.md).
+                    // ModelsFragment.renderCatalogTab.
                     addView(TextView(ctx).apply {
                         text = getString(R.string.models_ram_warning, "%.1f".format(neededRamGb), "%.1f".format(deviceRamGb))
                         textSize = 11f
@@ -790,7 +811,7 @@ class LocalAIFragment : Fragment() {
         catalogProgressLabel.text = getString(R.string.localai_starting_download, getString(entry.nameResId))
 
         // Ya no bloquea (esta pantalla nunca usó un AlertDialog modal para este flujo) — el
-        // gap real (docs/humano247.md) era que, si el usuario navegaba a OTRA pantalla
+        // gap real era que, si el usuario navegaba a OTRA pantalla
         // mientras un .gguf de varios GB seguía bajando, no había ningún aviso al terminar
         // (el Thread seguía vivo, pero `isAdded` ya era false y los `handler.post` con guard
         // se descartaban en silencio). Ahora se dispara una notificación real en ese caso —
@@ -952,7 +973,7 @@ class LocalAIFragment : Fragment() {
         val ctx = requireContext()
         val appContext = ctx.applicationContext
         val progress = com.termux.app.util.ProgressDialogController(ctx)
-        // allowBackground=true (docs/humano247.md): "Agregar modelo por URL" no tiene tamaño
+        // allowBackground=true: "Agregar modelo por URL" no tiene tamaño
         // curado como el catálogo, pero puede ser igual de pesado — mismo tratamiento que
         // downloadCatalogModel()/ModelsFragment.pullModel(): se puede mandar a 2do plano y se
         // avisa por notificación al terminar.

@@ -89,7 +89,7 @@
     <string name="codex_card_sesion">SESIÓN</string>
     <string name="codex_btn_resume_session">🕒 Reanudar última sesión</string>
     <string name="codex_btn_install_change_channel">⚙ Instalar / cambiar canal</string>
-    <!-- Selector de variante real (ronda 2026-09-09, ver docs/humano328.md): "Normal" (canal
+    <!-- Selector de variante real (ronda 2026-09-09): "Normal" (canal
          termux, DioNanos/codex-termux, con fallback automático a wallentx/codex-termux si la
          vía npm falla) vs "VL" (DioNanos/codex-vl, con code-mode, sin fallback — a sabiendas). -->
     <string name="codex_variant_dialog_title">Elegir variante — Codex CLI</string>
@@ -145,6 +145,12 @@
     <string name="base_module_updating">Actualizando %1$s…</string>
     <string name="base_module_updated">%1$s actualizado</string>
     <string name="base_module_update_failed">Falló — revisa ~/kairos_logs/install_%1$s.log</string>
+    <!-- Tarea 3 (2026-09-15): runModuleDoctorForThis() — diagnóstico escopeado a UN módulo, ver
+         BaseModuleFragment.addMaintenanceCard()/GenericModuleFragment/CliToolFragment/
+         OllamaConfigFragment/LlamaServerConfigFragment. -->
+    <string name="base_module_diagnose">🩺 Diagnosticar</string>
+    <string name="base_module_diagnosing">Diagnosticando %1$s…</string>
+    <string name="base_module_doctor_not_found">No se encontró %1$s en el catálogo de módulos</string>
     <string name="base_module_uninstall">🗑 Desinstalar</string>
     <string name="base_module_deep_uninstall_checkbox">Desinstalación profunda (borra también el paquete real, no solo el estado)</string>
     <string name="base_module_confirm_uninstall_title">¿Desinstalar %1$s?</string>

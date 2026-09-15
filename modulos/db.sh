@@ -23,8 +23,8 @@
 #    ✅ SQLite CLI (sqlite3) — suele venir con el wizard, se garantiza
 #    ✅ redis (paquete oficial de Termux, main repo, aarch64) + wrappers
 #       start/stop propios — agregado v1.1.0, ver NOTA abajo
-#    ✅ mongodb (paquete oficial de Termux, main repo, aarch64) + wrappers
-#       start/stop propios — agregado v1.2.0, ver NOTA 2026-09-01 abajo
+#    ⚠️ mongodb (best-effort, paquete probablemente INEXISTENTE — ver NOTA
+#       2026-09-15 abajo) + wrappers start/stop propios — agregado v1.2.0
 #    ✅ Registry actualizado (db.installed, db.version, ...)
 #
 #  NOTA (2026-08-19, cruce contra referencia/termux/core-termux-main/core/cli/
@@ -33,10 +33,20 @@
 #  cubría. Redis es un paquete real y oficial del repo main de Termux
 #  (aarch64) — se agrega acá con el mismo patrón start/stop que MariaDB/
 #  PostgreSQL. MongoDB en su momento se dejó pendiente (creído sin build
-#  oficial ARM64) — corregido 2026-09-01: confirmado en vivo que "pkg install
-#  mongodb" instala un binario real y "mongod --version" funciona en Termux
-#  (auditoría referencia/termux/core-termux-main). Se agrega con el mismo
-#  patrón start/stop/registry que MariaDB/PostgreSQL/Redis (v1.2.0).
+#  oficial ARM64) — la nota anterior de 2026-09-01 decía "confirmado en vivo
+#  que 'pkg install mongodb' instala un binario real", pero esa afirmación NO
+#  se pudo reproducir en la auditoría 2026-09-15 (verificación empírica
+#  directa, no solo confiar en un reporte previo): el paquete "mongodb"
+#  no existe en packages.termux.dev/apt/termux-main (pool/main/m/mongodb/ →
+#  404) ni en termux-user-repository/tur (sin ningún paquete "mongo*") —
+#  "pkg install mongodb" falla con "Unable to locate package" en el repo main
+#  actual. Se deja el código tal cual (PASO 5 ya trata el fallo como
+#  no-crítico con warn(), y update_registry() ya NO marca mongo.installed=true
+#  a menos que "mongod" exista de verdad tras el intento — fix real de esta
+#  ronda) en vez de eliminarlo, por si Termux agrega el paquete en el futuro o
+#  el usuario confirma otro mirror/repo que sí lo tenga — pendiente de
+#  verificación empírica real en dispositivo antes de confiar en cualquier
+#  reporte futuro de "ya funciona".
 #
 #  OUTPUT (modo --silent):
 #    [STEP] N/7 Descripción     ← para barra de progreso
@@ -138,13 +148,13 @@ source "$SCRIPT_DIR/lib.sh" 2>/dev/null || {
 # ── Modo estado ─────────────────────────────────────────────
 if $STATUS; then
   MYSQL_RUNNING=false; PGSQL_RUNNING=false
-  # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano183.md/humano184.md):
+  # Bug real confirmado por auditoría ADB en dispositivo real:
   # "pgrep -x" compara contra el nombre corto del proceso (comm), poco confiable en este
   # Android/Termux — MariaDB y Redis arrancan y funcionan perfecto pero el chequeo reportaba
   # [ERROR] igual. Además el binario real de MariaDB se llama "mariadbd", no "mysqld". Fix:
   # "pgrep -f" (matchea la línea de comando completa) + nombre real del binario.
   pgrep -f mariadbd &>/dev/null && MYSQL_RUNNING=true
-  # Bug #31 (ver docs/humano/humano193.md): "pgrep -f postgres" da falso positivo con un subproceso
+  # Bug real: "pgrep -f postgres" da falso positivo con un subproceso
   # "postgres --check" colgado (de pg_ctl) — pg_isready no se deja engañar, hace una conexión real.
   pg_isready -q 2>/dev/null && PGSQL_RUNNING=true
   REDIS_RUNNING=false
@@ -196,14 +206,36 @@ if $START || $STOP; then
 fi
 
 # ── Registry helper ─────────────────────────────────────────
+# Bug real corregido (auditoría 2026-09-15): las 5 líneas de abajo escribían
+# "installed=true" de forma INCONDICIONAL para cada motor, sin chequear si el
+# binario correspondiente existe de verdad — mismo patrón de bug ya documentado
+# en otros casos conocidos (#28/#29/#30). Esto es
+# especialmente grave para MongoDB: se confirmó por auditoría de
+# packages.termux.dev/pool/main/m/ (404) y del repo termux-user-repository/tur
+# (sin ningún paquete "mongo*") que el paquete "mongodb" del comentario de
+# cabecera de este archivo ("paquete oficial de Termux, main repo, aarch64",
+# "confirmado en vivo 2026-09-01") NO existe en ningún repo real accesible por
+# pkg/apt — "pkg install mongodb" falla con "Unable to locate package" (ya
+# tratado como no-crítico en PASO 5 de abajo), pero como esta función se llama
+# igual al final del script, "mongo.installed=true" quedaba escrito en el
+# registry con version=unknown aunque mongod nunca se haya instalado en
+# absoluto. Ahora cada motor solo se marca instalado si su binario responde de
+# verdad — mismo criterio que el propio modo --status de este script ya usa
+# (ver JSON de arriba, $([ -n "$X_VER" ] && echo true || echo false)).
 update_registry() {
   local version="$1"
   registry_write db "installed=true" "version=${version}" "install_date=$(date +%Y-%m-%d)"
-  registry_write mysql "installed=true" "version=$(mariadbd --version 2>/dev/null | grep -oE '([0-9]+\.[0-9]+\.[0-9]+)' | head -1 || echo 'unknown')"
-  registry_write postgres "installed=true" "version=$(psql --version 2>/dev/null | grep -oE '([0-9]+\.[0-9]+)' | head -1 || echo 'unknown')"
-  registry_write sqlite "installed=true" "version=$(sqlite3 --version 2>/dev/null | awk '{print $1}' || echo 'unknown')"
-  registry_write redis "installed=true" "version=$(redis-server --version 2>/dev/null | grep -oE 'v=[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d= -f2 || echo 'unknown')"
-  registry_write mongo "installed=true" "version=$(mongod --version 2>/dev/null | grep -oE 'db version v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo 'unknown')"
+  local _v
+  _v=$(mariadbd --version 2>/dev/null | grep -oE '([0-9]+\.[0-9]+\.[0-9]+)' | head -1)
+  registry_write mysql "installed=$([ -n "$_v" ] && echo true || echo false)" "version=${_v:-unknown}"
+  _v=$(psql --version 2>/dev/null | grep -oE '([0-9]+\.[0-9]+)' | head -1)
+  registry_write postgres "installed=$([ -n "$_v" ] && echo true || echo false)" "version=${_v:-unknown}"
+  _v=$(sqlite3 --version 2>/dev/null | awk '{print $1}')
+  registry_write sqlite "installed=$([ -n "$_v" ] && echo true || echo false)" "version=${_v:-unknown}"
+  _v=$(redis-server --version 2>/dev/null | grep -oE 'v=[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d= -f2)
+  registry_write redis "installed=$([ -n "$_v" ] && echo true || echo false)" "version=${_v:-unknown}"
+  _v=$(mongod --version 2>/dev/null | grep -oE 'db version v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+  registry_write mongo "installed=$([ -n "$_v" ] && echo true || echo false)" "version=${_v:-unknown}"
 }
 
 # ── Verificar si ya está instalado ──────────────────────────
@@ -280,7 +312,7 @@ if check_done "db_mariadb"; then
 else
   if ! command -v mariadbd &>/dev/null; then
     info "Instalando mariadb..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que el bug ya encontrado en el módulo de VNC.
     pkg_update_with_fallback
     pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" mariadb || \
       error "mariadb no se pudo instalar"
@@ -299,7 +331,7 @@ if check_done "db_postgres"; then
 else
   if ! command -v postgres &>/dev/null; then
     info "Instalando postgresql..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que el bug ya encontrado en el módulo de VNC.
     pkg_update_with_fallback
     pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" postgresql || \
       error "postgresql no se pudo instalar"
@@ -320,7 +352,7 @@ if check_done "db_redis"; then
 else
   if ! command -v redis-server &>/dev/null; then
     info "Instalando redis..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que el bug ya encontrado en el módulo de VNC.
     pkg_update_with_fallback
     pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" redis || \
       warn "redis no se pudo instalar (no crítico — MariaDB/PostgreSQL/SQLite siguen disponibles)"
@@ -342,7 +374,7 @@ if check_done "db_mongo"; then
 else
   if ! command -v mongod &>/dev/null; then
     info "Instalando mongodb..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que el bug ya encontrado en el módulo de VNC.
     pkg_update_with_fallback
     pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" mongodb || \
       warn "mongodb no se pudo instalar (no crítico — MariaDB/PostgreSQL/SQLite/Redis siguen disponibles)"
@@ -357,7 +389,7 @@ fi
 step "6/$TOTAL_STEPS Garantizando SQLite y scripts"
 
 if ! check_done "db_sqlite_scripts"; then
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+  # Bug real, mismo patrón que el bug ya encontrado en el módulo de VNC.
   command -v sqlite3 &>/dev/null || { pkg_update_with_fallback; pkg install -y sqlite; } || warn "sqlite3 no instalado"
   command -v sqlite3 &>/dev/null && log "SQLite ✓" || warn "sqlite3 no disponible"
 
@@ -368,7 +400,7 @@ if ! check_done "db_sqlite_scripts"; then
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 MYSQL_DATA="$TERMUX_PREFIX/var/lib/mysql"
-# Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano183.md/humano184.md): "pgrep -x"
+# Bug real confirmado por auditoría ADB en dispositivo real: "pgrep -x"
 # no es confiable en este Android/Termux y el binario real de MariaDB es "mariadbd", no
 # "mysqld" — MariaDB arrancaba perfecto pero el chequeo reportaba [ERROR] igual.
 if pgrep -f mariadbd &>/dev/null; then
@@ -408,7 +440,7 @@ SCRIPT
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 PGSQL_DATA="$TERMUX_PREFIX/var/lib/postgresql"
-# Bug #31 arreglado (auditoría ADB 2026-08-22, ver docs/humano/humano193.md): "pgrep -f postgres"
+# Bug real arreglado (auditoría ADB en dispositivo real): "pgrep -f postgres"
 # (fix anterior para el bug #15 de MySQL/Redis) da FALSO POSITIVO acá — "pg_ctl start"
 # invoca internamente "postgres --check" como paso de validación, y ese subproceso puede
 # quedar colgado en este dispositivo sin que el servidor real llegue a arrancar nunca;
@@ -419,7 +451,7 @@ if pg_isready -q 2>/dev/null; then
   echo "[OK] PostgreSQL ya corriendo → psql"
   exit 0
 fi
-# Causa raíz CONFIRMADA con strace en vivo (auditoría ADB 2026-08-22, ver docs/humano/humano194.md):
+# Causa raíz CONFIRMADA con strace en vivo (auditoría ADB en dispositivo real):
 # "postgres --check" (invocado por pg_ctl Y por el propio initdb en su fase
 # test_config_settings()) se cuelga siempre en este dispositivo — read() de 4 bytes sobre un
 # socketpair AF_UNIX interno (mecanismo self-pipe/latch de Postgres) que nunca recibe el write
@@ -434,9 +466,9 @@ if [ -d "$PGSQL_DATA" ] && [ ! -f "$PGSQL_DATA/PG_VERSION" ] && [ -n "$(ls -A "$
 fi
 # Primera corrida: initdb si el datadir no existe. "timeout" evita que initdb quede colgado
 # para siempre (su fase test_config_settings() dispara el mismo cuelgue que pg_ctl start).
-# Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por ADB):
+# Bug real encontrado en pruebas funcionales reales por ADB:
 # "timeout 45" a secas manda SIGTERM al expirar — el "postgres --check" colgado (read() sobre un
-# self-pipe interno que nunca recibe write, ver docs/humano/humano194.md bug #31) NO responde a
+# self-pipe interno que nunca recibe write) NO responde a
 # SIGTERM, así que el proceso seguía vivo varios MINUTOS después del timeout nominal, confirmado
 # en dispositivo real (tuvo que matarse a mano con SIGKILL). "--kill-after=10" fuerza SIGKILL 10s
 # después del SIGTERM si el proceso sigue vivo, garantizando el cierre real que el comentario de
@@ -447,7 +479,7 @@ if [ ! -f "$PGSQL_DATA/PG_VERSION" ]; then
   timeout --kill-after=10 45 initdb -D "$PGSQL_DATA" -U "$(whoami)" &>/dev/null
 fi
 if [ ! -f "$PGSQL_DATA/PG_VERSION" ]; then
-  echo "[ERROR] PostgreSQL no puede inicializarse en este dispositivo — 'postgres --check' se cuelga de forma reproducible en el sandbox de Android (causa raíz confirmada con strace, ver docs/humano/humano194.md bug #31). No es un problema de configuración: el motor de PostgreSQL en sí no arranca acá. Alternativa real: usar el módulo de bases de datos vía proot-distro/udocker en vez del PostgreSQL nativo de Termux."
+  echo "[ERROR] PostgreSQL no puede inicializarse en este dispositivo — 'postgres --check' se cuelga de forma reproducible en el sandbox de Android (causa raíz confirmada con strace). No es un problema de configuración: el motor de PostgreSQL en sí no arranca acá. Alternativa real: usar el módulo de bases de datos vía proot-distro/udocker en vez del PostgreSQL nativo de Termux."
   exit 1
 fi
 # -t 30: timeout explícito de espera (pg_ctl por defecto también espera, pero sin límite
@@ -461,7 +493,7 @@ timeout --kill-after=10 60 pg_ctl -D "$PGSQL_DATA" -l "$HOME/postgres.log" -t 30
 if pg_isready -q 2>/dev/null; then
   echo "[OK] PostgreSQL iniciado → psql"
 else
-  echo "[ERROR] No se pudo iniciar PostgreSQL — 'postgres --check' se cuelga de forma reproducible en este dispositivo (causa raíz confirmada con strace, revisá ~/postgres.log y docs/humano/humano194.md bug #31). No es un falso negativo de detección: el motor no arranca acá."
+  echo "[ERROR] No se pudo iniciar PostgreSQL — 'postgres --check' se cuelga de forma reproducible en este dispositivo (causa raíz confirmada con strace, revisá ~/postgres.log). No es un falso negativo de detección: el motor no arranca acá."
   exit 1
 fi
 SCRIPT
@@ -472,7 +504,7 @@ SCRIPT
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 PGSQL_DATA="$TERMUX_PREFIX/var/lib/postgresql"
-# Mismo fix que postgres_start.sh (bug #31, ver docs/humano/humano193.md) — "pg_isready" en vez de
+# Mismo fix que postgres_start.sh — "pg_isready" en vez de
 # "pgrep -f postgres" para no confundir un subproceso "postgres --check" colgado con el
 # servidor real corriendo.
 if pg_isready -q 2>/dev/null; then
@@ -489,7 +521,7 @@ SCRIPT
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 REDIS_DATA="$TERMUX_PREFIX/var/lib/redis"
-# Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano183.md/humano184.md): "pgrep -x"
+# Bug real confirmado por auditoría ADB en dispositivo real: "pgrep -x"
 # no es confiable en este Android/Termux — Redis arrancaba perfecto pero el chequeo reportaba
 # [ERROR] igual. Reemplazado por "pgrep -f" (mismo fix que MySQL/PostgreSQL).
 if pgrep -f redis-server &>/dev/null; then
@@ -562,7 +594,7 @@ SCRIPT
   # "bash <script>" SIN flags, así que no pueden ser el propio db.sh (que sin
   # --start/--stop instalaría de nuevo). Cada uno arranca/detiene los 4 servidores.
   #
-  # Bug real confirmado en vivo por ADB (auditoría 2026-09-08, ver docs/humano — módulo Base de
+  # Bug real confirmado en vivo por ADB (auditoría en dispositivo real — módulo Base de
   # Datos: "al encender no pasa nada y da error"): sin un "exit" explícito al final, el código
   # de salida de ESTE script es el de la ÚLTIMA línea ejecutada — o sea, exclusivamente el de
   # mongo_start.sh. Confirmado reproduciendo a mano: mysql_start.sh corrió con éxito real

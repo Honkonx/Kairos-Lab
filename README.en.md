@@ -84,7 +84,22 @@ small PC for development, not just for trying things out.
 
 🧪 **Automatic test environments.** Point it at a project folder (Node, Python, PHP...) and
 the app detects the stack on its own, installs what's needed, and runs it — with the option
-to expose it to the internet via tunnel, without leaving the app.
+to expose it to the internet via tunnel, without leaving the app. It also detects monorepos
+(several sub-projects inside the same folder, like `frontend/`+`backend/`) and manages them
+separately, with a button to start them all together.
+
+🏠 **Homelab.** A panel that brings together what Kairos itself already exposes (SSH, modules
+with a service running) with a list of your other self-hosted services on the local network
+(Docker/Portainer, Pi-hole, Proxmox, or any generic HTTP panel) — all in one place, without
+opening a different app for each service.
+
+🤖 **Telegram bot.** Besides sending notifications, it now also receives commands: start or
+stop a module, or check what's running, straight from a Telegram chat — with a single-user
+allowlist and two-step confirmation for risky actions.
+
+🔍 **Web search without an API key, in the chat.** Besides Ollama's search (which requires a
+free key), the local chat has a `/buscar` command that needs no account or key to pull real
+results from the web.
 
 🍷 **Coming: Windows on your phone.** Plans to add Wine with FEXCore and DXVK to run Windows
 programs directly on Android.

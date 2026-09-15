@@ -78,6 +78,34 @@ Detector simple basado en archivos presentes (deliberadamente no exhaustivo), im
 
 Cards: **PROYECTO** (elegir carpeta) → **DETECCIÓN** (tags + recomendación textual: PHP recomienda distro por dependencias de sistema más pesadas, el resto recomienda nativo) → **DESTINO DE EJECUCIÓN** (Nativo/Distro/udocker, el de Distro abre un selector de distros instaladas) → **DEPENDENCIAS** (botón instalar) → **EJECUCIÓN Y MONITOREO** (campo de comando editable, precargado con una sugerencia según el stack — `npm run dev -- --host` / `python3 app.py` / `python3 -m http.server 8080` —, arranque/detención, pill de estado, "Ver logs en vivo") → **EXPONER** (botón que pide un puerto y reusa el mismo mecanismo de túnel Cloudflare que el resto de la app).
 
+## 4.5 Monorepos — detección de sub-proyectos
+
+Cuando una carpeta agregada al modo Proyecto real contiene varios sub-proyectos independientes
+(por ejemplo `frontend/` y `backend/` dentro de un mismo repo), Kairos puede detectarlos y
+gestionarlos por separado en vez de forzar a tratar toda la carpeta como un solo stack:
+
+- Al agregar una carpeta nueva (o pidiéndolo manualmente sobre un proyecto ya guardado con
+  "Detectar sub-proyectos"), Kairos escanea las subcarpetas de primer nivel buscando su propia
+  señal de stack (los mismos archivos que ya usa la detección normal — `package.json`,
+  `requirements.txt`, `composer.json`, etc.), ignorando carpetas típicas de dependencias/build
+  (`node_modules`, `.git`, `venv`, `dist`, `build`, y similares) para evitar falsos positivos.
+  El escaneo es de un solo nivel, sin recursión — un sub-proyecto nunca se vuelve a escanear en
+  busca de sub-sub-proyectos.
+- Si se encuentra más de un sub-proyecto, un diálogo deja elegir cuáles tratar como
+  sub-proyectos independientes (todos marcados por defecto) o descartar la detección y seguir
+  tratando la carpeta como un proyecto simple de un solo stack.
+- Cada sub-proyecto confirmado se comporta después exactamente como un proyecto normal
+  completo — su propia detección, su propio destino de instalación (nativo/distro/udocker), su
+  propio comando y su propia sesión en background — la única pieza nueva es el agrupamiento
+  visual bajo el proyecto padre y un botón **"Iniciar todos"**.
+- **"Iniciar todos"** arranca cada sub-proyecto en el orden en que aparecen en la lista, con un
+  delay opcional entre uno y otro (útil, por ejemplo, para darle tiempo a un backend de estar
+  arriba antes de arrancar el frontend que depende de él) — no hay resolución automática de
+  dependencias entre sub-proyectos, es responsabilidad del usuario ordenar la lista o ajustar el
+  delay según lo que necesite.
+- Un botón "Detectar de nuevo" dentro de la vista de un monorepo agrega sub-proyectos nuevos que
+  hayan aparecido después, sin tocar la configuración ya guardada de los que ya estaban.
+
 ## 5. Detección de estado
 
 - **Instalación**: registry (`stacks.installed`) — se escribe `true` incluso sin ningún preset corrido.

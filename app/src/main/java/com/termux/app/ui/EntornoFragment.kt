@@ -108,8 +108,8 @@ class EntornoFragment : BaseModuleFragment() {
      * protegido — solo lectura): cada instalación de escritorio dentro de una distro empieza
      * con `pkill -9 -f "proot-distro login $DISTRO"` (limpieza de procesos huérfanos de una
      * corrida anterior interrumpida) — si dos instalaciones para LA MISMA distro corren
-     * solapadas (posible desde que `ProgressDialogController` ofrece "Enviar a 2do plano",
-     * ver docs/humano247.md: el diálogo desaparece pero el Thread sigue corriendo, nada impide
+     * solapadas (posible desde que `ProgressDialogController` ofrece "Enviar a 2do plano":
+     * el diálogo desaparece pero el Thread sigue corriendo, nada impide
      * volver a tocar el mismo botón u otro que toque el mismo proot-distro login/dpkg), la
      * segunda mataría a la primera en pleno `apt-get install` sin avisar — el usuario ve
      * "instalando en 2do plano" y en realidad la instalación murió silenciosamente. Lo mismo
@@ -162,8 +162,8 @@ class EntornoFragment : BaseModuleFragment() {
     private val vncTab by lazy { EntornoVncTab(this) }
     private val sistemaTab by lazy { EntornoSistemaTab(this) }
 
-    // ── Fondo de pantalla — pedido explícito del usuario ("incluso poder cambiar la imagen de
-    // fondo etc", docs/humano249.md). Mismo patrón que mPickImageLauncher (ChatFragment.kt) /
+    // ── Fondo de pantalla — objetivo: poder cambiar la imagen de fondo del escritorio desde
+    // la app. Mismo patrón que mPickImageLauncher (ChatFragment.kt) /
     // mPickImportFileLauncher (CactusFragment.kt): registro como campo de instancia (requisito
     // de ciclo de vida de ActivityResultLauncher), no dentro de un onClick — por eso el
     // mecanismo entero (target sealed class, launcher, pickWallpaper()) se queda en el
@@ -270,11 +270,11 @@ class EntornoFragment : BaseModuleFragment() {
     }
 
     /**
-     * Fix real (humano181, bug 1 "da error al instalar entorno gráfico en la distro"). Varios
+     * Fix real (bug real: "da error al instalar entorno gráfico en la distro"). Varios
      * `progress.failure(...)` de las pestañas solo mostraban `json.error` (mensaje corto) y
      * descartaban `json.output` (la salida real de apt-get/pkg dentro del proot — por qué
      * falló de verdad) sin mostrarlo NI loguearlo — mismo tipo de gap de diagnosticabilidad
-     * ya identificado y corregido en runEntornoAction() (ver docs/humano65.md/humano66.md).
+     * ya identificado y corregido en runEntornoAction().
      * `internal`: llamado desde EntornoNativoTab y EntornoDistrosTab.
      */
     internal fun errorDetail(json: JSONObject): String {
@@ -308,7 +308,7 @@ class EntornoFragment : BaseModuleFragment() {
 
     /**
      * Variante de infoRow() con un ícono chico antes de la etiqueta — pulido visual 2026-08-27
-     * (ver docs/humano259.md, "hacer la interfaz bonita tipo app del 2026") para la card
+     * ("hacer la interfaz bonita tipo app del 2026") para la card
      * "ESTADO", que antes era texto plano puro. Mantiene la MISMA estructura de 2 hijos que
      * infoRow() (contenedor de etiqueta, TextView de valor) para que valueTextView() — que
      * asume `getChildAt(1)` == el TextView de valor — siga funcionando sin cambios; el ícono
@@ -360,8 +360,8 @@ class EntornoFragment : BaseModuleFragment() {
 
     /**
      * Fila del inventario "📋 INSTALADO" con el logo real de la distro (reemplaza el 🐧
-     * genérico fijo que antes se mostraba para CUALQUIER distro instalada — pedido explícito
-     * del usuario, ver docs/humano259.md) — mismo layout de 2 columnas que infoRow() pero con
+     * genérico fijo que antes se mostraba para CUALQUIER distro instalada) — mismo layout de
+     * 2 columnas que infoRow() pero con
      * un ícono de identidad antes del nombre.
      */
     private fun distroInventoryRow(name: String): View {
@@ -502,7 +502,24 @@ class EntornoFragment : BaseModuleFragment() {
             requireActivity().runOnUiThread {
                 if (json.optBoolean("ok", false)) {
                     gpuValue?.text = json.optString("gpu", "?")
-                    methodValue?.text = json.optString("gpu_method", "?")
+                    // Tarea 1 (2026-09-15): antes mostraba directo "gpu_method" (lo PEDIDO,
+                    // registry entorno.gpu_method) — un método que cae en silencio a software
+                    // (ej. turnip → "failed to load driver: zink", ver comentario real en
+                    // EntornoNative.gpuMethodOptions()) seguía mostrando "turnip" para siempre.
+                    // "gpu_method_active" es el backend REAL confirmado por
+                    // EntornoNative.confirmedActiveGpuBackend() (glxinfo/vulkaninfo reales,
+                    // null→cae al configurado cuando X11 no está corriendo todavía).
+                    val configuredMethod = json.optString("gpu_method", "?")
+                    val activeBackend = json.optString("gpu_method_active", configuredMethod)
+                    val gpuMismatch = json.optBoolean("gpu_mismatch", false)
+                    methodValue?.text = if (gpuMismatch) {
+                        getString(R.string.entorno_metodo_fallback_formato, configuredMethod, activeBackend)
+                    } else {
+                        activeBackend
+                    }
+                    methodValue?.setTextColor(
+                        requireContext().kairosThemeColor(if (gpuMismatch) R.attr.kairosAmber else R.attr.kairosText)
+                    )
                     x11Running = json.optBoolean("x11_running", false)
                     x11Value?.text = if (x11Running) getString(R.string.entorno_x11_corriendo) else getString(R.string.entorno_detenido)
                     x11Value?.setTextColor(
@@ -533,6 +550,7 @@ class EntornoFragment : BaseModuleFragment() {
                 } else {
                     gpuValue?.text = getString(R.string.entorno_status_error)
                     methodValue?.text = "—"
+                    methodValue?.setTextColor(requireContext().kairosThemeColor(R.attr.kairosText))
                     x11Value?.text = "—"
                     vncValue?.text = "—"
                     pulseValue?.text = "—"
@@ -583,7 +601,7 @@ class EntornoFragment : BaseModuleFragment() {
                 // Antes solo se mostraba json.error (mensaje genérico) — el detalle real
                 // (json.output, la salida real de proot-distro/pkg) se descartaba sin mostrar
                 // ni loguear en ningún lado. Bug de diagnosticabilidad real (auditoría
-                // 2026-08-05, ver docs/humano65.md/humano66.md): el usuario no tenía forma de
+                // 2026-08-05): el usuario no tenía forma de
                 // saber POR QUÉ fallaba una distro/escritorio/X11, y nosotros tampoco
                 // teníamos ningún log para depurarlo después. Ahora se muestra el detalle real
                 // (si vino) además del mensaje corto, y EntornoNative ya lo deja también en

@@ -77,9 +77,9 @@ class PluginsFragment : Fragment() {
     private var savedLayoutState: Parcelable? = null
 
     /**
-     * Selector de paquete local (.deb o .tar.gz) vía Storage Access Framework — 2026-08-13,
-     * pedido del usuario (ver docs/humano/humano100.md y LocalPluginManager). El archivo
-     * elegido se copia a $HOME y se instala según su formato.
+     * Selector de paquete local (.deb o .tar.gz) vía Storage Access Framework — 2026-08-13
+     * (ver LocalPluginManager). El archivo elegido se copia a $HOME y se instala según su
+     * formato.
      */
     private val localPackagePicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -96,7 +96,7 @@ class PluginsFragment : Fragment() {
 
         recyclerView = view.findViewById(R.id.plugin_recycler)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        // Mismo fix preventivo que ModulesFragment (bug #27, ver docs/humano/humano201.md) — este
+        // Mismo fix preventivo que ModulesFragment (bug #27) — este
         // RecyclerView también hace submitList() tras acciones del usuario (instalar/refrescar
         // catálogo); sin ItemAnimator, esas actualizaciones aplican al instante sin ventana de
         // desfase entre posición visual y real durante un toque.
@@ -182,7 +182,7 @@ class PluginsFragment : Fragment() {
                 if (!isAdded) return@runOnUiThread
                 allModules = catalog
                 applyFilter()
-                // Bug real confirmado por ADB (2026-08-25, ver docs/humano225.md y siguientes):
+                // Bug real confirmado por ADB (2026-08-25):
                 // mismo bug que refreshCatalog() ya tenía arreglado (60f3921) pero en la carga
                 // INICIAL — módulos genuinamente instalados (confirmados por registry, ej.
                 // Hermes) se mostraban como "No instalado" la primera vez que se abría la
@@ -212,7 +212,7 @@ class PluginsFragment : Fragment() {
                 refreshBtn.text = getString(R.string.plugins_btn_catalog)
                 allModules = refreshed
                 applyFilter()
-                // Bug real confirmado en dispositivo (2026-08-24, ver docs/humano221.md):
+                // Bug real confirmado en dispositivo (2026-08-24):
                 // refreshCatalog() reemplaza allModules con instancias NUEVAS de ModuleInfo
                 // (de ModuleCatalog.refreshRemote()) pero nunca volvía a pedir el estado real
                 // — módulos genuinamente instalados (confirmados en la pantalla Módulos y en
@@ -444,11 +444,26 @@ class PluginsFragment : Fragment() {
                     if (!isAdded) return@cleanReinstallModule
                     requireActivity().runOnUiThread {
                         if (!isAdded) return@runOnUiThread
-                        AlertDialog.Builder(requireContext())
-                            .setTitle(if (ok) getString(R.string.plugins_title_reinstalled, module.name) else getString(R.string.plugins_title_reinstall_failed, module.name))
-                            .setMessage(message)
-                            .setPositiveButton(getString(R.string.plugins_ok), null)
-                            .show()
+                        if (ok) {
+                            // Caso feliz sin cambios — mismo diálogo bloqueante de siempre.
+                            AlertDialog.Builder(requireContext())
+                                .setTitle(getString(R.string.plugins_title_reinstalled, module.name))
+                                .setMessage(message)
+                                .setPositiveButton(getString(R.string.plugins_ok), null)
+                                .show()
+                        } else {
+                            // Fallo (con o sin rollback automático — ver
+                            // ModuleController.cleanReinstallModule()/ModuleBackupManager.kt):
+                            // Snackbar en vez de diálogo bloqueante, pedido explícito del
+                            // usuario 2026-09-15 para no interrumpir el flujo con un fallo que
+                            // ya se resolvió solo (restauración automática).
+                            val v = view
+                            if (v != null) {
+                                Snackbar.make(v, message, Snackbar.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                            }
+                        }
                         pollStatus()
                     }
                 }

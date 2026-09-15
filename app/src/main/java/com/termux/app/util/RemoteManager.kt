@@ -289,9 +289,8 @@ object RemoteManager {
         }
     }
 
-    // ── Panel de seguridad SSH (pedido explícito del usuario 2026-08-19, ver
-    //    docs/humano/humano172.md/humano173.md: "la exposición SSH como VPS no debe tener clave,
-    //    usuario o algo? podemos crear un panel para ello?") ──────────────────────────────
+    // ── Panel de seguridad SSH (2026-08-19) — la exposición de SSH como si fuera un VPS no
+    //    debe quedar sin clave/usuario controlado, de ahí este panel dedicado. ──────────────
     //
     // Confirmado contra sshd_config real (ver PASO 3 de modulos/ssh.sh): sshd de Termux usa
     // PAM/la contraseña real del usuario del sistema (la que setea `passwd`), NO un mecanismo
@@ -686,8 +685,8 @@ object RemoteManager {
     }
 
     // ── Cliente SSH (pestaña "Receptor" — Kairos conectándose a OTROS servidores) ──────────
-    // Terminología corregida 2026-08-27 (ver docs/humano256.md, bug real confirmado: la app
-    // tenía Receptor/Emisor exactamente invertidos respecto al modelo del usuario) — "Emisor"
+    // Terminología corregida 2026-08-27 (bug real confirmado: la app
+    // tenía Receptor/Emisor exactamente invertidos respecto al modelo esperado) — "Emisor"
     // es Kairos EMITIENDO acceso (servidor, alguien más lo controla); "Receptor" es Kairos
     // RECIBIENDO control de otros (cliente, nosotros controlamos otro dispositivo/VPS).
     // Pedido explícito del usuario (ronda 2026-08-26): "ssh es para controlar y ser
@@ -880,6 +879,113 @@ object RemoteManager {
             else -> ""
         }
         return "ssh -p ${conn.port} $keyFlag${shellQuote(conn.user)}@${shellQuote(conn.host)}"
+    }
+
+    // ── TOFU (trust-on-first-use) real para el cliente SSH — quick-win de referencia
+    //    (rikkahub-agent/SshTool.kt, ver docs/referencias/agentes/REFERENCIA_RIKKAHUB_AGENT.md
+    //    punto 4 "SSH propio — comparación con RemoteManager.kt/RemoteFragment.kt"): antes,
+    //    Kairos dependía enteramente de que el binario `ssh` real (corriendo dentro de la
+    //    TerminalSession abierta por launchTerminalCommand) rechazara solo una host key
+    //    cambiada — funciona, pero el usuario solo ve el texto crudo de OpenSSH
+    //    ("REMOTE HOST IDENTIFICATION HAS CHANGED!") sin ningún camino de UI para aceptar o
+    //    rechazar antes de intentar conectar. Esta función replica el patrón
+    //    StrictHostKeyChecking=accept-new de JSch que usa esa referencia: host nueva → se
+    //    deja pasar sola (mismo comportamiento que ya tenía `ssh`), host que CAMBIÓ →
+    //    devuelve el estado para que RemoteFragment muestre un diálogo accionable
+    //    (aceptar/cancelar) ANTES de abrir la terminal, en vez de dejar que el usuario se
+    //    encuentre con el error crudo recién adentro de la sesión.
+    enum class HostKeyStatus { NEW, UNCHANGED, CHANGED }
+
+    data class HostKeyCheckResult(
+        val status: HostKeyStatus,
+        val newFingerprint: String = "",
+        val oldFingerprint: String = ""
+    )
+
+    private val KNOWN_HOSTS_FILE = File(SSH_DIR, "known_hosts")
+    private val HOST_KEY_SCAN_TMP_DIR = File(SSH_DIR, ".hostkey_scan")
+
+    // Extrae solo el fingerprint (2do campo de "256 SHA256:xxx comment (ED25519)") de la
+    // salida de `ssh-keygen -lf <archivo>` — un archivo puede tener varias líneas (varios
+    // tipos de clave: ed25519 + rsa + ecdsa), de ahí el Set en vez de un solo valor.
+    private fun parseFingerprints(sshKeygenOutput: String): Set<String> =
+        sshKeygenOutput.lines()
+            .mapNotNull { it.trim().split(Regex("\\s+")).getOrNull(1) }
+            .filter { it.isNotBlank() }
+            .toSet()
+
+    /**
+     * Compara la host key REAL de [host]:[port] (`ssh-keyscan` en vivo) contra la que ya
+     * está guardada en `~/.ssh/known_hosts` (si existe — `ssh-keygen -F` entiende entradas
+     * hasheadas, `HashKnownHosts` está en `yes` por default en OpenSSH, así que no se puede
+     * simplemente `grep` el archivo por el nombre de host en texto plano). Nunca modifica
+     * `known_hosts` — solo lectura, el archivo de escaneo/comparación es un temporal propio
+     * bajo `~/.ssh/.hostkey_scan/` que se borra siempre en el `finally`.
+     *
+     * Si el escaneo no devuelve nada (host inalcanzable, puerto cerrado, sin red) se
+     * devuelve [HostKeyStatus.NEW] — no hay nada que comparar, y bloquear la conexión acá
+     * sería redundante con [probeClientReachable]/[probeAndTouchClientConnection], que ya
+     * cubren ese caso con su propio mensaje.
+     */
+    fun checkHostKeyStatus(host: String, port: Int): HostKeyCheckResult {
+        if (host.isBlank()) return HostKeyCheckResult(HostKeyStatus.NEW)
+        val scanned = runCmd("ssh-keyscan -p $port -T 5 '${shellQuote(host)}' 2>/dev/null", 8).stdout
+            .lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+        if (scanned.isEmpty()) return HostKeyCheckResult(HostKeyStatus.NEW)
+
+        HOST_KEY_SCAN_TMP_DIR.mkdirs()
+        val scanFile = File(HOST_KEY_SCAN_TMP_DIR, "scan_" + System.currentTimeMillis())
+        val existingFile = File(HOST_KEY_SCAN_TMP_DIR, "known_" + System.currentTimeMillis())
+        try {
+            scanFile.writeText(scanned.joinToString("\n") + "\n")
+            val newFingerprints = parseFingerprints(runCmd("ssh-keygen -lf '${scanFile.absolutePath}'", 5).stdout)
+            if (newFingerprints.isEmpty() || !KNOWN_HOSTS_FILE.isFile) {
+                return HostKeyCheckResult(HostKeyStatus.NEW, newFingerprint = newFingerprints.firstOrNull() ?: "")
+            }
+
+            val existingLines = runCmd(
+                "ssh-keygen -F '${shellQuote(host)}' -f '${KNOWN_HOSTS_FILE.absolutePath}'",
+                5
+            ).stdout.lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+            if (existingLines.isEmpty()) {
+                return HostKeyCheckResult(HostKeyStatus.NEW, newFingerprint = newFingerprints.first())
+            }
+
+            existingFile.writeText(existingLines.joinToString("\n") + "\n")
+            val oldFingerprints = parseFingerprints(runCmd("ssh-keygen -lf '${existingFile.absolutePath}'", 5).stdout)
+            if (oldFingerprints.isEmpty()) {
+                return HostKeyCheckResult(HostKeyStatus.NEW, newFingerprint = newFingerprints.first())
+            }
+
+            return if (newFingerprints.intersect(oldFingerprints).isNotEmpty()) {
+                HostKeyCheckResult(HostKeyStatus.UNCHANGED)
+            } else {
+                HostKeyCheckResult(
+                    HostKeyStatus.CHANGED,
+                    newFingerprint = newFingerprints.first(),
+                    oldFingerprint = oldFingerprints.first()
+                )
+            }
+        } catch (_: Exception) {
+            // Fallar abierto (NEW): un error de este chequeo extra nunca debe bloquear una
+            // conexión que el `ssh` real de la terminal hubiera dejado pasar igual.
+            return HostKeyCheckResult(HostKeyStatus.NEW)
+        } finally {
+            try { scanFile.delete() } catch (_: Exception) {}
+            try { existingFile.delete() } catch (_: Exception) {}
+        }
+    }
+
+    /** Olvida la host key vieja guardada para [host] en `known_hosts` — se llama después de
+     *  que el usuario acepta explícitamente un [HostKeyStatus.CHANGED], para que el `ssh`
+     *  real de la terminal no vuelva a rechazarla (sin esto, `ssh` seguiría viendo la
+     *  entrada vieja y abortando la conexión aunque el usuario ya haya confirmado el
+     *  cambio). */
+    fun forgetHostKey(host: String): ActionResult {
+        if (!KNOWN_HOSTS_FILE.isFile) return ActionResult(true, message = "No había nada guardado")
+        val result = runCmd("ssh-keygen -R '${shellQuote(host)}' -f '${KNOWN_HOSTS_FILE.absolutePath}'", 5)
+        return if (result.exitCode == 0) ActionResult(true, message = "Host key anterior olvidada")
+        else ActionResult(false, error = result.stderr.ifBlank { "no se pudo olvidar la host key" })
     }
 
     // ── Claves privadas importadas (Receptor — "pegar/importar una clave privada de un

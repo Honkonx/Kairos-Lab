@@ -77,6 +77,36 @@ de aceptar el archivo: magic bytes GGUF reales, tamaño descargado contra el `Co
 declarado por el servidor, y un chequeo de espacio libre real en disco (con margen de seguridad)
 antes de escribir el primer byte — si no alcanza el espacio, la descarga ni arranca.
 
+## Soporte multimodal (imagen + texto)
+
+El motor en proceso (`kairos_llm`, el que usa el tab de chat) soporta modelos GGUF multimodales
+reales — imagen + texto, vía la librería `libmtmd` de llama.cpp. No es un fork experimental:
+`libmtmd` ya se compilaba como parte del build de Kairos (es una dependencia del binario
+`llama-server`), así que sumar soporte al motor en proceso fue enlazar un componente que ya
+existía en el proyecto, sin cambiar la versión de llama.cpp vendorizada ni el pipeline de build
+de Vulkan/NDK.
+
+Cómo funciona un turno con imagen:
+
+- Se carga primero el modelo de texto y, sobre él, el proyector multimodal (`mmproj`) — un
+  segundo archivo `.gguf` que acompaña a ciertos modelos de visión (convención de nombre
+  `mmproj-*.gguf`).
+- El texto y la imagen se tokenizan juntos y se procesan en una sola pasada.
+- **Limitación deliberada**: un turno con imagen siempre reprocesa la conversación completa
+  desde cero (no reutiliza el caché incremental que sí usan los turnos de solo texto) — mezclar
+  ambos esquemas habría sido una fuente real de bugs de sincronización para un primer paso. Los
+  turnos de texto que vienen DESPUÉS de uno con imagen vuelven a ser incrementales con
+  normalidad.
+- En la pantalla "IA Local", los archivos `.gguf` que Kairos detecta como proyector multimodal
+  (por su nombre) se distinguen con un ícono/etiqueta propios en "Modelos descargados".
+- En el chat, el botón de adjuntar imagen (que ya existía para Ollama) se habilita también para
+  modelos locales en cuanto hay al menos un proyector multimodal importado — reusa el mismo
+  selector y compresión de imagen que ya usaba Ollama, sin un picker nuevo.
+
+**Qué falta todavía**: una forma explícita de asociar manualmente un modelo con su proyector
+cuando hay varios importados (hoy se usa heurísticamente el más reciente), soporte multimodal en
+`llama-server` (el binario HTTP, para consumidores externos), y soporte de audio/video.
+
 ## Parámetros configurables de `llama-server`
 
 La configuración de `llama-server` (tamaño de contexto, hilos, capas offload a GPU, clave de API

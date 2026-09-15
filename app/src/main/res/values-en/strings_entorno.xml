@@ -14,6 +14,7 @@
     <!-- Labels for the STATUS card -->
     <string name="entorno_label_gpu">GPU</string>
     <string name="entorno_label_metodo">Method</string>
+    <string name="entorno_metodo_fallback_formato">%1$s → %2$s (fallback)</string>
     <string name="entorno_label_x11">X11</string>
     <string name="entorno_label_vnc">VNC</string>
     <string name="entorno_label_pulseaudio">PulseAudio</string>
@@ -222,7 +223,7 @@
     <string name="entorno_mensaje_xfce_iniciado">XFCE4 started on the embedded X11</string>
     <string name="entorno_error_xfce_instalado_no_iniciado">XFCE4 installed but could not be started</string>
 
-    <!-- Fix docs/humano283.md: opening the X11 viewer is no longer automatic when a desktop starts (native or in a distro) — it's now an explicit Snackbar action. -->
+    <!-- Fix: opening the X11 viewer is no longer automatic when a desktop starts (native or in a distro) — it's now an explicit Snackbar action. -->
     <string name="entorno_snackbar_escritorio_listo">Desktop ready</string>
     <string name="entorno_snackbar_accion_abrir_x11">Open X11</string>
 
@@ -282,8 +283,9 @@
     <!-- GPU diagnostics -->
     <string name="entorno_toast_diagnosticando_gpu">Diagnosing GPU…</string>
     <string name="entorno_error_no_pudo_diagnosticar_gpu">Could not diagnose the GPU</string>
-    <string name="entorno_gpu_diagnostico_mensaje">GPU detected: %1$s\nActive method: %2$s\n\nOpenGL renderer: %3$s\nVulkan device: %4$s\n\nInstalled drivers:\n%5$s</string>
+    <string name="entorno_gpu_diagnostico_mensaje">GPU detected: %1$s\nConfigured method: %2$s\nConfirmed active backend: %6$s\n\nOpenGL renderer: %3$s\nVulkan device: %4$s\n\nInstalled drivers:\n%5$s</string>
     <string name="entorno_dialog_diagnostico_gpu_titulo">GPU diagnostics</string>
+    <string name="entorno_gpu_diagnostico_advertencia_fallback">\n\n⚠️ The configured method (%1$s) didn\'t activate — the system silently fell back to %2$s. Try another method from \"Configure GPU method\".</string>
 
     <!-- GPU method -->
     <string name="entorno_error_no_pudo_leer_gpu">Could not read the GPU type</string>
@@ -304,7 +306,7 @@
     <string name="entorno_depth_24bit">24 bit (full color)</string>
     <string name="entorno_depth_16bit">16 bit (lighter)</string>
     <string name="entorno_toast_iniciando_vnc">Starting VNC…</string>
-    <!-- Orientation (docs/humano283.md, explicit request: horizontal/vertical was missing) — real swap of width/height in the "WxH" geometry sent to vncStartWithConfig(), not a cosmetic toggle. -->
+    <!-- Orientation (horizontal/vertical was missing) — real swap of width/height in the "WxH" geometry sent to vncStartWithConfig(), not a cosmetic toggle. -->
     <string name="entorno_label_orientacion">Orientation</string>
     <string name="entorno_orientacion_horizontal">Horizontal</string>
     <string name="entorno_orientacion_vertical">Vertical (swaps width/height)</string>
