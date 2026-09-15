@@ -26,6 +26,7 @@ class OpenCodeFragment : BaseModuleFragment() {
     override fun getModuleName() = "OpenCode"
 
     private lateinit var versionValue: TextView
+    private lateinit var variantValue: TextView
     private lateinit var webServerRow: DropdownSwitchRow
     private lateinit var openWebBtn: View
     private val webServerPorts = listOf(3000, 4096)
@@ -33,7 +34,13 @@ class OpenCodeFragment : BaseModuleFragment() {
     override fun buildContent() {
         if (!isModuleInstalled()) { showNotInstalled(getModuleName()); return }
         addCard(getString(R.string.opencode_card_estado)) {
-            addView(infoRow(getString(R.string.opencode_label_variant), "native\u00B7glibc"))
+            // 2026-09-09 (redise\u00F1o 2 v\u00EDas glibc/bionic + fallback wallentx, ver opencode.sh):
+            // antes esta fila estaba HARDCODEADA a "native\u00B7glibc" sin importar qu\u00E9 v\u00EDa se
+            // instal\u00F3 de verdad \u2014 ahora refleja el valor real le\u00EDdo del registry
+            // ("opencode.variant", ver OpenCodeNative.info()) en loadInfo() de abajo.
+            val variantRow = valueRow(getString(R.string.opencode_label_variant), getString(R.string.opencode_dash))
+            variantValue = variantRow.second
+            addView(variantRow.first)
             val versionRow = valueRow(getString(R.string.opencode_label_version), getString(R.string.opencode_dash))
             versionValue = versionRow.second
             addView(versionRow.first)
@@ -68,6 +75,12 @@ class OpenCodeFragment : BaseModuleFragment() {
                 addView(terminalStatusPill().also {
                     (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
                         gravity = android.view.Gravity.END
+                    }
+                })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
                     }
                 })
             })
@@ -179,10 +192,21 @@ class OpenCodeFragment : BaseModuleFragment() {
                 if (!isAdded) return@runOnUiThread
                 val version = info.optString("version", "").ifBlank { getString(R.string.opencode_dash) }
                 versionValue.text = version
+                variantValue.text = variantDisplayLabel(info.optString("variant", "glibc"))
                 webServerRow.setSwitchState(running)
                 openWebBtn.visibility = if (running) View.VISIBLE else View.GONE
             }
         }.start()
+    }
+
+    // "opencode.variant" del registry es el id exacto que escribe opencode.sh
+    // (glibc/bionic/bionic-wallentx, ver update_registry() en el script) — acá solo se
+    // traduce a una etiqueta legible. "bionic-wallentx" es informativo: significa que la
+    // vía elegida (glibc o bionic) falló y el script cayó al fallback universal.
+    private fun variantDisplayLabel(variant: String): String = when (variant) {
+        "bionic" -> getString(R.string.opencode_variant_value_bionic)
+        "bionic-wallentx" -> getString(R.string.opencode_variant_value_bionic_wallentx)
+        else -> getString(R.string.opencode_variant_value_glibc)
     }
 
     // submenu_opencode_native() de termux-ai-stack ofrece dos puertos fijos para el

@@ -78,7 +78,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # localtunnel.sh/typescript.sh para este caso (ver .claude/rules/empirical-verification-before-fix.md).
 if ! command -v kotlinc &>/dev/null || $FORCE; then
   pkg_update_with_fallback
-  pkg install -y kotlin &>/dev/null || error "No se pudo instalar kotlin (pkg install kotlin falló)"
+  pkg install -y kotlin || error "No se pudo instalar kotlin (pkg install kotlin falló)"
 fi
 verify_binary_installed kotlinc "-version" || error "kotlin no disponible tras la instalación"
 registry_install "kotlin" "$(kotlinc -version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"

@@ -264,7 +264,7 @@ _ensure_glibc_node() {
   if [ ! -f "$GLIBC_LD" ]; then
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y glibc-repo 2>/dev/null || true
+    pkg install -y glibc-repo || true
     # `|| true`: bajo `set -euo pipefail`, si `pkg update` falla (mirror caído,
     # timeout de red — real en dispositivos, ver historial de fixes de mirrors
     # en este proyecto) pipefail propaga ESE fallo aunque `tail` termine bien,
@@ -272,7 +272,7 @@ _ensure_glibc_node() {
     # glibc-runner` de abajo (que sí tiene su propio `|| error` con mensaje
     # claro). Este `pkg update` es best-effort — la instalación real la valida
     # el `[ -f "$GLIBC_LD" ] || error ...` de más abajo.
-    pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" 2>&1 | tail -2 || true
+    pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || true
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
     pkg install -y glibc-runner patchelf-glibc \
@@ -292,8 +292,8 @@ _ensure_glibc_node() {
   mkdir -p "$GLIBC_NODE_DIR" "$GLIBC_BIN_DIR"
 
   info "Descargando Node.js v${NODE_VERSION_TARGET}..."
-  curl -fL "$_NODE_URL" -o "$_NODE_TMP" 2>/dev/null || \
-    timeout 30 wget -q -O "$_NODE_TMP" "$_NODE_URL" 2>/dev/null || \
+  curl -fL "$_NODE_URL" -o "$_NODE_TMP" || \
+    timeout 30 wget -O "$_NODE_TMP" "$_NODE_URL" || \
     error "Descarga Node.js fallida"
   [ -s "$_NODE_TMP" ] || error "Archivo Node.js vacío"
 
@@ -450,7 +450,7 @@ else
   info "npm install -g openclaw@latest --ignore-scripts"
   env NODE_LLAMA_CPP_SKIP_DOWNLOAD=true \
     TMPDIR="$TMP_DIR" \
-    npm install -g openclaw@latest --ignore-scripts 2>&1 | tail -10
+    npm install -g openclaw@latest --ignore-scripts
 
   _OC_BIN=$(command -v openclaw 2>/dev/null || find "$NPM_BIN" -name "openclaw" 2>/dev/null | head -1)
   [ -z "$_OC_BIN" ] && error "openclaw no encontrado tras instalación"
@@ -465,7 +465,7 @@ else
     # instalar/tocar dependencias nativas propias (ej. sharp) que disparen SUS postinstall —
     # mismo patrón de node-gyp-build que ya rompió el paso anterior. npm_config_ignore_scripts
     # también bloquea eso, no solo el "npm install" de arriba.
-    npm_config_ignore_scripts=true node "$_OC_POSTINSTALL" 2>&1 | tail -5 || warn "postinstall de openclaw falló — puede seguir funcionando igual"
+    npm_config_ignore_scripts=true node "$_OC_POSTINSTALL" || warn "postinstall de openclaw falló — puede seguir funcionando igual"
   else
     warn "No se encontró el postinstall propio de openclaw (hotfix de baileys) — puede no estar aplicado"
   fi
@@ -841,7 +841,7 @@ else
   else
     _OC_UPDATE_PFX=""
   fi
-  if $_OC_UPDATE_PFX "$_OC_UPDATE_BIN" update 2>&1 | tail -5; then
+  if $_OC_UPDATE_PFX "$_OC_UPDATE_BIN" update; then
     mark_done "n_openclaw_native_update"
     log "openclaw update ejecutado"
   else

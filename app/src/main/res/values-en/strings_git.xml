@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_module_name">Git / GitHub</string>
+    <string name="git_card_estado">STATUS</string>
+    <string name="git_label_git_version">git version</string>
+    <string name="git_label_gh_version">gh version (GitHub CLI)</string>
+    <string name="git_label_active_project">Active project</string>
+    <string name="git_placeholder_dash">—</string>
+    <string name="git_error_gh_not_installed">not installed</string>
+    <string name="git_btn_manage_projects">📁 Manage projects / choose active</string>
+    <string name="git_btn_clone">⬇ Clone repository (URL)</string>
+    <string name="git_btn_status">📋 Status (git status)</string>
+    <string name="git_btn_push">⬆ Save and push (add + commit + push)</string>
+    <string name="git_btn_pull">🔄 Pull changes (git pull)</string>
+    <string name="git_card_github">GITHUB (gh)</string>
+    <string name="git_btn_gh_auth_status">👤 Session status (gh auth status)</string>
+    <string name="git_btn_gh_login">🔑 Log in to GitHub</string>
+    <string name="git_btn_gh_repo_create">✨ Create repository on GitHub</string>
+    <string name="git_btn_gh_pr_list">🔀 List Pull Requests</string>
+    <string name="git_msg_project_set">Active project: %1$s</string>
+    <string name="git_toast_no_active_project">Choose an active project first (\"Manage projects\")</string>
+    <string name="git_msg_running">Running…</string>
+    <string name="git_output_empty_with_code">(no output — exit code %1$d)</string>
+    <string name="git_btn_close">Close</string>
+    <string name="git_btn_cancel">Cancel</string>
+    <string name="git_title_status">Status</string>
+    <string name="git_title_pull">Pull changes</string>
+    <string name="git_title_push">Save and push</string>
+    <string name="git_btn_push_confirm">Push</string>
+    <string name="git_hint_commit_message">Commit message</string>
+    <string name="git_default_commit_message">update from Android</string>
+    <string name="git_title_clone">Clone repository</string>
+    <string name="git_btn_clone_confirm">Clone</string>
+    <string name="git_hint_repo_url">Repository URL (https://github.com/user/repo.git)</string>
+    <string name="git_title_repo_create">Create repository</string>
+    <string name="git_btn_next">Next</string>
+    <string name="git_hint_repo_name">Repository name</string>
+    <string name="git_toast_repo_name_required">Repository name is required</string>
+    <string name="git_title_repo_visibility">Visibility</string>
+    <string name="git_visibility_public">Public</string>
+    <string name="git_visibility_private">Private</string>
+</resources>

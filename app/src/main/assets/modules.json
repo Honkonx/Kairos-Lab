@@ -117,7 +117,7 @@
   {
     "id": "codex",
     "name": "Codex CLI",
-    "description": "Asistente de código de OpenAI en terminal. Canal termux o binario nativo.",
+    "description": "Asistente de código de OpenAI en terminal. Variante Normal o VL (code-mode).",
     "repo": "Honkonx/kairos-lab",
     "script": "codex.sh",
     "icon": "◆",
@@ -136,7 +136,7 @@
     "catalogVersion": "0.x",
     "installMethods": [
       "termux",
-      "binario"
+      "vl"
     ],
     "requires": [
       "nodejs"
@@ -213,6 +213,7 @@
     "type": "Nativo",
     "requiresProot": false,
     "estimate": "~2 min",
+    "hasVariants": true,
     "hasSwitch": false,
     "tmuxSession": "opencode",
     "webviewUrl": "http://localhost:3000",
@@ -221,7 +222,8 @@
     "category": "ai",
     "catalogVersion": "2.0.1",
     "installMethods": [
-      "glibc"
+      "glibc",
+      "bionic"
     ],
     "requires": [
       "glibc"
@@ -302,6 +304,27 @@
     ],
     "recommended": false,
     "downloads": 250
+  },
+  {
+    "id": "git",
+    "name": "Git / GitHub",
+    "description": "Control de versiones y GitHub CLI para cualquier proyecto: status, commit, push, pull, clonar y acciones básicas de gh.",
+    "repo": "Honkonx/kairos-lab",
+    "script": "git.sh",
+    "icon": "🐙",
+    "iconBg": "#181717",
+    "port": "",
+    "size": "~15MB",
+    "type": "Nativo",
+    "requiresProot": false,
+    "estimate": "~1 min",
+    "hasSwitch": false,
+    "arch": "bionic",
+    "category": "dev",
+    "catalogVersion": "1.0.0",
+    "requires": [],
+    "recommended": false,
+    "downloads": 0
   },
   {
     "id": "engram",
@@ -523,7 +546,7 @@
   {
     "id": "ciberseguridad",
     "name": "Ciberseguridad",
-    "description": "Nivel básico: nmap + netcat + dirb + nikto + theHarvester + sqlmap (nativo). Nivel Pro: además un contenedor Kali Linux completo (proot-distro), con o sin interfaz gráfica. Para tu propia red o con autorización.",
+    "description": "Nivel básico: nmap + netcat + dirb + nikto + theHarvester + sqlmap + MVT + ClamAV (nativo). Nivel Pro: además un contenedor Kali Linux completo (proot-distro), con o sin interfaz gráfica. Para tu propia red o con autorización.",
     "repo": "Honkonx/kairos-lab",
     "script": "ciberseguridad.sh",
     "icon": "◈",
@@ -580,22 +603,22 @@
   {
     "id": "db",
     "name": "Base de Datos",
-    "description": "MySQL/MariaDB + PostgreSQL + SQLite + Redis — servidores completos y gestión de bases SQLite.",
+    "description": "MySQL/MariaDB + PostgreSQL + SQLite + Redis + MongoDB — servidores completos y gestión de bases SQLite.",
     "repo": "Honkonx/kairos-lab",
     "script": "db.sh",
     "icon": "🗄",
     "iconAsset": "ic_module_db",
     "iconBg": "#1A3A5C",
     "port": "3306",
-    "size": "~120MB",
+    "size": "~150MB",
     "type": "Nativo",
     "requiresProot": false,
-    "estimate": "~3 min",
-    "hasSwitch": true,
+    "estimate": "~4 min",
+    "hasSwitch": false,
     "tmuxSession": "",
     "arch": "bionic",
     "category": "db",
-    "catalogVersion": "1.0.0",
+    "catalogVersion": "1.2.1",
     "installMethods": [
       "standard"
     ],
@@ -1195,6 +1218,35 @@
     "terminalCommand": "go",
     "arch": "bionic",
     "category": "lang",
+    "catalogVersion": "pkg",
+    "installMethods": [
+      "standard"
+    ],
+    "requires": [],
+    "recommended": false,
+    "downloads": 0
+  },
+  {
+    "id": "gh",
+    "internal": true,
+    "name": "GitHub CLI",
+    "description": "Cliente oficial de GitHub (gh) — repos, PRs, issues desde terminal.",
+    "repo": "Honkonx/kairos-lab",
+    "script": "gh.sh",
+    "icon": "⌥",
+    "iconBg": "#0A2540",
+    "port": "",
+    "size": "~40MB",
+    "type": "Herramienta",
+    "requiresProot": false,
+    "hasVariants": false,
+    "estimate": "~1 min",
+    "hasSwitch": false,
+    "tmuxSession": "",
+    "webviewUrl": "",
+    "terminalCommand": "gh",
+    "arch": "bionic",
+    "category": "dev",
     "catalogVersion": "pkg",
     "installMethods": [
       "standard"

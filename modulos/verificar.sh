@@ -204,6 +204,12 @@ MOD_STRAT[kilo]="cmd|kilo"
 MOD_STRAT[cursor]="cmd|cursor-agent"
 MOD_STRAT[hf]="cmd|hf"
 MOD_STRAT[kairos]="dir|$HOME/kairos"
+# Gap real confirmado por auditoría de código (2026-09-14, docs/humano337.md): git.sh:74 ya
+# define verify_cmd en el formato esperado por lib.sh, pero nunca se agregó acá — "Verificar
+# todos los módulos" siempre marcaba "git" como sin estrategia (SKIP) aunque estuviera
+# perfectamente instalado. Mismo patrón exacto que el bug ya arreglado de expo/antigravity/
+# codegraph/db más abajo en este mismo archivo.
+MOD_STRAT[git]="cmd|git"
 # Bug real reportado por el usuario 2026-08-25 ("verificar funciona a medias"): codegraph/
 # ohmypi/pi son módulos reales agregados 2026-08-17/18 (ver CliToolFragment.kt) con binario
 # real confirmado (baseCommand de cada uno) pero nunca se sumaron acá — "Verificar todos los

@@ -277,6 +277,18 @@ public class TermuxActivityRootView extends LinearLayout implements ViewTreeObse
         public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
             WindowInsetsCompat compat = WindowInsetsCompat.toWindowInsetsCompat(insets);
             mStatusBarHeight = compat.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            // Red de seguridad real (2026-09-08, ver docs/humano324.md): en algún dispositivo/
+            // secuencia de dispatch el inset real puede llegar en 0 (ningún teléfono real tiene
+            // 0px de status bar) — sin este piso, terminal_adapted_bar quedaba sin padding-top
+            // alguno y la barra de estado (notificaciones/batería/red) tapaba visual y
+            // TÁCTILMENTE el botón ☰ (confirmado con QuickPanelLog/SHADE interceptando el tap
+            // como gesto de "abrir panel de notificaciones"). Fallback estándar de Android para
+            // este caso: el recurso de sistema "status_bar_height", el mismo mecanismo que usan
+            // AppCompat/Material internamente antes de que WindowInsets exista como API.
+            if (mStatusBarHeight <= 0) {
+                int fallbackId = v.getResources().getIdentifier("status_bar_height", "dimen", "android");
+                if (fallbackId > 0) mStatusBarHeight = v.getResources().getDimensionPixelSize(fallbackId);
+            }
             // Bug real (2026-08-10, ver docs/humano/humano93.md): el root del overlay de
             // terminal es un LinearLayout (ViewGroup), y devolver v.onApplyWindowInsets()
             // acá solo despachaba los insets a los hijos (que NO tienen fitsSystemWindows),

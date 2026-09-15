@@ -48,4 +48,82 @@
     <string name="apk_error_unknown">desconocido</string>
     <string name="apk_exception_prefix">[EXCEPCIÓN] %1$s</string>
     <string name="apk_notify_build_done">Compilación de %1$s terminada</string>
+
+    <!-- Herramientas info/decode (compil-apk-termux info|decode) — 2026-09-01, ver
+         docs/referencias/herramientas/AUDITORIA_CATEGORIA_HERRAMIENTAS.md +
+         docs/arquitectura/INVESTIGACION_GESTOR_ARCHIVOS_2026-09-01.md -->
+    <string name="apk_card_tools">HERRAMIENTAS (cualquier APK)</string>
+    <string name="apk_info_tools_desc_label">Qué hacen</string>
+    <string name="apk_info_tools_desc_value">Info: paquete/versión/permisos/firma — Decodificar: extrae recursos + manifest legible</string>
+    <string name="apk_btn_choose_apk">📄 Elegir APK</string>
+    <string name="apk_status_apk_selected">APK elegido</string>
+    <string name="apk_btn_info">ℹ️ Ver info</string>
+    <string name="apk_btn_decode">📦 Decodificar</string>
+    <string name="apk_toast_choose_apk_first">Elegí un APK primero ("📄 Elegir APK")</string>
+    <string name="apk_toast_copy_failed">No se pudo copiar el APK elegido: %1$s</string>
+    <string name="apk_progress_info_title">Leyendo info del APK</string>
+    <string name="apk_progress_info_starting">Corriendo compil-apk-termux info…</string>
+    <string name="apk_title_info_result">Info: %1$s</string>
+    <string name="apk_progress_info_failure">No se pudo leer la info del APK</string>
+    <string name="apk_progress_decode_title">Decodificando APK</string>
+    <string name="apk_progress_decode_starting">Corriendo compil-apk-termux decode…</string>
+    <string name="apk_progress_decode_success">APK decodificado en %1$s</string>
+    <string name="apk_progress_decode_failure">Falló la decodificación</string>
+    <string name="apk_btn_open_in_files">📂 Abrir carpeta en Archivos</string>
+    <string name="apk_notify_decode_done">Decodificación de %1$s terminada</string>
+    <string name="apk_notify_info_done">Info de %1$s lista</string>
+
+    <!-- Instrumentación sin root (compil-apk-termux instrument-*/log*) — 2026-09-12, fuente
+         VictorH028/no-root-logger, ver docs/humano331.md -->
+    <string name="apk_card_instrument">INSTRUMENTACIÓN (avanzado)</string>
+    <string name="apk_instrument_disclaimer_label">Uso</string>
+    <string name="apk_instrument_disclaimer_value">Solo para apps PROPIAS o AUTORIZADAS — depuración y análisis, no para interceptar apps de terceros sin permiso</string>
+    <string name="apk_instrument_workdir_label">Decompilado</string>
+    <string name="apk_instrument_class_label">Clase elegida</string>
+    <string name="apk_btn_instrument_decode">🧩 Decompilar (instrumentación)</string>
+    <string name="apk_btn_instrument_pick_class">🔍 Buscar clase Smali</string>
+    <string name="apk_btn_instrument_inject">🪝 Elegir método e inyectar hook</string>
+    <string name="apk_card_instrument_log">SERVIDOR DE LOGS (127.0.0.1:9999)</string>
+    <string name="apk_instrument_log_desc_label">Qué hace</string>
+    <string name="apk_instrument_log_desc_value">Recibe los logs del hook inyectado — arrancalo antes de instalar/abrir el APK instrumentado</string>
+    <string name="apk_btn_log_start">▶️ Iniciar servidor</string>
+    <string name="apk_btn_log_stop">⏹ Detener servidor</string>
+    <string name="apk_btn_log_view">📜 Ver logs</string>
+    <string name="apk_toast_log_started">Servidor de logs iniciado en 127.0.0.1:9999</string>
+    <string name="apk_toast_log_stopped">Servidor de logs detenido</string>
+    <string name="apk_progress_instrument_decode_title">Decompilando (instrumentación)</string>
+    <string name="apk_progress_instrument_decode_starting">Instalando apktool si hace falta…</string>
+    <string name="apk_progress_instrument_decode_success">APK decompilado — elegí una clase para continuar</string>
+    <string name="apk_progress_instrument_decode_failure">Falló la decompilación con apktool</string>
+    <string name="apk_toast_instrument_decode_first">Elegí un APK y tocá "🧩 Decompilar (instrumentación)" primero</string>
+    <string name="apk_hint_search_class">ej: MainActivity, Login, Network…</string>
+    <string name="apk_title_search_class">Buscar clase Smali</string>
+    <string name="apk_btn_search">Buscar</string>
+    <string name="apk_toast_no_classes_found">No se encontraron clases con ese nombre</string>
+    <string name="apk_title_choose_class">Elegí una clase</string>
+    <string name="apk_toast_instrument_pick_class_first">Elegí una clase primero ("🔍 Buscar clase Smali")</string>
+    <string name="apk_toast_no_methods_found">No se encontraron métodos en esa clase</string>
+    <string name="apk_title_choose_method">Elegí un método</string>
+    <string name="apk_title_choose_action">%1$s — qué querés loguear</string>
+    <string name="apk_action_enter">Entrada (parámetros al llamar)</string>
+    <string name="apk_action_exit">Salida (valor de retorno)</string>
+    <string name="apk_action_both">Entrada y salida</string>
+    <string name="apk_action_log">Mensaje simple (sin datos de la función)</string>
+    <string name="apk_hint_tag">Tag (ej: MiTag)</string>
+    <string name="apk_hint_message">Mensaje</string>
+    <string name="apk_title_log_message">Mensaje de log</string>
+    <string name="apk_btn_inject">Inyectar</string>
+    <string name="apk_default_log_message">Mensaje de log</string>
+    <string name="apk_progress_instrument_apply_title">Inyectando hook</string>
+    <string name="apk_progress_instrument_apply_starting">Inyectando + recompilando + firmando…</string>
+    <string name="apk_progress_instrument_apply_success">Hook inyectado — APK instrumentado listo</string>
+    <string name="apk_progress_instrument_apply_failure">Falló la inyección/recompilación</string>
+    <string name="apk_title_instrument_install">Instalar APK instrumentado</string>
+    <string name="apk_msg_instrument_install">Se va a instalar sobre la app original. Recordá iniciar el servidor de logs antes de abrirla.</string>
+    <string name="apk_notify_instrument_decode_done">Decompilación de %1$s lista</string>
+    <string name="apk_notify_instrument_apply_done">Hook en %1$s listo</string>
+    <string name="apk_title_log_viewer">Logs de la instrumentación</string>
+    <string name="apk_btn_refresh_log">🔄 Actualizar</string>
+    <string name="apk_log_loading">Cargando…</string>
+    <string name="apk_log_empty">Sin logs todavía — el servidor está corriendo, esperando que la app instrumentada dispare el hook</string>
 </resources>

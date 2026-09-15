@@ -149,7 +149,7 @@ else
   else
     info "Instalando nodejs-lts..."
     pkg_update_with_fallback
-    pkg install nodejs-lts -y 2>/dev/null || error "No se pudo instalar Node.js"
+    pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
     command -v node &>/dev/null || error "Node.js no disponible tras instalación"
     [ "$(node_major)" -ge 22 ] || warn "Node $(node --version 2>/dev/null) — Kimi Code pide 22.19+; si falla, actualizá nodejs-lts manualmente"
     log "Node.js instalado: $(node --version)"
@@ -163,7 +163,7 @@ if check_done "npm_install"; then
   log "Kimi Code ya instalado [checkpoint]"
 else
   info "Ejecutando: npm install -g ${KIMI_PKG}"
-  npm install -g "$KIMI_PKG" 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "npm install falló"
+  npm install -g "$KIMI_PKG"; [ $? -eq 0 ] || error "npm install falló"
   # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
   # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "kimi" "${KIMI_PKG%@latest}"

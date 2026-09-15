@@ -21,6 +21,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.google.android.material.tabs.TabLayout
 import com.termux.R
 import com.termux.app.util.BackupManager
 import com.termux.app.util.ConfigExportManager
@@ -52,9 +53,47 @@ class ConfigFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla guarda el
+        // token de bot de Telegram (tokenInput más abajo) — ver .claude/rules/kairos-secrets-never-revealed.md.
+        view.filterTouchesWhenObscured = true
         val prefs = requireContext().getSharedPreferences(PREFS_NAME, 0)
 
+        // ────────────────────────────────────────────────────────────
+        // Pestañas por categoría (2026-09-03, pedido explícito del usuario: "en configuraciones
+        // toca mejorar esa interfaz, hacer como en mini pc, ssh, base de datos, pestañas por
+        // categorías") — mismo patrón que EntornoFragment.buildTabsSection(): TabLayout arriba,
+        // visibility GONE/VISIBLE por pestaña (a diferencia de Entorno, acá el contenido de las
+        // 6 pestañas vive en `fragment_config.xml` como 6 LinearLayout con id fijo, no se
+        // reconstruye en Kotlin al cambiar de tab — más simple porque ConfigFragment no tiene
+        // el ciclo de refresh en vivo que sí tiene Monitor/Entorno).
+        // ────────────────────────────────────────────────────────────
+        val tabGeneral = view.findViewById<LinearLayout>(R.id.tab_general)
+        val tabInterfaz = view.findViewById<LinearLayout>(R.id.tab_interfaz)
+        val tabTerminal = view.findViewById<LinearLayout>(R.id.tab_terminal)
+        val tabSistema = view.findViewById<LinearLayout>(R.id.tab_sistema)
+        val tabMantenimiento = view.findViewById<LinearLayout>(R.id.tab_mantenimiento)
+        val tabNotificaciones = view.findViewById<LinearLayout>(R.id.tab_notificaciones)
+        val configTabs = listOf(tabGeneral, tabInterfaz, tabTerminal, tabSistema, tabMantenimiento, tabNotificaciones)
+        val tabLayout = view.findViewById<TabLayout>(R.id.config_tab_layout).apply {
+            addTab(newTab().setText(getString(R.string.config_tab_general)))
+            addTab(newTab().setText(getString(R.string.config_tab_interfaz)))
+            addTab(newTab().setText(getString(R.string.config_tab_terminal)))
+            addTab(newTab().setText(getString(R.string.config_tab_sistema)))
+            addTab(newTab().setText(getString(R.string.config_tab_mantenimiento)))
+            addTab(newTab().setText(getString(R.string.config_tab_notificaciones)))
+        }
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                configTabs.forEachIndexed { index, tabContent ->
+                    tabContent.visibility = if (index == tab.position) View.VISIBLE else View.GONE
+                }
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+
         val generalContainer = view.findViewById<LinearLayout>(R.id.general_container)
+        val interfazContainer = view.findViewById<LinearLayout>(R.id.interfaz_container)
         // Selector de tema visual (2026-08-22, ver docs/humano/humano190.md, pedido explícito del
         // usuario: "no es eliminar la tematica/tema/estilo que tenemos es agregar una opcion
         // para cambiar el tema... dejar el que tenemos, añadir ese que te dije y tambien un
@@ -62,13 +101,15 @@ class ConfigFragment : Fragment() {
         // setTheme() (aplicado en TermuxActivity.setActivityTheme(), ANTES de onCreate) tome
         // efecto sin reiniciar la app entera — mismo patrón que ya usa AppCompatActivityUtils.
         // setNightMode() (recreate=true) un poco más arriba en el mismo método.
-        addThemePickerRow(generalContainer)
+        // Movido a su propia pestaña "Interfaz" (2026-09-03, reorganización en tabs) — antes
+        // vivía en generalContainer junto con el resto de GENERAL.
+        addThemePickerRow(interfazContainer)
         // Selector de idioma (2026-08-28) — pedido explícito del usuario tras la migración i18n
         // de hoy: "en la pantalla de config no veo donde diga idioma y salga español y ingles".
         // AppCompatDelegate.setApplicationLocales() (ver KairosLanguagePrefs.kt) maneja la
         // recreación de Activities y la persistencia por su cuenta — no hace falta recreate()
         // manual como con el picker de tema.
-        addLanguagePickerRow(generalContainer)
+        addLanguagePickerRow(interfazContainer)
         // "Log Kairos" — pedido explícito del usuario (ver docs/humano231.md): "un log interno
         // completo del apk incluso de la terminal [...] Ojo, NO debe ser log de módulos, es log
         // completo del APK en sí". Reusa InlineThemePicker.row (mismo componente que la fila de
@@ -118,31 +159,6 @@ class ConfigFragment : Fragment() {
             // del ciclo anterior contra el actual) — acá solo se guarda la preferencia.
             prefs.edit().putBoolean("pref_notify_modules", checked).apply()
         }
-        // Nota: si falta el permiso de overlay, el switch queda visualmente "on" hasta
-        // que el usuario navegue de vuelta a esta pantalla (addToggleRow no expone el
-        // SwitchCompat para resetearlo desde acá) — no crashea ni inicia el servicio de
-        // verdad, solo un desfase visual menor. Aceptable para este alcance.
-        addToggleRow(generalContainer, getString(R.string.config_row_floating_widget),
-            prefs.getBoolean("pref_floating_widget", false)) { checked ->
-            if (checked) {
-                if (hasOverlayPermission()) {
-                    prefs.edit().putBoolean("pref_floating_widget", true).apply()
-                    requireContext().startService(Intent(requireContext(), com.termux.app.FloatingWidgetService::class.java))
-                } else {
-                    toast(getString(R.string.config_toast_grant_overlay))
-                    // OverlayPermissionHelper (2026-08-01, ver docs/referencias/REFERENCIA_TERMUX_APP_X11_SUBMODULE.md
-                    // "float-ball"): antes esto lanzaba SIEMPRE el intent genérico
-                    // ACTION_MANAGE_OVERLAY_PERMISSION — en MIUI/Xiaomi esa pantalla puede quedar
-                    // confusa o no reflejar bien el estado real del permiso; el helper prueba el
-                    // genérico primero y cae a un atajo específico de MIUI (o, como último
-                    // recurso, a los detalles de la app) si hace falta.
-                    OverlayPermissionHelper.requestOverlayPermission(requireActivity())
-                }
-            } else {
-                prefs.edit().putBoolean("pref_floating_widget", false).apply()
-                requireContext().stopService(Intent(requireContext(), com.termux.app.FloatingWidgetService::class.java))
-            }
-        }
 
         // Bug real (2026-08-07, ver docs/humano/humano91.md): "Node proot"/"Python"/
         // "Claude Code"/"Dashboard" quedaban en "—" para siempre — ningún código en este
@@ -173,16 +189,110 @@ class ConfigFragment : Fragment() {
         addClickableRow(terminalContainer, getString(R.string.config_row_external_input)) {
             showExternalInputGuide()
         }
+        // Pedido explícito del usuario: el widget/botones flotantes de módulos (burbuja
+        // arrastrable + panel de estado, ver FloatingWidgetService.kt) son opcionales, con su
+        // propio switch, ubicado "arriba del switch para usar terminal adaptada o normal" —
+        // movido acá (antes vivía suelto en generalContainer, junto a "Notificar módulos
+        // caídos") para respetar esa posición exacta. Nota: si falta el permiso de overlay, el
+        // switch queda visualmente "on" hasta que el usuario navegue de vuelta a esta pantalla
+        // (addToggleRow no expone el SwitchCompat para resetearlo desde acá) — no crashea ni
+        // inicia el servicio de verdad, solo un desfase visual menor. Aceptable para este
+        // alcance.
+        addToggleRow(terminalContainer, getString(R.string.config_row_floating_widget),
+            prefs.getBoolean("pref_floating_widget", false)) { checked ->
+            if (checked) {
+                if (hasOverlayPermission()) {
+                    prefs.edit().putBoolean("pref_floating_widget", true).apply()
+                    requireContext().startService(Intent(requireContext(), com.termux.app.FloatingWidgetService::class.java))
+                } else {
+                    toast(getString(R.string.config_toast_grant_overlay))
+                    // OverlayPermissionHelper (2026-08-01, ver docs/referencias/REFERENCIA_TERMUX_APP_X11_SUBMODULE.md
+                    // "float-ball"): antes esto lanzaba SIEMPRE el intent genérico
+                    // ACTION_MANAGE_OVERLAY_PERMISSION — en MIUI/Xiaomi esa pantalla puede quedar
+                    // confusa o no reflejar bien el estado real del permiso; el helper prueba el
+                    // genérico primero y cae a un atajo específico de MIUI (o, como último
+                    // recurso, a los detalles de la app) si hace falta.
+                    OverlayPermissionHelper.requestOverlayPermission(requireActivity())
+                }
+            } else {
+                prefs.edit().putBoolean("pref_floating_widget", false).apply()
+                requireContext().stopService(Intent(requireContext(), com.termux.app.FloatingWidgetService::class.java))
+            }
+        }
+
+        // Switch SEPARADO del widget flotante de arriba (2026-09-01, aclaración explícita del
+        // usuario): "widget flotante" (pref_floating_widget) es la burbuja SYSTEM_ALERT_WINDOW
+        // que se ve incluso fuera de la app — esto es otra cosa, el chip "sesiones de terminal
+        // activas" de ModulesFragment (terminal_sessions_card, ver
+        // docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md), que solo vive
+        // DENTRO de la pantalla de Módulos. Mismo mecanismo de persistencia que
+        // pref_floating_widget (SharedPreferences, default true para no cambiar el
+        // comportamiento visible de nadie que actualice la app). ModulesFragment lee esta key
+        // directo en cada refreshTerminalSessionsIndicator(), sin necesidad de reiniciar nada.
+        addToggleRow(terminalContainer, getString(R.string.config_row_terminal_sessions_indicator),
+            prefs.getBoolean("pref_terminal_sessions_indicator", true)) { checked ->
+            prefs.edit().putBoolean("pref_terminal_sessions_indicator", checked).apply()
+        }
+
         // Pedido explícito del usuario (2026-08-13, ver docs/humano/humano118.md): poder
         // elegir entre el modo "adaptado" (barra de info + sidebar de acciones rápidas, el
         // default de Kairos para CLIs) y la terminal clásica de Termux (sesión normal, sin la
         // UI encima) — leído por TermuxActivity.openTerminalWithCommand() antes de decidir
         // mTerminalAdaptedMode.
-        addToggleRow(terminalContainer, getString(R.string.config_row_classic_terminal),
-            prefs.getBoolean("pref_classic_terminal", false)) { checked ->
-            prefs.edit().putBoolean("pref_classic_terminal", checked).apply()
-            toast(if (checked) getString(R.string.config_toast_classic_terminal_on) else getString(R.string.config_toast_classic_terminal_off))
+        //
+        // Convertido de switch binario a casilla desplegable (2026-09-08, pedido explícito del
+        // usuario tras revisar los mockups A/B de terminal adaptada — "recuerdas que te dije la
+        // casilla desplegable con la opción de terminal clásica, adaptada y simple, bueno ya
+        // créala solo con simple y adaptada por ahora", aclarado en la misma ronda a "Clásica y
+        // Adaptada" — "Simple" es la Fase 2 todavía sin contenido real, se agrega cuando lo
+        // tenga). Reusa InlineThemePicker, el mismo componente "casilla al tocar salen las demás
+        // opciones" ya pedido para Tema/Idioma (docs/humano/humano202.md) — sigue guardando el
+        // mismo boolean pref_classic_terminal que ya leen TermuxActivity/ConfigExportManager,
+        // solo cambia la presentación de switch a selector.
+        val adaptedStyleOptions = listOf(
+            com.termux.app.ui.widget.InlineThemePicker.Option("A", getString(R.string.config_terminal_style_a)),
+            com.termux.app.ui.widget.InlineThemePicker.Option("B", getString(R.string.config_terminal_style_b))
+        )
+        val adaptedStyleCurrentId = prefs.getString("pref_terminal_adapted_style", "A") ?: "A"
+        // Estilo A (default) vs Estilo B de la terminal adaptada — pedido explícito del usuario
+        // en la misma ronda: "si ponen adaptada sale un switch para tener opción A que debe ser
+        // la por defecto [...] y si ponen el switch usar la opción B". Solo visible cuando el
+        // modo de arriba es "Adaptada" (ver visibility más abajo). Leído por
+        // TermuxActivity#isAdaptedStyleB() al abrir el menú del sidebar adaptado.
+        val adaptedStyleRow = com.termux.app.ui.widget.InlineThemePicker.row(
+            context = requireContext(),
+            label = getString(R.string.config_row_terminal_adapted_style),
+            options = adaptedStyleOptions,
+            currentId = adaptedStyleCurrentId,
+            labelColor = requireContext().kairosThemeColor(R.attr.kairosText),
+            valueColor = requireContext().kairosThemeColor(R.attr.kairosText2),
+            dp = ::dp
+        ) { chosen ->
+            prefs.edit().putString("pref_terminal_adapted_style", chosen.id).apply()
         }
+
+        val terminalModeOptions = listOf(
+            com.termux.app.ui.widget.InlineThemePicker.Option("adapted", getString(R.string.config_terminal_mode_adapted)),
+            com.termux.app.ui.widget.InlineThemePicker.Option("classic", getString(R.string.config_terminal_mode_classic))
+        )
+        val terminalModeCurrentId = if (prefs.getBoolean("pref_classic_terminal", false)) "classic" else "adapted"
+        val terminalModeRow = com.termux.app.ui.widget.InlineThemePicker.row(
+            context = requireContext(),
+            label = getString(R.string.config_row_terminal_mode),
+            options = terminalModeOptions,
+            currentId = terminalModeCurrentId,
+            labelColor = requireContext().kairosThemeColor(R.attr.kairosText),
+            valueColor = requireContext().kairosThemeColor(R.attr.kairosText2),
+            dp = ::dp
+        ) { chosen ->
+            val isClassic = chosen.id == "classic"
+            prefs.edit().putBoolean("pref_classic_terminal", isClassic).apply()
+            toast(if (isClassic) getString(R.string.config_toast_classic_terminal_on) else getString(R.string.config_toast_classic_terminal_off))
+            adaptedStyleRow.visibility = if (isClassic) View.GONE else View.VISIBLE
+        }
+        adaptedStyleRow.visibility = if (terminalModeCurrentId == "classic") View.GONE else View.VISIBLE
+        terminalContainer.addView(terminalModeRow)
+        terminalContainer.addView(adaptedStyleRow)
 
         val infoContainer = view.findViewById<LinearLayout>(R.id.info_container)
         addInfoRow(infoContainer, getString(R.string.config_info_architecture), Build.SUPPORTED_ABIS[0])
@@ -215,17 +325,32 @@ class ConfigFragment : Fragment() {
         }
         rootInfoRow.addView(rootInfoValue)
         infoContainer.addView(rootInfoRow)
-        Thread {
-            val detected = com.termux.app.util.RootAccess.hasRoot()
-            if (!isAdded) return@Thread
-            requireActivity().runOnUiThread {
-                if (!isAdded) return@runOnUiThread
-                rootInfoValue.text = if (detected) getString(R.string.config_root_detected) else getString(R.string.config_root_not_detected)
-                rootInfoValue.setTextColor(
-                    requireContext().kairosThemeColor(if (detected) R.attr.kairosGreen else R.attr.kairosText)
-                )
-            }
-        }.start()
+        // Fix 2026-09-14 (docs/humano334.md): hasRoot() cacheaba un timeout como "false" para
+        // siempre — si el primer chequeo coincidía con el diálogo del gestor de root sin
+        // responder a tiempo, el usuario quedaba viendo "sin root" para siempre aunque después
+        // otorgara el permiso. RootAccess.hasRoot() ya no cachea timeouts, pero acá además se
+        // deja un "Reintentar" táctil (tocar el valor cuando dice "Sin acceso") para no
+        // depender de reiniciar la app si el primer chequeo real todavía dio negativo.
+        fun runRootCheck() {
+            rootInfoValue.text = getString(R.string.config_root_checking)
+            Thread {
+                val detected = com.termux.app.util.RootAccess.hasRoot()
+                if (!isAdded) return@Thread
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+                    rootInfoValue.text = if (detected) getString(R.string.config_root_detected)
+                        else getString(R.string.config_root_not_detected_retry)
+                    rootInfoValue.setTextColor(
+                        requireContext().kairosThemeColor(if (detected) R.attr.kairosGreen else R.attr.kairosText)
+                    )
+                }
+            }.start()
+        }
+        rootInfoValue.setOnClickListener {
+            com.termux.app.util.RootAccess.invalidateCache()
+            runRootCheck()
+        }
+        runRootCheck()
 
         envVarsContainer = view.findViewById(R.id.env_vars_container)
         refreshEnvVars()
@@ -234,10 +359,11 @@ class ConfigFragment : Fragment() {
         view.findViewById<View>(R.id.btn_rerun_setup).setOnClickListener { showRerunSetupDialog() }
         view.findViewById<View>(R.id.btn_backup_full).setOnClickListener { runFullBackup() }
         // "Restaurar backup" se agrega en código (no en XML) — fragment_config.xml no tiene
-        // btn_backup_restore y el XML está fuera de alcance esta ronda; mismo patrón que
-        // setupTelegramSection() (que también arma su sección 100% en Kotlin). Se inserta
-        // justo debajo de "Backup completo" en la sección MANTENIMIENTO.
-        val maintenanceContainer = (view as ViewGroup).getChildAt(0) as LinearLayout
+        // btn_backup_restore; mismo patrón que setupTelegramSection() (que también arma su
+        // sección 100% en Kotlin). Se inserta justo debajo de "Backup completo" dentro de la
+        // pestaña MANTENIMIENTO (tabMantenimiento, ya resuelto arriba al armar las pestañas —
+        // antes de la reorganización en tabs esto tomaba el LinearLayout raíz completo).
+        val maintenanceContainer = tabMantenimiento
         val restoreRow = TextView(requireContext()).apply {
             text = getString(R.string.config_row_restore_backup)
             textSize = 13f
@@ -259,6 +385,16 @@ class ConfigFragment : Fragment() {
         // "en ningún tab o menú... sale para desinstalar módulos" — a diferencia de "Reinstalar
         // stack" (arriba, borra TODO), esto es por módulo individual.
         addClickableRow(generalContainer, getString(R.string.config_row_uninstall_module), R.drawable.ic_uninstall) { showUninstallModuleDialog() }
+        // Diagnóstico de módulos — ModuleDoctor.kt (2026-08-15) ya existía completo del lado
+        // Kotlin (registry vs. binario real vs. sintaxis del script) pero nunca tuvo un botón
+        // real en ninguna pantalla: runModuleDoctor() (BaseModuleFragment) solo se invocaba
+        // desde sí misma, sin ningún caller. Hallazgo de la auditoría de referencia/termux/
+        // termux-kotlin-app-main (docs/referencias/termux/REFERENCIA_TERMUX_KOTLIN_APP.md,
+        // PackageDoctor.kt) — al comparar con Kairos se confirmó que la idea que ese doc seguía
+        // listando como "propuesta, no implementada" en realidad SÍ se había implementado, solo
+        // que quedó huérfana de UI. Va en Ajustes (no por módulo) porque
+        // ModuleDoctor.runDiagnosticsForAll() ya evalúa el catálogo completo de una vez.
+        addClickableRow(generalContainer, getString(R.string.config_row_module_doctor)) { runGlobalModuleDoctor() }
         // Pedido explícito del usuario (ver docs/humano/humano68.md): "la opcion de salir que
         // mate todos los servicios y luego cierre la app como si pusiera exit en la terminal" —
         // distinto de un botón genérico "cerrar app" (que el propio usuario descartó en la
@@ -266,21 +402,22 @@ class ConfigFragment : Fragment() {
         // confiable desde adentro): esto SÍ detiene servicios reales primero.
         addClickableRow(generalContainer, getString(R.string.config_row_exit_app), R.drawable.ic_stop) { confirmExitApp() }
 
-        setupTelegramSection(view, prefs)
+        setupUpdateSection(tabMantenimiento, prefs)
+        setupTelegramSection(tabNotificaciones, prefs)
     }
 
     // ────────────────────────────────────────────────────────────
     // Notificaciones Telegram — pedido explícito del usuario (2026-08-13, ver
     // docs/humano/humano118.md, plan en docs/mini-pc/PLAN_EXPANSION_HOMELAB_2026-08-13.md
     // sección 4): ítem de mayor valor/menor esfuerzo de la auditoría de referencia/ciberseguridad/
-    // i-Haklab-master (patrón walkie-tg). Sección armada 100% en código (sin XML nuevo) porque
-    // esta ronda de trabajo tiene fragment_config.xml fuera de alcance — ver TelegramNotifier.kt
-    // para el HTTP real.
+    // i-Haklab-master (patrón walkie-tg). Sección armada 100% en código (sin XML propio para el
+    // header+card, mismo criterio de siempre) — desde la reorganización en tabs (2026-09-03) vive
+    // en su propia pestaña "Notificaciones" (tab_notificaciones), pasada directo por parámetro
+    // en vez de navegar el árbol de vistas para encontrar el contenedor viejo.
     // ────────────────────────────────────────────────────────────
 
-    private fun setupTelegramSection(root: View, prefs: android.content.SharedPreferences) {
+    private fun setupTelegramSection(outerContainer: LinearLayout, prefs: android.content.SharedPreferences) {
         val ctx = requireContext()
-        val outerContainer = (root as ViewGroup).getChildAt(0) as LinearLayout
 
         val header = TextView(ctx).apply {
             text = getString(R.string.config_telegram_header)
@@ -335,10 +472,10 @@ class ConfigFragment : Fragment() {
         }
         cardBody.addView(testRow)
 
-        // Al final de la lista de secciones, antes del spacer de 24dp con el que cierra el layout.
-        val insertIndex = (outerContainer.childCount - 1).coerceAtLeast(0)
-        outerContainer.addView(header, insertIndex)
-        outerContainer.addView(card, insertIndex + 1)
+        // tab_notificaciones es un contenedor dedicado (sin spacer final que esquivar,
+        // a diferencia de antes de la reorganización en tabs) — se agrega directo al final.
+        outerContainer.addView(header)
+        outerContainer.addView(card)
     }
 
     private fun testTelegramConfig(prefs: android.content.SharedPreferences, token: String, chatId: String) {
@@ -880,6 +1017,24 @@ class ConfigFragment : Fragment() {
             .show()
     }
 
+    /**
+     * Corre com.termux.app.util.ModuleDoctor sobre TODO el catálogo (no BaseModuleFragment —
+     * ConfigFragment no extiende esa clase) y muestra el resumen en un Snackbar. Mismo guard
+     * de Fragment-adjunto que el resto del archivo (ver runFullBackup/runExportDiagnostics) —
+     * los ~40+ módulos verificados con bash en vivo pueden tardar varios segundos.
+     */
+    private fun runGlobalModuleDoctor() {
+        toast(getString(R.string.config_toast_module_doctor_running))
+        val ctx = requireContext().applicationContext
+        Thread {
+            val summary = com.termux.app.util.ModuleDoctor.runDiagnosticsForAll(ctx)
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (isAdded) resultSnackbar(summary)
+            }
+        }.start()
+    }
+
     private fun runExportDiagnostics() {
         val ctx = requireContext()
         val progress = com.termux.app.util.ProgressDialogController(ctx)
@@ -1330,4 +1485,250 @@ class ConfigFragment : Fragment() {
     }
 
     private fun dp(d: Int) = (d * resources.displayMetrics.density).toInt()
+
+    // ────────────────────────────────────────────────────────────
+    // Actualización — AppUpdater.kt/AppInstaller.kt (mecanismo de auto-actualización fuera de
+    // Play Store, puerto directo de techjarves/Mobile-Harness, ver
+    // docs/referencias/herramientas/AUDITORIA_MOBILE_HARNESS_2026-09-09.md). Antes de esto,
+    // CLAUDE.md ya fijaba "Distribución: SOLO GitHub Releases" sin ningún mecanismo dentro de
+    // la app para avisar de una versión nueva — cada actualización dependía 100% de que el
+    // usuario entrara a GitHub a mano. Las 3 verificaciones de seguridad (hash SHA-256, versión,
+    // firma) corren SIEMPRE, en ese orden, antes de que installer.install() pida confirmación
+    // real del usuario — ver el KDoc de AppUpdater.kt para el detalle completo.
+    // ────────────────────────────────────────────────────────────
+
+    private var updateStatusRow: TextView? = null
+    private var updateActionRow: TextView? = null
+    private var pendingUpdateManifest: com.termux.app.util.AppUpdater.UpdateManifest? = null
+
+    private fun setupUpdateSection(container: LinearLayout, prefs: android.content.SharedPreferences) {
+        val ctx = requireContext()
+
+        val header = TextView(ctx).apply {
+            text = getString(R.string.config_update_header)
+            textSize = 10f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            letterSpacing = 0.12f
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).also {
+                it.topMargin = dp(16); it.bottomMargin = dp(4); it.marginStart = dp(4)
+            }
+        }
+        container.addView(header)
+
+        addInfoRow(
+            container, getString(R.string.config_update_current_version),
+            "${com.termux.BuildConfig.VERSION_NAME} (${com.termux.BuildConfig.VERSION_CODE})"
+        )
+
+        val statusRow = TextView(ctx).apply {
+            text = getString(R.string.config_update_status_never_checked)
+            textSize = 12f
+            setPadding(dp(14), dp(2), dp(14), dp(6))
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
+        }
+        container.addView(statusRow)
+        updateStatusRow = statusRow
+
+        val actionRow = TextView(ctx).apply {
+            textSize = 13f
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            isClickable = true
+            isFocusable = true
+            val outValue = android.util.TypedValue()
+            ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+            if (outValue.resourceId != 0) setBackgroundResource(outValue.resourceId)
+        }
+        container.addView(actionRow)
+        updateActionRow = actionRow
+
+        renderUpdateIdle()
+
+        // Debug-only: override de la URL del manifiesto para probar contra
+        // tools/serve-update-server.sh sin tocar la Release real (Fase 5, "nunca compilado en
+        // release" — este bloque entero desaparece del binario release, no solo la fila de UI,
+        // porque com.termux.BuildConfig.DEBUG es una constante de compilación que R8 evalúa).
+        if (com.termux.BuildConfig.DEBUG) {
+            addClickableRow(container, getString(R.string.config_update_debug_manifest_row)) {
+                showDebugManifestUrlDialog(prefs)
+            }
+        }
+
+        // Chequeo periódico no intrusivo (Fase 4): una vez cada 24h, silencioso (solo actualiza
+        // esta fila, sin diálogo) — el toque manual en la fila de acción es el único camino que
+        // fuerza un chequeo sin importar cuándo fue el último.
+        if (com.termux.app.util.AppUpdater.shouldAutoCheck(ctx)) {
+            runUpdateCheck()
+        }
+    }
+
+    private fun renderUpdateIdle() {
+        pendingUpdateManifest = null
+        updateActionRow?.text = getString(R.string.config_update_btn_check)
+        updateActionRow?.setOnClickListener { runUpdateCheck() }
+    }
+
+    private fun renderUpdateAvailable(manifest: com.termux.app.util.AppUpdater.UpdateManifest) {
+        pendingUpdateManifest = manifest
+        updateStatusRow?.text = getString(R.string.config_update_status_available, manifest.versionName, manifest.versionCode)
+        updateActionRow?.text = getString(R.string.config_update_btn_download_install, manifest.versionName)
+        updateActionRow?.setOnClickListener { confirmDownloadAndInstall(manifest) }
+    }
+
+    /** Corre AppUpdater.check() en background y refleja el resultado en la fila de estado —
+     *  usado tanto por el toque manual como por el auto-check periódico de las 24h (mismo
+     *  camino, sin diálogo modal en ningún caso: la fila de estado ES la UI). */
+    private fun runUpdateCheck() {
+        val ctx = requireContext().applicationContext
+        updateStatusRow?.text = getString(R.string.config_update_status_checking)
+        Thread {
+            val result = com.termux.app.util.AppUpdater.check(ctx)
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                when (result) {
+                    is com.termux.app.util.AppUpdater.CheckResult.UpdateAvailable -> renderUpdateAvailable(result.manifest)
+                    is com.termux.app.util.AppUpdater.CheckResult.UpToDate -> {
+                        updateStatusRow?.text = getString(R.string.config_update_status_uptodate)
+                        renderUpdateIdle()
+                    }
+                    is com.termux.app.util.AppUpdater.CheckResult.Error -> {
+                        updateStatusRow?.text = getString(R.string.config_update_status_error, result.message)
+                        renderUpdateIdle()
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun confirmDownloadAndInstall(manifest: com.termux.app.util.AppUpdater.UpdateManifest) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.config_update_confirm_title, manifest.versionName))
+            .setMessage(manifest.notes.ifBlank { getString(R.string.config_update_confirm_message) })
+            .setPositiveButton(getString(R.string.config_update_btn_download_install_short)) { _, _ -> runDownloadAndInstall(manifest) }
+            .setNegativeButton(getString(R.string.config_btn_cancel), null)
+            .show()
+    }
+
+    /** Descarga (con progreso real MB/%), verifica hash+firma, e instala — en ese orden, sin
+     *  saltarse ningún paso. Si falta el permiso de "instalar apps desconocidas", se pide ANTES
+     *  de arrancar la descarga (evita descargar ~100MB para terminar bloqueado en el último
+     *  paso). `allowBackground = true` en el ProgressDialogController: es una descarga+verify
+     *  potencialmente larga, el usuario puede seguir navegando (mismo patrón que el resto de
+     *  instalaciones largas de Kairos, ver `ProgressDialogController.kt`). */
+    private fun runDownloadAndInstall(manifest: com.termux.app.util.AppUpdater.UpdateManifest) {
+        val ctx = requireContext()
+        val appCtx = ctx.applicationContext
+        val installer = com.termux.app.util.AppInstaller
+        if (!installer.canRequestInstalls(ctx)) {
+            AlertDialog.Builder(ctx)
+                .setTitle(getString(R.string.config_update_permission_title))
+                .setMessage(getString(R.string.config_update_permission_message))
+                .setPositiveButton(getString(R.string.config_update_btn_open_settings)) { _, _ ->
+                    try {
+                        startActivity(installer.requestInstallPermissionIntent(ctx))
+                    } catch (e: Exception) {
+                        toast(getString(R.string.config_unknown))
+                    }
+                }
+                .setNegativeButton(getString(R.string.config_btn_cancel), null)
+                .show()
+            return
+        }
+
+        val progress = com.termux.app.util.ProgressDialogController(ctx)
+        progress.show(
+            getString(R.string.config_update_progress_title),
+            getString(R.string.config_update_progress_downloading_mb_unknown, 0),
+            allowBackground = true
+        )
+
+        Thread {
+            val downloadResult = com.termux.app.util.AppUpdater.download(appCtx, manifest.artifact) { downloaded, total ->
+                if (!isAdded) return@download
+                val percent = if (total > 0) ((downloaded * 100) / total).toInt() else -1
+                val mbDownloaded = (downloaded / (1024 * 1024)).toInt()
+                requireActivity().runOnUiThread {
+                    if (total > 0) {
+                        progress.updateProgress(percent, getString(R.string.config_update_progress_downloading_mb, mbDownloaded, (total / (1024 * 1024)).toInt()))
+                    } else {
+                        progress.updateProgress(-1, getString(R.string.config_update_progress_downloading_mb_unknown, mbDownloaded))
+                    }
+                }
+            }
+            val apkFile = downloadResult.file
+            if (!isAdded) return@Thread
+            if (!downloadResult.ok || apkFile == null) {
+                requireActivity().runOnUiThread {
+                    progress.failure(getString(R.string.config_update_progress_download_error), downloadResult.error)
+                    if (progress.isBackgrounded) resultSnackbar(getString(R.string.config_update_progress_download_error))
+                }
+                return@Thread
+            }
+
+            requireActivity().runOnUiThread { progress.update(getString(R.string.config_update_progress_verifying)) }
+            val verify = com.termux.app.util.AppUpdater.verifyApk(appCtx, apkFile, manifest)
+            if (!isAdded) return@Thread
+            if (!verify.ok) {
+                requireActivity().runOnUiThread {
+                    progress.failure(getString(R.string.config_update_progress_verify_error), verify.error)
+                    if (progress.isBackgrounded) resultSnackbar(getString(R.string.config_update_progress_verify_error))
+                }
+                return@Thread
+            }
+
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                progress.update(getString(R.string.config_update_progress_installing))
+                if (progress.isBackgrounded) resultSnackbar(getString(R.string.config_update_progress_installing))
+                installer.install(ctx, apkFile) { status, message ->
+                    if (!isAdded) return@install
+                    requireActivity().runOnUiThread {
+                        if (!isAdded) return@runOnUiThread
+                        when (status) {
+                            android.content.pm.PackageInstaller.STATUS_SUCCESS -> {
+                                progress.success(getString(R.string.config_update_progress_success))
+                                if (progress.isBackgrounded) resultSnackbar(getString(R.string.config_update_progress_success))
+                                renderUpdateIdle()
+                            }
+                            android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                                // Diálogo de confirmación del sistema en pantalla — nada más que
+                                // hacer acá, el propio sistema maneja el resto del flujo.
+                            }
+                            else -> {
+                                progress.failure(getString(R.string.config_update_progress_install_error), message)
+                                if (progress.isBackgrounded) resultSnackbar(getString(R.string.config_update_progress_install_error))
+                            }
+                        }
+                    }
+                }
+            }
+        }.start()
+    }
+
+    private fun showDebugManifestUrlDialog(prefs: android.content.SharedPreferences) {
+        val ctx = requireContext()
+        val input = EditText(ctx).apply {
+            hint = getString(R.string.config_update_debug_manifest_hint)
+            setText(prefs.getString(com.termux.app.util.AppUpdater.PREF_DEBUG_MANIFEST_URL, "") ?: "")
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+        }
+        AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.config_update_debug_manifest_title))
+            .setMessage(getString(R.string.config_update_debug_manifest_message))
+            .setView(input)
+            .setPositiveButton(getString(R.string.config_update_debug_manifest_save)) { _, _ ->
+                prefs.edit().putString(com.termux.app.util.AppUpdater.PREF_DEBUG_MANIFEST_URL, input.text.toString().trim()).apply()
+                toast(getString(R.string.config_update_debug_manifest_saved))
+            }
+            .setNeutralButton(getString(R.string.config_update_debug_manifest_clear)) { _, _ ->
+                prefs.edit().remove(com.termux.app.util.AppUpdater.PREF_DEBUG_MANIFEST_URL).apply()
+                toast(getString(R.string.config_update_debug_manifest_cleared))
+            }
+            .setNegativeButton(getString(R.string.config_btn_cancel), null)
+            .show()
+    }
 }

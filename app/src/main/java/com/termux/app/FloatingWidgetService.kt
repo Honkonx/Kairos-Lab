@@ -205,25 +205,41 @@ class FloatingWidgetService : Service() {
         // ACTION_UP del touch listener de la burbuja). Se resuelve en background y se
         // postea el resultado al panel ya mostrado.
         Thread {
+            // Bug real reportado (ej. Claude Code con su sesión de terminal ya abierta): tocar
+            // el ícono decía "instalando Claude Code" en vez de abrir la terminal existente —
+            // este código solo miraba ModuleController.isRunning(id) (estado de proceso/tmux
+            // del backend), que no aplica a CLIs sin backend propio con sesión TUI abierta en
+            // el overlay de terminal. sessionActive lee ese estado real (mismo mecanismo que
+            // TermuxActivity.getActiveModuleSessionNames()/ModulesFragment ya usan para el chip
+            // de "sesiones activas") — para estos 4 accesos rápidos el label ES el sessionName
+            // real (ver adaptedSessionNameToModuleId en TermuxActivity), sin necesidad de mapa
+            // aparte.
+            val activity = TermuxActivity.getInstance()
             val statuses = quickModules.map { (id, label) ->
                 val running = try { ModuleController.isRunning(id) } catch (_: Exception) { false }
-                Triple(id, label, running)
+                val sessionActive = try { activity?.isSessionActive(label) == true } catch (_: Exception) { false }
+                Triple(id, label, running || sessionActive) to sessionActive
             }
             handler.post {
                 if (panelView !== panel) return@post
                 panel.removeView(loadingRow)
-                for ((id, label, running) in statuses) {
+                for ((triple, sessionActive) in statuses) {
+                    val (id, label, active) = triple
                     panel.addView(TextView(ctx).apply {
-                        text = "${if (running) "●" else "○"} $label"
-                        setTextColor(if (running) Color.parseColor("#22C55E") else Color.LTGRAY)
+                        text = "${if (active) "●" else "○"} $label"
+                        setTextColor(if (active) Color.parseColor("#22C55E") else Color.LTGRAY)
                         setPadding(0, (6 * density).toInt(), 0, (6 * density).toInt())
                         setOnClickListener {
-                            if (running) {
-                                ModuleController.stopModule(id, ctx.applicationContext) { _ -> }
-                                Toast.makeText(ctx, "Deteniendo $label…", Toast.LENGTH_SHORT).show()
-                            } else {
-                                ModuleController.startModule(id, ctx.applicationContext) { _, _ -> }
-                                Toast.makeText(ctx, "Iniciando $label…", Toast.LENGTH_SHORT).show()
+                            when {
+                                sessionActive -> openModuleSession(label)
+                                active -> {
+                                    ModuleController.stopModule(id, ctx.applicationContext) { _ -> }
+                                    Toast.makeText(ctx, "Deteniendo $label…", Toast.LENGTH_SHORT).show()
+                                }
+                                else -> {
+                                    ModuleController.startModule(id, ctx.applicationContext) { _, _ -> }
+                                    Toast.makeText(ctx, "Iniciando $label…", Toast.LENGTH_SHORT).show()
+                                }
                             }
                             removePanel()
                         }
@@ -231,6 +247,20 @@ class FloatingWidgetService : Service() {
                 }
             }
         }.start()
+    }
+
+    /**
+     * Trae Kairos al frente y enfoca la sesión de terminal existente de este módulo — mismo
+     * mecanismo (EXTRA_FOCUS_SESSION_NAME + singleTask, ver TermuxActivity.onNewIntent()) que ya
+     * usa la notificación de "sesión necesita atención" para reabrir una sesión puntual sin
+     * crear una nueva ni pasar por el flujo de instalación.
+     */
+    private fun openModuleSession(sessionName: String) {
+        val intent = Intent(this, TermuxActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(TermuxActivity.EXTRA_FOCUS_SESSION_NAME, sessionName)
+        }
+        startActivity(intent)
     }
 
     private fun removePanel() {

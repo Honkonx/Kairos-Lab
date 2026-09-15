@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/kairos_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -40,5 +41,31 @@
         android:tint="?attr/kairosBg"
         app:backgroundTint="?attr/kairosBlue"
         app:fabSize="mini"/>
+
+    <!-- Badge de contexto persistente (hallazgo 2, docs/estructura/
+         INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md): muestra qué sesión/módulo
+         quedó activo en segundo plano mientras el FAB está visible (overlay minimizado) —
+         ver TermuxActivity.updateFabContextBadge(). GONE por default, sin sesión nombrada
+         activa no hay nada que mostrar. -->
+    <TextView
+        android:id="@+id/fab_terminal_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_above="@id/fab_terminal"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="6dp"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
+        android:background="@drawable/bg_fab_context_badge"
+        android:textColor="?attr/kairosBg"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="middle"
+        android:maxWidth="160dp"
+        android:visibility="gone"
+        tools:text="Claude Code"/>
 
 </RelativeLayout>

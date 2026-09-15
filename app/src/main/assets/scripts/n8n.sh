@@ -87,9 +87,22 @@ fi
 # (git show 838544d^:modulos/manifests/n8n.json). PILOTO LIMITADO: solo
 # empaqueta scripts de control/boot — NO la imagen/contenedor udocker
 # (~800MB de estado, no un archivo reubicable 1:1), ver not_covered.
+#
+# La variante real se lee de "n8n.mode" en el registry (udocker|proot, escrito
+# por update_registry() más abajo) en vez de hardcodear "udocker" — este
+# manifest solo describe rutas de la vía udocker, así que si el device tiene
+# proot instalado, el campo "variant" lo refleja igual (honesto) pero
+# files[]/dependencies[] van a fallar su chequeo de requeridos al empaquetar
+# (esperado — la vía proot no tiene describe-files propio todavía, ver
+# not_covered) — 2026-09-11, ver MEJORAS_PENDIENTES.md "moduledeb: variant en
+# nombre de .deb".
 if $DESCRIBE_FILES; then
   _n8n_scripts="$HOME/scripts/n8n-udocker"
+  _df_registry="$HOME/.android_server_registry"
+  _df_variant=$(grep -m1 '^n8n\.mode=' "$_df_registry" 2>/dev/null | cut -d= -f2 | tr -d '\r\n')
+  [ -z "$_df_variant" ] && _df_variant="udocker"
   jq -n \
+    --arg variant "$_df_variant" \
     --arg p1 "$_n8n_scripts/start.sh" \
     --arg n1 "Arranca el contenedor udocker 'n8n' + túnel cloudflared, healthcheck real contra :5678/healthz" \
     --arg p2 "$_n8n_scripts/stop.sh" \
@@ -111,7 +124,7 @@ if $DESCRIBE_FILES; then
     '{
       id: "n8n",
       supports_describe_files: true,
-      variant: "udocker",
+      variant: $variant,
       package_name: "kairos-module-n8n",
       version_registry_key: "n8n.version",
       files: [
@@ -274,14 +287,21 @@ echo "[*] Esperando n8n..."
 # udocker (pull/extract de la imagen + primer boot de n8n dentro de proot P2, más
 # lento que un contenedor nativo). Subido a 90s (45x2s), mismo criterio que el
 # timeout equivalente de ModuleController.kt (Kotlin) para n8n.
+# Subido de nuevo a 180s (90x2s) — evidencia real de dispositivo (ver
+# docs/humano290.md): 90s seguía siendo insuficiente en hardware real para un
+# arranque en frío (pull/extract de imagen + primer boot bajo proot P2), el
+# script devolvía [ERROR] pero n8n seguía booteando en la sesión tmux detached
+# igual y quedaba arriba segundos/minutos después — un reintento manual poco
+# después encontraba el healthcheck rápido y "ya instalado". Duplicar el techo
+# le da al mismo intento una chance real de terminar sin depender de un reintento.
 N8N_UP=false
-for i in $(seq 1 45); do
+for i in $(seq 1 90); do
   sleep 2
   curl -sf --max-time 2 http://localhost:5678/healthz >/dev/null 2>&1 && { N8N_UP=true; break; }
 done
 
 if ! $N8N_UP; then
-  echo "[ERROR] n8n no respondió en :5678 tras 90s — revisa: tmux attach -t n8n-udocker"
+  echo "[ERROR] n8n no respondió en :5678 tras 180s — revisa: tmux attach -t n8n-udocker"
   exit 1
 fi
 
@@ -362,9 +382,16 @@ sleep 2
 # confirmado por ADB, docs/humano269.md) — sin esto, udocker pide el manifest
 # de "android/arm64" (Python de Termux reporta platform.system()="Android") y
 # Docker Hub siempre lo rechaza.
-udocker pull --platform=linux/arm64 n8nio/n8n || { echo "[ERROR] Falló la descarga"; exit 1; }
+# Fallback a :stable si :latest falla — ver comentario real del PASO 2 en n8n.sh
+# (docs/humano291.md, "n8nio/n8n:latest" confirmado roto en Docker Hub 2 veces).
+_N8N_UPDATE_TAG="latest"
+if ! udocker pull --platform=linux/arm64 n8nio/n8n; then
+  echo "[WARN] n8nio/n8n:latest falló, probando n8nio/n8n:stable..."
+  _N8N_UPDATE_TAG="stable"
+  udocker pull --platform=linux/arm64 "n8nio/n8n:stable" || { echo "[ERROR] Falló la descarga (latest y stable)"; exit 1; }
+fi
 udocker rm n8n 2>/dev/null || true
-udocker create --name=n8n n8nio/n8n || { echo "[ERROR] Falló la creación"; exit 1; }
+udocker create --name=n8n "n8nio/n8n:$_N8N_UPDATE_TAG" || { echo "[ERROR] Falló la creación"; exit 1; }
 [ -f "$HOME/.udocker_force_p2" ] && udocker setup --execmode=P2 n8n 2>/dev/null || true
 VER_NUEVA=$(udocker images 2>/dev/null | grep "n8nio/n8n" | awk '{print $2}' | head -1)
 [ -z "$VER_NUEVA" ] && VER_NUEVA="latest-$(date +%Y%m%d)"
@@ -443,14 +470,18 @@ echo "[*] Esperando n8n..."
 # proot-distro + arranque en frío de n8n dentro de Debian (más lento que nativo).
 # Subido a 120s (40x3s), mismo criterio que el timeout equivalente de
 # ModuleController.kt (Kotlin) para n8n.
+# Subido de nuevo a 240s (80x3s) — mismo hallazgo real que la variante udocker
+# arriba en este archivo (ver docs/humano290.md): login a proot-distro + arranque
+# en frío de n8n dentro de Debian puede exceder 120s en hardware real; duplicar
+# el techo evita depender de un reintento manual para el mismo intento de instalación.
 N8N_UP=false
-for i in \$(seq 1 40); do
+for i in \$(seq 1 80); do
   sleep 3
   curl -sf --max-time 2 http://localhost:5678/healthz >/dev/null 2>&1 && { N8N_UP=true; break; }
 done
 
 if ! \$N8N_UP; then
-  echo "[ERROR] n8n no respondió en :5678 tras 120s — revisa: tmux attach -t \$SESSION"
+  echo "[ERROR] n8n no respondió en :5678 tras 240s — revisa: tmux attach -t \$SESSION"
   exit 1
 fi
 
@@ -662,6 +693,29 @@ if [ "$VARIANT" = "udocker" ]; then
     "https://download.a.incd.pt/udocker/udocker-englib-1.2.11.tar.gz"
   )
 
+  # TMPDIR (2026-09-11, confirmado por ADB en dispositivo real, ver docs/humano330.md):
+  # sin esto, udocker (Python) cae al fallback "/tmp" del sistema Android, que la app NO
+  # puede escribir (drwxrwx--x, solo shell:shell) — todo curl interno de udocker (tarball de
+  # udockertools Y pull de la imagen n8n) fallaba con "Error: in download: %s" / curl exit 23
+  # (CURLE_WRITE_ERROR), confirmado con "udocker -D pull" en vivo. Mismo patrón/causa raíz que
+  # udocker.sh:352 (nunca portado acá pese a que n8n.sh --variant udocker invoca el mismo
+  # binario) — un login shell de Termux tampoco exporta TMPDIR por defecto.
+  export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
+  mkdir -p "$TMPDIR"
+
+  # UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real, ver
+  # docs/humano330.md): con el fix de TMPDIR arriba, "udocker install"/udockertools ya
+  # funcionaba, pero "udocker pull" seguía fallando con el mismo "Error: in download: %s" —
+  # traza real con "udocker -D pull" mostró X-ND-CURLSTATUS=1 (protocolo no soportado, típico
+  # de una llamada a subprocess malformada) y "Debug: using curl executable " en blanco: la
+  # resolución interna de udocker del binario "curl" (shutil.which(), cacheada en un objeto
+  # GetURLexeCurl) falla en frío justo después de una instalación fresca de udockertools,
+  # aunque el mismo "curl" ya funciona perfecto para descargas directas del propio script.
+  # Fijar la ruta absoluta (mismo patrón que UDOCKER_USE_PROOT_EXECUTABLE, ya presente en este
+  # script) evita la resolución ambigua por PATH. Reproducido y confirmado 3 veces con el
+  # flujo completo de n8n.sh antes del fix, éxito reproducible después.
+  export UDOCKER_USE_CURL_EXECUTABLE="$TERMUX_PREFIX/bin/curl"
+
   if ! $SILENT; then
     clear; echo -e "${CYAN}${BOLD}"
     echo "  ╔══════════════════════════════════════════════╗"
@@ -724,7 +778,7 @@ if [ "$VARIANT" = "udocker" ]; then
       # udocker reestructuró el repo, "udocker.py" ya no existe en la raíz (404 siempre). Mismo
       # fix que modulos/udocker.sh: "pip install udocker" (paquete real en PyPI, vía oficial
       # documentada por el propio proyecto), probado en dispositivo real.
-      pip3 install --quiet --upgrade udocker || pip install --quiet --upgrade udocker || {
+      pip3 install --upgrade udocker || pip install --upgrade udocker || {
         error "No se pudo instalar udocker (pip3 install udocker falló)"
       }
     fi
@@ -801,11 +855,11 @@ if [ "$VARIANT" = "udocker" ]; then
     else
       # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
       pkg_update_with_fallback
-      if pkg install -y cloudflared 2>/dev/null; then
+      if pkg install -y cloudflared; then
         log "cloudflared instalado via pkg"
       else
-        timeout 30 wget -q "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" \
-          -O "$TERMUX_PREFIX/bin/cloudflared" 2>/dev/null
+        timeout 30 wget "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" \
+          -O "$TERMUX_PREFIX/bin/cloudflared"
         chmod +x "$TERMUX_PREFIX/bin/cloudflared"
         # Verificar que el binario descargado realmente ejecuta — no solo que
         # exista en PATH (fix 2026-07-27: el binario ARM64 de cloudflared no
@@ -844,10 +898,24 @@ if [ "$VARIANT" = "udocker" ]; then
     # descarga falla siempre, en todo dispositivo. --platform es un flag real
     # y documentado del propio udocker (ver udocker/cli.py, "udocker pull
     # --platform=linux/arm64 <imagen>" en su propio --help).
-    udocker pull --platform=linux/arm64 n8nio/n8n || \
-      error "Falló la descarga de la imagen n8n (red/Docker Hub) — probá de nuevo o usá la variante 'proot' en su lugar"
+    # Fallback real a ":stable" si ":latest" falla (2026-08-31, ver docs/humano291.md):
+    # confirmado que "n8nio/n8n:latest" puede quedar roto en Docker Hub temporalmente
+    # (build con un módulo interno faltante, "Cannot find module
+    # '@n8n/ai-utilities/generic-text-editor'", reproducido 2 veces) — n8nio SÍ publica
+    # un tag ":stable" propio y mantenido (no un número de versión fijo que se vuelva
+    # viejo con el tiempo), ideal como respaldo automático sin tener que hardcodear ni
+    # actualizar a mano una versión puntual. N8N_IMAGE_TAG se reusa en PASO 3 para crear
+    # el contenedor con el MISMO tag que realmente se pudo descargar.
+    N8N_IMAGE_TAG="latest"
+    if ! udocker pull --platform=linux/arm64 n8nio/n8n; then
+      warn "Falló la descarga de n8nio/n8n:latest — probando n8nio/n8n:stable como respaldo..."
+      N8N_IMAGE_TAG="stable"
+      udocker pull --platform=linux/arm64 "n8nio/n8n:stable" || \
+        error "Falló la descarga de la imagen n8n (latest y stable, red/Docker Hub) — probá de nuevo o usá la variante 'proot' en su lugar"
+    fi
+    echo "n8n_image_tag=$N8N_IMAGE_TAG" >> "$CHECKPOINT"
     mark_done "image_pull"
-    log "Imagen descargada"
+    log "Imagen descargada (tag: $N8N_IMAGE_TAG)"
   fi
 
   # ── PASO 3 — Contenedor ───────────────────────────────────
@@ -855,8 +923,13 @@ if [ "$VARIANT" = "udocker" ]; then
   if check_done "container_create"; then
     log "Contenedor ya creado [checkpoint]"
   else
+    # Mismo tag que realmente se descargó en PASO 2 (latest o stable de respaldo) —
+    # si este es un reintento tras un checkpoint previo, se relee del CHECKPOINT en vez
+    # de asumir "latest" a ciegas.
+    N8N_IMAGE_TAG="${N8N_IMAGE_TAG:-$(grep -m1 '^n8n_image_tag=' "$CHECKPOINT" 2>/dev/null | cut -d= -f2)}"
+    N8N_IMAGE_TAG="${N8N_IMAGE_TAG:-latest}"
     udocker rm n8n 2>/dev/null || true
-    udocker create --name=n8n n8nio/n8n || error "Falló la creación del contenedor n8n"
+    udocker create --name=n8n "n8nio/n8n:$N8N_IMAGE_TAG" || error "Falló la creación del contenedor n8n"
     if [ -f "$HOME/.udocker_force_p2" ]; then
       udocker setup --execmode=P2 n8n 2>/dev/null || warn "No se pudo cambiar execmode"
     fi
@@ -1071,11 +1144,11 @@ else
   # real centralizada en lib.sh (mismo criterio que entorno.sh/kairos.sh).
   pkg_update_with_fallback
 
-  pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" 2>/dev/null || true
+  pkg upgrade -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || true
 
   pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
     curl wget tar xz-utils tmux proot proot-distro busybox iproute2 git unzip \
-    2>/dev/null || warn "Algunos paquetes tuvieron advertencias"
+    || warn "Algunos paquetes tuvieron advertencias"
 
   log "Termux actualizado"
   mark_done "termux_update"
@@ -1164,9 +1237,9 @@ echo "[0/6] Verificando estado de dpkg..."
 dpkg --configure -a 2>&1 | tail -20 || true
 
 echo "[1/6] Actualizando Debian..."
-apt-get update -qq
-apt-get upgrade -y -qq $DPKG_OPTS 2>/dev/null
-apt-get install -y -qq $DPKG_OPTS \
+apt-get update
+apt-get upgrade -y $DPKG_OPTS
+apt-get install -y $DPKG_OPTS \
   curl wget git nano build-essential \
   python3 python3-pip python3-setuptools python3-dev \
   ca-certificates gnupg lsb-release \
@@ -1221,22 +1294,23 @@ PROFILE
 echo "[OK] Variables configuradas"
 
 echo "[4/6] Instalando n8n (10-20 min)..."
-# "npm install ... | tail -3" (versión anterior) truncaba TODO el output real de
+# "npm install ... | tail -3" (versión original) truncaba TODO el output real de
 # npm a 3 líneas y, peor, el exit code de la pipeline era el de `tail` (siempre 0),
 # no el de npm — un fallo de npm (registry caído, EACCES, dependencia rota) no
 # frenaba el script acá; recién se detectaba 2 líneas después vía `n8n --version`,
-# sin ningún detalle real del error de npm en el log (mismo patrón de pipe sin
-# pipefail que el paso de Node.js de arriba). PIPESTATUS[0] captura el exit code
-# real de npm (primer comando del pipe) sin necesitar `set -o pipefail` global.
-npm install -g n8n --unsafe-perm 2>&1 | tail -20
-NPM_RC=${PIPESTATUS[0]}
+# sin ningún detalle real del error de npm en el log. Un "| tail -20" intermedio
+# (con PIPESTATUS[0] ya arreglado) seguía truncando el output real y sin progreso
+# en vivo hasta EOF — sacado (auditoría de logs ocultos 2026-09-07, mismo criterio
+# que udocker.sh/mistralvibe.sh): sin pipe, npm imprime directo al log real.
+npm install -g n8n --unsafe-perm
+NPM_RC=$?
 [ "$NPM_RC" -ne 0 ] && echo "[ERROR] npm install -g n8n falló (exit $NPM_RC) — ver output de npm arriba" && exit 1
 N8N_VER=$(n8n --version 2>/dev/null || echo "error")
 [ "$N8N_VER" = "error" ] && echo "[ERROR] n8n no instaló (npm reportó éxito pero el binario no funciona)" && exit 1
 echo "[OK] n8n $N8N_VER"
 
 echo "[5/6] Instalando cloudflared..."
-timeout 30 wget -q "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" \
+timeout 30 wget "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64" \
   -O /usr/local/bin/cloudflared
 chmod +x /usr/local/bin/cloudflared
 echo "[OK] $(cloudflared --version 2>/dev/null | head -1)"

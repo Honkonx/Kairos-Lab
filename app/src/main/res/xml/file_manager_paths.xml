@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rutas expuestas por el FileProvider "${TERMUX_PACKAGE_NAME}.filemanager" (ver
+  AndroidManifest.xml) — usado por FileManagerFragment.kt para la acción "Abrir con" sobre
+  archivos que no son de texto editable. Cubre las dos raíces reales del explorador:
+
+  - root-path: $HOME de Termux completo (TermuxConstants.TERMUX_HOME_DIR_PATH), misma ruta
+    absoluta relativa usada por apk_builder_paths.xml pero sin limitarse a ~/proyectos.
+  - external-path: todo el almacenamiento externo (Environment.getExternalStorageDirectory()),
+    coherente con que Kairos ya pide MANAGE_EXTERNAL_STORAGE en el wizard — el FileProvider
+    solo declara qué rutas está dispuesto a servir como content://, no otorga el permiso.
+-->
+<paths>
+    <root-path
+        name="termux_home"
+        path="data/data/com.termux/files/home/" />
+    <external-path
+        name="external_storage"
+        path="." />
+</paths>

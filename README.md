@@ -14,6 +14,8 @@
 
 <p align="center"><strong>🚀 Un solo APK para tener IA local y un stack completo de desarrollo en tu Android, sin root y sin salir de la app.</strong></p>
 
+*[Read it in English](./README.en.md)*
+
 Fork de [termux-app](https://github.com/termux/termux-app) con una interfaz nativa completa — nada de escribir comandos a mano salvo que quieras. Todo se instala, se enciende y se apaga tocando la pantalla.
 
 ## Estado del proyecto 🚧
@@ -68,12 +70,15 @@ theHarvester) corriendo nativo con salida parseada en la interfaz, más un nivel
 **Kali Linux completo** instalado como distro, con su catálogo real de herramientas.
 
 🏪 **Tienda de módulos.** Catálogo de todo lo instalable — se busca, se instala y se activa con
-un toque. Nada de copiar comandos de instalación desde un manual.
+un toque. Nada de copiar comandos de instalación desde un manual. Cada módulo instalado (o
+cualquier paquete `apt` del sistema) se puede reempaquetar en un repositorio `.deb` local, para
+reinstalarlo en otro dispositivo sin volver a descargar ni parchear nada desde cero.
 
 🖥️ **Escritorio Linux completo, embebido.** Servidor X11 propio corriendo dentro del teléfono
 (sin depender de ninguna app externa) — XFCE4/MATE con aceleración por GPU, tanto en modo
-nativo como dentro de una distro completa, o un visor VNC como alternativa si preferís esa vía.
-Es una computadora Linux de verdad, dentro del celular.
+nativo como dentro de una distro completa. Incluye también un cliente VNC propio (protocolo
+RFB, sin apps externas) como alternativa de conexión. Es una computadora Linux de verdad,
+dentro del celular.
 
 💻 **El teléfono como mini-PC.** Distros Linux completas con su propio escritorio gráfico,
 gestión de proyectos reales, servidores corriendo en segundo plano — pensado para que el
@@ -108,24 +113,7 @@ correr programas de Windows directamente en Android.
 
 ## Capturas
 
-<p align="center">
-  <img src="./art/screenshots/modulos.jpg" width="260" alt="Pantalla de módulos">
-  <img src="./art/screenshots/chat-ia.jpg" width="260" alt="Chat IA - elegir motor">
-  <img src="./art/screenshots/mas.jpg" width="260" alt="Menú Más">
-</p>
-
-## ¿Sigue siendo Termux? 🖥️
-
-Sí — Kairos es un fork directo de [termux-app](https://github.com/termux/termux-app), no una
-capa aparte sobre él. Mantiene el mismo paquete de Android (`com.termux`) y el mismo motor de
-terminal, así que la terminal completa sigue ahí (FAB flotante para mostrarla/ocultarla) para
-quien quiera usar comandos a mano. Podés instalar paquetes con `pkg`, correr scripts, usar `ssh`,
-todo lo que ya conocés de Termux normal — la interfaz nativa (módulos, botones, pantallas) es la
-forma recomendada de usar Kairos día a día, pero la terminal nunca se esconde ni se reemplaza,
-queda como vía de acceso directo para quien la prefiera.
-
-⚠️ Por compartir el mismo paquete `com.termux`, Kairos y Termux original **no pueden coexistir**
-instalados en el mismo dispositivo — instalar uno reemplaza al otro.
+_Próximamente._
 
 ## Créditos y agradecimientos a terceros 🙏
 

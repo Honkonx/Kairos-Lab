@@ -226,8 +226,13 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (!mActivity.isVisible()) return;
 
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
-        if (text != null)
-            mActivity.getTerminalView().mEmulator.paste(text);
+        if (text == null) return;
+
+        // Mismo camino de revisión que TermuxTerminalViewClient.doPaste() — este es el paste
+        // que dispara el menú contextual "Pegar" de la selección de texto (ver
+        // TextSelectionCursorController.java -> TerminalSession.onPasteTextFromClipboard() ->
+        // acá). Ver docs/referencias/terminal/REFERENCIA_TTYX.md.
+        com.termux.app.util.PasteSafetyUtils.reviewAndPaste(mActivity, text, () -> mActivity.getTerminalView().mEmulator.paste(text));
     }
 
     @Override
@@ -336,6 +341,18 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         // be stale, like current session not selected or scrolled to.
         checkAndScrollToSession(session);
         updateBackgroundColor();
+
+        // Fix real (auditoría QA 2026-09-14, docs/humano338.md): esta función nunca llamaba
+        // checkForFontAndColors() — el reset real de paleta (session.getEmulator().mColors
+        // .reset()) solo corría en las 2 transiciones de modo (ver los otros 2 call-sites de
+        // checkForFontAndColors() en este archivo), no acá. Si openTerminalWithCommand()
+        // aplica el tema del modo adaptado y RECIÉN DESPUÉS adjunta una sesión ya existente
+        // (creada antes de ese cambio de tema) vía setCurrentSession(), esa sesión podía
+        // quedar con la paleta vieja hasta el próximo cambio de modo real — sin depender del
+        // orden exacto entre "aplicar modo" y "adjuntar sesión". checkForFontAndColors() ya
+        // es idempotente (mismo criterio que sus otros 2 usos) y relee un archivo de
+        // propiedades chico — costo aceptable en cada cambio de sesión/tab.
+        checkForFontAndColors();
     }
 
     void notifyOfSessionChange() {
@@ -555,9 +572,80 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
             final Typeface newTypeface = (fontFile.exists() && fontFile.length() > 0) ? Typeface.createFromFile(fontFile) : Typeface.MONOSPACE;
             mActivity.getTerminalView().setTypeface(newTypeface);
+
+            // Bug real reportado por el usuario: el selector de temas escribía
+            // colors.properties y este método releía los colores nuevos a
+            // mColors/TerminalColors.COLOR_SCHEME correctamente, pero nada forzaba
+            // un repaint real de TerminalView — mColors.reset() solo actualiza el
+            // array en memoria, TerminalView.onDraw() solo repinta cuando algo llama
+            // invalidate() (ver terminal-view/.../TerminalView.java). Sin este
+            // invalidate() el cambio de tema quedaba "aplicado" pero invisible hasta
+            // que otro evento (tipear, blink del cursor, scroll) disparara un redraw
+            // por su cuenta — el usuario lo reportó como "vi la opción pero no
+            // funciona" (ver docs/humano* de esta ronda).
+            mActivity.getTerminalView().invalidate();
+
+            applyTerminalBackgroundImageOrColor(props);
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Error in checkForFontAndColors()", e);
         }
+    }
+
+    /**
+     * Fondo de imagen de terminal — pedido explícito del usuario ("cambiar el fondo por una
+     * imagen"). Viable SIN tocar terminal-view/ (protegido, ver CLAUDE.md § Protected Files):
+     * TerminalRenderer.drawTextRun() (terminal-view/.../TerminalRenderer.java, comentario real
+     * "Only draw non-default background.") solo pinta un rect de fondo por celda cuando su
+     * color difiere del color de fondo DEFAULT del tema activo — las celdas con fondo default
+     * nunca se pintan. TerminalView tampoco fuerza un canvas.drawColor() propio salvo en modo
+     * reverseVideo (ver TerminalView.onDraw()/TerminalRenderer.render()) ni tiene
+     * android:background propio en activity_termux.xml — esas celdas ya son transparentes por
+     * diseño y muestran lo que haya DETRÁS de TerminalView en el layout. Se aprovecha eso: un
+     * ImageView (R.id.terminal_bg_image, agregado en activity_termux.xml como hermano ANTERIOR
+     * a terminal_view dentro del mismo DrawerLayout — DrawerLayout no exige un único content
+     * view, se comporta como FrameLayout para los hijos sin layout_gravity) queda visible a
+     * través de esas celdas transparentes cuando hay una imagen elegida.
+     *
+     * Contrapartida real de ese mismo hallazgo: sin imagen activa hay que fijar
+     * terminal_view.setBackgroundColor() al "background=" real que colors.properties tiene en
+     * este momento (reusa el mismo Properties que updateWith() ya parseó arriba, sin releer el
+     * archivo) — si no, las celdas "vacías" del tema elegido (la mayoría de la pantalla) se
+     * verían con el color de fondo de la APP (kairosBg), no con el fondo real del tema de
+     * terminal elegido. Esto cubre tanto los temas curados (showTerminalThemePickerDialog())
+     * como el forzado de Tokyo Night del modo adaptado (TermuxActivity#applyAdaptedTerminalColors())
+     * — ambos escriben colors.properties y pasan por este mismo método, sin duplicar lógica.
+     */
+    private void applyTerminalBackgroundImageOrColor(Properties props) {
+        android.widget.ImageView bgImage = mActivity.findViewById(R.id.terminal_bg_image);
+        android.content.SharedPreferences kairosPrefs = mActivity.getSharedPreferences("kairos_prefs", Context.MODE_PRIVATE);
+        String imageUriString = kairosPrefs.getString("terminal_bg_image_uri", null);
+        if (imageUriString != null && bgImage != null) {
+            try {
+                bgImage.setImageURI(android.net.Uri.parse(imageUriString));
+                bgImage.setVisibility(android.view.View.VISIBLE);
+                mActivity.getTerminalView().setBackgroundColor(android.graphics.Color.TRANSPARENT);
+                return;
+            } catch (SecurityException e) {
+                // El permiso persistido sobre la imagen se pudo haber revocado (ej. el usuario
+                // borró el archivo original, o Android liberó el permiso) — se descarta en vez
+                // de dejar un ImageView roto/en blanco tapando la terminal.
+                Logger.logStackTraceWithMessage(LOG_TAG, "Permiso perdido sobre la imagen de fondo de terminal, se descarta", e);
+                kairosPrefs.edit().remove("terminal_bg_image_uri").apply();
+            }
+        }
+        if (bgImage != null) bgImage.setVisibility(android.view.View.GONE);
+        String backgroundHex = props.getProperty("background");
+        if (backgroundHex != null && !backgroundHex.isEmpty()) {
+            try {
+                mActivity.getTerminalView().setBackgroundColor(android.graphics.Color.parseColor(backgroundHex));
+                return;
+            } catch (IllegalArgumentException e) {
+                Logger.logStackTraceWithMessage(LOG_TAG, "background= inválido en colors.properties: " + backgroundHex, e);
+            }
+        }
+        // Sin tema/imagen (colors.properties no tiene "background=", caso "Por defecto"):
+        // mismo comportamiento que existía antes de esta ronda, deja ver kairosBg detrás.
+        mActivity.getTerminalView().setBackgroundColor(android.graphics.Color.TRANSPARENT);
     }
 
     public void updateBackgroundColor() {

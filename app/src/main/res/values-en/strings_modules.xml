@@ -15,6 +15,8 @@
     <string name="modules_notification_stopped_text">The process stopped running — tap it in Modules to restart it.</string>
     <string name="modules_ram_format">%1$.1fGB / %2$.1fGB</string>
     <string name="modules_ram_unavailable">—</string>
+    <string name="modules_terminal_sessions_one">1 terminal session active</string>
+    <string name="modules_terminal_sessions_many">%1$d terminal sessions active</string>
     <string name="modules_updating_repo">↻ Updating repository…</string>
     <string name="modules_starting">Starting %1$s…</string>
     <string name="modules_error_output">Error: %1$s</string>
@@ -23,6 +25,11 @@
 
     <!-- ═══════════════ OpenCodeFragment.kt ═══════════════ -->
     <string name="opencode_label_variant">Variant</string>
+    <!-- 2026-09-09: real values of "opencode.variant" (registry), see
+         OpenCodeNative.info()/variantDisplayLabel() in OpenCodeFragment.kt. -->
+    <string name="opencode_variant_value_glibc">Termux · glibc</string>
+    <string name="opencode_variant_value_bionic">Native Bionic</string>
+    <string name="opencode_variant_value_bionic_wallentx">Bionic · fallback</string>
     <string name="opencode_label_version">Version</string>
     <string name="opencode_dash">—</string>
     <string name="opencode_label_web_server">Web server</string>
@@ -82,6 +89,13 @@
     <string name="codex_card_sesion">SESSION</string>
     <string name="codex_btn_resume_session">🕒 Resume last session</string>
     <string name="codex_btn_install_change_channel">⚙ Install / change channel</string>
+    <!-- Real variant selector (2026-09-09 round, see docs/humano328.md): "Normal" (termux
+         channel, DioNanos/codex-termux, with an automatic fallback to wallentx/codex-termux if
+         the npm path fails) vs "VL" (DioNanos/codex-vl, with code-mode, no fallback — opt-in). -->
+    <string name="codex_variant_dialog_title">Choose variant — Codex CLI</string>
+    <string name="codex_variant_dialog_message">Both install via npm. \"Normal\" has an automatic fallback if the install fails; \"VL\" does not — it is an opt-in choice.</string>
+    <string name="codex_variant_normal">Normal (recommended) — DioNanos/codex-termux</string>
+    <string name="codex_variant_vl">VL — DioNanos/codex-vl (with code-mode)</string>
     <string name="codex_reinstalling">Reinstalling Codex CLI…</string>
     <string name="codex_updated">Codex CLI updated</string>
     <string name="codex_update_failed">Failed — check ~/kairos_logs/install_codex.log</string>
@@ -174,5 +188,7 @@
     <string name="base_module_config_copied">Config copied to clipboard</string>
     <string name="base_module_terminal_tui_background">TUI running in background</string>
     <string name="base_module_terminal_tui_not_started">TUI not started</string>
+    <string name="base_module_close_terminal">✕ Close terminal</string>
+    <string name="base_module_terminal_closed">%1$s terminal closed</string>
 
 </resources>

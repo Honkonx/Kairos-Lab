@@ -29,29 +29,37 @@
         android:icon="@drawable/studio_ic_build"
         app:showAsAction="ifRoom" />
 
-    <item
-        android:id="@+id/action_open_folder"
-        android:title="@string/action_open_folder"
-        app:showAsAction="never" />
+    <!-- Overflow reorganizado en submenús temáticos (ronda 2026-09-03, "mejorá el menú de 3
+         puntos de Estudio") — antes era una lista plana de 11 ítems sin agrupar. Los ids de cada
+         item NO cambiaron (handleMenuItem/CommandRegistry siguen intactos), solo se los movió
+         adentro de <item><menu>…</menu></item> anidados, que Android renderiza como un submenú
+         flyout real (no solo un separador visual) sin tocar ningún listener. -->
 
     <item
-        android:id="@+id/action_open_file"
-        android:title="@string/action_open_file"
-        app:showAsAction="never" />
+        android:id="@+id/action_group_file"
+        android:title="@string/menu_group_file">
+        <menu>
+            <item
+                android:id="@+id/action_open_file"
+                android:title="@string/action_open_file" />
+
+            <item
+                android:id="@+id/action_open_folder"
+                android:title="@string/action_open_folder" />
+
+            <item
+                android:id="@+id/action_new_project"
+                android:title="@string/action_new_project" />
+
+            <item
+                android:id="@+id/action_recent_projects"
+                android:title="@string/action_recent_projects" />
+        </menu>
+    </item>
 
     <item
         android:id="@+id/action_search_in_project"
         android:title="@string/action_search_in_project"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/action_new_project"
-        android:title="@string/action_new_project"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/action_recent_projects"
-        android:title="@string/action_recent_projects"
         app:showAsAction="never" />
 
     <item
@@ -60,27 +68,34 @@
         app:showAsAction="never" />
 
     <item
-        android:id="@+id/action_ai_settings"
-        android:title="@string/action_ai_settings"
-        app:showAsAction="never" />
+        android:id="@+id/action_group_ai"
+        android:title="@string/menu_group_ai">
+        <menu>
+            <item
+                android:id="@+id/action_ai_settings"
+                android:title="@string/action_ai_settings" />
 
-    <item
-        android:id="@+id/action_editor_settings"
-        android:title="@string/action_editor_settings"
-        app:showAsAction="never" />
+            <item
+                android:id="@+id/action_ask_ai"
+                android:title="@string/action_ask_ai" />
+        </menu>
+    </item>
 
     <!-- Tema de Estudio, INDEPENDIENTE del tema del apk (ver StudioThemePrefs.kt,
-         docs/humano/humano202.md) — al overflow, mismo criterio que el resto de items de
-         configuración de esta lista. -->
+         docs/humano/humano202.md). -->
     <item
-        android:id="@+id/action_studio_theme"
-        android:title="@string/action_studio_theme"
-        app:showAsAction="never" />
+        android:id="@+id/action_group_settings"
+        android:title="@string/menu_group_settings">
+        <menu>
+            <item
+                android:id="@+id/action_editor_settings"
+                android:title="@string/action_editor_settings" />
 
-    <item
-        android:id="@+id/action_ask_ai"
-        android:title="@string/action_ask_ai"
-        app:showAsAction="never" />
+            <item
+                android:id="@+id/action_studio_theme"
+                android:title="@string/action_studio_theme" />
+        </menu>
+    </item>
 
     <!-- Alternativa sin teclado al atajo Ctrl+P (ver MainActivity.onKeyShortcut). -->
     <item

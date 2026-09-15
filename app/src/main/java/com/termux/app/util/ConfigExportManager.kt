@@ -55,6 +55,7 @@ object ConfigExportManager {
         "pref_auto_start",
         "pref_notify_modules",
         "pref_floating_widget",
+        "pref_terminal_sessions_indicator",
         "pref_classic_terminal",
     )
 

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo de la hoja deslizable del Estilo B ("Pila de paneles") de la terminal adaptada — ver
+     TermuxActivity#showAdaptedActionsBottomSheet() / terminal_adapted_bottom_sheet.xml. Esquinas
+     superiores redondeadas, mismo patrón de "?attr/kairos*" dentro de un shape ya usado en
+     bg_fab_context_badge.xml/bg_file_icon.xml (resuelve en runtime con el tema activo). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="?attr/kairosBg2" />
+    <corners
+        android:topLeftRadius="20dp"
+        android:topRightRadius="20dp" />
+</shape>

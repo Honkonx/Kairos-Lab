@@ -1,4 +1,9 @@
 <resources>
+    <!-- Pestañas (reorganización 2026-09-03, pedido explícito del usuario: "dos pestañas,
+         una para monitor general y otra para monitor de módulos") -->
+    <string name="monitor_tab_general">General</string>
+    <string name="monitor_tab_modules">Módulos</string>
+
     <!-- Nombres de módulos/motores/CLIs mostrados en las filas de estado de Monitor -->
     <string name="monitor_module_ollama">Ollama</string>
     <string name="monitor_module_n8n">n8n</string>
@@ -8,6 +13,12 @@
     <string name="monitor_engine_llamaserver">llama-server</string>
     <string name="monitor_cli_hermes">Hermes</string>
     <string name="monitor_cli_engram">Engram</string>
+
+    <!-- Motores de IA — modelo cargado en RAM/VRAM (GET /api/ps de Ollama, ver
+         MEJORAS_PENDIENTES.md § "Modelo cargado de Ollama en Monitor") -->
+    <string name="monitor_ollama_loaded_model_label">Modelo cargado</string>
+    <string name="monitor_ollama_no_model_loaded">Ninguno cargado</string>
+    <string name="monitor_ollama_model_vram_format">%1$s (%2$s VRAM)</string>
 
     <!-- Títulos de sección -->
     <string name="monitor_section_device">DISPOSITIVO</string>
@@ -96,6 +107,12 @@
     <string name="monitor_diag_battery_label">Optimización de batería</string>
     <string name="monitor_diag_battery_off">Desactivada — Kairos exento de restricciones</string>
     <string name="monitor_diag_battery_on">ACTIVA — el sistema puede pausar tus módulos; recomendado desactivarla</string>
+    <!-- Diálogo explicativo antes de mandar al usuario a Ajustes de batería del fabricante
+         (BatteryRestrictionHelper.kt, auditoría referencia/ia/*, 2026-08-31) -->
+    <string name="battery_restriction_dialog_title">¿Por qué te pedimos esto?</string>
+    <string name="battery_restriction_dialog_message">Kairos va a abrir los ajustes de batería del sistema. Para que los módulos de IA/servicios (Ollama, n8n, etc.) sigan corriendo en segundo plano sin que Android los cierre solo, hace falta desactivar la restricción de batería/autoarranque para esta app.</string>
+    <string name="battery_restriction_dialog_continue">Continuar</string>
+    <string name="battery_restriction_dialog_cancel">Cancelar</string>
     <string name="monitor_diag_root_label">Acceso root</string>
     <string name="monitor_diag_checking">Verificando…</string>
     <string name="monitor_diag_root_not_detected">No detectado — vista limitada a los procesos propios de Kairos (sandbox)</string>
@@ -163,12 +180,18 @@
     <string name="monitor_network_rate_unavailable">No disponible en este dispositivo</string>
     <string name="monitor_device_processes">Procesos visibles</string>
     <string name="monitor_device_processes_value">%1$d</string>
+    <!-- Vulkan — soporte de hardware puro (PackageManager, no depende de paquetes de Termux) -->
+    <string name="monitor_device_vulkan">Vulkan</string>
+    <string name="monitor_device_vulkan_unsupported">No soportado</string>
+    <string name="monitor_device_vulkan_supported">Soportado</string>
+    <string name="monitor_device_vulkan_version">Soportado (%1$d.%2$d.%3$d)</string>
 
     <!-- CPU -->
     <string name="monitor_cpu_usage">CPU: %1$d%% en uso</string>
     <string name="monitor_cpu_cores">%1$d núcleos</string>
     <string name="monitor_cpu_measuring">Midiendo…</string>
     <string name="monitor_cpu_unavailable">No disponible en este dispositivo</string>
+    <string name="monitor_cpu_history_label">CPU — últimos 5 min</string>
 
     <!-- Almacenamiento -->
     <string name="monitor_storage_no_permission">Sin permiso de almacenamiento</string>

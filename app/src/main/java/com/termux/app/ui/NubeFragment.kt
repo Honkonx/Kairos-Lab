@@ -71,6 +71,9 @@ class NubeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el
+        // token de acceso de NubeServer en la URL — ver .claude/rules/kairos-secrets-never-revealed.md.
+        view.filterTouchesWhenObscured = true
         // NubeServer.nubeRoot es un `by lazy` que crea $HOME/nube si no existía todavía
         // (primer acceso a esta pantalla) — cumple el pedido "crear la carpeta la
         // primera vez que se abre la pantalla".
@@ -119,7 +122,11 @@ class NubeFragment : Fragment() {
     // ── Servidor ─────────────────────────────────────────────────────────
 
     private fun startServer() {
-        runInBackground({ NubeServer.start() }) { ok ->
+        // Se pasa applicationContext (no requireContext() — el server vive más allá de esta
+        // vista) para que NubeServer pueda notificar subidas recibidas mientras la app está en
+        // segundo plano (ver comentario de NubeServer.appContext).
+        val appContext = requireContext().applicationContext
+        runInBackground({ NubeServer.start(context = appContext) }) { ok ->
             toast(if (ok) getString(R.string.nube_msg_servidor_iniciado) else getString(R.string.nube_msg_no_se_pudo_iniciar_puerto, NubeServer.port))
             refreshServerStatus()
         }

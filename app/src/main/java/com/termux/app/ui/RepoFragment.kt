@@ -191,7 +191,7 @@ class RepoFragment : BaseModuleFragment() {
      * de antemano cuáles lo soportan — eso es responsabilidad del script, no de la UI. */
     private fun refreshModuleDebCandidates() {
         Thread {
-            val ctx = requireContext().applicationContext
+            val ctx = (context ?: return@Thread).applicationContext
             val candidates = try {
                 com.termux.app.data.ModuleCatalog.loadBundled(ctx)
                     .filter { !it.internal && it.id !in moduleDebExcludedIds }
@@ -673,10 +673,6 @@ class RepoFragment : BaseModuleFragment() {
         }.start()
     }
 
-    private fun runOnMain(block: () -> Unit) {
-        if (!isAdded) return
-        activity?.runOnUiThread { if (isAdded) block() }
-    }
 
     private fun addLoadingRow(target: LinearLayout) {
         target.addView(TextView(requireContext()).apply {

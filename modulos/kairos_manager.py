@@ -581,7 +581,21 @@ def cmd_rootfs(args):
         rc, out, err = _pkg_install(missing)
         if rc != 0:
             json_error("Falló instalar paquetes faltantes", output=(out or err)[-500:]); return
-        json_ok(message=f"{len(missing)} paquetes instalados", installed=missing)
+        # Fix real (auditoría QA 2026-09-14, docs/humano338.md): un solo "pkg install" con
+        # varios paquetes puede devolver rc=0 sin que TODOS hayan quedado instalados de
+        # verdad (mismo hallazgo ya documentado en qemu.sh/ciberseguridad.sh para el mismo
+        # patrón) — este es el motor real del auto-reparador del rootfs embebido, así que un
+        # falso "instalado" acá hace que la UI de verificación reporte el rootfs como sano
+        # cuando no lo está. Se re-verifica cada paquete con _dpkg_installed() (ya usado en
+        # la rama "verify" de arriba) en vez de asumir que la lista pedida = la lista real.
+        still_missing = [pkg for pkg in missing if not _dpkg_installed(pkg)]
+        really_installed = [pkg for pkg in missing if pkg not in still_missing]
+        if still_missing:
+            json_error(
+                f"{len(still_missing)} de {len(missing)} paquetes no quedaron instalados",
+                installed=really_installed, missing=still_missing,
+            ); return
+        json_ok(message=f"{len(missing)} paquetes instalados", installed=really_installed)
 
     elif a == "check-updates":
         upgradable = _list_upgradable()

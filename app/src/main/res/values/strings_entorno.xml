@@ -9,6 +9,7 @@
     <string name="entorno_card_estado">ESTADO</string>
     <string name="entorno_card_instalado">📋 INSTALADO</string>
     <string name="entorno_sublabel_distros">Distros (proot-distro)</string>
+    <string name="entorno_card_sesiones_distro">🖥 SESIONES DE DISTRO ACTIVAS</string>
 
     <!-- Labels de la card ESTADO -->
     <string name="entorno_label_gpu">GPU</string>
@@ -21,10 +22,13 @@
     <!-- Instalación del módulo -->
     <string name="entorno_toast_instalado">Entorno instalado</string>
     <string name="entorno_toast_fallo_instalacion">Fallo — revisá ~/kairos_logs/install_entorno.log</string>
+    <string name="entorno_toast_operacion_en_curso">Ya hay una operación en curso para esto — esperá a que termine (podés haberla enviado a 2do plano)</string>
 
     <!-- Inventario de distros -->
     <string name="entorno_estado_instalada">instalada</string>
     <string name="entorno_ninguna_distro">Ninguna distro instalada</string>
+    <string name="entorno_sesiones_distro_ninguna">Ninguna sesión de distro abierta ahora — "Login a distro" abre una</string>
+    <string name="entorno_sesion_cerrar">✕</string>
 
     <!-- Valores de estado -->
     <string name="entorno_x11_corriendo">● Corriendo (embebido)</string>
@@ -58,6 +62,15 @@
     <string name="entorno_dialog_distro_experimental_titulo">Distro experimental</string>
     <string name="entorno_distro_experimental_mensaje">%1$s no está confirmada en dispositivos reales de este proyecto — puede fallar. ¿Continuar?</string>
     <string name="entorno_badge_experimental">experimental</string>
+    <!-- Badge "liviana" en Alpine (auditoría referencia/termux/Termux-Desktops-DeadKnox 2026-08-31,
+         ver docs/referencias/termux/REFERENCIA_TERMUX_DESKTOPS_DEADKNOX.md sección 1): tabla de
+         benchmarks glmark2 real por distro publicada en ese proyecto (Alpine 67, Kali 63, Debian
+         62, Ubuntu 56 sobre el mismo hardware Mali-G77) — Alpine es la opción más liviana entre
+         las 3 distros confirmadas de Kairos (ubuntu/debian/alpine). Solo texto informativo, no
+         cambia el default de "perfil recomendado" (EntornoNative.recommendedProfile() sigue
+         devolviendo "debian" — cambiar ese default es una decisión de producto aparte, no un
+         cambio de UI de bajo riesgo, ver hallazgo documentado sin aplicar en la misma auditoría). -->
+    <string name="entorno_badge_liviana">liviana</string>
     <!-- KDE Plasma (roadmap Mini PC item 2, MEJORAS_PENDIENTES.md 2026-08-28) -->
     <string name="entorno_dialog_kde_pesado_titulo">KDE Plasma es pesado</string>
     <string name="entorno_mensaje_kde_pesado">KDE Plasma ocupa entre 1.5GB y 2GB de espacio y puede tardar varios minutos en instalarse — no verificado todavía en dispositivo real de este proyecto. ¿Continuar?</string>
@@ -98,6 +111,24 @@
     <string name="entorno_tile_actualizar_lanzadores">Actualizar\nlanzadores</string>
     <string name="entorno_tile_detener_escritorio">Detener escritorio\n(mantiene X11)</string>
     <string name="entorno_tile_cambiar_fondo">Cambiar fondo\nde pantalla</string>
+    <string name="entorno_tile_crear_acceso_directo">Crear acceso\ndirecto</string>
+
+    <!-- Creador de accesos directos .desktop (auditoría referencia/termux/RDeX-main, 2026-09-01
+         — url_to_app.sh: Web App / App de Android / comando, solo escritorio nativo por ahora) -->
+    <string name="entorno_dialog_crear_acceso_directo_titulo">Crear acceso directo</string>
+    <string name="entorno_shortcut_tipo_webapp">Web App (URL)</string>
+    <string name="entorno_shortcut_tipo_app_android">App de Android</string>
+    <string name="entorno_shortcut_tipo_comando">Comando / script</string>
+    <string name="entorno_shortcut_hint_nombre">Nombre del acceso directo</string>
+    <string name="entorno_shortcut_hint_url">URL (ej. https://…)</string>
+    <string name="entorno_shortcut_hint_comando">Comando a ejecutar</string>
+    <string name="entorno_shortcut_crear">Crear</string>
+    <string name="entorno_shortcut_error_campos_vacios">Completá todos los campos</string>
+    <string name="entorno_shortcut_cargando_apps">Cargando apps instaladas…</string>
+    <string name="entorno_shortcut_error_sin_apps">No se encontraron apps con ícono de lanzador</string>
+    <string name="entorno_shortcut_elegir_app_titulo">Elegir app</string>
+    <string name="entorno_shortcut_creado_toast">Acceso directo \"%1$s\" creado en el Escritorio</string>
+    <string name="entorno_shortcut_error_crear">No se pudo crear el acceso directo: %1$s</string>
 
     <!-- Tiles — pestaña X11 -->
     <string name="entorno_tile_entrar_x11">Entrar en X11</string>
@@ -116,6 +147,15 @@
     <string name="entorno_tile_eliminar_app_distro">Eliminar app\nde distro</string>
     <string name="entorno_titulo_backup_distro">Backup de distro</string>
     <string name="entorno_titulo_vincular_carpetas">Vincular carpetas con distro</string>
+    <string name="entorno_tile_restaurar_distro">Restaurar distro\n(desde backup)</string>
+    <string name="entorno_tile_reiniciar_distro">Reiniciar distro\n(reset)</string>
+    <string name="entorno_dialog_restaurar_distro_titulo">Restaurar distro</string>
+    <string name="entorno_toast_no_hay_backups">No hay backups guardados (Backup de distro genera un .tar.gz en ~/)</string>
+    <string name="entorno_dialog_confirmar_restaurar">¿Restaurar %1$s? Si la distro ya existe, se reemplaza por completo.</string>
+    <string name="entorno_restaurar">Restaurar</string>
+    <string name="entorno_dialog_reiniciar_distro_titulo">Reiniciar distro</string>
+    <string name="entorno_dialog_confirmar_reiniciar">¿Reiniciar %1$s a su estado limpio? Se borra todo lo instalado/configurado dentro, no se puede deshacer.</string>
+    <string name="entorno_reiniciar">Reiniciar</string>
 
     <!-- Tiles — pestaña VNC -->
     <string name="entorno_tile_instalar_tigervnc">Instalar\nTigerVNC</string>
@@ -128,6 +168,39 @@
     <string name="entorno_tile_pulseaudio_toggle">PulseAudio\nencender/apagar</string>
     <string name="entorno_tile_diagnostico_gpu">Diagnóstico\nGPU</string>
     <string name="entorno_tile_configurar_metodo_gpu">Configurar\nmétodo GPU</string>
+    <string name="entorno_tile_benchmark_gpu">Benchmark\nGPU</string>
+    <string name="entorno_tile_editar_script">Editar script\nde arranque</string>
+
+    <!-- Benchmark GPU (glxgears, auditoría Termux-Desktops-DeadKnox 2026-08-31/2026-09-01):
+         gpuDiagnostic() solo reporta qué driver/renderer está activo, nunca un número
+         comparable de rendimiento real entre distros/métodos GPU. glxgears viene con
+         mesa-demos, ya instalado por setGpuMethod()/entorno.sh — no agrega ningún paquete
+         nuevo al scope de instalación. -->
+    <string name="entorno_toast_benchmark_gpu">Midiendo FPS con glxgears (8s)…</string>
+    <string name="entorno_dialog_benchmark_gpu_titulo">Benchmark GPU</string>
+    <string name="entorno_gpu_benchmark_mensaje">glxgears: %1$s FPS\n\nReferencia informal: &lt;15 FPS software puro, 15-40 aceleración parcial, &gt;40 aceleración GPU real. Comparalo entre métodos GPU (Configurar método GPU) para ver cuál rinde mejor en este dispositivo.</string>
+    <string name="entorno_error_no_pudo_benchmark_gpu">No se pudo medir FPS</string>
+
+    <!-- Recursos por sesión de escritorio Mini PC (auditoría referencia/contenedores/
+         LXC-Manager-main, 2026-09-01) — RSS del proceso de la sesión activa, distinto del
+         agregado del sistema completo que ya muestra el tab Monitor. -->
+    <string name="entorno_tile_recursos_sesion">Recursos de\nla sesión</string>
+    <string name="entorno_dialog_recursos_sesion_titulo">Recursos de la sesión</string>
+    <string name="entorno_recursos_sesion_mensaje">Proceso: %1$s (PID %2$d)\nMemoria (RSS): %3$s MB\n\nSolo memoria — el CPU%% real necesita /proc/&lt;pid&gt;/stat, no confirmado legible en todos los dispositivos.</string>
+    <string name="entorno_error_no_pudo_leer_recursos">No se pudo leer los recursos de la sesión</string>
+
+    <!-- Editor de scripts de arranque (auditoría referencia/contenedores/trierarch-main,
+         2026-08-31 — inspirado en DrawerScriptEditor.kt de Trierarch: editar el script generado
+         sin salir de la app ni abrir terminal, ver kairos-product-philosophy.md) -->
+    <string name="entorno_dialog_elegir_script_titulo">Elegir script a editar</string>
+    <string name="entorno_script_gui_start">gui_start.sh (iniciar escritorio)</string>
+    <string name="entorno_script_gui_stop">gui_stop.sh (detener escritorio)</string>
+    <string name="entorno_script_distro_setup_gui">distro_setup_gui.sh (instalar DE en distro)</string>
+    <string name="entorno_dialog_editar_script_titulo">Editando %1$s</string>
+    <string name="entorno_editor_script_no_encontrado">%1$s no existe todavía — se genera la primera vez que se usa esa acción (instalar/iniciar escritorio)</string>
+    <string name="entorno_editor_script_guardar">Guardar</string>
+    <string name="entorno_editor_script_guardado_toast">%1$s guardado</string>
+    <string name="entorno_editor_script_error_guardar">No se pudo guardar %1$s: %2$s</string>
 
     <!-- Eliminar distro -->
     <string name="entorno_toast_no_hay_distros">No hay distros instaladas</string>

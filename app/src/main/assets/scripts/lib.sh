@@ -512,7 +512,7 @@ install_single_pkg() {
     return 0
   fi
   pkg_update_with_fallback
-  if ! pkg install -y "$@" &>/dev/null; then
+  if ! pkg install -y "$@"; then
     error "No se pudo instalar $_id (pkg install $* falló)"
   fi
   # Bug real evitado (2026-08-22, ver docs/humano/humano201.md): retrofit de verify_binary_installed()
@@ -533,7 +533,7 @@ ensure_node_installed() {
   fi
   info "Node.js no está instalado — instalando nodejs-lts primero (dependencia)..."
   pkg_update_with_fallback
-  pkg install -y nodejs-lts &>/dev/null || error "No se pudo instalar Node.js (dependencia de este paquete)"
+  pkg install -y nodejs-lts || error "No se pudo instalar Node.js (dependencia de este paquete)"
   command -v node &>/dev/null || error "Node.js no disponible tras instalar nodejs-lts"
 }
 
@@ -579,6 +579,34 @@ WRAPPER
   log "Wrapper bash real aplicado a $_check (el symlink de npm no ejecuta directo en este dispositivo)"
 }
 
+# verify_sha256 <archivo> [hash_esperado]
+# Verificación de integridad para binarios/tarballs/wheels PREBUILT descargados por un módulo
+# fuera de pkg/npm (esos ya tienen su propia cadena de confianza vía apt/npm) — hallazgo de
+# auditoría de referencia/ia/* (2026-08-31): ningún helper de lib.sh verificaba integridad de lo
+# que descarga. Modo NO bloqueante por diseño cuando no hay hash conocido para pinnear
+# ($_expected vacío): solo loggea el sha256sum real del archivo para referencia futura (permite
+# pinnearlo después en el propio módulo, mismo patrón que ollama.sh ya usa a mano contra su
+# SHA256SUMS real del Release — ver _ollama_direct_download() en ollama.sh, protegido/no tocado
+# en esta ronda). Si se pasa un hash esperado y no coincide, retorna 1 — el caller decide si es
+# fatal (warn+fallback) o error() duro, según qué tan crítico sea ese binario puntual.
+verify_sha256() {
+  local _file="$1" _expected="${2:-}"
+  [ -f "$_file" ] || { warn "verify_sha256: archivo no encontrado: $_file"; return 1; }
+  command -v sha256sum &>/dev/null || { warn "verify_sha256: sha256sum no disponible en este dispositivo, sin verificar"; return 0; }
+  local _actual
+  _actual=$(sha256sum "$_file" | awk '{print $1}')
+  if [ -z "$_expected" ]; then
+    info "SHA256 de $(basename "$_file"): $_actual (sin hash esperado pinneado todavía — solo referencia)"
+    return 0
+  fi
+  if [ "$_actual" = "$_expected" ]; then
+    log "SHA256 verificado OK: $(basename "$_file")"
+    return 0
+  fi
+  warn "SHA256 NO coincide para $(basename "$_file") (esperado=$_expected actual=$_actual)"
+  return 1
+}
+
 install_npm_global() {
   local _id="$1" _npm_pkg="$2" _check="$3"; shift 3
   if command -v "$_check" &>/dev/null && [ "${FORCE:-false}" != "true" ]; then
@@ -589,9 +617,9 @@ install_npm_global() {
   ensure_node_installed
   if [ $# -gt 0 ]; then
     pkg_update_with_fallback
-    pkg install -y "$@" &>/dev/null || error "No se pudieron instalar dependencias de $_id ($*)"
+    pkg install -y "$@" || error "No se pudieron instalar dependencias de $_id ($*)"
   fi
-  if ! npm install -g "$_npm_pkg" &>/dev/null; then
+  if ! npm install -g "$_npm_pkg"; then
     error "No se pudo instalar $_id (npm install -g $_npm_pkg falló)"
   fi
   command -v "$_check" &>/dev/null || error "$_id no disponible tras la instalación (npm)"

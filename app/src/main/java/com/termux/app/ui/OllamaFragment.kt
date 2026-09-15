@@ -121,7 +121,8 @@ class OllamaFragment : BaseModuleFragment() {
 
     private fun checkCpuFallback() {
         Thread {
-            val installMode = com.termux.app.data.ModuleRegistry(requireContext()).load().get("ollama.install_mode")
+            val ctx = context ?: return@Thread
+            val installMode = com.termux.app.data.ModuleRegistry(ctx).load().get("ollama.install_mode")
             val isCpuFallback = installMode == "termux_npm" && try {
                 java.io.File(com.termux.shared.termux.TermuxConstants.TERMUX_HOME_DIR_PATH, ".ollama_backend_status").readText().trim() == "cpu"
             } catch (_: Exception) {

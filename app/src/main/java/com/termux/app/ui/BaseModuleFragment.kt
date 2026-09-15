@@ -2,6 +2,8 @@ package com.termux.app.ui
 
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -49,12 +51,66 @@ abstract class BaseModuleFragment : Fragment() {
 
     private lateinit var fabSlot: ViewGroup
 
+    // Bug real reportado por el usuario (2026-09-01, "los botones flotantes de las terminales
+    // siguen dando error al cerrar la terminal el botón queda ahí no se quita"): terminalStatusPill()
+    // y terminalCloseButton() (más abajo) calculaban isTerminalSessionActive() UNA sola vez, al
+    // construir buildContent() en onViewCreated() — el comentario viejo de terminalCloseButton()
+    // decía "el Fragment que lo usa ya refresca su pantalla" pero eso era falso para los 8
+    // Fragments reales que usan el helper (ClaudeFragment, CodexFragment, OpenCodeFragment,
+    // OpenClawFragment, HermesFragment, AntigravityFragment, EngramFragment,
+    // GenericModuleFragment — confirmado por grep, ninguno tenía ese refresh). Cerrar la sesión
+    // desde OTRO lugar (botón "Cerrar terminal" de otra pantalla, o `exit` dentro de la propia
+    // TUI) tampoco dispara onResume()/onHiddenChanged() acá: toggleTerminalOverlay() en
+    // TermuxActivity hace hide()/show() sobre `mCurrentFragment` (el tab de nivel superior,
+    // ej. ModulesFragment), no sobre el Fragment de detalle de módulo abierto vía
+    // ModuleDetailNavigator (reemplaza fragment_container directo, sin actualizar
+    // mCurrentFragment) — así que ningún callback de lifecycle real llega acá cuando el usuario
+    // vuelve de la terminal. terminalStatusWatches registra cada pill/botón creado para
+    // reconstruirlo con el estado real en cada onResume() + un poll corto mientras la pantalla
+    // sigue visible (mismo patrón que ModulesFragment.pollRunnable para su propio chip de
+    // sesiones) — isTerminalSessionActive()/TermuxActivity.isSessionActive() son lectura pura de
+    // memoria (sin ProcessBuilder), seguro llamarlas seguido desde el hilo principal.
+    private data class TerminalStatusWatch(val holder: FrameLayout, val rebuild: () -> Unit)
+    private val terminalStatusWatches = mutableListOf<TerminalStatusWatch>()
+    private val terminalStatusHandler = Handler(Looper.getMainLooper())
+    private val terminalStatusPollRunnable = object : Runnable {
+        override fun run() {
+            refreshTerminalStatusWatches()
+            terminalStatusHandler.postDelayed(this, 3000)
+        }
+    }
+
+    private fun refreshTerminalStatusWatches() {
+        if (!isAdded) return
+        terminalStatusWatches.forEach { it.rebuild() }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         container = view.findViewById(R.id.content_container)
         fabSlot = view.findViewById(R.id.fab_slot)
         addHeader()
         buildContent()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        terminalStatusHandler.removeCallbacks(terminalStatusPollRunnable)
+        refreshTerminalStatusWatches()
+        if (terminalStatusWatches.isNotEmpty()) {
+            terminalStatusHandler.postDelayed(terminalStatusPollRunnable, 3000)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        terminalStatusHandler.removeCallbacks(terminalStatusPollRunnable)
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        terminalStatusHandler.removeCallbacksAndMessages(null)
+        terminalStatusWatches.clear()
     }
 
     /**
@@ -874,8 +930,87 @@ abstract class BaseModuleFragment : Fragment() {
      * esta corriendo la terminal con el cli".
      */
     protected fun terminalStatusPill(sessionName: String = getModuleName()): View {
-        val active = isTerminalSessionActive(sessionName)
-        return pill(if (active) getString(R.string.base_module_terminal_tui_background) else getString(R.string.base_module_terminal_tui_not_started), active)
+        val holder = FrameLayout(requireContext())
+        fun rebuild() {
+            val active = isTerminalSessionActive(sessionName)
+            holder.removeAllViews()
+            holder.addView(pill(if (active) getString(R.string.base_module_terminal_tui_background) else getString(R.string.base_module_terminal_tui_not_started), active))
+        }
+        rebuild()
+        terminalStatusWatches.add(TerminalStatusWatch(holder) { rebuild() })
+        return holder
+    }
+
+    /**
+     * Cierra SOLO la sesión de terminal TUI nombrada [sessionName] (vía
+     * `TermuxActivity.stopSessionByName()`) — a diferencia de [stopModuleService], que también
+     * corre el script de `stop` del módulo (mata el proceso/servidor real, ej. el server HTTP de
+     * Ollama), esto deja el servicio de fondo intacto y solo libera la terminal minimizada.
+     * Pedido explícito del usuario (docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md,
+     * Fase 3): "una opción para cerrar la terminal de un módulo puntual desde la pantalla de ESE
+     * módulo" — no un botón global que pueda cerrar cualquier sesión. [onDone] siempre corre en
+     * el hilo principal, con el mismo guard `isAdded` que el resto de helpers de esta clase
+     * (`.claude/rules/kotlin-kairos-android-patterns.md`).
+     */
+    protected fun closeTerminalSession(sessionName: String = getModuleName(), onDone: (() -> Unit)? = null) {
+        val act = activity as? com.termux.app.TermuxActivity ?: return
+        act.stopSessionByName(sessionName)
+        if (!isAdded) return
+        toast(getString(R.string.base_module_terminal_closed, sessionName))
+        onDone?.invoke()
+    }
+
+    /**
+     * Botón "✕ Cerrar terminal" — compañero de [terminalStatusPill] para el mismo
+     * [sessionName]: visible/interactuable solo mientras la sesión sigue activa. Registrado en
+     * [terminalStatusWatches] (ver comentario en [onViewCreated]) para que se oculte solo apenas
+     * la sesión se cierra desde OTRO lado (otra pantalla, o `exit` dentro de la propia TUI) —
+     * antes solo se ocultaba con el click optimista de acá abajo, quedando pegado en pantalla si
+     * la sesión se cerraba por cualquier otra vía. Tocarlo sigue ocultándose a sí mismo de
+     * inmediato (UI optimista, mismo criterio que el botón de instalar en [showNotInstalled])
+     * sin esperar al próximo ciclo del poll.
+     */
+    protected fun terminalCloseButton(sessionName: String = getModuleName()): View {
+        val ctx = requireContext()
+        val holder = FrameLayout(ctx)
+        fun buildButton(): View {
+            val btn = TextView(ctx).apply {
+                text = getString(R.string.base_module_close_terminal)
+                textSize = 11f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosRed))
+                setPadding(dp(8), dp(4), dp(8), dp(4))
+                setBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg3))
+                visibility = if (isTerminalSessionActive(sessionName)) View.VISIBLE else View.GONE
+            }
+            btn.setOnClickListener {
+                closeTerminalSession(sessionName) { btn.visibility = View.GONE }
+            }
+            return btn
+        }
+        fun rebuild() {
+            holder.removeAllViews()
+            holder.addView(buildButton())
+        }
+        rebuild()
+        terminalStatusWatches.add(TerminalStatusWatch(holder) { rebuild() })
+        return holder
+    }
+
+    /**
+     * Variante genérica de [terminalStatusPill]/[terminalCloseButton] para pantallas con una
+     * lista DINÁMICA de sesiones nombradas (número variable, no una sola fija por
+     * `getModuleName()`) — ej. EntornoFragment (Mini PC), donde cada distro proot-distro abre
+     * su propia sesión ("Entorno: <distro>") y puede haber 0, 1 o varias activas a la vez.
+     * Registra [holder]/[rebuild] en el mismo poll de 3s (mientras el Fragment está resumed)
+     * que ya usan pill/botón de sesión única, así la lista se actualiza sola si una sesión se
+     * cierra desde OTRO lado (otra pantalla, `exit` dentro de la propia TUI) sin que el
+     * Fragment entero se reconstruya. 2026-09-01, ver
+     * docs/mini-pc/AUDITORIA_MINIPC_PROFUNDA_2026-09-01.md.
+     */
+    protected fun watchTerminalSessions(holder: FrameLayout, rebuild: () -> Unit) {
+        rebuild()
+        terminalStatusWatches.add(TerminalStatusWatch(holder, rebuild))
     }
 
     /**
@@ -1079,6 +1214,21 @@ abstract class BaseModuleFragment : Fragment() {
                 if (isAdded) onResult(result)
             }
         }.start()
+    }
+
+    /**
+     * Salta al hilo principal solo si el Fragment sigue adjunto antes Y después del salto —
+     * la mitad "post al UI thread" del mismo patrón que [runInBackground] ya usa completo.
+     * Extraído acá (2026-08-31) porque 4 Fragments (`ModelsFragment`, `OllamaConfigFragment`,
+     * `RepoFragment`, `QemuFragment` — este último con el nombre `runOnMainThread`)
+     * reimplementaban a mano esta función privada, byte-por-byte idéntica en los 3 primeros —
+     * hallazgo real de la auditoría de código de esta ronda (docs/humano291.md). Usar desde
+     * dentro de un `Thread { ... runOnMain { ... } }` propio; para el patrón completo
+     * "trabajo en background + resultado en UI" preferir [runInBackground] directamente.
+     */
+    protected fun runOnMain(block: () -> Unit) {
+        if (!isAdded) return
+        activity?.runOnUiThread { if (isAdded) block() }
     }
 
     protected fun isModuleRunning(): Boolean =

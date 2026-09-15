@@ -25,11 +25,21 @@
 #    --version latest      Usar versión más reciente (solo native, default en
 #                           modo silencioso — ver "$SILENT && USE_LATEST=true")
 #
-#  VERSIÓN: 4.2.0 | Agosto 2026 — deprecado "legacy" como opción real de
-#  instalación (docs/humano274.md), modules.json ya no la ofrece. Fallback
-#  real: si la descarga/verificación de la versión "latest" falla, reintenta
-#  con el pin viejo conocido-bueno (variante native, no legacy) en vez de
-#  abortar (docs/humano275.md).
+#  VERSIÓN: 4.3.0 | Septiembre 2026 — método PRIMARIO nuevo:
+#  wallentx/claude-code-termux (ver docs/referencias/modulos/
+#  AUDITORIA_CLAUDE_CODE_TERMUX_2026-09-09.md, hallazgo P0). Ese fork sigue
+#  los tags de "anthropics/claude-code" automáticamente vía su propio CI, así
+#  que "latest" ahí siempre es una versión real reciente sin depender de
+#  ningún pin manual en este script. Se intenta primero; si falla por
+#  cualquier motivo (release no disponible, checksum, --version no responde),
+#  cae automáticamente al mecanismo viejo COMPLETO y sin tocar (pin
+#  conocido-bueno + reintento a "latest" de downloads.claude.ai + legacy npm
+#  como red de seguridad de fondo — ver _download_and_patch_native() y
+#  "INSTALACIÓN LEGACY" más abajo). VERSIÓN 4.2.0 (Agosto 2026): deprecado
+#  "legacy" como opción real de instalación (docs/humano274.md), modules.json
+#  ya no la ofrece. Fallback real: si la descarga/verificación de la versión
+#  "latest" falla, reintenta con el pin viejo conocido-bueno (variante
+#  native, no legacy) en vez de abortar (docs/humano275.md).
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -108,6 +118,15 @@ GLIBC_LD="$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1"
 PATCHELF="$TERMUX_PREFIX/glibc/bin/patchelf"
 RELEASE_API="https://api.github.com/repos/Honkonx/termux-ai-stack/releases/latest"
 BASHRC="$HOME/.bashrc"
+
+# Método PRIMARIO de instalación native (ver _download_wallentx_native() y
+# docs/referencias/modulos/AUDITORIA_CLAUDE_CODE_TERMUX_2026-09-09.md hallazgo P0).
+# Apunta al repo ORIGINAL de wallentx porque esta sesión no puede crear forks de
+# GitHub programáticamente — cambiar a un fork propio (ej. Honkonx/claude-code-termux)
+# cuando exista es un cambio de una sola línea acá, mismo patrón que "_FORK" en
+# antigravity.sh (antigravity.sh línea 208).
+CLAUDE_TERMUX_FORK="wallentx/claude-code-termux"
+CLAUDE_TERMUX_ASSET="claude-termux-aarch64.tar.gz"
 
 # ── log/warn/error/info/step + check_done/mark_done compartidos ──
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -327,7 +346,7 @@ _ensure_termux() {
   fi
   info "Actualizando Termux..."
   pkg update -y -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" 2>&1 | tail -3
+    -o Dpkg::Options::="--force-confold"
   mark_done "termux_update"
 }
 
@@ -361,9 +380,9 @@ _ensure_glibc() {
     info "Instalando glibc-runner + patchelf-glibc..."
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y glibc-repo 2>/dev/null || true
+    pkg install -y glibc-repo || true
     pkg update -y -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>&1 | tail -2
+      -o Dpkg::Options::="--force-confold"
     pkg_update_with_fallback
     pkg install -y glibc-runner patchelf-glibc jq \
       -o Dpkg::Options::="--force-confdef" \
@@ -463,10 +482,150 @@ _download_and_patch_native() {
   return 0
 }
 
+# ════════════════════════════════════════════════════════════
+#  INSTALACIÓN NATIVE — método PRIMARIO: wallentx/claude-code-termux
+#
+#  A diferencia de _download_and_patch_native() (descarga el binario oficial
+#  de downloads.claude.ai y lo PARCHEA con patchelf --set-interpreter),
+#  este método descarga un release ya empaquetado por el fork: 3 archivos
+#  co-ubicados en el mismo directorio que NATIVE_BINARY —
+#    claude                = launcher nativo Bionic (execv al loader glibc)
+#    claude.glibc           = payload oficial de Anthropic, SIN modificar
+#    claude-termux-update   = updater propio del fork (no se usa desde acá,
+#                              queda instalado por si el usuario corre
+#                              "claude update" manualmente en la terminal)
+#  El fork sigue los tags de "anthropics/claude-code" automáticamente vía su
+#  propio CI (release-detect.yml) — por eso "latest" acá es siempre una
+#  versión real reciente, sin depender de ningún pin manual en este script
+#  (ver docs/referencias/modulos/AUDITORIA_CLAUDE_CODE_TERMUX_2026-09-09.md,
+#  hallazgo P0).
+#
+#  Igual que _download_and_patch_native(), devuelve 0/1 en vez de abortar con
+#  error() — _install_native_clean() cae al mecanismo viejo COMPLETO (pin +
+#  reintento a "latest" oficial + legacy npm de fondo) si esto falla por
+#  cualquier motivo. Verificación de POST-CONDICIÓN real (no solo que el
+#  archivo exista) antes de devolver éxito — ver
+#  .claude/rules/empirical-verification-before-fix.md: si "--version" no
+#  responde, se hace rollback y se devuelve 1 para que el caller no lo dé por
+#  instalado.
+# ════════════════════════════════════════════════════════════
+_download_wallentx_native() {
+  local INSTALL_DIR; INSTALL_DIR="$(dirname "$NATIVE_BINARY")"
+  local BASE_URL="https://github.com/${CLAUDE_TERMUX_FORK}/releases/latest/download"
+  local ARCHIVE="$HOME/.claude_wallentx_dl.tar.gz"
+  local EXTRACT_DIR="$HOME/.claude_wallentx_extract"
+  local BAK_BIN="" BAK_PAYLOAD="" BAK_UPDATER=""
+
+  local CA_BUNDLE="$TERMUX_PREFIX/etc/tls/cert.pem"
+  if [ ! -s "$CA_BUNDLE" ]; then
+    warn "ca-certificates no disponible ($CA_BUNDLE) — ${CLAUDE_TERMUX_FORK} necesita TLS verificable, usando mecanismo viejo"
+    return 1
+  fi
+
+  mkdir -p "$INSTALL_DIR"
+  rm -rf "$EXTRACT_DIR"; mkdir -p "$EXTRACT_DIR"
+
+  info "Descargando release de ${CLAUDE_TERMUX_FORK} (método primario)..."
+  if ! curl -fL --retry 2 --retry-delay 2 "${BASE_URL}/${CLAUDE_TERMUX_ASSET}" -o "$ARCHIVE"; then
+    warn "Descarga de ${CLAUDE_TERMUX_FORK} fallida"
+    rm -f "$ARCHIVE"; rm -rf "$EXTRACT_DIR"
+    return 1
+  fi
+  if [ ! -s "$ARCHIVE" ]; then
+    warn "Release de ${CLAUDE_TERMUX_FORK} descargado vacío"
+    rm -f "$ARCHIVE"; rm -rf "$EXTRACT_DIR"
+    return 1
+  fi
+
+  # Checksum best-effort — mismo criterio que el install.sh original del fork:
+  # si el .sha256 no está disponible, continúa sin verificar en vez de abortar
+  # (a diferencia de _download_and_patch_native(), donde el manifest con
+  # checksum de downloads.claude.ai sí es la fuente pineada de siempre).
+  local CHECKSUM_FILE="${ARCHIVE}.sha256"
+  if curl -fsSL "${BASE_URL}/${CLAUDE_TERMUX_ASSET}.sha256" -o "$CHECKSUM_FILE" 2>/dev/null && [ -s "$CHECKSUM_FILE" ]; then
+    local expected actual
+    expected=$(awk '{print $1}' "$CHECKSUM_FILE" | head -1)
+    actual=$(sha256sum "$ARCHIVE" | cut -d' ' -f1)
+    rm -f "$CHECKSUM_FILE"
+    if [ -n "$expected" ] && [ "$actual" = "$expected" ]; then
+      log "SHA256 de ${CLAUDE_TERMUX_FORK} verificado ✓"
+    else
+      warn "SHA256 de ${CLAUDE_TERMUX_FORK} no coincide — release corrupto"
+      rm -f "$ARCHIVE"; rm -rf "$EXTRACT_DIR"
+      return 1
+    fi
+  else
+    rm -f "$CHECKSUM_FILE"
+    warn "No se pudo verificar checksum del release de ${CLAUDE_TERMUX_FORK}"
+  fi
+
+  tar -xzf "$ARCHIVE" -C "$EXTRACT_DIR" claude claude.glibc claude-termux-update 2>/dev/null
+  rm -f "$ARCHIVE"
+  if [ ! -s "$EXTRACT_DIR/claude" ] || [ ! -s "$EXTRACT_DIR/claude.glibc" ] || [ ! -f "$EXTRACT_DIR/claude-termux-update" ]; then
+    warn "Release de ${CLAUDE_TERMUX_FORK} incompleto tras extraer"
+    rm -rf "$EXTRACT_DIR"
+    return 1
+  fi
+
+  # Backup/rollback transaccional (hallazgo 1.3 de la auditoría — evita dejar
+  # al usuario sin ningún binario de Claude si esta instalación falla a mitad
+  # de camino; claude.sh no tenía este resguardo para el binario native hasta
+  # ahora, _download_and_patch_native() tampoco lo tiene y se deja intacto).
+  [ -f "$NATIVE_BINARY" ] && { BAK_BIN="${NATIVE_BINARY}.bak.$$"; mv -f "$NATIVE_BINARY" "$BAK_BIN"; }
+  [ -f "$INSTALL_DIR/claude.glibc" ] && { BAK_PAYLOAD="$INSTALL_DIR/claude.glibc.bak.$$"; mv -f "$INSTALL_DIR/claude.glibc" "$BAK_PAYLOAD"; }
+  [ -f "$INSTALL_DIR/claude-termux-update" ] && { BAK_UPDATER="$INSTALL_DIR/claude-termux-update.bak.$$"; mv -f "$INSTALL_DIR/claude-termux-update" "$BAK_UPDATER"; }
+
+  install -m 0755 "$EXTRACT_DIR/claude" "$NATIVE_BINARY" 2>/dev/null &&
+    install -m 0755 "$EXTRACT_DIR/claude.glibc" "$INSTALL_DIR/claude.glibc" 2>/dev/null &&
+    install -m 0755 "$EXTRACT_DIR/claude-termux-update" "$INSTALL_DIR/claude-termux-update" 2>/dev/null
+  local install_ok=$?
+  rm -rf "$EXTRACT_DIR"
+
+  if [ "$install_ok" -ne 0 ]; then
+    warn "No se pudo copiar el release de ${CLAUDE_TERMUX_FORK} a $INSTALL_DIR"
+    rm -f "$NATIVE_BINARY" "$INSTALL_DIR/claude.glibc" "$INSTALL_DIR/claude-termux-update"
+    [ -n "$BAK_BIN" ] && mv -f "$BAK_BIN" "$NATIVE_BINARY"
+    [ -n "$BAK_PAYLOAD" ] && mv -f "$BAK_PAYLOAD" "$INSTALL_DIR/claude.glibc"
+    [ -n "$BAK_UPDATER" ] && mv -f "$BAK_UPDATER" "$INSTALL_DIR/claude-termux-update"
+    return 1
+  fi
+
+  # Post-condición real: el binario debe CORRER, no solo existir — confirma
+  # que el launcher nativo del fork arranca de verdad en este dispositivo
+  # (proxy DNS loopback interno incluido) antes de que _install_native_clean()
+  # decida si cae al mecanismo viejo.
+  local wallentx_ver
+  wallentx_ver=$(LD_PRELOAD= "$NATIVE_BINARY" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+  if [ -z "$wallentx_ver" ]; then
+    warn "Binario de ${CLAUDE_TERMUX_FORK} instalado pero --version no respondió — descartando"
+    rm -f "$NATIVE_BINARY" "$INSTALL_DIR/claude.glibc" "$INSTALL_DIR/claude-termux-update"
+    [ -n "$BAK_BIN" ] && mv -f "$BAK_BIN" "$NATIVE_BINARY"
+    [ -n "$BAK_PAYLOAD" ] && mv -f "$BAK_PAYLOAD" "$INSTALL_DIR/claude.glibc"
+    [ -n "$BAK_UPDATER" ] && mv -f "$BAK_UPDATER" "$INSTALL_DIR/claude-termux-update"
+    return 1
+  fi
+
+  rm -f "$BAK_BIN" "$BAK_PAYLOAD" "$BAK_UPDATER" 2>/dev/null
+  log "Release de ${CLAUDE_TERMUX_FORK} instalado y verificado — v${wallentx_ver} ✓"
+  return 0
+}
+
 _install_native_clean() {
   local VERSION="$CLAUDE_VERSION_NATIVE"
 
-  if $USE_LATEST; then
+  # Método PRIMARIO (docs/referencias/modulos/AUDITORIA_CLAUDE_CODE_TERMUX_2026-09-09.md,
+  # hallazgo P0): se intenta primero porque sigue upstream automáticamente. Si
+  # falla por cualquier motivo, cae al mecanismo viejo completo de abajo
+  # (pin conocido-bueno + reintento a "latest" oficial), SIN TOCARLO.
+  if _download_wallentx_native; then
+    # Wrapper + settings.json se generan más abajo (comparten NATIVE_BINARY/
+    # NATIVE_WRAPPER con el mecanismo viejo) — acá solo evitamos que el resto
+    # de esta función (resolución de "latest" oficial + _download_and_patch_native)
+    # se ejecute innecesariamente.
+    :
+  else
+    warn "Método primario (${CLAUDE_TERMUX_FORK}) no disponible — usando mecanismo clásico de claude.sh"
+    if $USE_LATEST; then
     info "Consultando versión latest..."
     # Bug real confirmado 2026-08-27 (verificado en vivo con curl real): la URL vieja
     # "claude-code-releases/latest/manifest.json" devuelve 404 (NoSuchKey) — el manifest
@@ -506,6 +665,7 @@ _install_native_clean() {
       error "Instalación fallida: v${CLAUDE_VERSION_NATIVE} (respaldo) no pudo instalarse"
     fi
   fi
+  fi
 
   # Wrapper
   cat > "$NATIVE_WRAPPER" << WRAPPER
@@ -538,11 +698,21 @@ WRAPPER
 SETTINGS
   log "settings.json configurado"
 
+  # ver_check se calcula ANTES de registry_update (reordenado respecto a la
+  # versión anterior de este bloque) porque el método wallentx no conoce el
+  # número de versión de antemano ($VERSION sigue siendo el pin default hasta
+  # acá si vino por ese camino — su URL de descarga es "latest" sin resolver
+  # tag primero) — "--version" contra el binario YA instalado es la única
+  # fuente real de verdad en ese caso. Para el camino viejo (VERSION conocido
+  # de antemano) esto no cambia nada: ver_check debería coincidir con $VERSION
+  # de todas formas.
+  local ver_check
+  ver_check=$("$NATIVE_WRAPPER" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+  [ -n "$ver_check" ] && VERSION="$ver_check"
+
   _update_registry "$VERSION" "native"
   mark_done "claude_install"
 
-  local ver_check
-  ver_check=$("$NATIVE_WRAPPER" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
   [ -n "$ver_check" ] && log "Claude native v${ver_check} funcionando ✓" || \
     warn "Wrapper creado pero --version no respondió"
 }
@@ -609,8 +779,7 @@ _install_legacy_clean() {
 
   # Estrategia 1: npm directo
   info "Estrategia 1: npm install @${CLAUDE_VERSION_LEGACY}..."
-  npm install -g @anthropic-ai/claude-code@${CLAUDE_VERSION_LEGACY} --save-exact \
-    2>&1 | tail -5
+  npm install -g @anthropic-ai/claude-code@${CLAUDE_VERSION_LEGACY} --save-exact
   CLI_PATH=$(_find_legacy_cli)
   _validate_legacy_cli "$CLI_PATH" && { CLAUDE_OK=true; log "Estrategia 1 ✓"; }
 
@@ -620,7 +789,7 @@ _install_legacy_clean() {
     npm uninstall -g @anthropic-ai/claude-code 2>/dev/null || true
     npm cache clean --force 2>/dev/null || true
     npm install -g @anthropic-ai/claude-code@${CLAUDE_VERSION_LEGACY} \
-      --ignore-scripts --save-exact 2>&1 | tail -5
+      --ignore-scripts --save-exact
     CLI_PATH=$(_find_legacy_cli)
     _validate_legacy_cli "$CLI_PATH" && { CLAUDE_OK=true; log "Estrategia 2 ✓"; }
   fi
@@ -631,10 +800,10 @@ _install_legacy_clean() {
     local URL="https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-${CLAUDE_VERSION_LEGACY}.tgz"
     local TMP_TGZ="$HOME/claude_npm_direct.tgz"
     local TMP_EXT="$HOME/claude_extract_direct"
-    curl -fL "$URL" -o "$TMP_TGZ" 2>/dev/null
+    curl -fL "$URL" -o "$TMP_TGZ"
     if [ -s "$TMP_TGZ" ]; then
       mkdir -p "$TMP_EXT"
-      tar -xzf "$TMP_TGZ" -C "$TMP_EXT" 2>/dev/null
+      tar -xzf "$TMP_TGZ" -C "$TMP_EXT"
       if [ -f "$TMP_EXT/package/cli.js" ]; then
         mkdir -p "$CLAUDE_DIR"
         cp -r "$TMP_EXT/package/." "$CLAUDE_DIR/"
@@ -655,10 +824,10 @@ _install_legacy_clean() {
     if [ -n "$CLI_URL" ]; then
       local TMP_TAR="$HOME/claude_gh_release.tar.xz"
       local TMP_EXT2="$HOME/claude_extract_gh"
-      curl -fL "$CLI_URL" -o "$TMP_TAR" 2>/dev/null
+      curl -fL "$CLI_URL" -o "$TMP_TAR"
       if [ -s "$TMP_TAR" ]; then
         mkdir -p "$TMP_EXT2"
-        tar -xJf "$TMP_TAR" -C "$TMP_EXT2" 2>/dev/null
+        tar -xJf "$TMP_TAR" -C "$TMP_EXT2"
         local CLI_GH="$TMP_EXT2/npm_modules/@anthropic-ai/claude-code/cli.js"
         if [ -f "$CLI_GH" ]; then
           cp "$CLI_GH" "$CLAUDE_DIR/cli.js" && chmod +x "$CLAUDE_DIR/cli.js"

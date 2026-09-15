@@ -8,6 +8,12 @@
     <string name="action_save_file">Guardar archivo</string>
     <string name="action_ai_settings">Proveedor de IA</string>
     <string name="action_command_palette">Paleta de comandos</string>
+
+    <!-- Títulos de los submenús del overflow "⋮" (ronda 2026-09-03, reorganización del menú de
+         3 puntos — ver studio_menu_main.xml). -->
+    <string name="menu_group_file">📁 Archivo</string>
+    <string name="menu_group_ai">🤖 IA</string>
+    <string name="menu_group_settings">⚙️ Configuración</string>
     <string name="command_palette_hint">Buscar un comando…</string>
     <string name="command_palette_empty">Sin comandos que coincidan.</string>
     <string name="action_ask_ai">Preguntar a la IA sobre este código</string>
@@ -78,6 +84,17 @@
     <string name="editor_theme_kairos_ink">Kairos Ink (oscuro)</string>
     <string name="editor_theme_kairos_paper">Kairos Paper (claro)</string>
     <string name="editor_theme_kairos_contrast">Kairos Contraste (alto contraste)</string>
+    <string name="editor_theme_dracula">Dracula (oscuro)</string>
+    <string name="editor_theme_nord">Nord (oscuro)</string>
+    <string name="editor_theme_gruvbox_dark">Gruvbox Dark (oscuro)</string>
+    <string name="editor_theme_gruvbox_light">Gruvbox Light (claro)</string>
+    <string name="editor_theme_solarized_dark">Solarized Dark (oscuro)</string>
+    <string name="editor_theme_solarized_light">Solarized Light (claro)</string>
+    <string name="editor_theme_monokai">Monokai (oscuro)</string>
+    <string name="editor_theme_one_dark">One Dark (oscuro)</string>
+    <string name="editor_theme_atom_one_light">Atom One Light (claro)</string>
+    <string name="editor_theme_ayu_dark">Ayu Dark (oscuro)</string>
+    <string name="editor_theme_ayu_light">Ayu Light (claro)</string>
 
     <string name="ai_provider_settings_title">Proveedor de IA</string>
     <string name="ai_provider_label">Proveedor</string>
@@ -113,6 +130,8 @@
     <string name="search_next">Coincidencia siguiente</string>
     <string name="search_toggle_replace">Mostrar/ocultar reemplazo</string>
     <string name="search_close">Cerrar búsqueda</string>
+    <string name="search_case_sensitive">Coincidir mayúsculas/minúsculas</string>
+    <string name="search_case_sensitive_label">Aa</string>
     <string name="search_no_matches">0/0</string>
     <string name="search_match_counter_format">%1$d/%2$d</string>
     <string name="search_no_query_toast">Escribí algo para buscar primero.</string>
@@ -164,6 +183,30 @@
     <string name="git_confirm_cancel">Cancelar</string>
     <string name="git_error_no_project">Abrí una carpeta de proyecto primero (necesita ser una ruta real en almacenamiento compartido, no solo un permiso SAF — ver "Abrir carpeta").</string>
     <string name="git_operation_running">Ejecutando…</string>
+    <string name="git_stash_button">Stash</string>
+    <string name="git_stash_pop_button">Aplicar stash</string>
+    <string name="git_stash_confirm_title">¿Guardar cambios en el stash?</string>
+    <string name="git_stash_confirm_message">Esto guarda los cambios locales (staged y sin stagear) y limpia el working tree — usá "Aplicar stash" para recuperarlos después.</string>
+    <string name="git_stash_pop_confirm_title">¿Aplicar el último stash?</string>
+    <string name="git_stash_pop_confirm_message">Esto aplica la entrada más reciente del stash sobre el working tree actual y la saca de la pila. Puede generar conflictos si hubo cambios nuevos desde que se guardó.</string>
+    <string name="git_stash_empty">No hay nada guardado en el stash.</string>
+
+    <string name="git_github_connect_button">Conectar GitHub</string>
+    <string name="git_github_disconnect_button">Desconectar</string>
+    <string name="git_github_not_connected">GitHub: no conectado</string>
+    <string name="git_github_connected">GitHub: conectado como %1$s</string>
+    <string name="git_github_connected_no_login">GitHub: conectado</string>
+    <string name="git_github_disconnect_confirm_title">¿Desconectar GitHub?</string>
+    <string name="git_github_disconnect_confirm_message">Se borra el token guardado. Push/pull van a volver a depender de las credenciales que Kairos/Termux ya tenga configuradas (SSH/credential helper).</string>
+    <string name="git_github_device_dialog_title">Conectar GitHub</string>
+    <string name="git_github_device_dialog_message">1. Abrí %1$s en cualquier navegador (este dispositivo u otro).\n2. Ingresá este código:\n\n%2$s\n\n3. Autorizá el acceso. Esta pantalla se actualiza sola cuando termines.</string>
+    <string name="git_github_device_copy_code">Copiar código</string>
+    <string name="git_github_device_open_browser">Abrir GitHub</string>
+    <string name="git_github_device_code_copied">Código copiado.</string>
+    <string name="git_github_device_waiting">Esperando autorización…</string>
+    <string name="git_github_device_success">Conectado a GitHub.</string>
+    <string name="git_github_device_error_title">No se pudo conectar</string>
+    <string name="git_github_device_requesting">Pidiendo código a GitHub…</string>
 
     <string name="tabs_unsaved_changes_title">Cambios sin guardar</string>
     <string name="tabs_unsaved_changes_message">Hay cambios sin guardar en \"%1$s\". ¿Cerrar de todas formas?</string>

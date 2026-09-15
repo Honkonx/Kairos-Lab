@@ -44,6 +44,17 @@ object ModuleCatalog {
     private const val CATALOG_PATH = "app/src/main/assets/modules.json"
     private const val CACHE_FILE = "modules_catalog.json"
 
+    // Caché en memoria del catálogo base (cache remoto o bundled, ANTES de mergeLocal()) —
+    // load() se llama en cada apertura de pantalla/detalle de módulo (~7 call-sites reales:
+    // ModuleController, MonitorFragment, ModulesFragment, UsageStateManager, PluginsFragment,
+    // RepoFragment, ModuleDoctor) y antes releía + reparseaba el JSON de disco cada vez, sin
+    // necesidad — el catálogo no cambia salvo que refreshRemote()/saveCache() escriba uno
+    // nuevo, así que se invalida solo ahí. No cachea el resultado final con mergeLocal()
+    // aplicado porque los plugins locales sí pueden cambiar entre llamadas (instalar/
+    // desinstalar), eso se recalcula siempre.
+    @Volatile
+    private var baseCache: List<ModuleInfo>? = null
+
     fun remoteUrl(branch: String = DEFAULT_BRANCH): String =
         "https://raw.githubusercontent.com/Honkonx/kairos-lab/$branch/$CATALOG_PATH"
 
@@ -56,7 +67,7 @@ object ModuleCatalog {
                 var line: String?
                 while (reader.readLine().also { line = it } != null) sb.append(line)
             }
-            parse(JSONArray(sb.toString()))
+            parse(JSONArray(sb.toString()), context)
         } catch (e: Exception) {
             Log.e(TAG, "loadBundled() falló", e)
             emptyList()
@@ -70,8 +81,10 @@ object ModuleCatalog {
      * Corre en el hilo que lo llame (los callers usan background thread).
      */
     fun load(context: Context): List<ModuleInfo> {
-        val cached = loadCache(context)
-        val base = if (cached.isNotEmpty()) cached else loadBundled(context)
+        val base = baseCache ?: run {
+            val cached = loadCache(context)
+            (if (cached.isNotEmpty()) cached else loadBundled(context)).also { baseCache = it }
+        }
         return com.termux.app.util.LocalPluginManager.mergeLocal(base)
     }
 
@@ -82,7 +95,7 @@ object ModuleCatalog {
      */
     fun refreshRemote(context: Context, branch: String = DEFAULT_BRANCH): List<ModuleInfo> {
         return try {
-            val remote = fetchRemote(branch)
+            val remote = fetchRemote(branch, context)
             val merged = merge(loadBundled(context), remote)
             saveCache(context, merged)
             com.termux.app.util.LocalPluginManager.mergeLocal(merged)
@@ -92,7 +105,7 @@ object ModuleCatalog {
         }
     }
 
-    private fun fetchRemote(branch: String): List<ModuleInfo> {
+    private fun fetchRemote(branch: String, context: Context): List<ModuleInfo> {
         val conn = URL(remoteUrl(branch)).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 8000
@@ -106,7 +119,7 @@ object ModuleCatalog {
                 var line: String?
                 while (reader.readLine().also { line = it } != null) sb.append(line)
             }
-            return parse(JSONArray(sb.toString()))
+            return parse(JSONArray(sb.toString()), context)
         } finally {
             conn.disconnect()
         }
@@ -154,6 +167,7 @@ object ModuleCatalog {
                 arr.put(o)
             }
             File(context.filesDir, CACHE_FILE).writeText(arr.toString())
+            baseCache = modules
         } catch (e: Exception) {
             Log.w(TAG, "saveCache() falló", e)
         }
@@ -163,7 +177,7 @@ object ModuleCatalog {
         return try {
             val f = File(context.filesDir, CACHE_FILE)
             if (!f.exists()) return emptyList()
-            parse(JSONArray(f.readText()))
+            parse(JSONArray(f.readText()), context)
         } catch (e: Exception) {
             Log.w(TAG, "loadCache() falló (ignorado)", e)
             emptyList()
@@ -171,14 +185,32 @@ object ModuleCatalog {
     }
 
     /**
+     * `description`/`type`/`estimate` de modules.json están hardcodeados en español (bug real
+     * reportado por un usuario vía Telegram: cambiar el idioma de la app a English no traducía
+     * esos 3 campos — quedaron fuera de la migración de 3081 strings a `res/values*` porque
+     * viven en `assets/`, no en XML). En vez de duplicar el JSON con un segundo idioma adentro
+     * (~180 campos a mantener sincronizados en cada edición futura), se resuelven por id contra
+     * `res/values/strings_modules_catalog.xml` / `values-en/strings_modules_catalog.xml`
+     * (`module_<id>_description` etc., mismo patrón `getIdentifier` que `iconAsset` ya usa en
+     * `ModuleRowRenderer.bindModuleIcon()`). Si el recurso no existe para ese id (módulo nuevo
+     * todavía no migrado, o `context` null en un call-site sin Context a mano) cae al valor
+     * crudo del JSON — nunca revienta ni deja el campo vacío.
+     */
+    private fun localizedField(context: Context?, moduleId: String, field: String, fallback: String): String {
+        if (context == null) return fallback
+        val resId = context.resources.getIdentifier("module_${moduleId}_$field", "string", context.packageName)
+        return if (resId != 0) context.getString(resId) else fallback
+    }
+
+    /**
      * JSONArray → List<ModuleInfo>. Los campos nuevos de la Fase B usan opt* (toleran
      * catálogos viejos que no los traen). Compartida con ModulesFragment.
      */
-    fun parse(arr: JSONArray): List<ModuleInfo> {
+    fun parse(arr: JSONArray, context: Context? = null): List<ModuleInfo> {
         val result = mutableListOf<ModuleInfo>()
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
-            result.add(parseOne(obj))
+            result.add(parseOne(obj, context))
         }
         return result
     }
@@ -189,39 +221,43 @@ object ModuleCatalog {
      * duplicarlo — ver deduplicación en docs/humano/humano123.md.
      */
     @JvmStatic
-    fun parseOne(obj: JSONObject): ModuleInfo = ModuleInfo(
-        id = obj.getString("id"),
-        name = obj.optString("name", obj.getString("id")),
-        icon = obj.optString("icon", "⬡"),
-        iconBg = obj.optString("iconBg", "#111111"),
-        port = obj.optString("port", ""),
-        // Fallback defensivo con la misma convención que ModuleController.installScriptFile()
-        // usaba hardcodeada antes de esta ronda — no debería activarse con el JSON real, que
-        // siempre trae "script" explícito (ver campo en ModuleInfo.kt).
-        script = obj.optString("script", "${obj.getString("id")}.sh"),
-        description = obj.optString("description", ""),
-        size = obj.optString("size", ""),
-        type = obj.optString("type", ""),
-        requiresProot = obj.optBoolean("requiresProot", false),
-        hasVariants = obj.optBoolean("hasVariants", false),
-        estimate = obj.optString("estimate", ""),
-        hasSwitch = obj.optBoolean("hasSwitch", true),
-        tmuxSession = obj.optString("tmuxSession", ""),
-        webviewUrl = obj.optString("webviewUrl", ""),
-        terminalCommand = obj.optString("terminalCommand", ""),
-        arch = obj.optString("arch", ""),
-        category = obj.optString("category", ""),
-        catalogVersion = obj.optString("catalogVersion", ""),
-        installMethods = obj.optJSONArray("installMethods")?.let { ja ->
-            (0 until ja.length()).map { ja.getString(it) }
-        } ?: emptyList(),
-        requires = obj.optJSONArray("requires")?.let { ja ->
-            (0 until ja.length()).map { ja.getString(it) }
-        } ?: emptyList(),
-        recommended = obj.optBoolean("recommended", false),
-        downloads = obj.optInt("downloads", 0),
-        internal = obj.optBoolean("internal", false),
-        hideFromCatalog = obj.optBoolean("hideFromCatalog", false),
-        iconAsset = obj.optString("iconAsset", "").takeIf { it.isNotEmpty() }
-    )
+    @JvmOverloads
+    fun parseOne(obj: JSONObject, context: Context? = null): ModuleInfo {
+        val id = obj.getString("id")
+        return ModuleInfo(
+            id = id,
+            name = obj.optString("name", id),
+            icon = obj.optString("icon", "⬡"),
+            iconBg = obj.optString("iconBg", "#111111"),
+            port = obj.optString("port", ""),
+            // Fallback defensivo con la misma convención que ModuleController.installScriptFile()
+            // usaba hardcodeada antes de esta ronda — no debería activarse con el JSON real, que
+            // siempre trae "script" explícito (ver campo en ModuleInfo.kt).
+            script = obj.optString("script", "$id.sh"),
+            description = localizedField(context, id, "description", obj.optString("description", "")),
+            size = obj.optString("size", ""),
+            type = localizedField(context, id, "type", obj.optString("type", "")),
+            requiresProot = obj.optBoolean("requiresProot", false),
+            hasVariants = obj.optBoolean("hasVariants", false),
+            estimate = localizedField(context, id, "estimate", obj.optString("estimate", "")),
+            hasSwitch = obj.optBoolean("hasSwitch", true),
+            tmuxSession = obj.optString("tmuxSession", ""),
+            webviewUrl = obj.optString("webviewUrl", ""),
+            terminalCommand = obj.optString("terminalCommand", ""),
+            arch = obj.optString("arch", ""),
+            category = obj.optString("category", ""),
+            catalogVersion = obj.optString("catalogVersion", ""),
+            installMethods = obj.optJSONArray("installMethods")?.let { ja ->
+                (0 until ja.length()).map { ja.getString(it) }
+            } ?: emptyList(),
+            requires = obj.optJSONArray("requires")?.let { ja ->
+                (0 until ja.length()).map { ja.getString(it) }
+            } ?: emptyList(),
+            recommended = obj.optBoolean("recommended", false),
+            downloads = obj.optInt("downloads", 0),
+            internal = obj.optBoolean("internal", false),
+            hideFromCatalog = obj.optBoolean("hideFromCatalog", false),
+            iconAsset = obj.optString("iconAsset", "").takeIf { it.isNotEmpty() }
+        )
+    }
 }

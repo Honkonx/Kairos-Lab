@@ -24,8 +24,9 @@
 #    ✅ Registry actualizado (cactus.*)
 #
 #  NOTA ARQUITECTURA (x86 vs arm, ver TAREA 4 2026-08-14; causa raíz real
-#  confirmada 2026-08-16 leyendo pyproject.toml del repo cactus-needle real
-#  — referencia/needle-main/pyproject.toml):
+#  ORIGINAL confirmada 2026-08-16 leyendo pyproject.toml del repo cactus-needle
+#  real — referencia/needle-main/pyproject.toml — DESACTUALIZADA, ver
+#  corrección 2026-09-08 abajo):
 #    cactus-needle NO es Python puro — depende de jax + jaxlib + flax>=0.12.8
 #    + optax (además de numpy/huggingface_hub/sentencepiece). jaxlib es una
 #    librería compilada (XLA en C++) que en PyPI solo publica wheels con tag
@@ -36,11 +37,97 @@
 #    en "ResolutionImpossible" en vez de un simple "no matching distribution"
 #    (el error real que se ve en el log). Instalar python-numpy nativo antes
 #    (PASO 2) sigue siendo válido — evita que pip intente compilar numpy desde
-#    source — pero NO resuelve el bloqueo real, que es jaxlib. Por eso el
-#    camino pip es estructuralmente inviable en Termux nativo hoy: si el pip
-#    install falla, el script ahora reintenta AUTOMÁTICAMENTE con
-#    proot-distro/glibc (ver _install_cactus_glibc_fallback más abajo) — antes
-#    esto era solo una sugerencia manual en el mensaje de error.
+#    source.
+#
+#  CORRECCIÓN 2026-09-08 (causa raíz REAL confirmada empíricamente en
+#  dispositivo real — ver docs/humano/ de esta ronda): cactus-needle 2.x YA
+#  NO depende de jax/jaxlib/flax/optax en absoluto (confirmado leyendo el log
+#  real de `pip install cactus-needle` en el dispositivo — solo trae
+#  huggingface_hub/click/pyyaml/etc, ningún paquete jax*). El pip install
+#  nativo en Termux SIEMPRE tiene éxito hoy, y `import needle` SIEMPRE
+#  funciona (needle/__init__.py es puro Python) — por eso el chequeo viejo
+#  "el pip install terminó y el import funciona" daba un falso positivo real
+#  (ver `.claude/rules/empirical-verification-before-fix.md`). El bloqueo real
+#  de Bionic sigue existiendo, pero en OTRO lugar: needle NO trae su motor
+#  nativo en el wheel — lo DESCARGA de HuggingFace (repo Cactus-Compute/
+#  needle2) recién al INSTANCIAR `Needle(...)` (needle/__init__.py `_bind()` →
+#  needle/agent/fetch.py `fetch_library()`). `fetch.py::_platform_tag()` solo
+#  distingue darwin/win32/"linux" (musl vs no-musl vía /proc/self/maps) —
+#  Termux/Android reporta `sys.platform=="linux"` y su libc (Bionic) no es
+#  musl, así que SIEMPRE resuelve a "manylinux2014_aarch64": descarga un wheel
+#  cuyo `libneedle.so` está linkeado contra SONAMEs glibc reales (ej.
+#  "libm.so.6") que Bionic no tiene — `dlopen()` falla con
+#  "library libm.so.6 not found". Confirmado leyendo el listado real del repo
+#  HF `Cactus-Compute/needle2`: NO existe ningún wheel Python
+#  "python/cactus_needle-*-android*.whl" — solo hay binarios nativos
+#  (`libneedle.a`, ejecutable `needle`, header `.h`) para android-arm64/
+#  android-armv7/android-riscv64 en la raíz del repo, pensados para consumo
+#  directo C/JNI (embeber en una app nativa), NO para el wheel Python — el
+#  cliente Python de needle no los usa ni los conoce.
+#  Por eso el camino pip nativo SIGUE siendo estructuralmente inviable en
+#  Termux (Bionic) para USAR needle de verdad, aunque el `pip install` en sí
+#  y el `import needle` desnudo funcionen — la única forma real de ejecutar
+#  needle en el dispositivo sigue siendo proot-distro/glibc (confirmado
+#  2026-09-08: dentro de una distro Ubuntu real, el mismo wheel manylinux
+#  resuelve sus SONAMEs sin problema porque el sistema SÍ tiene glibc real).
+#  El chequeo `_needle_importa_ya()` ahora instancia `Needle(...)` de verdad
+#  (con timeout) en vez de solo importar el módulo — la única forma de
+#  detectar el fallo real y disparar el fallback automático correctamente.
+#
+#  COMPARACIÓN CONTRA core-termux (investigación 2026-09-08, pedido explícito
+#  del usuario — "cactus se ejecuta en glibc, bionic o proot? debe ser en
+#  glibc"): referencia/termux/core-termux-5.0.0-beta/core/tools/cactus/termux/
+#  bin/ tiene 3 wrappers — cactus.glibc (loader glibc-runner sobre un Python
+#  propio "termux-glibc", $PREFIX/usr/glibc/bin/python), cactus.proot (mismo
+#  Python termux-glibc pero vía traducción de syscalls con `proot -r /` en vez
+#  de glibc-runner) y cactus (dispatcher real, usa `proot-distro login ubuntu`
+#  — distro completa, el más pesado). Los 2 primeros son MÁS livianos que
+#  proot-distro completo porque NO instalan una distro entera — pero:
+#    1. Esos 2 wrappers están MUERTOS en la versión actual de core-termux
+#       (confirmado: su manifest.json describe el método v5 vigente como
+#       "native on-device build — no glibc and no proot involved", cactus.glibc/
+#       .proot ya no se invocan desde su install.sh real) — core-termux
+#       abandonó el camino glibc para cactus específicamente, migró a compilar
+#       el motor nativo (cmake/NDK) directo contra Bionic. Esa vía (compilar
+#       needle/cactus nativo para Android) es una tarea de ingeniería mucho
+#       más grande que "instalar un paquete glibc", fuera de alcance de esta
+#       ronda — queda como posible dirección futura, no descartada.
+#    2. Los wrappers muertos asumen un Python "termux-glibc" propio
+#       (`$PREFIX/usr/glibc/bin/python`) instalable con
+#       `pkg install glibc python-glibc python-pip-glibc` — investigado a
+#       fondo (grep completo de referencia/ + los 19 módulos reales de
+#       Kairos que ya usan glibc en producción: opencode.sh, claude.sh,
+#       kilo.sh, mimocode.sh, codebuff.sh, codegraph.sh, copilotcli.sh,
+#       cursor.sh, freebuff.sh, antigravity.sh, ohmypi.sh, openclaw.sh —
+#       todos con detect_glibc() de lib.sh, probados en dispositivo real):
+#       `glibc`/`glibc-repo`/`glibc-runner`/`patchelf-glibc` SÍ son paquetes
+#       reales de Termux (glibc-repo agrega el repo, glibc deja el loader
+#       ld-linux-aarch64.so.1 + libs bajo $PREFIX/glibc/), pero SIEMPRE se
+#       usan para correr UN binario puntual ya compilado/linkeado contra
+#       glibc (un CLI Node.js/Rust bajado de GitHub Releases, re-apuntado con
+#       patchelf) — nunca para hostear un intérprete Python completo con pip
+#       funcional. `python-glibc`/`python-pip-glibc` como paquetes pkg NO
+#       están confirmados en ningún lado (ni en glibc-repo, ni en ningún
+#       módulo de Kairos, ni documentados en core-termux fuera del wrapper ya
+#       muerto) — no hay evidencia real de que existan.
+#    3. Esta misma limitación ya se topó empíricamente ACÁ, en este script:
+#       cactus-needle necesita numpy + descarga un .so con SONAMEs glibc
+#       reales — exactamente el caso que un "Python glibc liviano" resolvería
+#       SI existiera. Cuando el pip nativo (Bionic) falla, el único camino que
+#       de verdad funciona hoy es `_install_cactus_glibc_fallback()` con
+#       `proot-distro install ubuntu` COMPLETO (líneas de abajo) — no un
+#       escalón intermedio liviano, porque ese escalón necesitaría un Python
+#       real compilado contra glibc que no se pudo confirmar como paquete
+#       instalable. Por eso Kairos mantiene el fallback pip→proot-distro/
+#       Ubuntu de 2 escalones tal cual, sin agregar un 3er escalón
+#       CACTUS_RUNTIME="glibc" especulativo sin paquetes reales que lo
+#       respalden.
+#  RESPUESTA DIRECTA: hoy Cactus corre en glibc real — pero DENTRO de
+#  proot-distro (una distro Ubuntu completa vía proot), no en Bionic nativo
+#  (el runtime "pip" existe pero está estructuralmente roto para uso real, ver
+#  arriba) ni en un glibc liviano sin proot (no confirmado como viable con
+#  paquetes reales de Termux). registry key `cactus.runtime` refleja cuál de
+#  los dos quedó activo tras la instalación (pip|proot).
 #
 #  CLI RESULTANTE (cactus):
 #    cactus run  "pedido" [--json-only]  → needle decide tool call y
@@ -66,7 +153,18 @@
 #                              la pantalla de Cactus en la app.
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.4.0 | Agosto 2026 (cactus serve — modo servidor HTTP liviano y
+#  VERSIÓN: 1.5.0 | Septiembre 2026 (fix real: `cactus run/ai/extract` fallaba
+#  SIEMPRE en dispositivo real con runtime=pip, confirmado por ADB — causa raíz
+#  real NO era jaxlib (ya no es dependencia de cactus-needle 2.x) sino que
+#  needle descarga su librería nativa desde HuggingFace recién al instanciar
+#  Needle(), y su detección de plataforma no reconoce Android/Bionic — ver
+#  nota de arquitectura corregida más abajo. `_needle_importa_ya()` ahora
+#  instancia Needle(...) de verdad (antes solo hacía "import needle", que
+#  siempre pasaba y nunca disparaba el fallback proot-distro/glibc real —
+#  falso positivo clásico de `.claude/rules/empirical-verification-before-fix.md`).
+#  Fallback proot/glibc confirmado funcional end-to-end en dispositivo real
+#  (Ubuntu proot-distro real resuelve los SONAMEs glibc que Bionic no tiene).)
+#  VERSIÓN ANTERIOR: 1.4.0 | Agosto 2026 (cactus serve — modo servidor HTTP liviano y
 #  opt-in para orquestación con n8n/clientes HTTP externos: POST /run con
 #  {mode, query|schema+text} ejecuta needle vía _needle_run_core()/_extract_core()
 #  reusados tal cual del CLI, sin duplicar lógica; gateado por token persistido en
@@ -175,13 +273,29 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 mark_done()  { grep -q "^cactus_${1}=done" "$CHECKPOINT" 2>/dev/null || echo "cactus_${1}=done" >> "$CHECKPOINT"; }
 check_done() { grep -q "^cactus_${1}=done" "$CHECKPOINT" 2>/dev/null; }
 
-# Chequea si needle importa en el runtime activo (pip nativo o proot/glibc
+# Prueba REAL de needle en el runtime activo (pip nativo o proot/glibc
 # fallback) — CACTUS_RUNTIME se lee del registry al inicio del script.
+# NO alcanza con "import needle" (siempre tiene éxito, needle/__init__.py es
+# puro Python) — hay que INSTANCIAR Needle(...), que es lo único que dispara
+# la descarga+dlopen() real de la librería nativa (ver nota de arquitectura
+# arriba, corrección 2026-09-08). `timeout 30` por las dudas de que la
+# descarga desde HuggingFace quede colgada (sin red, mirror caído, etc.) —
+# mismo criterio que cualquier chequeo real con red del proyecto.
+_NEEDLE_PROBE_PY='
+import sys
+try:
+    import needle as nd
+    nd.Needle(tools=[{"name": "noop", "description": "noop", "parameters": {"type": "object", "properties": {}}}])
+except Exception as e:
+    sys.stderr.write(str(e))
+    sys.exit(1)
+'
+
 _needle_importa_ya() {
   if [ "$CACTUS_RUNTIME" = "proot" ]; then
-    proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- python3 -c "import needle" 2>/dev/null
+    proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- timeout 30 python3 -c "$_NEEDLE_PROBE_PY" 2>/dev/null
   else
-    python3 -c "import needle" 2>/dev/null
+    timeout 30 python3 -c "$_NEEDLE_PROBE_PY" 2>/dev/null
   fi
 }
 
@@ -201,32 +315,52 @@ _install_cactus_glibc_fallback() {
   command -v proot-distro &>/dev/null || {
     info "Instalando proot-distro..."
     pkg_update_with_fallback
-    pkg install -y proot-distro 2>/dev/null || { warn "No se pudo instalar proot-distro"; return 1; }
+    pkg install -y proot-distro || { warn "No se pudo instalar proot-distro"; return 1; }
   }
 
-  if ! proot-distro list-installed 2>/dev/null | awk '{print $1}' | grep -qx "$GLIBC_DISTRO"; then
-    info "Instalando distro glibc '$GLIBC_DISTRO' (puede tardar varios minutos)..."
-    proot-distro install "$GLIBC_DISTRO" 2>/dev/null || { warn "No se pudo instalar la distro $GLIBC_DISTRO"; return 1; }
-  else
+  # 2 BUGS REALES confirmados por ADB en dispositivo (2026-09-08), ambos en proot-distro v5.8.0
+  # (la que trae Termux hoy):
+  #  1. "proot-distro list-installed" YA NO EXISTE — "Error: unknown command 'list-installed'"
+  #     a stderr, silenciado por "2>/dev/null" — el chequeo viejo SIEMPRE daba falso. Mismo bug
+  #     ya encontrado y corregido antes en ciberseguridad.sh (ver comentario ahí,
+  #     docs/humano226.md) — su fix ahí (y el de entorno.sh/_proot_distros(), stacks.sh/
+  #     _distro_is_installed()) usa "proot-distro list" a secas como fallback, pero eso choca
+  #     con el bug #2 de abajo, no verificado hasta ahora en ninguno de los 3.
+  #  2. "proot-distro list" (SIN "-q") solo imprime su tabla con formato cuando stdout es una
+  #     terminal real — con stdout redirigido a archivo/pipe (el caso SIEMPRE real de
+  #     ProcessBuilder/cactus.sh, sin tty) imprime *nada*, exit 0 igual. Confirmado
+  #     empíricamente: "proot-distro list 2>/dev/null > archivo" da 0 bytes; "proot-distro list
+  #     -q 2>/dev/null > archivo" da la lista real, un nombre por línea, sin colores/ANSI. El
+  #     layout real del rootfs en esta versión tampoco es "installed-rootfs/<name>" (ver
+  #     entorno.sh/_proot_distros()) sino "containers/<name>/" — se chequean AMBAS rutas por las
+  #     dudas de versiones viejas de proot-distro, más "list -q" como fallback fiable en
+  #     cualquier versión/layout.
+  if [ -d "$TERMUX_PREFIX/var/lib/proot-distro/containers/$GLIBC_DISTRO" ] || \
+     [ -d "$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$GLIBC_DISTRO" ] || \
+     proot-distro list -q 2>/dev/null | grep -qx "$GLIBC_DISTRO"; then
     log "Distro '$GLIBC_DISTRO' ya instalada"
+  else
+    info "Instalando distro glibc '$GLIBC_DISTRO' (puede tardar varios minutos)..."
+    proot-distro install "$GLIBC_DISTRO" || { warn "No se pudo instalar la distro $GLIBC_DISTRO"; return 1; }
   fi
 
-  info "Instalando python3-pip + cactus-needle dentro de $GLIBC_DISTRO (glibc real — jaxlib sí tiene wheel acá)..."
+  info "Instalando python3-pip + cactus-needle dentro de $GLIBC_DISTRO (glibc real)..."
   proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- bash -c '
     export DEBIAN_FRONTEND=noninteractive
-    apt-get update -y >/dev/null 2>&1 || true
-    apt-get install -y python3 python3-pip >/dev/null 2>&1 || true
-    python3 -m pip install --break-system-packages cactus-needle >/dev/null 2>&1 || \
-      python3 -m pip install cactus-needle >/dev/null 2>&1
+    apt-get update -y || true
+    apt-get install -y python3 python3-pip || true
+    python3 -m pip install --break-system-packages cactus-needle || \
+      python3 -m pip install cactus-needle
   '
 
-  if proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- python3 -c "import needle" 2>/dev/null; then
-    log "cactus-needle importa correctamente dentro de $GLIBC_DISTRO (glibc)"
-    CACTUS_RUNTIME="proot"
+  CACTUS_RUNTIME="proot"
+  if _needle_importa_ya; then
+    log "cactus-needle carga su librería nativa correctamente dentro de $GLIBC_DISTRO (glibc real)"
     return 0
   fi
 
-  warn "cactus-needle tampoco importa dentro de $GLIBC_DISTRO — fallback fallido"
+  CACTUS_RUNTIME="pip"
+  warn "cactus-needle tampoco carga su librería nativa dentro de $GLIBC_DISTRO — fallback fallido"
   return 1
 }
 
@@ -266,7 +400,7 @@ else
   else
     info "Instalando python..."
     pkg_update_with_fallback
-    pkg install python -y 2>/dev/null || error "No se pudo instalar Python"
+    pkg install python -y || error "No se pudo instalar Python"
     PYTHON_PATH=$(command -v python3 2>/dev/null)
     command -v python3 &>/dev/null || error "Python no disponible tras instalación"
     log "Python instalado: $(python3 --version)"
@@ -290,7 +424,7 @@ if check_done "numpy_pkg" && python3 -c "import numpy" 2>/dev/null; then
 else
   info "Ejecutando: pkg install -y python-numpy"
   pkg_update_with_fallback
-  pkg install -y python-numpy 2>/dev/null
+  pkg install -y python-numpy
   if python3 -c "import numpy" 2>/dev/null; then
     log "numpy $(python3 -c 'import numpy; print(numpy.__version__)' 2>/dev/null) instalado (nativo)"
     mark_done "numpy_pkg"
@@ -309,14 +443,18 @@ else
   # En Termux el python del sistema exige --break-system-packages (PEP 668) —
   # mismo flag que ya usa python.sh para todos sus paquetes pip.
   info "Ejecutando: python3 -m pip install --break-system-packages cactus-needle"
-  python3 -m pip install --break-system-packages cactus-needle 2>&1 | tail -5
-  if python3 -c "import needle" 2>/dev/null; then
-    CACTUS_RUNTIME="pip"
-    log "cactus-needle $(python3 -c 'import needle; print(getattr(needle, "__version__", "2.x"))' 2>/dev/null) instalado (pip nativo)"
+  python3 -m pip install --break-system-packages cactus-needle
+  # "import needle" desnudo SIEMPRE tiene éxito acá (puro Python) — no prueba nada real, ver
+  # nota de arquitectura arriba (corrección 2026-09-08). _needle_importa_ya() con
+  # CACTUS_RUNTIME=pip instancia Needle(...) de verdad, que es lo único que dispara la
+  # descarga+dlopen() de la librería nativa y puede fallar por el mismatch Bionic/glibc.
+  CACTUS_RUNTIME="pip"
+  if _needle_importa_ya; then
+    log "cactus-needle $(python3 -c 'import needle; print(getattr(needle, "__version__", "2.x"))' 2>/dev/null) instalado y funcional (pip nativo)"
   else
-    warn "cactus-needle no importa vía pip nativo — causa conocida: jaxlib no publica wheels compatibles con Bionic libc (Termux), solo manylinux/glibc (ver nota de arquitectura arriba)"
-    _install_cactus_glibc_fallback || error "cactus-needle no importa ni por pip nativo ni por el fallback proot-distro/glibc automático — revisá manualmente con 'proot-distro login $GLIBC_DISTRO' y 'python3 -m pip install cactus-needle' dentro del contenedor"
-    log "cactus-needle instalado dentro de la distro glibc '$GLIBC_DISTRO' (runtime=proot)"
+    warn "cactus-needle instala e importa vía pip nativo, pero su librería nativa no carga — causa real: needle descarga desde HuggingFace un wheel manylinux (glibc) porque su detección de plataforma no reconoce Android/Bionic (ver nota de arquitectura arriba)"
+    _install_cactus_glibc_fallback || error "cactus-needle no funciona ni por pip nativo ni por el fallback proot-distro/glibc automático — revisá manualmente con 'proot-distro login $GLIBC_DISTRO' y 'python3 -m pip install cactus-needle' dentro del contenedor"
+    log "cactus-needle instalado y funcional dentro de la distro glibc '$GLIBC_DISTRO' (runtime=proot)"
   fi
   mark_done "needle_pkg"
 fi
@@ -951,6 +1089,12 @@ def cmd_serve(port):
     # 127.0.0.1 nomas — igual criterio que ollama/llama-server: alcanzable desde otros
     # procesos del mismo namespace de red (n8n en udocker/PRoot comparte el del host, ver
     # doc de la propuesta) sin exponerlo a la LAN.
+    # allow_reuse_address=True (bug real confirmado en dispositivo, 2026-09-08): sin esto,
+    # detener el servidor (switch OFF) y volver a prenderlo enseguida (switch ON) fallaba con
+    # "OSError: [Errno 98] Address already in use" — el socket queda en TIME_WAIT por el kernel
+    # (~60s) tras cerrarse y ThreadingTCPServer no reusa la dirección por default. Mismo fix
+    # estándar de cualquier servidor HTTP de corta vida que se reinicia seguido.
+    socketserver.ThreadingTCPServer.allow_reuse_address = True
     httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), Handler)
     httpd.daemon_threads = True
     print("cactus serve — escuchando en http://127.0.0.1:%d/run (token en %s)" % (port, SERVE_TOKEN_PATH))

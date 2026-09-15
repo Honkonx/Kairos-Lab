@@ -88,16 +88,39 @@ class LlamaServerFragment : BaseModuleFragment() {
                 runSwitch.isChecked = false
                 return
             }
-            toast(getString(R.string.llamaserver_toast_iniciando))
-            startModuleService { ok, _ ->
-                toast(if (ok) getString(R.string.llamaserver_toast_iniciado_ok) else getString(R.string.llamaserver_toast_iniciado_fail))
-                refreshStatus()
+            // Chequeo de RAM libre real antes de cargar el GGUF (auditoría referencia/ia/*,
+            // 2026-08-31, MemoryMonitor.kt) — no bloquea el arranque, solo avisa. Distinto del
+            // chequeo de RAM TOTAL ya existente en ModelsFragment/LocalAIFragment (tamaño del
+            // modelo vs. RAM total del dispositivo): este mira cuánta RAM está LIBRE en este
+            // instante (otros módulos/apps corriendo pueden dejar poca RAM real disponible
+            // aunque el dispositivo tenga RAM total de sobra).
+            val ctx = requireContext()
+            if (com.termux.app.util.MemoryMonitor.isMemoryCritical(ctx)) {
+                val freeGb = String.format("%.1f", com.termux.app.util.MemoryMonitor.availableGb(ctx))
+                androidx.appcompat.app.AlertDialog.Builder(ctx)
+                    .setTitle(getString(R.string.llamaserver_ram_warning_title))
+                    .setMessage(getString(R.string.llamaserver_ram_warning_message, freeGb))
+                    .setPositiveButton(getString(R.string.llamaserver_ram_warning_continue)) { _, _ -> startLlamaServer() }
+                    .setNegativeButton(getString(R.string.llamaserver_ram_warning_cancel)) { _, _ -> runSwitch.isChecked = false }
+                    .show()
+                return
+            } else if (com.termux.app.util.MemoryMonitor.isMemoryWarning(ctx)) {
+                toast(getString(R.string.llamaserver_ram_warning_toast))
             }
+            startLlamaServer()
         } else {
             stopModuleService { ok ->
                 toast(if (ok) getString(R.string.llamaserver_toast_detenido_ok) else getString(R.string.llamaserver_toast_detenido_fail))
                 refreshStatus()
             }
+        }
+    }
+
+    private fun startLlamaServer() {
+        toast(getString(R.string.llamaserver_toast_iniciando))
+        startModuleService { ok, _ ->
+            toast(if (ok) getString(R.string.llamaserver_toast_iniciado_ok) else getString(R.string.llamaserver_toast_iniciado_fail))
+            refreshStatus()
         }
     }
 

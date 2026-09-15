@@ -142,7 +142,7 @@ else
   else
     info "Instalando nodejs-lts..."
     pkg_update_with_fallback
-    pkg install nodejs-lts -y 2>/dev/null || error "No se pudo instalar Node.js"
+    pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
     command -v node &>/dev/null || error "Node.js no disponible tras instalación"
     log "Node.js instalado: $(node --version)"
     mark_done "node"
@@ -155,7 +155,7 @@ if check_done "npm_install"; then
   log "GitHub Copilot CLI ya instalado [checkpoint]"
 else
   info "Ejecutando: npm install -g ${COPILOT_PKG}"
-  npm install -g "$COPILOT_PKG" 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "npm install falló"
+  npm install -g "$COPILOT_PKG" || error "npm install falló"
   # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
   # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "copilot" "${COPILOT_PKG%@latest}"
@@ -192,7 +192,7 @@ else
     _COPILOT_NM="$(npm root -g 2>/dev/null)/@github"
     _COPILOT_VER=$(node -e "console.log(require('$_COPILOT_NM/copilot/package.json').version)" 2>/dev/null)
     if [ -n "$_COPILOT_VER" ]; then
-      npm install -g "@github/copilot-linux-arm64@${_COPILOT_VER}" --force 2>&1 | tail -5
+      npm install -g "@github/copilot-linux-arm64@${_COPILOT_VER}" --force
     fi
     if [ -d "$_COPILOT_NM/copilot-linux-arm64" ]; then
       rm -rf "$_COPILOT_NM/copilot-android-arm64"
@@ -210,14 +210,14 @@ else
       if [ ! -f "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || [ ! -x "$TERMUX_PREFIX/glibc/bin/patchelf" ]; then
         info "Instalando glibc + patchelf (necesarios para el binario nativo de plataforma)..."
         pkg_update_with_fallback
-        pkg install -y glibc-repo 2>/dev/null || true
+        pkg install -y glibc-repo || true
         pkg install -y glibc patchelf-glibc \
-          -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+          -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || \
           warn "No se pudo instalar glibc/patchelf — el binario nativo de plataforma puede no ejecutar"
       fi
       if [ -f "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] && [ -x "$TERMUX_PREFIX/glibc/bin/patchelf" ]; then
         "$TERMUX_PREFIX/glibc/bin/patchelf" --set-interpreter "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" \
-          "$_COPILOT_NM/copilot-android-arm64/copilot" 2>/dev/null
+          "$_COPILOT_NM/copilot-android-arm64/copilot"
         chmod +x "$_COPILOT_NM/copilot-android-arm64/copilot" 2>/dev/null
       fi
     fi

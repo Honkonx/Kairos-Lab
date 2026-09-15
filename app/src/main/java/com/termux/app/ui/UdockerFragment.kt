@@ -16,6 +16,8 @@ import com.termux.R
 import com.termux.app.util.EntornoNative
 import com.termux.app.util.ManagerNativeUtils
 import com.termux.app.util.ProgressDialogController
+import com.termux.app.util.TERMUX_BASH_PATH
+import com.termux.app.util.TERMUX_PREFIX_PATH
 import com.termux.app.util.TERMUX_UDOCKER_PATH
 import org.json.JSONObject
 import java.io.File
@@ -230,7 +232,7 @@ class UdockerFragment : BaseModuleFragment() {
         val progress = ProgressDialogController(requireContext())
         progress.show(getString(R.string.udocker_export_progress_title, name), getString(R.string.udocker_generating_tar))
         Thread {
-            val tmp = File(requireContext().cacheDir, "udocker_export_$name.tar")
+            val tmp = File((context ?: return@Thread).cacheDir, "udocker_export_$name.tar")
             val (rc, out, err) = ManagerNativeUtils.runExec(listOf(TERMUX_UDOCKER_PATH, "export", "-o", tmp.absolutePath, name), 300)
             if (rc != 0 || !tmp.exists()) {
                 tmp.delete()
@@ -355,10 +357,27 @@ class UdockerFragment : BaseModuleFragment() {
             .show()
     }
 
-    /** Arma "udocker run" con los -v/-e opcionales de promptRunOptions() insertados antes del nombre del contenedor — mismo patrón de fallback bash→sh que EntornoNative.udockerExecCommand(), pero con flags dinámicos (por eso no se reusa esa función acá, ver comentario de promptRunOptions()). Cada valor de -v/-e se entrecomilla para sobrevivir espacios/caracteres especiales al pasar por el shell de la sesión de terminal (launchTerminalCommand() tipea el comando entero como una línea de shell). */
+    /** Arma "udocker run" con los -v/-e opcionales de promptRunOptions() insertados antes del nombre del contenedor — mismo patrón de fallback bash→sh que EntornoNative.udockerExecCommand(), pero con flags dinámicos (por eso no se reusa esa función acá, ver comentario de promptRunOptions()). Cada valor de -v/-e se entrecomilla para sobrevivir espacios/caracteres especiales al pasar por el shell de la sesión de terminal (launchTerminalCommand() tipea el comando entero como una línea de shell).
+     *
+     * Bug real encontrado 2026-09-08 (auditoría pedida por el usuario, sin acceso a dispositivo
+     * físico esta ronda — hallazgo por lectura de código + consistencia contra el resto del
+     * proyecto, no confirmado con un fallo reproducido en pantalla): esta función NUNCA seteaba
+     * UDOCKER_USE_PROOT_EXECUTABLE antes de "udocker run", a diferencia de TODOS los demás
+     * puntos del proyecto que ejecutan udocker de verdad — modulos/udocker.sh PASO 1 (línea
+     * ~233), sus propios wrappers ~/scripts/udocker/pull.sh y run.sh (exportan
+     * "$PREFIX/bin/proot" explícito), la variante udocker de modulos/n8n.sh, y
+     * modulos/stacks.sh. docs/modulos/UDOCKER.md §8/§9 documenta esto mismo como "recomendado
+     * para Android" y como el fix real de "Contenedor no arranca (P1 fails)" — sin la var,
+     * udocker cae al proot bundleado por udockertools (mirror tarball de PASO 1) en vez del
+     * paquete "proot" real de Termux, que el resto del proyecto trata como más confiable en
+     * este entorno. Mismo fix acá: exportarla antes de "udocker run", igual que ya hacen los
+     * wrappers pull.sh/run.sh de ~/scripts/udocker/ para el mismo comando.
+     */
     private fun buildUdockerRunCommand(containerName: String, extraFlags: List<String>, shell: String = "bash"): String {
         val flagsStr = if (extraFlags.isEmpty()) "" else extraFlags.joinToString(" ") { quoteShellArg(it) } + " "
-        return "udocker run --interactive --tty $flagsStr$containerName $shell || udocker run --interactive --tty $flagsStr$containerName sh"
+        val exportProot = "export UDOCKER_USE_PROOT_EXECUTABLE=\"$TERMUX_PREFIX_PATH/bin/proot\"; "
+        return "$exportProot" +
+            "udocker run --interactive --tty $flagsStr$containerName $shell || udocker run --interactive --tty $flagsStr$containerName sh"
     }
 
     private fun quoteShellArg(arg: String): String =
@@ -526,7 +545,13 @@ class UdockerFragment : BaseModuleFragment() {
                 requireActivity().runOnUiThread { progress.failure(getString(R.string.udocker_create_container_failed), (createOut.ifEmpty { createErr }).takeLast(400)) }
                 return@Thread
             }
-            ManagerNativeUtils.runExec(listOf(TERMUX_UDOCKER_PATH, "setup", "--execmode=P2", name), 20)
+            // export UDOCKER_USE_PROOT_EXECUTABLE — ver comentario largo en buildUdockerRunCommand()
+            // más abajo (mismo bug/mismo fix, aplicado acá también por consistencia: éste es el
+            // otro punto de la pantalla donde se invoca "udocker setup --execmode=P2" de verdad).
+            ManagerNativeUtils.runExec(
+                listOf(TERMUX_BASH_PATH, "-c", "export UDOCKER_USE_PROOT_EXECUTABLE=\"$TERMUX_PREFIX_PATH/bin/proot\"; \"$TERMUX_UDOCKER_PATH\" setup --execmode=P2 \"$name\""),
+                20
+            )
 
             if (progress.isBackgrounded) {
                 com.termux.app.util.ModuleEventBridge.notifyDirect(
@@ -612,7 +637,7 @@ class UdockerFragment : BaseModuleFragment() {
         progress.show(getString(R.string.udocker_saving_title, image), getString(R.string.udocker_generating_tar))
         Thread {
             val safeName = image.replace('/', '_').replace(':', '_')
-            val tmp = File(requireContext().cacheDir, "udocker_save_$safeName.tar")
+            val tmp = File((context ?: return@Thread).cacheDir, "udocker_save_$safeName.tar")
             val (rc, out, err) = ManagerNativeUtils.runExec(listOf(TERMUX_UDOCKER_PATH, "save", "-o", tmp.absolutePath, image), 300)
             if (rc != 0 || !tmp.exists()) {
                 tmp.delete()
@@ -653,10 +678,11 @@ class UdockerFragment : BaseModuleFragment() {
         val progress = ProgressDialogController(requireContext())
         progress.show(getString(R.string.udocker_importing_title, imageName), getString(R.string.udocker_copying_file))
         Thread {
+            val ctx = context ?: return@Thread
             val safeName = imageName.replace('/', '_').replace(':', '_')
-            val tmp = File(requireContext().cacheDir, "udocker_import_$safeName.tar")
+            val tmp = File(ctx.cacheDir, "udocker_import_$safeName.tar")
             val copyError = try {
-                requireContext().contentResolver.openInputStream(sourceUri)?.use { input ->
+                ctx.contentResolver.openInputStream(sourceUri)?.use { input ->
                     tmp.outputStream().use { output -> input.copyTo(output) }
                 } ?: throw java.io.IOException(getString(R.string.udocker_error_open_chosen_file))
                 null

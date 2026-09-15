@@ -79,6 +79,28 @@
     <string name="file_manager_error_delete_failed">Could not delete</string>
     <string name="file_manager_label_folder">folder</string>
     <string name="file_manager_btn_cancel">Cancel</string>
+    <!-- Multi-select + batch operations (low-effort #1,
+         docs/arquitectura/INVESTIGACION_GESTOR_ARCHIVOS_2026-09-01.md) -->
+    <string name="file_manager_action_select">Select</string>
+    <string name="file_manager_selection_count">%1$d selected</string>
+    <string name="file_manager_action_compress">Compress</string>
+    <string name="file_manager_toast_compress_done">Compressed: %1$s</string>
+    <string name="file_manager_error_compress_failed">Could not compress</string>
+    <string name="file_manager_clipboard_multi">%1$d files</string>
+    <string name="file_manager_toast_batch_result">%1$d done, %2$d failed</string>
+    <string name="file_manager_dialog_msg_delete_batch">Delete %1$d items? This cannot be undone.</string>
+    <!-- Persistent clipboard bar + real confirmation on paste (UX fix 2026-09-14,
+         docs/humano334.md — before there was only a fleeting ~2.75s Snackbar as the only signal). -->
+    <string name="file_manager_clipboard_bar_cancel">Cancel</string>
+    <string name="file_manager_dialog_msg_paste">Paste %1$s into this folder?</string>
+    <!-- Bookmarks + browser-style navigation history (low-effort #2) -->
+    <string name="file_manager_bookmark_added">Bookmark added: %1$s</string>
+    <string name="file_manager_bookmark_removed">Bookmark removed: %1$s</string>
+    <string name="file_manager_bookmarks_title">Bookmarks</string>
+    <string name="file_manager_bookmarks_empty">No bookmarks yet — tap ☆ on a folder to add it</string>
+    <string name="file_manager_bookmark_gone">That folder no longer exists: %1$s</string>
+    <!-- Show hidden files + "Open with" (low-effort #3) -->
+    <string name="file_manager_action_open_with">Open with</string>
 
     <!-- ConsolidatedModuleFragment.kt -->
     <string name="consolidated_status_checking">Checking…</string>
@@ -141,16 +163,27 @@
     <string name="install_sheet_variant_n8n_udocker_desc">Official n8nio/n8n image, no proot, ~800MB</string>
     <string name="install_sheet_variant_n8n_proot_title">⚡ proot</string>
     <string name="install_sheet_variant_n8n_proot_desc">Node.js 22 LTS + n8n + cloudflared on Debian, ~300MB</string>
-    <string name="install_sheet_variant_codex_native_title">⚡ Native</string>
-    <string name="install_sheet_variant_codex_native_desc">Prebuilt ARM64 binary, no Node.js — lighter and faster</string>
-    <string name="install_sheet_variant_codex_termux_title">📦 Termux</string>
-    <string name="install_sheet_variant_codex_termux_desc">@mmmbuto/codex-cli-termux via npm, requires Node.js</string>
+    <!-- 2026-09-09 redesign (docs/humano328.md): replaces the old "native"/"termux" (prebuilt
+         binary from WangChengYeh/codex_android, abandoned repo, retired). -->
+    <string name="install_sheet_variant_codex_normal_title">📦 Normal</string>
+    <string name="install_sheet_variant_codex_normal_desc">@mmmbuto/codex-cli-termux via npm (DioNanos/codex-termux), with an automatic fallback if it fails</string>
+    <string name="install_sheet_variant_codex_vl_title">✨ VL</string>
+    <string name="install_sheet_variant_codex_vl_desc">@mmmbuto/codex-vl via npm (DioNanos/codex-vl), with code-mode — no automatic fallback</string>
     <string name="install_sheet_variant_ciber_basico_title">🛡 Basic</string>
     <string name="install_sheet_variant_ciber_basico_desc">nmap, netcat, dirb, nikto, theHarvester, sqlmap — native, ~30MB</string>
     <string name="install_sheet_variant_ciber_pro_headless_title">☠ Pro (no interface)</string>
     <string name="install_sheet_variant_ciber_pro_headless_desc">Basic + Kali Linux container (proot-distro), terminal</string>
     <string name="install_sheet_variant_ciber_pro_gui_title">☠ Pro (with interface)</string>
     <string name="install_sheet_variant_ciber_pro_gui_desc">Basic + Kali with XFCE desktop — requires the Environment module</string>
+    <!-- 2026-09-09 redesign (see docs/referencias/modulos/AUDITORIA_OPENCODE_TERMUX_2026-09-09.md
+         and opencode.sh): glibc = the classic path (Honkonx/opencode-termux, pure-android
+         branch). bionic = native Android ELF (Honkonx/opencode-termux, native-android branch);
+         if that branch has no release yet, opencode.sh falls back on its own to the
+         wallentx/opencode-termux universal fallback. -->
+    <string name="install_sheet_variant_opencode_glibc_title">⚡ Termux glibc</string>
+    <string name="install_sheet_variant_opencode_glibc_desc">Classic path — .pkg.tar.xz package over Termux\'s glibc-repo</string>
+    <string name="install_sheet_variant_opencode_bionic_title">📦 Native Bionic</string>
+    <string name="install_sheet_variant_opencode_bionic_desc">Native Android ELF, no glibc — if it fails or no build is available, automatically falls back to a universal Bionic binary</string>
 
     <!-- PluginListAdapter.kt -->
     <string name="plugin_adapter_btn_install">Install</string>
@@ -166,4 +199,14 @@
     <string name="plugin_adapter_status_error">⚠ Error — reinstall</string>
     <string name="plugin_adapter_version_format">v%1$s</string>
     <string name="plugin_adapter_catalog_version_format">catalog %1$s</string>
+
+    <!-- ModuleWebViewFragment.kt -->
+    <string name="webview_menu_reload">Reload</string>
+    <string name="webview_menu_copy_url">Copy URL</string>
+    <string name="webview_menu_open_external">Open in external browser</string>
+    <string name="webview_toast_url_copied">URL copied</string>
+    <string name="webview_toast_no_external_browser">No external browser installed</string>
+    <string name="webview_error_title">Couldn\'t connect</string>
+    <string name="webview_error_desc">The module didn\'t respond. It may still be starting up or may have stopped — check its status and try again.</string>
+    <string name="webview_error_retry">Retry</string>
 </resources>

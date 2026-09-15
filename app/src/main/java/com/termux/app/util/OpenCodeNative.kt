@@ -58,12 +58,19 @@ object OpenCodeNative {
         }
         val webOn = ManagerNativeUtils.tmuxHas("opencode")
         val webUrl = if (webOn) extractUrlFromLog() ?: "" else ""
+        // "variant" agregado 2026-09-09 (rediseño 2 vías glibc/bionic + fallback wallentx,
+        // ver opencode.sh) — registry_install ya escribe "opencode.variant" (glibc/bionic/
+        // bionic-wallentx, ver update_registry() en el script) desde que existe la vía
+        // bionic; default "glibc" para instalaciones viejas hechas antes de este cambio,
+        // que nunca escribieron esa clave.
+        val variant = reg["opencode.variant"].takeUnless { it.isNullOrBlank() } ?: "glibc"
         return JSONObject().apply {
             put("ok", true)
             put("version", version)
             put("installed", version.isNotBlank() || reg["opencode.installed"] == "true")
             put("web_running", webOn)
             put("web_url", webUrl)
+            put("variant", variant)
         }
     }
 

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Estilo B ("Pila de paneles") de la terminal adaptada — mismas acciones rápidas que el
+     Estilo A (left_drawer_adapted_content en activity_termux.xml), pero presentadas como una
+     hoja deslizable desde abajo en vez de un panel lateral. Poblado en runtime por
+     TermuxActivity#populateAdaptedDrawerContent(root, closeSurface) — mismos ids
+     (adapted_drawer_title/usage/search/actions) que el drawer, así el mismo código de
+     construcción de filas sirve para ambas superficies sin duplicar lógica (ver
+     TermuxActivity#showAdaptedActionsBottomSheet()). Envuelto en NestedScrollView porque la
+     lista de acciones puede superar la altura visible en pantallas chicas (hasta 6 filas de
+     historial se agregan dinámicamente al buscar, ver addMatchingHistoryRows()). -->
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_terminal_adapted_bottom_sheet">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="16dp">
+
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="10dp"
+            android:alpha="0.35"
+            android:background="@drawable/bg_bottom_sheet_handle" />
+
+        <TextView
+            android:id="@+id/adapted_drawer_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:letterSpacing="0.08"
+            android:paddingStart="20dp"
+            android:paddingTop="14dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="6dp"
+            android:textColor="?attr/kairosText3"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            tools:text="OPENCODE" />
+
+        <TextView
+            android:id="@+id/adapted_drawer_usage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="6dp"
+            android:textColor="?attr/kairosText3"
+            android:textSize="11sp"
+            android:visibility="gone"
+            tools:text="Claude: 42% uso 5h · 8% uso 7d · 3.2k tok sesión"
+            tools:visibility="visible" />
+
+        <EditText
+            android:id="@+id/adapted_drawer_search"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:hint="Buscar acción…"
+            android:imeOptions="actionDone"
+            android:inputType="text"
+            android:paddingStart="20dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="10dp"
+            android:singleLine="true"
+            android:textColor="?attr/kairosText"
+            android:textColorHint="?attr/kairosText3"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:id="@+id/adapted_drawer_actions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

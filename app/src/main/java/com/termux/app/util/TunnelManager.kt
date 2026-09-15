@@ -167,6 +167,16 @@ object TunnelManager {
     // arm64-v8a/libcloudflared.so — ese binario usa getaddrinfo() real de Bionic (resolver
     // nativo de Android) en vez del resolver puro de Go, evitando el bug de raíz. Se prefiere
     // sobre el cloudflared de Termux (pkg/descarga) cuando existe.
+    // PENDIENTE de confirmar en un build real de CI (2026-09-01, ver docs/ssh/
+    // TUNEL_CLOUDFLARED_NATIVO.md): confirmado por ADB que un build LOCAL de este repo NO trae
+    // libcloudflared.so embebido — ese binario solo se genera cuando .github/workflows/
+    // build-app.yml (líneas ~79-96) cross-compila cloudflared desde fuente (GOOS=android
+    // GOARCH=arm64 CGO_ENABLED=1 + clang del NDK) ANTES del build de Gradle; un build local
+    // sin correr ese paso deja nativeCloudflaredPath() devolviendo siempre null, y start()
+    // cae al cloudflared normal de Termux (pkg install/descarga, con el bug de DNS que este
+    // mismo archivo ya documenta más abajo). No es un bug de este archivo — es una brecha real
+    // entre "compila en CI" y "se probó en dispositivo real" que sigue sin cerrar (no se
+    // arregla acá, fuera de alcance de esta ronda — ver la tarea que dejó esta nota).
     private fun nativeCloudflaredPath(nativeLibDir: String?): String? {
         if (nativeLibDir.isNullOrEmpty()) return null
         val f = File(nativeLibDir, "libcloudflared.so")
@@ -312,6 +322,10 @@ object TunnelManager {
     }
 
     fun stop(port: Int, moduleId: String = ""): ActionResult {
+        // Frenar el watchdog ANTES del kill-session real — si no, la próxima vez que el
+        // watchdog sondee vería "el proceso no está vivo" y trataría de reconectar un túnel
+        // que el usuario apagó a propósito (ver startWatchdog()/hallazgo 4).
+        stopWatchdog(port)
         val session = tunnelSession(port)
         if (!ManagerNativeUtils.tmuxHas(session)) {
             // El túnel visible en la card puede ser el propio de n8n, no uno que este
@@ -679,5 +693,90 @@ object TunnelManager {
         } else {
             VerifyResult(moduleId, provider, false, problems.joinToString("; "))
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  RECONEXIÓN AUTOMÁTICA — túnel caído durante el uso (hallazgo 4,
+    //  docs/estructura/INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md)
+    // ═══════════════════════════════════════════════════════════
+    // Antes: start() lanzaba cloudflared/ngrok dentro de una sesión tmux y ahí quedaba — si el
+    // proceso moría solo (crash, red caída, el proveedor cierra el túnel del lado remoto), la
+    // sesión tmux podía seguir "viva" pero vacía (mismo caso ya detectado por verifyOne(), ver
+    // su comentario "La sesión tmux del túnel existe pero no hay proceso... corriendo de
+    // verdad") sin que nadie lo notara hasta que el usuario volvía a la pantalla de Túnel y
+    // veía la URL caída. Este watchdog corre en un thread daemon por puerto, sondea cada
+    // WATCHDOG_POLL_INTERVAL_MS si sigue vivo (misma verificación de verifyOne(): sesión tmux +
+    // pgrep del proceso real) y, si no, reintenta start() con backoff creciente hasta agotar
+    // RECONNECT_BACKOFF_MS intentos antes de rendirse y avisar al caller.
+    private const val WATCHDOG_POLL_INTERVAL_MS = 10_000L
+    private val RECONNECT_BACKOFF_MS = longArrayOf(5_000, 15_000, 30_000)
+
+    // ConcurrentHashMap<Int, Boolean> usado como un set de "puertos con watchdog activo" +
+    // señal de parada (value=true → el loop debe cortar en la próxima vuelta) — evita
+    // levantar dos threads sondeando el mismo puerto si el Fragment llama a startWatchdog()
+    // más de una vez (ej. reabrir la pantalla de Túnel sin haber salido del todo de la app).
+    private val watchdogStopSignal = java.util.concurrent.ConcurrentHashMap<Int, Boolean>()
+
+    /**
+     * Arranca (o no-op si ya hay uno corriendo) el watchdog de reconexión automática del túnel
+     * de [port]. [onGaveUp] corre en el thread de fondo del watchdog, no en el hilo de UI — el
+     * caller (Fragment) es responsable de saltar a runOnUiThread antes de tocar vistas/mostrar
+     * un Toast/notificación de "túnel caído, no se pudo reconectar".
+     */
+    fun startWatchdog(
+        port: Int,
+        provider: String,
+        moduleId: String = "",
+        nativeLibDir: String? = null,
+        onGaveUp: (String) -> Unit = {}
+    ) {
+        if (watchdogStopSignal.containsKey(port)) return
+        watchdogStopSignal[port] = false
+        Thread({
+            var attempt = 0
+            while (watchdogStopSignal[port] == false) {
+                try {
+                    Thread.sleep(WATCHDOG_POLL_INTERVAL_MS)
+                } catch (e: InterruptedException) {
+                    break
+                }
+                if (watchdogStopSignal[port] != false) break
+                if (isTunnelProcessAlive(port, provider)) {
+                    attempt = 0 // se recuperó (o nunca se cayó) — resetea el contador de reintentos
+                    continue
+                }
+                if (attempt >= RECONNECT_BACKOFF_MS.size) {
+                    onGaveUp("El túnel de :$port se cayó y no se pudo reconectar tras ${RECONNECT_BACKOFF_MS.size} intentos.")
+                    watchdogStopSignal.remove(port)
+                    break
+                }
+                try {
+                    Thread.sleep(RECONNECT_BACKOFF_MS[attempt])
+                } catch (e: InterruptedException) {
+                    break
+                }
+                attempt++
+                // El proceso real ya murió pero la sesión tmux vieja puede seguir "existiendo"
+                // vacía (ver verifyOne()) — se mata explícitamente antes de reintentar, porque
+                // start() se niega a arrancar si ManagerNativeUtils.tmuxHas(session) es true
+                // ("Ya hay un túnel activo en :$port"), y esa sesión vieja/vacía calificaría.
+                runCmd("tmux kill-session -t ${tunnelSession(port)}", 5)
+                start(port, provider, token = null, moduleId = moduleId, nativeLibDir = nativeLibDir)
+            }
+        }, "kairos-tunnel-watchdog-$port").apply { isDaemon = true }.start()
+    }
+
+    /** Detiene el watchdog de [port] si había uno corriendo — SIEMPRE se llama desde stop()
+     *  cuando el usuario apaga el túnel a mano, para no reconectar algo apagado a propósito. */
+    fun stopWatchdog(port: Int) {
+        watchdogStopSignal.remove(port)
+    }
+
+    /** true si la sesión tmux del túnel existe Y el proceso real (cloudflared/ngrok) sigue
+     *  vivo — mismo criterio ya usado por verifyOne(), extraído para reusarse acá. */
+    private fun isTunnelProcessAlive(port: Int, provider: String): Boolean {
+        if (!ManagerNativeUtils.tmuxHas(tunnelSession(port))) return false
+        val processPattern = if (provider == "ngrok") "ngrok" else "cloudflared"
+        return ManagerNativeUtils.pgrepF(processPattern)
     }
 }

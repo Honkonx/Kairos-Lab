@@ -9,6 +9,7 @@
     <string name="entorno_card_estado">STATUS</string>
     <string name="entorno_card_instalado">📋 INSTALLED</string>
     <string name="entorno_sublabel_distros">Distros (proot-distro)</string>
+    <string name="entorno_card_sesiones_distro">🖥 ACTIVE DISTRO SESSIONS</string>
 
     <!-- Labels for the STATUS card -->
     <string name="entorno_label_gpu">GPU</string>
@@ -21,10 +22,13 @@
     <!-- Module installation -->
     <string name="entorno_toast_instalado">Environment installed</string>
     <string name="entorno_toast_fallo_instalacion">Failed — check ~/kairos_logs/install_entorno.log</string>
+    <string name="entorno_toast_operacion_en_curso">There\'s already an operation running for this — wait for it to finish (you may have sent it to the background)</string>
 
     <!-- Distro inventory -->
     <string name="entorno_estado_instalada">installed</string>
     <string name="entorno_ninguna_distro">No distro installed</string>
+    <string name="entorno_sesiones_distro_ninguna">No distro session open right now — "Log in to distro" opens one</string>
+    <string name="entorno_sesion_cerrar">✕</string>
 
     <!-- Status values -->
     <string name="entorno_x11_corriendo">● Running (embedded)</string>
@@ -58,6 +62,15 @@
     <string name="entorno_dialog_distro_experimental_titulo">Experimental distro</string>
     <string name="entorno_distro_experimental_mensaje">%1$s hasn\'t been confirmed on real devices for this project — it may fail. Continue?</string>
     <string name="entorno_badge_experimental">experimental</string>
+    <!-- "lightweight" badge on Alpine (referencia/termux/Termux-Desktops-DeadKnox audit
+         2026-08-31, see docs/referencias/termux/REFERENCIA_TERMUX_DESKTOPS_DEADKNOX.md section
+         1): real glmark2 benchmark table published by that project (Alpine 67, Kali 63,
+         Debian 62, Ubuntu 56 on the same Mali-G77 hardware) — Alpine is the lightest of
+         Kairos's 3 confirmed distros (ubuntu/debian/alpine). Informational text only, does not
+         change the "recommended profile" default (EntornoNative.recommendedProfile() still
+         returns "debian" — changing that default is a separate product decision, not a
+         low-risk UI change; documented as a finding without applying in the same audit). -->
+    <string name="entorno_badge_liviana">lightweight</string>
     <!-- KDE Plasma (Mini PC roadmap item 2, MEJORAS_PENDIENTES.md 2026-08-28) -->
     <string name="entorno_dialog_kde_pesado_titulo">KDE Plasma is heavy</string>
     <string name="entorno_mensaje_kde_pesado">KDE Plasma takes 1.5GB-2GB of space and can take several minutes to install — not confirmed yet on a real device for this project. Continue?</string>
@@ -98,6 +111,24 @@
     <string name="entorno_tile_actualizar_lanzadores">Update\nlaunchers</string>
     <string name="entorno_tile_detener_escritorio">Stop desktop\n(keeps X11)</string>
     <string name="entorno_tile_cambiar_fondo">Change\nwallpaper</string>
+    <string name="entorno_tile_crear_acceso_directo">Create\nshortcut</string>
+
+    <!-- .desktop shortcut creator (audit of referencia/termux/RDeX-main, 2026-09-01 —
+         url_to_app.sh: Web App / Android App / command, native desktop only for now) -->
+    <string name="entorno_dialog_crear_acceso_directo_titulo">Create shortcut</string>
+    <string name="entorno_shortcut_tipo_webapp">Web App (URL)</string>
+    <string name="entorno_shortcut_tipo_app_android">Android App</string>
+    <string name="entorno_shortcut_tipo_comando">Command / script</string>
+    <string name="entorno_shortcut_hint_nombre">Shortcut name</string>
+    <string name="entorno_shortcut_hint_url">URL (e.g. https://…)</string>
+    <string name="entorno_shortcut_hint_comando">Command to run</string>
+    <string name="entorno_shortcut_crear">Create</string>
+    <string name="entorno_shortcut_error_campos_vacios">Fill in all fields</string>
+    <string name="entorno_shortcut_cargando_apps">Loading installed apps…</string>
+    <string name="entorno_shortcut_error_sin_apps">No apps with a launcher icon were found</string>
+    <string name="entorno_shortcut_elegir_app_titulo">Choose app</string>
+    <string name="entorno_shortcut_creado_toast">Shortcut \"%1$s\" created on the Desktop</string>
+    <string name="entorno_shortcut_error_crear">Could not create the shortcut: %1$s</string>
 
     <!-- Tiles — X11 tab -->
     <string name="entorno_tile_entrar_x11">Enter X11</string>
@@ -116,6 +147,15 @@
     <string name="entorno_tile_eliminar_app_distro">Remove app\nfrom distro</string>
     <string name="entorno_titulo_backup_distro">Backup distro</string>
     <string name="entorno_titulo_vincular_carpetas">Link folders with distro</string>
+    <string name="entorno_tile_restaurar_distro">Restore distro\n(from backup)</string>
+    <string name="entorno_tile_reiniciar_distro">Reset distro\n(reset)</string>
+    <string name="entorno_dialog_restaurar_distro_titulo">Restore distro</string>
+    <string name="entorno_toast_no_hay_backups">No saved backups yet (Backup distro generates a .tar.gz in ~/)</string>
+    <string name="entorno_dialog_confirmar_restaurar">Restore %1$s? If the distro already exists, it gets fully replaced.</string>
+    <string name="entorno_restaurar">Restore</string>
+    <string name="entorno_dialog_reiniciar_distro_titulo">Reset distro</string>
+    <string name="entorno_dialog_confirmar_reiniciar">Reset %1$s to a clean state? Everything installed/configured inside gets wiped, this can\'t be undone.</string>
+    <string name="entorno_reiniciar">Reset</string>
 
     <!-- Tiles — VNC tab -->
     <string name="entorno_tile_instalar_tigervnc">Install\nTigerVNC</string>
@@ -128,6 +168,20 @@
     <string name="entorno_tile_pulseaudio_toggle">PulseAudio\nturn on/off</string>
     <string name="entorno_tile_diagnostico_gpu">GPU\ndiagnostics</string>
     <string name="entorno_tile_configurar_metodo_gpu">Configure\nGPU method</string>
+    <string name="entorno_tile_editar_script">Edit startup\nscript</string>
+
+    <!-- Startup-script editor (audit of referencia/contenedores/trierarch-main, 2026-08-31 —
+         inspired by Trierarch's DrawerScriptEditor.kt: edit the generated script without
+         leaving the app or opening a terminal, see kairos-product-philosophy.md) -->
+    <string name="entorno_dialog_elegir_script_titulo">Choose script to edit</string>
+    <string name="entorno_script_gui_start">gui_start.sh (start desktop)</string>
+    <string name="entorno_script_gui_stop">gui_stop.sh (stop desktop)</string>
+    <string name="entorno_script_distro_setup_gui">distro_setup_gui.sh (install DE in distro)</string>
+    <string name="entorno_dialog_editar_script_titulo">Editing %1$s</string>
+    <string name="entorno_editor_script_no_encontrado">%1$s does not exist yet — it is generated the first time that action runs (install/start desktop)</string>
+    <string name="entorno_editor_script_guardar">Save</string>
+    <string name="entorno_editor_script_guardado_toast">%1$s saved</string>
+    <string name="entorno_editor_script_error_guardar">Could not save %1$s: %2$s</string>
 
     <!-- Delete distro -->
     <string name="entorno_toast_no_hay_distros">No distros installed</string>

@@ -6,6 +6,7 @@ import android.widget.LinearLayout
 import android.widget.LinearLayout.HORIZONTAL
 import android.widget.TextView
 import com.termux.R
+import com.termux.app.ui.BaseModuleFragment.ButtonStyle.DANGER
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.util.OpenClawNative
 import com.termux.app.util.ProjectsManager
@@ -19,6 +20,13 @@ import com.termux.app.util.kairosThemeColor
 class OpenClawFragment : BaseModuleFragment() {
     override fun getModuleId() = "openclaw"
     override fun getModuleName() = "OpenClaw"
+
+    // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el token
+    // real del gateway (tokenValue) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
 
     // OpenClaw usa su propio "workspace" ($HOME/.openclaw/workspace), NO la carpeta
     // ~/proyectos compartida de Claude/OpenCode/Codex/Antigravity — confirmado en el
@@ -79,6 +87,12 @@ class OpenClawFragment : BaseModuleFragment() {
                 addView(terminalStatusPill().also {
                     (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
                         gravity = android.view.Gravity.END
+                    }
+                })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
                     }
                 })
             })
@@ -144,6 +158,15 @@ class OpenClawFragment : BaseModuleFragment() {
         // `openclaw mcp add`, ver OpenClawNative.mcpConnectEngram().
         actionButton(getString(R.string.openclaw_btn_connect_engram), GHOST) {
             connectEngramMcp()
+        }
+        // Consistencia con Claude/Codex/Db/Entorno/Qemu/Remote/Ciberseguridad (auditoría de
+        // menús 2026-08-19, ver docs/viejo/AUDITORIA_CONSISTENCIA_MENUS_IA_2026-08-19.md, y
+        // auditoría de consistencia entre módulos 2026-09-01): OpenClaw no tenía forma de
+        // desinstalarse desde su propia pantalla, solo desde Ajustes. Botón suelto (no
+        // addMaintenanceCard()) para no duplicar "Instalar/Actualizar" de arriba, que ya cubre
+        // reinstalar con el mecanismo real de OpenClaw.
+        addCard(getString(R.string.openclaw_card_mantenimiento)) {
+            actionButton(getString(R.string.openclaw_btn_uninstall), DANGER) { confirmUninstallModule() }
         }
         loadInfo()
     }

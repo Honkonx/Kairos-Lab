@@ -206,11 +206,28 @@ _hf_try_prebuilt_xet_wheel() {
     pip_install "$_venv_python" --upgrade pip >/dev/null 2>&1
   fi
 
-  info "Wheel prebuilt de hf_xet encontrado en kairos-lab (aarch64-linux-android) — instalando sin compilar..."
-  pip_install "$_venv_python" --force-reinstall --no-deps "$_asset_url" >/dev/null 2>&1 || {
-    warn "El wheel prebuilt de hf_xet no se pudo instalar en el venv — se compilará desde fuente"
+  info "Wheel prebuilt de hf_xet encontrado en kairos-lab (aarch64-linux-android) — descargando..."
+  # Descarga a un archivo local (en vez de pasar la URL directo a pip) para poder correr
+  # verify_sha256() (lib.sh) sobre el .whl antes de instalarlo — todavía no hay un hash
+  # esperado pinneado para este asset (kairos-lab no publica un SHA256SUMS por Release
+  # todavía), así que corre en modo "solo loggear" (no bloqueante, ver comentario de
+  # verify_sha256() en lib.sh) — deja el hash real logueado para poder pinnearlo después.
+  local _wheel_tmp; _wheel_tmp="$(mktemp -d)/$(basename "$_asset_url")"
+  curl -fsSL "$_asset_url" -o "$_wheel_tmp" 2>/dev/null || {
+    warn "No se pudo descargar el wheel prebuilt de hf_xet — se compilará desde fuente"
     return 1
   }
+  verify_sha256 "$_wheel_tmp" "${HF_XET_PREBUILT_SHA256:-}" || {
+    warn "SHA256 del wheel prebuilt de hf_xet no coincide con el pinneado — se compilará desde fuente"
+    rm -f "$_wheel_tmp"
+    return 1
+  }
+  pip_install "$_venv_python" --force-reinstall --no-deps "$_wheel_tmp" >/dev/null 2>&1 || {
+    warn "El wheel prebuilt de hf_xet no se pudo instalar en el venv — se compilará desde fuente"
+    rm -f "$_wheel_tmp"
+    return 1
+  }
+  rm -f "$_wheel_tmp"
   # Verificación funcional real (no solo "pip install" con exit 0) — misma
   # disciplina que verify_binary_installed(), aplicada acá a un import Python.
   "$_venv_python" -c "import hf_xet" >/dev/null 2>&1 || {
@@ -260,14 +277,14 @@ else
     log "curl detectado: $(curl --version 2>/dev/null | head -1)"
   else
     info "Instalando curl..."
-    pkg install curl -y 2>/dev/null || error "No se pudo instalar curl"
+    pkg install curl -y || error "No se pudo instalar curl"
     command -v curl &>/dev/null || error "curl no disponible tras instalación"
   fi
   if command -v python3 &>/dev/null; then
     log "python3 detectado: $(python3 --version 2>/dev/null)"
   else
     info "Instalando python3..."
-    pkg install python -y 2>/dev/null || error "No se pudo instalar python3"
+    pkg install python -y || error "No se pudo instalar python3"
     command -v python3 &>/dev/null || error "python3 no disponible tras instalación"
   fi
   mark_done "deps"
@@ -307,12 +324,25 @@ else
   pkg_update_with_fallback
   pkg install -y rust clang make libffi openssl pkg-config \
     -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+    -o Dpkg::Options::="--force-confold" || \
     error "No se pudo instalar el toolchain de compilación (rust/clang/make) para hf_xet"
   command -v cargo &>/dev/null || error "cargo no disponible tras instalar rust"
   mark_done "xet_toolchain"
   log "Toolchain de compilación listo (hf_xet se compilará desde fuente)"
 fi
+
+# ANDROID_API_LEVEL/CARGO_BUILD_JOBS (2026-09-11, confirmado por ADB en dispositivo real, ver
+# docs/humano330.md): sin ANDROID_API_LEVEL, maturin falla siempre al compilar hf_xet con
+# "Failed to determine Android API level. Please set the ANDROID_API_LEVEL environment
+# variable." — mismo patrón exacto ya confirmado y arreglado en mistralvibe.sh (2026-08-29,
+# docs/humano286.md), nunca portado acá pese a que ambos compilan una dependencia Rust/pyo3
+# con maturin en Termux/Bionic. CARGO_BUILD_JOBS=1 se agrega por el mismo motivo que en
+# mistralvibe.sh: reduce la presión de memoria/CPU de compilar Rust en el dispositivo — este
+# script y mistralvibe.sh corriendo su propio cargo en paralelo (instalación masiva real,
+# varios módulos a la vez) es la causa más probable de que mistralvibe.sh muriera a mitad de
+# compilar sin dejar error en su log esa misma ronda.
+export ANDROID_API_LEVEL=24
+export CARGO_BUILD_JOBS=1
 
 # ── PASO 2 — Instalador oficial HF ───────────────────────────
 step "PASO 2 — Instalando Hugging Face CLI (instalador oficial)"
@@ -320,7 +350,7 @@ if check_done "hf_install"; then
   log "Hugging Face CLI ya instalado [checkpoint]"
 else
   info "Ejecutando: curl -LsSf https://hf.co/cli/install.sh | bash"
-  curl -LsSf https://hf.co/cli/install.sh | bash 2>&1 | tail -15
+  curl -LsSf https://hf.co/cli/install.sh | bash
   [ ${PIPESTATUS[0]} -eq 0 ] || error "Instalador de Hugging Face falló"
   # El instalador deja el binario en ~/.local/bin — asegurar que quede en PATH.
   export PATH="$HOME/.local/bin:$PATH"

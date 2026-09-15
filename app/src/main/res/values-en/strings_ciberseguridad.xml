@@ -12,6 +12,14 @@
     <string name="ciberseguridad_disclaimer_short">Only use these tools against systems you own or have explicit authorization for — misuse can be illegal.</string>
     <string name="ciberseguridad_disclaimer_full">Cybersecurity installs and gives access to real pentesting/OSINT tools (nmap, theHarvester, nikto, dirb, sqlmap and, at the Pro tier, a full Kali Linux container).\n\nUsing these tools against networks, systems, domains, or accounts that are not yours, or without explicit and verifiable authorization from the owner, may constitute a crime under the laws of your country (for example, unauthorized access to computer systems or data interception).\n\nKairos does not and cannot verify that you have that authorization — you are the one who takes on all legal and ethical responsibility for every action you run with these tools, whether inside or outside the full terminal this module exposes.</string>
 
+    <!-- "Installing in background" banner (2026-09-08, real reported bug: "basic installs and
+         an hour later Pro shows up" — the basic tier is usable within seconds [nmap already in
+         PATH], long before Kali finishes installing in the background; without this banner the
+         screen looked like basic was the final result, with no hint that Pro was still
+         installing) -->
+    <string name="ciberseguridad_installing_banner_title">⏳ Installing in background…</string>
+    <string name="ciberseguridad_installing_banner_body">The basic tier is already ready. If you picked Pro, the Kali Linux container (and the graphical interface, if you asked for it) can take several minutes — the download is several hundred MB. This screen refreshes itself when it finishes, no need to close or reopen the app.</string>
+
     <!-- Network card -->
     <string name="ciberseguridad_network_card_title">🌐 NETWORK</string>
     <string name="ciberseguridad_ip_local_label">Local IP</string>
@@ -159,6 +167,12 @@
     <string name="ciberseguridad_kali_installed_toast">Kali Linux installed</string>
     <string name="ciberseguridad_install_failed_log">Failed — check ~/kairos_logs/install_ciberseguridad.log</string>
 
+    <string name="ciberseguridad_kali_category_dialog_title">Choose what to install in Kali</string>
+    <string name="ciberseguridad_kali_category_dialog_message">Each category installs only that profile\'s tools — saves time and space if you don\'t need everything.</string>
+    <string name="ciberseguridad_kali_cat_top10">Top 10 (curated, default)</string>
+    <string name="ciberseguridad_kali_cat_default">Default (Kali\'s standard set)</string>
+    <string name="ciberseguridad_kali_cat_large">Large (Kali\'s large set)</string>
+    <string name="ciberseguridad_kali_cat_everything">Everything (all of Kali, very heavy)</string>
     <!-- Silent install -->
     <string name="ciberseguridad_silent_install_dialog_title">Install Cybersecurity in the background</string>
     <string name="ciberseguridad_silent_install_dialog_message">Choose the tier. The install runs in the background and you can keep using the app.</string>

@@ -92,24 +92,34 @@
 #  — detecta node/python/sqlite/html/php por archivos presentes, instala
 #  dependencias reales (npm install / venv+pip) y arranca/para el proceso en
 #  tmux, con log persistente en ~/kairos_logs/. target=distro (automatizado
-#  de verdad desde v1.4.0) copia el proyecto dentro del rootfs de la distro
-#  (proot-distro), instala las dependencias de sistema que falten (nodejs/npm,
-#  python3/pip3, php) y corre npm install / pip3 install -r requirements.txt
-#  DENTRO de la distro (proot-distro login <distro> -- ...) — mismo nivel que
-#  native/udocker, con la salvedad honesta de que apt-get/npm/pip sobre proot
-#  son más lentos — ver cabecera de project_install_distro() más abajo.
+#  de verdad desde v1.4.0; desde v1.5.0 ya NO exige una distro pre-instalada —
+#  instala Debian solo si hace falta) copia el proyecto dentro del rootfs de
+#  la distro (proot-distro), instala el set completo "esencial para
+#  programar" (build tools, Python, Node, PHP, PostgreSQL, MariaDB, SQLite,
+#  cloudflared — no solo lo mínimo detectado) y corre npm install / pip3
+#  install -r requirements.txt DENTRO de la distro (proot-distro login
+#  <distro> -- ...) — mismo nivel que native/udocker, con la salvedad
+#  honesta de que apt-get/npm/pip sobre proot son más lentos — ver cabecera
+#  de project_install_distro() más abajo.
 #  target=udocker (agregado v1.3.0) corre el proyecto DENTRO de un contenedor
-#  udocker (imagen oficial de Docker Hub según el stack detectado — node:20/
-#  python:3.12/php:8.3-cli) vía bind-mount real (--volume, sin copiar nada) —
-#  ver cabecera de project_install_udocker() más abajo, y modulos/docker.sh
-#  para por qué udocker es la única vía real de "contenedores" en este entorno
-#  (Docker real no es posible sin root en Android).
+#  udocker vía bind-mount real (--volume, sin copiar nada) — 2 variantes
+#  desde v1.5.0 vía --project-udocker-mode: "simple" (default, imagen oficial
+#  angosta según el stack detectado — node:20/python:3.12/php:8.3-cli) o
+#  "full" (debian:bookworm con el mismo set "esencial para programar" de
+#  target=distro) — ver cabecera de project_install_udocker() más abajo, y
+#  modulos/docker.sh para por qué udocker es la única vía real de
+#  "contenedores" en este entorno (Docker real no es posible sin root en
+#  Android).
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.4.0 | Agosto 2026 (automatiza target=distro del modo
-#  --project-path de verdad: instala dependencias de sistema + del proyecto
-#  DENTRO de la distro vía proot-distro login, en vez de solo copiar y sugerir
-#  comandos — mismo nivel que native/udocker)
+#  VERSIÓN: 1.5.0 | Septiembre 2026 (pedido explícito del usuario: target=distro
+#  ya no exige una distro pre-instalada — instala Debian automáticamente si
+#  hace falta — y ambos target=distro/udocker instalan de más un set curado
+#  "esencial para programar" investigado por WebSearch — build tools, Python,
+#  Node, PHP, PostgreSQL, MariaDB, SQLite, cloudflared —, no solo lo mínimo
+#  detectado del proyecto; udocker suma la variante --project-udocker-mode
+#  full con una imagen debian:bookworm completa en vez de la angosta de
+#  siempre; ver MEJORAS_PENDIENTES.md)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -129,29 +139,35 @@ PROJECT_ACTION=""
 PROJECT_TARGET="native"
 PROJECT_DISTRO=""
 PROJECT_CMD=""
+# Pedido 2026-09-03: udocker ahora soporta 2 variantes de imagen — "simple"
+# (comportamiento original, imagen angosta por stack detectado) o "full"
+# (debian:bookworm con el set completo de _install_essentials()). Default
+# "simple" para no cambiar el comportamiento de nadie que ya usaba udocker.
+PROJECT_UDOCKER_MODE="simple"
 while [ $# -gt 0 ]; do
   case "$1" in
-    --silent)          SILENT=true; shift ;;
-    --force)           FORCE=true; shift ;;
-    --describe)        DESCRIBE=true; shift ;;
-    --describe-files)  DESCRIBE_FILES=true; shift ;;
-    --preset)          PRESET="$2"; shift 2 ;;
-    --distro)          DISTRO="$2"; shift 2 ;;
-    --flavor)          FLAVOR="$2"; shift 2 ;;
-    --extra)           EXTRA="$2"; shift 2 ;;
-    --project-path)    PROJECT_PATH="$2"; shift 2 ;;
-    --project-action)  PROJECT_ACTION="$2"; shift 2 ;;
-    --project-target)  PROJECT_TARGET="$2"; shift 2 ;;
-    --project-distro)  PROJECT_DISTRO="$2"; shift 2 ;;
-    --project-cmd)     PROJECT_CMD="$2"; shift 2 ;;
-    *)                 shift ;;
+    --silent)               SILENT=true; shift ;;
+    --force)                FORCE=true; shift ;;
+    --describe)             DESCRIBE=true; shift ;;
+    --describe-files)       DESCRIBE_FILES=true; shift ;;
+    --preset)               PRESET="$2"; shift 2 ;;
+    --distro)                DISTRO="$2"; shift 2 ;;
+    --flavor)               FLAVOR="$2"; shift 2 ;;
+    --extra)                EXTRA="$2"; shift 2 ;;
+    --project-path)         PROJECT_PATH="$2"; shift 2 ;;
+    --project-action)       PROJECT_ACTION="$2"; shift 2 ;;
+    --project-target)       PROJECT_TARGET="$2"; shift 2 ;;
+    --project-distro)       PROJECT_DISTRO="$2"; shift 2 ;;
+    --project-cmd)          PROJECT_CMD="$2"; shift 2 ;;
+    --project-udocker-mode) PROJECT_UDOCKER_MODE="$2"; shift 2 ;;
+    *)                      shift ;;
   esac
 done
 
 # ── Manifiesto declarativo (--describe) ─────────────────────
 if $DESCRIBE; then
   cat << 'JSON'
-{"id":"stacks","supports_silent":true,"supports_force":true,"variants":["python-postgres","php-mysql","react-vite","html","go","rust","java","dotnet","linux-completo"],"variant_required":false,"note":"catalogo de recetas de desarrollo — usar --preset <id> [--distro <nombre>] para instalar liviano (nativo o dentro de una distro ya instalada; dotnet SIEMPRE requiere --distro, no tiene paquete nativo de Termux); --preset linux-completo [--flavor debian|ubuntu] instala una distro Linux real vía proot-distro; sin --preset solo registra el catalogo como disponible. --extra <lista,separada,por,comas> agrega frameworks/librerías puntuales encima del runtime del preset (python-postgres: fastapi,django,flask,uvicorn,sqlalchemy,requests,numpy,pandas vía pip; react-vite: express,next,vue,axios vía npm; php-mysql: laravel vía composer, requiere --distro). Modo alternativo --project-path <carpeta> --project-action detect|install|start|stop|status|logs [--project-target native|distro|udocker] [--project-distro <nombre>] [--project-cmd <comando>] opera sobre un proyecto real ya elegido por el usuario en vez de un preset fijo — target=udocker corre el proyecto dentro de un contenedor udocker vía bind-mount (--volume), sin copiar nada"}
+{"id":"stacks","supports_silent":true,"supports_force":true,"variants":["python-postgres","php-mysql","react-vite","html","go","rust","java","dotnet","linux-completo"],"variant_required":false,"note":"catalogo de recetas de desarrollo — usar --preset <id> [--distro <nombre>] para instalar liviano (nativo o dentro de una distro ya instalada; dotnet SIEMPRE requiere --distro, no tiene paquete nativo de Termux); --preset linux-completo [--flavor debian|ubuntu] instala una distro Linux real vía proot-distro; sin --preset solo registra el catalogo como disponible. --extra <lista,separada,por,comas> agrega frameworks/librerías puntuales encima del runtime del preset (python-postgres: fastapi,django,flask,uvicorn,sqlalchemy,requests,numpy,pandas vía pip; react-vite: express,next,vue,axios vía npm; php-mysql: laravel vía composer, requiere --distro). Modo alternativo --project-path <carpeta> --project-action detect|install|start|stop|status|logs [--project-target native|distro|udocker] [--project-distro <nombre>] [--project-cmd <comando>] [--project-udocker-mode simple|full] opera sobre un proyecto real ya elegido por el usuario en vez de un preset fijo — target=distro instala Debian automáticamente si --project-distro no está instalada (o no se pasa) y siempre agrega el set completo esencial-para-programar (build tools, Python, Node, PHP, PostgreSQL, MariaDB, SQLite, cloudflared) además de lo detectado; target=udocker corre el proyecto dentro de un contenedor udocker vía bind-mount (--volume, sin copiar nada) — --project-udocker-mode simple (default) usa una imagen angosta por stack detectado, full usa debian:bookworm con el mismo set esencial-para-programar"}
 JSON
   exit 0
 fi
@@ -263,29 +279,144 @@ project_install_native() {
   log "Instalación de dependencias completa — log: $plog"
 }
 
+# ============================================================
+#  Auto-instalación de distro + set "esencial para programar" (pedido
+#  2026-09-03, ver MEJORAS_PENDIENTES.md sección "Stacks (Entornos de
+#  Prueba) — paquetes por defecto..."). Antes, project_install_distro()
+#  exigía una distro YA instalada y fallaba con error si no había ninguna —
+#  ahora instala Debian automáticamente (confirmado con el usuario: "la más
+#  liviana y completa" — mismo default que install_full_distro_preset() usa
+#  para linux-completo), y encima del mínimo detectado del proyecto instala
+#  siempre un set curado de paquetes reales para desarrollo (build tools,
+#  Python, Node, PHP, PostgreSQL, MariaDB, SQLite, cloudflared) — no solo lo
+#  que el detector automático de project_detect() encontró.
+# ============================================================
+
+# Detecta si una distro proot ya está instalada — mismo patrón de fallback ya
+# usado en modulos/entorno.sh (_proot_distros(): ruta directa del rootfs con
+# fallback a "proot-distro list-installed" para versiones/layouts distintos
+# de proot-distro), en vez de solo chequear la ruta legacy a secas.
+_distro_is_installed() {
+  local name="$1"
+  # Bug real de layout dual (ronda 2026-09-09, docs/humano328.md — mismo hallazgo ya
+  # corregido en entorno.sh/_proot_distros() y en ciberseguridad.sh/cactus.sh): proot-distro
+  # v5.x moderno usa containers/<name>/rootfs, "list-installed" ya no existe como
+  # subcomando (error real a stderr) — "list -q" es el fallback confiable en cualquier
+  # versión/layout.
+  [ -d "$TERMUX_PREFIX/var/lib/proot-distro/containers/$name/rootfs" ] && return 0
+  [ -d "$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$name" ] && return 0
+  proot-distro list -q 2>/dev/null | grep -qx "$name"
+}
+
+# Instala proot-distro (si falta) + la distro pedida (si falta) — extraído de
+# install_full_distro_preset() (preset linux-completo, más abajo en este
+# archivo) para reusar la misma lógica ya probada acá sin duplicarla; ambos
+# llaman a esta función ahora, mismo comportamiento de antes.
+_ensure_distro_installed() {
+  local name="$1"
+  if command -v proot-distro &>/dev/null; then
+    log "proot-distro ya instalado"
+  else
+    pkg_update_with_fallback
+    pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+      proot-distro proot || error "No se pudo instalar proot-distro"
+    log "proot-distro instalado"
+  fi
+
+  if _distro_is_installed "$name"; then
+    log "$name ya estaba instalado"
+    return 0
+  fi
+
+  step "Instalando distro Linux: $name"
+  local out rc
+  out=$(proot-distro install "$name" 2>&1); rc=$?
+  if echo "$out" | grep -q "already exists"; then
+    log "$name ya estaba instalado"
+  elif [ $rc -ne 0 ]; then
+    error "Falló la instalación de $name: $out"
+  else
+    log "$name instalado"
+  fi
+}
+
+# Lista real (WebSearch, no inventada — ver MEJORAS_PENDIENTES.md) de paquetes
+# apt "esenciales para programar" — se instala completa siempre que se pide
+# target=distro o target=udocker en modo "full", sin curación por stack
+# detectado (a diferencia de los presets livianos de más abajo en este
+# archivo, este modo es "una VPS chica ya lista para programar").
+_ESSENTIAL_APT_PACKAGES="build-essential cmake pkg-config git curl ca-certificates python3 python3-pip python3-venv python3-dev sqlite3 libsqlite3-dev postgresql postgresql-contrib mariadb-server nodejs npm php php-cli php-mysql"
+
+# cloudflared NO es paquete apt (ver cabecera del script, sección PRESETS) —
+# Cloudflare lo distribuye como .deb propio en GitHub Releases. URL
+# confirmada real por WebSearch (2026-09-03): cloudflare/cloudflared publica
+# "cloudflared-linux-arm64.deb" en cada release (ej. tag 2026.8.3) y
+# "releases/latest/download/<asset>" resuelve siempre al último release sin
+# necesitar parsear la API de GitHub. El .so de cloudflared que Kairos ya
+# compila para Android (TunnelManager.kt) es Bionic/NDK — no sirve dentro de
+# una distro/contenedor Debian glibc, hace falta este binario real.
+_CLOUDFLARED_DEB_URL_ARM64="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb"
+
+# Un solo comando "bash -c <algo>" ejecutado dentro de un destino real — evita
+# duplicar la lógica de _install_essentials() entre distro (proot-distro
+# login) y udocker (udocker run). $1 = "distro:<nombre>" o "udocker:<nombre>".
+_exec_in_target() {
+  local where="$1" cmd="$2"
+  case "$where" in
+    distro:*)  proot-distro login "${where#distro:}" -- bash -c "$cmd" ;;
+    udocker:*) udocker run "${where#udocker:}" bash -c "$cmd" ;;
+  esac
+}
+
+# Instala el set completo ($_ESSENTIAL_APT_PACKAGES) + cloudflared dentro de
+# un destino real (distro o contenedor udocker) — compartido entre
+# project_install_distro() y project_install_udocker() (modo "full").
+_install_essentials() {
+  local where="$1" plog="$2"
+  step "Instalando paquetes esenciales para programar (build tools, Python, Node, PHP, PostgreSQL, MariaDB, SQLite)" | tee -a "$plog"
+  _exec_in_target "$where" "env DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' $_ESSENTIAL_APT_PACKAGES" >>"$plog" 2>&1 \
+    || warn "Algunos paquetes esenciales fallaron — revisá $plog"
+
+  step "Instalando cloudflared (.deb oficial de Cloudflare, no es paquete apt)" | tee -a "$plog"
+  if _exec_in_target "$where" "command -v cloudflared" >/dev/null 2>&1; then
+    log "cloudflared ya instalado"
+  else
+    _exec_in_target "$where" "curl -fsSL -o /tmp/cloudflared-linux-arm64.deb '$_CLOUDFLARED_DEB_URL_ARM64' && env DEBIAN_FRONTEND=noninteractive apt-get install -y /tmp/cloudflared-linux-arm64.deb && rm -f /tmp/cloudflared-linux-arm64.deb" >>"$plog" 2>&1 \
+      || warn "No se pudo instalar cloudflared — revisá $plog"
+  fi
+}
+
 # Instalación REAL dentro de la distro (ya no es un MVP de "copiar y sugerir"
 # — ver docs/humano/ de este pedido: "automatizalo de verdad, al mismo nivel
 # que nativo/udocker"). Copia el proyecto dentro del rootfs real de la distro
 # ($TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/<distro>, misma ruta
-# que documenta entorno.sh) y después instala las dependencias del sistema que
-# falten (nodejs/npm, python3/pip3, php) + las del proyecto (npm install /
-# pip3 install -r requirements.txt) DENTRO de la distro, vía
-# "proot-distro login <distro> -- ..." — mismo patrón ya probado en
-# install_distro_preset() (más abajo en este archivo) y en distroAppInstall()
-# de EntornoNative.kt. Nota honesta de rendimiento (pedido explícito): apt-get
-# y npm/pip corriendo sobre proot son más lentos que nativo o udocker — no se
-# promete la misma velocidad, solo se automatiza el flujo completo igual.
+# que documenta entorno.sh) y después instala el set completo de paquetes
+# esenciales (_install_essentials(), pedido 2026-09-03) + las dependencias
+# puntuales del proyecto (npm install / pip3 install -r requirements.txt)
+# DENTRO de la distro, vía "proot-distro login <distro> -- ..." — mismo
+# patrón ya probado en install_distro_preset() (más abajo en este archivo) y
+# en distroAppInstall() de EntornoNative.kt. Si $distro no se pasa (o no está
+# instalada), se instala Debian automáticamente vía _ensure_distro_installed()
+# (pedido explícito: "la más liviana y completa", ya no hace falta tener una
+# distro instalada de antes desde el módulo Entorno). Nota honesta de
+# rendimiento (pedido explícito): apt-get y npm/pip corriendo sobre proot son
+# más lentos que nativo o udocker — no se promete la misma velocidad, solo se
+# automatiza el flujo completo igual.
 project_install_distro() {
   local p="$PROJECT_PATH" distro="$PROJECT_DISTRO"
-  [ -n "$distro" ] || error "Falta --project-distro"
-  command -v proot-distro &>/dev/null || error "proot-distro no está instalado — instalá el módulo Entorno primero"
-  local rootfs="$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$distro"
-  [ -d "$rootfs" ] || error "La distro '$distro' no está instalada"
+  [ -n "$distro" ] || distro="debian"
   mkdir -p "$_PROJECT_LOG_DIR"
   local plog; plog="$(_project_install_log "$p")"
   : > "$plog"
-  local name; name="$(basename "$p")"
 
+  if ! _distro_is_installed "$distro"; then
+    step "La distro '$distro' no está instalada todavía — instalando automáticamente" | tee -a "$plog"
+    _ensure_distro_installed "$distro" 2>&1 | tee -a "$plog"
+  fi
+  local rootfs="$TERMUX_PREFIX/var/lib/proot-distro/installed-rootfs/$distro"
+  [ -d "$rootfs" ] || error "No se pudo confirmar la instalación de '$distro' — revisá $plog"
+
+  local name; name="$(basename "$p")"
   step "Copiando $p dentro de la distro '$distro' (/root/$name)" | tee -a "$plog"
   mkdir -p "$rootfs/root"
   rm -rf "${rootfs:?}/root/$name"
@@ -298,13 +429,13 @@ project_install_distro() {
   proot-distro login "$distro" -- env DEBIAN_FRONTEND=noninteractive apt-get update -y >>"$plog" 2>&1 \
     || warn "apt-get update dentro de '$distro' tuvo advertencias — sigo con la instalación"
 
+  # Pedido 2026-09-03: además de lo mínimo detectado del proyecto (bloques de
+  # abajo, npm install / pip3 install -r requirements.txt reales), instala
+  # siempre el set completo "esencial para programar" — no solo lo mínimo.
+  _install_essentials "distro:$distro" "$plog"
+
   case " $tags " in
     *" node "*)
-      if ! proot-distro login "$distro" -- command -v npm &>/dev/null; then
-        step "Instalando nodejs npm dentro de '$distro'" | tee -a "$plog"
-        proot-distro login "$distro" -- env DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs npm >>"$plog" 2>&1 \
-          || error "No se pudo instalar nodejs/npm dentro de '$distro'"
-      fi
       step "npm install (dentro de '$distro')" | tee -a "$plog"
       # $name (basename del proyecto elegido en el navegador de carpetas de la app)
       # puede traer espacios — sin comillas acá, la bash -c ANIDADA lo parte en
@@ -317,41 +448,25 @@ project_install_distro() {
   esac
   case " $tags " in
     *" python "*)
-      if ! proot-distro login "$distro" -- command -v python3 &>/dev/null; then
-        step "Instalando python3 python3-pip dentro de '$distro'" | tee -a "$plog"
-        proot-distro login "$distro" -- env DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip >>"$plog" 2>&1 \
-          || error "No se pudo instalar python3 dentro de '$distro'"
-      fi
       if [ -f "$p/requirements.txt" ]; then
         step "pip3 install -r requirements.txt (dentro de '$distro')" | tee -a "$plog"
         # Mismo gotcha que el bloque npm install de arriba: $name sin comillas se
         # rompe en la bash -c anidada si el nombre del proyecto trae espacios.
-        proot-distro login "$distro" -- bash -c "cd \"/root/$name\" && pip3 install -r requirements.txt" >>"$plog" 2>&1 \
+        # --break-system-packages: Debian bookworm (PEP 668, "externally-managed-
+        # environment") rechaza "pip3 install" a secas fuera de un venv — mismo
+        # flag que ya usa install_extra_packages() más abajo para el mismo motivo.
+        proot-distro login "$distro" -- bash -c "cd \"/root/$name\" && pip3 install --break-system-packages -r requirements.txt" >>"$plog" 2>&1 \
           || warn "pip3 install terminó con errores dentro de '$distro' — revisá $plog"
       fi
       ;;
   esac
   case " $tags " in
     *" php "*)
-      if ! proot-distro login "$distro" -- command -v php &>/dev/null; then
-        step "Instalando php dentro de '$distro'" | tee -a "$plog"
-        proot-distro login "$distro" -- env DEBIAN_FRONTEND=noninteractive apt-get install -y php >>"$plog" 2>&1 \
-          || error "No se pudo instalar php dentro de '$distro'"
-      fi
       warn "composer.json detectado — PHP/Composer no se automatiza en este MVP (corré 'composer install' a mano dentro de la distro, ej. proot-distro login $distro)" | tee -a "$plog"
       ;;
   esac
-  case " $tags " in
-    *" html "*)
-      if ! proot-distro login "$distro" -- command -v python3 &>/dev/null; then
-        step "Instalando python3 dentro de '$distro' (servidor estático)" | tee -a "$plog"
-        proot-distro login "$distro" -- env DEBIAN_FRONTEND=noninteractive apt-get install -y python3 >>"$plog" 2>&1 \
-          || error "No se pudo instalar python3 dentro de '$distro'"
-      fi
-      ;;
-  esac
 
-  log "Dependencias instaladas dentro de '$distro' — log: $plog"
+  log "Dependencias instaladas dentro de '$distro' (incluye paquetes esenciales para programar) — log: $plog"
 }
 
 # ============================================================
@@ -378,6 +493,20 @@ project_install_distro() {
 #  udocker, son las mismas que correrían con Docker real"). PHP: composer.json
 #  se detecta y se avisa, igual que en project_install_native()/
 #  project_install_distro() — no se automatiza Composer en este MVP.
+#
+#  Pedido 2026-09-03: 2 variantes vía --project-udocker-mode (default
+#  "simple", ver flag arriba) — "simple" es el comportamiento original de
+#  siempre (imagen angosta por stack detectado, sin cambios). "full" usa
+#  "debian:bookworm" (imagen oficial de Docker Hub, no un formato propio) y
+#  le instala el mismo set completo de _install_essentials() que
+#  project_install_distro() — "una VPS chica ya lista para programar" adentro
+#  de un contenedor en vez de una distro proot completa. Limitación conocida,
+#  documentada a propósito en vez de resolverse con más estado (KISS —
+#  "priorizá lo simple/confiable"): el nombre del contenedor NO incluye el
+#  modo, así que si un mismo proyecto se instala primero en modo "simple" y
+#  después se pide "full" (o viceversa), reusa el contenedor ya creado con la
+#  imagen del primer modo — cambiar de modo para un proyecto ya instalado
+#  requiere borrar el contenedor a mano (udocker rm) antes de reinstalar.
 # ============================================================
 _udocker_container_name() { echo "kairos-proj-$(_project_hash "$1")"; }
 
@@ -398,8 +527,13 @@ project_install_udocker() {
   local plog; plog="$(_project_install_log "$p")"
   : > "$plog"
   local tags; tags="$(project_detect "$p")"
-  local image; image="$(_udocker_image_for_tags "$tags")"
-  [ -n "$image" ] || error "No se reconoció un stack instalable en udocker para este proyecto (tags: $tags)"
+  local image
+  if [ "$PROJECT_UDOCKER_MODE" = "full" ]; then
+    image="debian:bookworm"
+  else
+    image="$(_udocker_image_for_tags "$tags")"
+    [ -n "$image" ] || error "No se reconoció un stack instalable en udocker para este proyecto (tags: $tags)"
+  fi
   local name; name="$(_udocker_container_name "$p")"
   export UDOCKER_USE_PROOT_EXECUTABLE="$(which proot 2>/dev/null || echo "$TERMUX_PREFIX/bin/proot")"
 
@@ -418,6 +552,13 @@ project_install_udocker() {
   fi
   udocker setup --execmode=P2 "$name" >>"$plog" 2>&1 || true
 
+  if [ "$PROJECT_UDOCKER_MODE" = "full" ]; then
+    step "Actualizando índice de paquetes dentro del contenedor '$name'" | tee -a "$plog"
+    udocker run "$name" env DEBIAN_FRONTEND=noninteractive apt-get update -y >>"$plog" 2>&1 \
+      || warn "apt-get update dentro del contenedor tuvo advertencias — sigo con la instalación"
+    _install_essentials "udocker:$name" "$plog"
+  fi
+
   case " $tags " in
     *" node "*)
       step "npm install (dentro del contenedor '$name')" | tee -a "$plog"
@@ -429,7 +570,13 @@ project_install_udocker() {
     *" python "*)
       if [ -f "$p/requirements.txt" ]; then
         step "pip install -r requirements.txt (dentro del contenedor '$name')" | tee -a "$plog"
-        udocker run --volume="$p":/app "$name" sh -c "cd /app && pip install -r requirements.txt" >>"$plog" 2>&1 \
+        # debian:bookworm (modo "full") aplica PEP 668 igual que
+        # project_install_distro() — pip a secas falla fuera de un venv.
+        # python:3.12 (modo "simple") no tiene esa restricción, sigue con
+        # "pip install" a secas como siempre.
+        local pip_cmd="pip install"
+        [ "$PROJECT_UDOCKER_MODE" = "full" ] && pip_cmd="pip3 install --break-system-packages"
+        udocker run --volume="$p":/app "$name" sh -c "cd /app && $pip_cmd -r requirements.txt" >>"$plog" 2>&1 \
           || warn "pip install terminó con errores dentro del contenedor — revisá $plog"
       fi
       ;;
@@ -519,7 +666,7 @@ if [ -n "$PROJECT_PATH" ]; then
     logs)   project_logs ;;
     *) error "project-action desconocida: $PROJECT_ACTION (válidas: detect, install, start, stop, status, logs)" ;;
   esac
-  registry_write stacks "installed=true" "version=1.4.0"
+  registry_write stacks "installed=true" "version=1.5.0"
   notify_event "stacks" "project_${PROJECT_ACTION}" "$PROJECT_PATH"
   exit 0
 fi
@@ -530,7 +677,7 @@ VALID_PRESETS="python-postgres php-mysql react-vite html go rust java dotnet lin
 #    "paquete propio" que instalar — ver cabecera). Cubre el caso de
 #    que algo dispare la instalación genérica del módulo sin preset. ──
 if [ -z "$PRESET" ]; then
-  registry_write stacks "installed=true" "version=1.4.0" "presets=${VALID_PRESETS// /,}"
+  registry_write stacks "installed=true" "version=1.5.0" "presets=${VALID_PRESETS// /,}"
   log "Catálogo de Entornos de Prueba disponible — presets: ${VALID_PRESETS}"
   notify_event "stacks" "install_done" "catalog"
   exit 0
@@ -717,7 +864,7 @@ install_distro_preset() {
   local pkgs; pkgs="$(distro_packages_for_preset "$PRESET")"
 
   step "Actualizando índice de paquetes dentro de $DISTRO"
-  proot-distro login "$DISTRO" -- env DEBIAN_FRONTEND=noninteractive apt-get update -y >/dev/null 2>&1 \
+  proot-distro login "$DISTRO" -- env DEBIAN_FRONTEND=noninteractive apt-get update -y \
     || warn "apt-get update dentro de $DISTRO tuvo advertencias — sigo con la instalación"
 
   step "Instalando ($pkgs) dentro de $DISTRO"
@@ -738,26 +885,14 @@ install_distro_preset() {
 #  por defecto, o ubuntu) en vez de tener "debian" fijo como en n8n.sh.
 # ============================================================
 install_full_distro_preset() {
-  step "Verificando proot-distro"
-  if command -v proot-distro &>/dev/null; then
-    log "proot-distro ya instalado"
-  else
-    pkg_update_with_fallback
-    pkg install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-      proot-distro proot || error "No se pudo instalar proot-distro"
-    log "proot-distro instalado"
-  fi
-
   step "Instalando distro Linux completa: $FLAVOR"
-  local out rc
-  out=$(proot-distro install "$FLAVOR" 2>&1); rc=$?
-  if echo "$out" | grep -q "already exists"; then
-    log "$FLAVOR ya estaba instalado"
-  elif [ $rc -ne 0 ]; then
-    error "Falló la instalación de $FLAVOR: $out"
-  else
-    log "$FLAVOR instalado"
-  fi
+  # 2026-09-03: lógica factorizada en _ensure_distro_installed() (definida más
+  # arriba, junto al modo --project-path) para no duplicarla — el modo
+  # --project-path target=distro ahora necesita el mismo "instalar
+  # proot-distro si falta + instalar la distro si falta" que este preset ya
+  # tenía, así que se extrajo acá en vez de reescribirla dos veces. Mismo
+  # comportamiento de siempre, sin cambios funcionales en este preset.
+  _ensure_distro_installed "$FLAVOR"
 
   # Nombre real registrado por proot-distro (puede diferir levemente del
   # flavor pedido, ej. variantes con sufijo de versión) — mismo criterio de
@@ -923,7 +1058,7 @@ esac
 
 [ "$TARGET" != "fulldistro" ] && install_extra_packages
 
-registry_write stacks "installed=true" "version=1.4.0" "last_preset=$PRESET" "last_target=$TARGET" "last_distro=$DISTRO" "last_flavor=$FLAVOR" "last_extra=$EXTRA"
+registry_write stacks "installed=true" "version=1.5.0" "last_preset=$PRESET" "last_target=$TARGET" "last_distro=$DISTRO" "last_flavor=$FLAVOR" "last_extra=$EXTRA"
 
 print_summary
 

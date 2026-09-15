@@ -75,11 +75,19 @@ fi
 # que SÍ reescribe $PREFIX/bin/pi como un wrapper "exec node <entry>" contra
 # el paquete real en node_modules — mismo patrón que el resto de CLIs npm.
 if $DESCRIBE_FILES; then
+  # Bug real encontrado 2026-08-29 empaquetando en dispositivo real: este
+  # bloque hardcodeaba "$TERMUX_PREFIX/bin/pi" sin resolver primero con
+  # `command -v` (a diferencia de kimi.sh/minimaxcli.sh, que sí lo hacen) —
+  # en un device con npm global redirigido a $HOME/.npm-global (confirmado
+  # con `npm config get prefix`), el wrapper real de fix_npm_shebang_wrapper
+  # queda en $HOME/.npm-global/bin/pi, no en $TERMUX_PREFIX/bin/pi, y
+  # moduledeb.sh pack fallaba con "archivo requerido no encontrado".
+  _pi_bin=$(command -v pi 2>/dev/null || echo "$TERMUX_PREFIX/bin/pi")
   jq -n \
-    --arg p1 "$TERMUX_PREFIX/bin/pi" \
+    --arg p1 "$_pi_bin" \
     --arg glob "$(npm root -g 2>/dev/null)/@earendil-works/**" \
-    --arg verify "command -v \"$TERMUX_PREFIX/bin/pi\" >/dev/null 2>&1 && \"$TERMUX_PREFIX/bin/pi\" --version >/dev/null 2>&1" \
-    --arg patch "chmod 755 \"$TERMUX_PREFIX/bin/pi\" 2>/dev/null || true" \
+    --arg verify "command -v pi >/dev/null 2>&1 && pi --version >/dev/null 2>&1" \
+    --arg patch "chmod 755 \"$_pi_bin\" 2>/dev/null || true" \
     '{
       id: "pi",
       supports_describe_files: true,
@@ -152,7 +160,7 @@ else
   else
     info "Instalando nodejs-lts..."
     pkg_update_with_fallback
-    pkg install nodejs-lts -y 2>/dev/null || error "No se pudo instalar Node.js"
+    pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
     command -v node &>/dev/null || error "Node.js no disponible tras instalación"
     log "Node.js instalado: $(node --version)"
   fi
@@ -165,7 +173,7 @@ else
     info "Instalando: ${_MISSING_DEPS[*]}"
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y "${_MISSING_DEPS[@]}" 2>/dev/null || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
+    pkg install -y "${_MISSING_DEPS[@]}" || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
   mark_done "deps"
   log "Dependencias verificadas"
@@ -177,7 +185,7 @@ if check_done "npm_install"; then
   log "Pi Coding Agent ya instalado [checkpoint]"
 else
   info "Ejecutando: npm install -g ${PI_PKG} --ignore-scripts"
-  npm install -g "$PI_PKG" --ignore-scripts 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "npm install falló"
+  npm install -g "$PI_PKG" --ignore-scripts || error "npm install falló"
   # Bug real encontrado 2026-08-24 (ver docs/humano212.md): faltaba este
   # wrapper — mismo bug de shebang "#!/usr/bin/env node" (no existe en
   # Termux) ya documentado y arreglado en install_npm_global()/codebuff.sh/

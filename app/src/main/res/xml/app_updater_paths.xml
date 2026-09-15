@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rutas expuestas por el FileProvider "${TERMUX_PACKAGE_NAME}.updater" (ver
+  AndroidManifest.xml) — usado por AppInstaller.kt SOLO en el caso MIUI/Xiaomi/Redmi/Poco
+  (Intent(ACTION_INSTALL_PACKAGE) clásico, necesita una Uri content:// legible por el
+  instalador de paquetes del sistema). El camino normal (PackageInstaller.Session) no pasa
+  por acá.
+
+  files-path apunta a "updates/" dentro de context.filesDir (almacenamiento interno de la
+  app, sin permisos de storage) — es donde AppUpdater.download() guarda el APK verificado
+  (filesDir/updates/kairos-update.apk). Alcance mínimo a propósito, mismo criterio que
+  apk_builder_paths.xml/file_manager_paths.xml: solo esta subcarpeta.
+-->
+<paths>
+    <files-path
+        name="updates"
+        path="updates/" />
+</paths>

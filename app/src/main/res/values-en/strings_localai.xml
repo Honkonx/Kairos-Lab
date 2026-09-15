@@ -96,6 +96,18 @@
     <string name="localai_model_qwencoder14b_name">Qwen2.5 Coder 14B Instruct</string>
     <string name="localai_model_qwencoder14b_desc">The largest code model in the catalog — better for complex programming tasks, needs a fair amount of RAM.</string>
 
+    <!-- Expansion 2026-09-01 (explicit request: "match the Local AI catalog to Ollama's",
+         minimum 30 models 0.5B-12B grouped by creator) — repos/files verified against the
+         real Hub API (huggingface.co/api/models/<repo>/tree/main) before adding them. -->
+    <string name="localai_model_gemma31b_name">Gemma 3 1B IT</string>
+    <string name="localai_model_gemma31b_desc">The smallest in the Gemma 3 family — ideal for devices with limited RAM, same lineage as the 4B and 12B.</string>
+
+    <string name="localai_model_qwen306b_name">Qwen3 0.6B</string>
+    <string name="localai_model_qwen306b_desc">The smallest in the Qwen3 generation — starts up fast on any device, reasoning improvements over Qwen2.5.</string>
+
+    <string name="localai_model_qwen317b_name">Qwen3 1.7B</string>
+    <string name="localai_model_qwen317b_desc">Intermediate step in Qwen3, between the 0.6B and the 4B — good speed/quality balance.</string>
+
     <!-- General UI -->
     <string name="localai_title">Local AI</string>
     <string name="localai_card_store_title">🛒 MODEL STORE</string>

@@ -176,16 +176,16 @@ else
     info "Instalando glibc-repo..."
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y glibc-repo 2>/dev/null || error "No se pudo instalar glibc-repo"
+    pkg install -y glibc-repo || error "No se pudo instalar glibc-repo"
     info "Actualizando índices de paquetes (repo glibc recién agregado)..."
-    pkg update -y 2>/dev/null || error "pkg update falló tras agregar glibc-repo"
+    pkg update -y || error "pkg update falló tras agregar glibc-repo"
   fi
 
   if [ ! -f "$TERMUX_PREFIX/glibc/lib/libc.so.6" ]; then
     info "Instalando glibc..."
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y glibc 2>/dev/null || error "No se pudo instalar glibc"
+    pkg install -y glibc || error "No se pudo instalar glibc"
   fi
   [ -f "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || error "glibc instalado pero falta el loader ld-linux-aarch64.so.1 — dispositivo no soportado (solo aarch64/arm64)"
 
@@ -198,7 +198,7 @@ else
     info "Instalando: ${_MISSING_DEPS[*]}"
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y "${_MISSING_DEPS[@]}" 2>/dev/null || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
+    pkg install -y "${_MISSING_DEPS[@]}" || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
   mark_done "deps"
   log "glibc y dependencias verificadas"
@@ -216,7 +216,7 @@ else
 
   mkdir -p "$OMP_DATA"
   if ! curl -fsSL "https://github.com/${OMP_REPO}/releases/download/${_LATEST_VERSION}/omp-linux-arm64" \
-    -o "$OMP_DATA/omp" 2>/dev/null; then
+    -o "$OMP_DATA/omp"; then
     error "Descarga fallida — verificá conexión"
   fi
   [ -s "$OMP_DATA/omp" ] || error "Archivo descargado vacío"
@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
 }
 CSRC
 
-  if ! clang -O2 -o "$TERMUX_PREFIX/bin/omp" "$_HELPER_SRC" 2>&1 | tail -10; then
+  if ! clang -O2 -o "$TERMUX_PREFIX/bin/omp" "$_HELPER_SRC"; then
     rm -f "$_HELPER_SRC"
     error "No se pudo compilar el helper de Oh-My-Pi (clang)"
   fi

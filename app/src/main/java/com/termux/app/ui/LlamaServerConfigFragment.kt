@@ -42,6 +42,13 @@ import com.termux.app.util.applyTermuxEnv
  */
 class LlamaServerConfigFragment : BaseModuleFragment() {
 
+    // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
+    // LLAMA_SERVER_API_KEY (apiKeyInput) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
+
     companion object {
         private const val EMBEDDED_PREFS = "kairos_llm_prefs"
         private const val KEY_BACKEND = "backend"
@@ -528,9 +535,10 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
     /** Idéntico al que tenía `LocalAIConfigFragment.refreshGpuStatus()` — absorbido acá tal cual. */
     private fun refreshGpuStatus() {
         Thread {
+            val ctx = context ?: return@Thread
             val info = try {
                 val engine = LlamaEngine()
-                engine.loadBackends(requireContext().applicationInfo.nativeLibraryDir)
+                engine.loadBackends(ctx.applicationInfo.nativeLibraryDir)
                 val name = engine.getGpuDeviceInfo()
                 if (name.isNotEmpty()) getString(R.string.llamaserver_config_gpu_detectada, name) else getString(R.string.llamaserver_config_sin_gpu)
             } catch (e: Throwable) {

@@ -4,8 +4,17 @@
     <string name="qemu_card_status_title">STATUS</string>
     <string name="qemu_status_user_mode">qemu-user (x86_64/arm)</string>
     <string name="qemu_status_system_mode">qemu-system (headless)</string>
+    <string name="qemu_status_system_aarch64">qemu-system-aarch64 (recommended)</string>
+    <string name="qemu_status_system_x86_64">qemu-system-x86_64 (cross-arch)</string>
     <string name="qemu_info_kvm_label">KVM acceleration</string>
     <string name="qemu_info_kvm_value">Not available without root</string>
+
+    <!-- Tabs (2026-09-08 reorganization, user's explicit request: "by categories" — same
+         TabLayout pattern as Mini PC/SSH, see EntornoFragment.kt/RemoteFragment.kt -->
+    <string name="qemu_tab_binario">Binary</string>
+    <string name="qemu_tab_imagenes">Images</string>
+    <string name="qemu_tab_vm">Virtual Machine</string>
+    <string name="qemu_tab_avanzado">Advanced</string>
 
     <string name="qemu_card_run_binary_title">RUN A BINARY FROM ANOTHER ARCHITECTURE</string>
     <string name="qemu_binary_path_hint">Path to the binary (e.g. ~/my_binary_x86_64)</string>
@@ -17,22 +26,49 @@
     <string name="qemu_btn_create_image">＋ Create disk image</string>
     <string name="qemu_btn_list_images">☰ List images</string>
     <string name="qemu_btn_image_ops">🛠 Info / resize / convert image</string>
+    <string name="qemu_btn_import_image">📥 Import a custom image from storage</string>
+    <string name="qemu_toast_importing_image">Importing image…</string>
+    <string name="qemu_toast_image_imported">Image imported: %1$s</string>
+    <string name="qemu_error_could_not_import">Could not import the chosen file</string>
 
     <string name="qemu_card_download_images_title">IMAGES TO DOWNLOAD</string>
-    <string name="qemu_download_images_desc">Guest x86_64 — run without KVM (software TCG, slow). Alpine boots straight to login; Debian/Ubuntu cloud images are meant for cloud-init (they may need extra setup of a user/password to log in via console).</string>
+    <string name="qemu_download_images_desc">aarch64 = same architecture as this phone (recommended, no cross-ISA translation). x86_64 = cross-arch (slower). Both run without KVM (software TCG). Alpine boots straight to login; Debian/Ubuntu cloud images are meant for cloud-init (they may need extra setup of a user/password to log in via console).</string>
 
     <string name="qemu_image_alpine_name">Alpine Linux 3.24 (virt, x86_64)</string>
-    <string name="qemu_image_alpine_desc">Official minimal Alpine ISO — boots straight to root login without cloud-init, ideal for quickly testing the headless VM.</string>
+    <string name="qemu_image_alpine_desc">Official minimal Alpine ISO — boots straight to root login without cloud-init, ideal for quickly testing the headless VM. Cross-arch on this phone (ARM64 host) — slower than the aarch64 variant below.</string>
     <string name="qemu_image_debian_name">Debian 12 (Bookworm) cloud, amd64</string>
-    <string name="qemu_image_debian_desc">Official Debian cloud image (qcow2, ready for -drive). Meant for cloud-init — may need a seed ISO with a user/password to log in via console.</string>
+    <string name="qemu_image_debian_desc">Official Debian cloud image (qcow2, ready for -drive). Meant for cloud-init — may need a seed ISO with a user/password to log in via console. Cross-arch on this phone — slower than the aarch64 variant below.</string>
     <string name="qemu_image_ubuntu_name">Ubuntu 22.04 LTS (Jammy) cloud, amd64</string>
-    <string name="qemu_image_ubuntu_desc">Official Ubuntu Server cloud image. Same as Debian: meant for cloud-init, may need a separate seed to log in via console.</string>
+    <string name="qemu_image_ubuntu_desc">Official Ubuntu Server cloud image. Same as Debian: meant for cloud-init, may need a separate seed to log in via console. Cross-arch on this phone — slower than the aarch64 variant below.</string>
 
-    <string name="qemu_card_vm_headless_title">HEADLESS VM (no KVM — software TCG, slow)</string>
+    <string name="qemu_image_alpine_aarch64_name">Alpine Linux 3.24 (virt, aarch64) ★ recommended</string>
+    <string name="qemu_image_alpine_aarch64_desc">Official minimal Alpine ISO for ARM64 — same architecture as this phone, no cross-ISA translation (faster than the x86_64 variant). Boots straight to root login without cloud-init.</string>
+    <string name="qemu_image_debian_aarch64_name">Debian 12 (Bookworm) cloud, arm64 ★ recommended</string>
+    <string name="qemu_image_debian_aarch64_desc">Official Debian cloud image for ARM64 (qcow2). Same architecture as this phone — faster than the amd64 variant above. Meant for cloud-init — may need a seed ISO with a user/password to log in via console.</string>
+    <string name="qemu_image_ubuntu_aarch64_name">Ubuntu 22.04 LTS (Jammy) cloud, arm64 ★ recommended</string>
+    <string name="qemu_image_ubuntu_aarch64_desc">Official Ubuntu Server cloud image for ARM64. Same architecture as this phone — faster than the amd64 variant above. Meant for cloud-init, may need a separate seed to log in via console.</string>
+
+    <string name="qemu_card_vm_headless_title">HEADLESS VM (no KVM — software TCG)</string>
     <string name="qemu_vm_image_path_hint">Path to a .qcow2/.img or .iso image</string>
     <string name="qemu_vm_ram_hint">RAM in MB (default 512)</string>
+    <string name="qemu_ram_warning_title">Requested RAM &gt; RAM free right now</string>
+    <string name="qemu_ram_warning_message">You asked for %1$d MB for the VM, but this phone has only ~%2$d MB free right now. If Android can\'t give QEMU that much RAM, it may kill Kairos\'s process (OOM) instead of failing with a clear error. You can continue anyway (free RAM keeps changing) or go back and lower it.</string>
+    <string name="qemu_ram_warning_continue">Continue anyway</string>
+    <string name="qemu_label_guest_arch">Guest architecture</string>
+    <string name="qemu_arch_aarch64_chip">aarch64 ★ recommended</string>
+    <string name="qemu_arch_x86_64_chip">x86_64 (cross-arch, slower)</string>
     <string name="qemu_btn_pick_image">📂 Pick image from the list</string>
     <string name="qemu_btn_boot_vm">▶ Boot VM…</string>
+    <string name="qemu_btn_stop_vm">⏹ Stop VM</string>
+    <string name="qemu_btn_reconnect_vnc">🔁 Reconnect VNC viewer</string>
+    <string name="qemu_toast_no_vm_running">No VM is running in VNC mode right now (the VNC socket doesn\'t exist) — boot it first with \"Boot VM…\"</string>
+    <string name="qemu_toast_checking_vnc">Checking if the VM is still running…</string>
+    <string name="qemu_ram_preset_recommended">%1$s ★</string>
+    <string name="qemu_vnc_resolution_label">Resolution (VNC mode only)</string>
+    <string name="qemu_stop_vm_title">Stop the VM</string>
+    <string name="qemu_stop_vm_message">Kills the QEMU background session (VNC mode) and, if something was left running in console mode, that process too. It does not delete any disk image — it only shuts down the current VM.</string>
+    <string name="qemu_stop_vm_button">Stop</string>
+    <string name="qemu_toast_vm_stopped">VM stopped</string>
 
     <string name="qemu_status_installed">Installed</string>
     <string name="qemu_status_not_available">Not available</string>
@@ -47,7 +83,7 @@
 
     <string name="qemu_toast_binary_path_required">Type the binary path first</string>
     <string name="qemu_what_user_mode">qemu-user (%1$s)</string>
-    <string name="qemu_what_system_mode">qemu-system (headless VM)</string>
+    <string name="qemu_what_system_mode">qemu-system-%1$s (headless VM)</string>
 
     <string name="qemu_create_image_name_hint">Name (e.g. disk1.qcow2)</string>
     <string name="qemu_create_image_size_hint">Size (e.g. 4G, 512M) — also accepts 4gb/4GB</string>
@@ -99,7 +135,7 @@
     <string name="qemu_error_unknown_lower">unknown error</string>
 
     <string name="qemu_vnc_timeout_title">The VNC server did not respond</string>
-    <string name="qemu_vnc_timeout_message">QEMU did not bring up port %1$d after %2$ds. Without KVM (software TCG) boot can take longer — you can retry opening the viewer manually from the Mini PC module pointing at port %1$d, or check the real log:\n\n%3$s</string>
+    <string name="qemu_vnc_timeout_message">QEMU did not bring up the VNC server (unix socket) after %1$ds. Without KVM (software TCG) boot can take longer — you can retry, or check the real log:\n\n%2$s</string>
     <string name="qemu_vnc_log_empty">(empty log or no permissions — ~/kairos_logs/qemu_vm_vnc.log)</string>
     <string name="qemu_retry">Retry</string>
 
@@ -137,4 +173,51 @@
     <string name="qemu_ssh_port_closed_message">Nothing was detected listening on 127.0.0.1:%1$d — the VM may still be booting (software TCG without KVM takes a while), or the guest may not have sshd running/installed yet. You can try anyway (the ssh client will retry the real connection) or wait for it to finish booting.</string>
     <string name="qemu_ssh_try_anyway">Try anyway</string>
     <string name="qemu_session_name_ssh">QEMU (SSH)</string>
+
+    <!-- Install a program inside the VM via SSH (explicit user request) — runs the real command
+         in a visible terminal (not silent): installation may prompt for confirmation/password
+         inside the guest, and neither the username nor a sudo package is guaranteed depending
+         on the image (Alpine=apk without sudo by default, Debian/Ubuntu=apt with sudo if
+         cloud-init set up a non-root user) — same honesty criterion as connectSsh()/
+         promptConnectSsh(). -->
+    <string name="qemu_btn_install_package">📦 Install a program in the VM (via SSH)…</string>
+    <string name="qemu_install_pkg_title">Install a program in the VM</string>
+    <string name="qemu_install_pkg_message">Runs the real installer via SSH in a visible terminal — if the guest asks for a sudo password or confirmation, answer it there. Pick the package manager that matches the image (apt for Debian/Ubuntu, apk for Alpine).</string>
+    <string name="qemu_install_pkg_manager_label">Package manager</string>
+    <string name="qemu_install_pkg_name_hint">Package name (e.g. git, htop, python3)</string>
+    <string name="qemu_install_pkg_button">Install</string>
+    <string name="qemu_toast_pkg_name_required">Type the package name first</string>
+    <string name="qemu_session_name_install">QEMU (Install package)</string>
+
+    <!-- Hot control via QMP (v1.4.0, see QmpClient.kt / finding #2 of
+         docs/mini-pc/AUDITORIA_COMUNICACION_2026-09-08.md) -->
+    <string name="qemu_card_qmp_title">HOT CONTROL (QMP)</string>
+    <string name="qemu_qmp_desc">Controls the running VM without killing the process — requires having booted it (console or VNC mode) with this Kairos version. If no VM is running, each action warns instead of failing silently.</string>
+    <string name="qemu_btn_qmp_powerdown">⏻ Power off (graceful)</string>
+    <string name="qemu_btn_qmp_pause">⏸ Pause</string>
+    <string name="qemu_btn_qmp_resume">▶ Resume</string>
+    <string name="qemu_btn_qmp_screenshot">📷 Screenshot (QMP)</string>
+    <string name="qemu_btn_qmp_change_media">💿 Change media (hot-swap)…</string>
+    <string name="qemu_btn_qmp_eject_media">⏏ Eject media…</string>
+
+    <string name="qemu_qmp_unavailable_title">No VM has QMP enabled</string>
+    <string name="qemu_qmp_unavailable_message">No control socket was found for any running VM. Boot the VM first (\"Boot VM…\") — the QMP socket is enabled automatically in any mode (console or VNC).</string>
+
+    <string name="qemu_qmp_powerdown_title">Power off the VM (graceful)</string>
+    <string name="qemu_qmp_powerdown_message">Asks the guest to shut itself down (ACPI powerdown), like pressing the power button on a real PC — unlike \"Stop VM\", which kills the whole QEMU process outright. A minimal headless guest without acpid might not respond to this; if nothing happens in a few seconds, use \"Stop VM\".</string>
+    <string name="qemu_qmp_powerdown_button">Power off</string>
+    <string name="qemu_toast_qmp_powerdown_sent">Shutdown signal sent — wait for the guest to close on its own</string>
+    <string name="qemu_toast_qmp_failed">Could not complete the action — check that the VM is still running</string>
+    <string name="qemu_toast_qmp_paused">VM paused</string>
+    <string name="qemu_toast_qmp_resumed">VM resumed</string>
+    <string name="qemu_toast_qmp_screenshot_saved">Screenshot saved: %1$s (images folder)</string>
+
+    <string name="qemu_toast_qmp_listing_devices">Querying the VM\'s disks/media…</string>
+    <string name="qemu_toast_qmp_no_devices">The VM reported no attached disk/media</string>
+    <string name="qemu_qmp_device_empty">(empty)</string>
+    <string name="qemu_qmp_choose_device_title">Choose a disk/media</string>
+    <string name="qemu_qmp_choose_new_media_title">New media for %1$s</string>
+    <string name="qemu_toast_qmp_changing_media">Changing media to %1$s…</string>
+    <string name="qemu_toast_qmp_media_changed">Media changed: %1$s (without restarting the VM)</string>
+    <string name="qemu_toast_qmp_ejected">Media ejected</string>
 </resources>

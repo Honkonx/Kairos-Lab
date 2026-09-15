@@ -37,13 +37,41 @@ import android.provider.Settings
  */
 object BatteryRestrictionHelper {
 
+    // SharedPreferences propio del helper (mismo mecanismo ya usado en el resto de la app —
+    // ver ConfigFragment.PREFS_NAME — nunca un mecanismo nuevo de persistencia): guarda si el
+    // diálogo explicativo ya se mostró para esta instalación, para no repetirlo cada vez que
+    // el usuario vuelva a tocar la acción mientras la restricción de batería sigue activa.
+    private const val PREFS_NAME = "kairos_battery_restriction_prefs"
+    private const val KEY_EXPLAIN_DIALOG_SHOWN = "explain_dialog_shown"
+
     /**
-     * Punto de entrada único: pide primero la exención estándar de Android (si todavía no la
-     * tiene) y después intenta la pantalla específica del fabricante (autostart/gestor de
+     * Punto de entrada único: muestra primero un diálogo breve explicando POR QUÉ Kairos pide
+     * esto (solo la primera vez, ver PREFS_NAME arriba) y recién después pide la exención
+     * estándar de Android + intenta la pantalla específica del fabricante (autostart/gestor de
      * batería) — las dos cosas son necesarias en fabricantes agresivos, una sola no alcanza.
+     * Hallazgo de auditoría de la categoría ia de referencia/ (2026-08-31): antes se lanzaba el intent de
+     * Settings directo, sin contexto — el usuario llegaba a una pantalla del sistema sin saber
+     * por qué Kairos se la pidió.
      */
     @JvmStatic
     fun requestDisableBatteryRestrictions(activity: Activity) {
+        val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getBoolean(KEY_EXPLAIN_DIALOG_SHOWN, false)) {
+            proceedWithBatteryRequest(activity)
+            return
+        }
+        androidx.appcompat.app.AlertDialog.Builder(activity)
+            .setTitle(com.termux.R.string.battery_restriction_dialog_title)
+            .setMessage(com.termux.R.string.battery_restriction_dialog_message)
+            .setPositiveButton(com.termux.R.string.battery_restriction_dialog_continue) { _, _ ->
+                prefs.edit().putBoolean(KEY_EXPLAIN_DIALOG_SHOWN, true).apply()
+                proceedWithBatteryRequest(activity)
+            }
+            .setNegativeButton(com.termux.R.string.battery_restriction_dialog_cancel, null)
+            .show()
+    }
+
+    private fun proceedWithBatteryRequest(activity: Activity) {
         requestIgnoreBatteryOptimizations(activity)
         tryManufacturerSpecificScreen(activity)
     }

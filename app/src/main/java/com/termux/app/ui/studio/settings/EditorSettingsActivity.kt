@@ -26,7 +26,18 @@ class EditorSettingsActivity : AppCompatActivity() {
     private val themeLabelRes = mapOf(
         "kairos-ink" to com.termux.R.string.editor_theme_kairos_ink,
         "kairos-paper" to com.termux.R.string.editor_theme_kairos_paper,
-        "kairos-contrast" to com.termux.R.string.editor_theme_kairos_contrast
+        "kairos-contrast" to com.termux.R.string.editor_theme_kairos_contrast,
+        "dracula" to com.termux.R.string.editor_theme_dracula,
+        "nord" to com.termux.R.string.editor_theme_nord,
+        "gruvbox-dark" to com.termux.R.string.editor_theme_gruvbox_dark,
+        "gruvbox-light" to com.termux.R.string.editor_theme_gruvbox_light,
+        "solarized-dark" to com.termux.R.string.editor_theme_solarized_dark,
+        "solarized-light" to com.termux.R.string.editor_theme_solarized_light,
+        "monokai" to com.termux.R.string.editor_theme_monokai,
+        "one-dark" to com.termux.R.string.editor_theme_one_dark,
+        "atom-one-light" to com.termux.R.string.editor_theme_atom_one_light,
+        "ayu-dark" to com.termux.R.string.editor_theme_ayu_dark,
+        "ayu-light" to com.termux.R.string.editor_theme_ayu_light
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {

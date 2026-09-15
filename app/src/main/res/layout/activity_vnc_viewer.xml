@@ -48,6 +48,28 @@
         android:focusable="true"
         android:contentDescription="@string/vnc_viewer_open_keyboard" />
 
+    <!-- Menú de 3 puntos (pedido explícito del usuario, ver docs/humano316.md: "agregar el
+         icono de teclado y el de 3 puntos para minimizar y cerrar") — abre un PopupMenu con
+         Minimizar/Orientación/Cerrar (ver VncViewerActivity.showOverflowMenu()), mismo patrón
+         que ModuleWebViewFragment.showMenu(). El botón ✕ (btn_vnc_close) se conserva tal cual
+         para el cierre directo de un toque — el menú ofrece la misma acción "Cerrar" además,
+         no la reemplaza. -->
+    <TextView
+        android:id="@+id/btn_vnc_menu"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="110dp"
+        android:layout_marginEnd="10dp"
+        android:background="#66000000"
+        android:gravity="center"
+        android:text="⋮"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="@string/vnc_viewer_open_menu" />
+
     <!-- EditText invisible/mínimo usado únicamente como puente hacia el teclado software de
          Android (ver VncViewerActivity.setupSoftKeyboardBridge()) — la mayoría de los teclados
          software mandan texto vía InputConnection.commitText(), no como KeyEvent reales, así que

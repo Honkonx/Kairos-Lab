@@ -298,6 +298,11 @@ object ModuleEventBridge {
             // proactivo hasta ahora si el usuario ya había navegado a otra pantalla.
             "install_failed" -> "❌ Falló instalar $moduleLabel" to detail.ifBlank { "Revisá ~/kairos_logs/install_$module.log" }
             "vnc_closed" -> "Sesión de escritorio cerrada" to "La sesión VNC de Entorno se cerró."
+            // Disparado por NubeServer.handleUpload() (auditoría de referencia/ 2026-09-01,
+            // ver docs/referencias/herramientas/) — "module" acá es el string fijo "nube", no
+            // un id de modules.json real (Nube no es un módulo instalable, es un servidor
+            // embebido siempre disponible). detail trae "<nombre archivo> (<categoría>)".
+            "upload_received" -> "📥 Subida recibida en Nube" to detail.ifBlank { "Alguien subió un archivo por el link." }
             // Eventos de SESIÓN (2026-08-14, humano123 C3/C4) — los manda el lado bash de un
             // módulo (notify_event en modulos/lib.sh) o código Kotlin (notifyDirect). Son los
             // que permiten el aviso PROACTIVO sin polling: el módulo avisa solo cuando pasa

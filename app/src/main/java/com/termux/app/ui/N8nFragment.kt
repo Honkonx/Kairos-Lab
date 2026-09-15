@@ -22,6 +22,13 @@ class N8nFragment : BaseModuleFragment() {
 
     private lateinit var versionValue: TextView
     private lateinit var tunnelUrlValue: TextView
+
+    // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona la API
+    // Key de n8n (showApiKeyDialog()) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
     private lateinit var statusPillSlot: LinearLayout
     private lateinit var networkRow: DropdownSwitchRow
     private val networkModes get() = listOf(getString(R.string.n8n_network_mode_local), getString(R.string.n8n_network_mode_tunnel))
@@ -247,10 +254,12 @@ class N8nFragment : BaseModuleFragment() {
      */
     private fun loadInfo() {
         Thread {
-            val version = ModuleRegistry(requireContext()).load().get("n8n.version")
+            val ctx = context ?: return@Thread
+            val version = ModuleRegistry(ctx).load().get("n8n.version")
             val tunnelUrl = readFileTrimmed(".last_cf_url")
             val running = isModuleRunning()
-            requireActivity().runOnUiThread {
+            if (!isAdded) return@Thread
+            activity?.runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 versionValue.text = version?.ifBlank { getString(R.string.n8n_dash) } ?: getString(R.string.n8n_dash)
                 tunnelUrlValue.text = tunnelUrl?.ifBlank { getString(R.string.n8n_dash) } ?: getString(R.string.n8n_dash)

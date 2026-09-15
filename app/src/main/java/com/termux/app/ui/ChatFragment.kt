@@ -9,7 +9,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.Spannable
+import android.text.SpannableString
 import android.text.TextWatcher
+import android.text.style.BackgroundColorSpan
 import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
@@ -30,6 +33,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.termux.R
 import com.termux.app.util.ChatHistoryStore
+import com.termux.app.util.DocumentChunker
 import com.termux.app.util.LlmErrorMapper
 import com.termux.app.util.LocalModelManager
 import com.termux.app.util.ManagerNativeUtils
@@ -58,10 +62,13 @@ import com.termux.app.util.kairosThemeColor
  * sección "Estado real") sigue sin soporte de imágenes a propósito — necesitaría un
  * mmproj/vision projector aparte que ningún flujo de descarga de Kairos maneja todavía.
  * Ollama SÍ soporta imágenes (campo "images" en /api/generate, base64 sin el prefijo
- * "data:image/...") para modelos multimodales — es una API completamente distinta al
- * motor local, así que el botón de adjuntar (ver mBtnAttach) solo se habilita cuando
- * `!isLocalModel(mSelectedModel)`. Ver también el aviso dinámico en fragment_chat.xml y
- * updateAttachButtonState().
+ * "data:image/...") para modelos multimodales — es una API completamente distinta al motor
+ * local, así que la opción IMAGEN del chooser de mBtnAttach solo se habilita cuando
+ * `mImageAttachAllowed` (ver updateAttachButtonState()). La opción DOCUMENTO (.txt/.md, ver
+ * onAttachClicked()/DocumentChunker.kt) SÍ funciona con cualquier motor (local embebido,
+ * llama-server HTTP, Ollama, Cloud API) — se resuelve como texto plano inyectado en el prompt
+ * antes de dispatchMessage() ramificar por motor, ver augmentTextWithAttachedDocument().
+ * Hallazgo real de docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md.
  */
 class ChatFragment : Fragment() {
 
@@ -93,7 +100,18 @@ class ChatFragment : Fragment() {
         private const val ENGINE_CLOUD = "cloud"
         private const val CLOUD_PROVIDER_KEY = "cloud_provider"
         private fun cloudApiKeyKey(provider: String) = "cloud_api_key_$provider"
-        private val CLOUD_PROVIDERS = listOf("gemini", "deepseek", "openai", "anthropic", "grok")
+        // Proveedor "custom" (pedido real de un usuario vía Telegram, feedback externo sobre
+        // la app publicada — 2026-09-01): endpoint arbitrario compatible con la API de OpenAI
+        // (OpenRouter, Groq, Azure OpenAI, un proxy propio, vLLM/llama.cpp server remoto, etc.)
+        // — reusa exactamente el payload/parseo del caso "openai" (openAiBody() +
+        // contentPath "choices[0].message.content"), solo la URL y el modelo son configurables
+        // por el usuario en vez de estar hardcodeados. Ver requestCustomProviderConfig().
+        private val CLOUD_PROVIDERS = listOf("gemini", "deepseek", "openai", "anthropic", "grok", "custom")
+        private const val CLOUD_CUSTOM_BASE_URL_KEY = "cloud_custom_base_url"
+        private const val CLOUD_CUSTOM_MODEL_KEY = "cloud_custom_model"
+        // Default replicando el mismo criterio que el caso "openai" existente (modelo fijo
+        // razonable si el usuario deja el campo vacío) — mismo patrón, endpoint distinto.
+        private const val DEFAULT_CUSTOM_MODEL = "gpt-3.5-turbo"
         // Prefijo del modo shell (2026-08-15, ronda humano126, hallazgo #7 whispercode):
         // un mensaje que empieza con "!" se ejecuta como comando shell real y su salida se
         // muestra en el chat como mensaje de sistema — sin pasar por ningún motor de IA.
@@ -166,6 +184,55 @@ class ChatFragment : Fragment() {
         // en menu_nativo.sh). Ver enforceHistoryLimit().
         private const val HISTORY_LIMIT_UNLIMITED = -1
 
+        // Presupuesto de tokens (hallazgo real de auditoría, ver
+        // docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md hallazgo #2,
+        // context.ts::trimConversation() de Local-Browser-AI): heurística barata sin
+        // tokenizer real (chars/4, mismo criterio que la referencia) — no exacta, pero
+        // suficiente para no exceder por mucho la ventana real del modelo activo. Antes
+        // enforceHistoryLimit() SOLO recortaba por CANTIDAD de mensajes (ver
+        // DEFAULT_HISTORY_LIMIT arriba, que sigue existiendo como tope duro de seguridad
+        // independiente): 50 mensajes muy largos podían exceder la ventana real igual (el
+        // motor local trunca/falla), mientras 50 mensajes cortos ni se acercaban a saturarla.
+        private const val TOKEN_ESTIMATE_CHARS_PER_TOKEN = 4
+        // Deja margen real para que el modelo pueda generar su respuesta dentro de la misma
+        // ventana de contexto — mismo default (0.75) que trimConversation() de la referencia.
+        private const val CONTEXT_BUDGET_RATIO = 0.75
+        // Motor local (embebido y llama-server HTTP): mismo default y misma clave que
+        // makeLocalRequest()/LlamaServerConfigFragment ("kairos_llm_prefs"/"context_size") —
+        // fuente real y conocida, no una suposición.
+        private const val DEFAULT_LOCAL_CONTEXT_TOKENS = 2048
+        // Ollama no expone el context_length real en un campo fijo — varía de nombre según la
+        // familia del modelo dentro de "model_info" de /api/show (ver
+        // OllamaApiClient.extractContextLength()). Se intenta leerlo igual (cacheado junto con
+        // la capacidad de visión en refreshVisionCapability(), mismo request HTTP reusado) y
+        // se cae a este default conservador mientras no se confirmó para el modelo activo.
+        private const val OLLAMA_DEFAULT_CONTEXT_TOKENS = 4096
+        // Cloud API (proveedores BYO, ver ENGINE_CLOUD): corre en infraestructura ajena con
+        // ventanas grandes gestionadas del lado del proveedor — este valor es solo una guía de
+        // recorte LOCAL del historial que Kairos persiste, no una garantía real del proveedor
+        // (Kairos no conoce el límite real de cada proveedor/modelo cloud).
+        private const val CLOUD_DEFAULT_CONTEXT_TOKENS = 16000
+
+        // Adjuntar documentos al chat (hallazgo real de auditoría, ver
+        // docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md hallazgo #1,
+        // documents.ts::chunkDocument()/selectRelevantChunks() de Local-Browser-AI) — soporte
+        // real y simple sin dependencias nuevas (extracción de texto plano, ver
+        // readDocumentText()); .pdf/.docx necesitarían una librería de parseo dedicada, fuera
+        // de alcance de esta ronda (no se agrega peso al APK sin confirmarlo antes con el
+        // usuario) — se reconocen para dar un aviso honesto en vez de un "formato desconocido"
+        // genérico, ver PENDING_DOCUMENT_EXTENSIONS.
+        private val SUPPORTED_DOCUMENT_EXTENSIONS = setOf("txt", "md", "markdown")
+        private val PENDING_DOCUMENT_EXTENSIONS = setOf("pdf", "docx")
+        // Tope de lectura (bytes) antes de descartar el documento — un archivo de texto de
+        // este tamaño ya es enorme para un chat (~1.25M caracteres); evita cargar un archivo
+        // gigante entero en memoria por error de selección del usuario.
+        private const val MAX_DOCUMENT_BYTES = 5_000_000
+        // Presupuesto de caracteres para el/los fragmentos más relevantes que se inyectan en
+        // el prompt real (ver augmentTextWithAttachedDocument()) — deja espacio real para el
+        // resto de la conversación (buildContextMessages()) y la pregunta del usuario dentro
+        // del presupuesto de tokens del modelo activo (ver CONTEXT_BUDGET_RATIO arriba).
+        private const val DOCUMENT_CONTEXT_MAX_CHARS = 6000
+
         // Lado mayor máximo (px) de una imagen adjunta antes de codificarla a base64 — sin
         // esto, una foto de cámara moderna (12+ MP) infla el JSON de la request (y lo que
         // persiste ChatHistoryStore) con varios MB por mensaje. Mismo criterio de resize
@@ -199,6 +266,11 @@ class ChatFragment : Fragment() {
         // no emiten "permission.asked" nativo — ver checkPermissionMarker().
         private const val TOOL_PERMISSION_MARKER = "[PERMISO]"
         private const val TOOL_AUTOACCEPT_KEY = "tool_autoaccept"
+
+        // Resaltado de búsqueda (ver highlightSearchMatches()) — amarillo semitransparente,
+        // constante fija en vez de un color de tema: es un marcador temporal sobre texto que
+        // ya tiene su propio color de tema (kairosText), no un elemento de UI permanente.
+        private val SEARCH_HIGHLIGHT_COLOR = android.graphics.Color.parseColor("#66FFEB3B")
     }
 
     private lateinit var mRecycler: RecyclerView
@@ -228,6 +300,9 @@ class ChatFragment : Fragment() {
     private lateinit var mImagePreviewRow: View
     private lateinit var mImagePreviewThumb: ImageView
     private lateinit var mImagePreviewRemove: View
+    private lateinit var mDocumentPreviewRow: View
+    private lateinit var mDocumentPreviewName: TextView
+    private lateinit var mDocumentPreviewRemove: View
     private lateinit var mBtnSwitchEngine: View
     private lateinit var mEngineSelectorView: View
     private lateinit var mEngineOllamaSubtitle: TextView
@@ -235,12 +310,32 @@ class ChatFragment : Fragment() {
     private lateinit var mEngineCloudSubtitle: TextView
     private lateinit var mBtnMic: View
 
+    // Búsqueda en el historial (hallazgo referencia/ia/oalla-main) — ver toggleSearchBar()/
+    // applySearchQuery(). Filtro visual (resalta coincidencias, no oculta mensajes) para no
+    // tocar los índices de mMessages que dispatchMessage()/truncateAndResend() asumen reales.
+    private lateinit var mBtnSearch: View
+    private lateinit var mSearchBar: View
+    private lateinit var mSearchInput: EditText
+    private lateinit var mSearchCount: TextView
+    private lateinit var mSearchClose: View
+    private var mSearchQuery: String = ""
+
     // Debe registrarse como campo de instancia (no dentro de onViewCreated/onClick) —
     // requisito del ciclo de vida de ActivityResultLauncher, el mismo patrón que ya usa
     // WizardPermissionsFragment.kt en este proyecto.
     private val mPickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
             uri?.let { handlePickedImage(it) }
+        }
+
+    // Adjuntar documento (.txt/.md, ver onAttachClicked()/handlePickedDocument()) — mismo
+    // criterio de campo de instancia que mPickImageLauncher. "*/*" en vez de un mime type
+    // fijo porque muchos proveedores de archivos (file managers, Drive, etc.) etiquetan .md
+    // con mimes inconsistentes (a veces "text/markdown", a veces "application/octet-stream")
+    // — se valida por EXTENSIÓN real después de elegir, no por el mime que reporte el picker.
+    private val mPickDocumentLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let { handlePickedDocument(it) }
         }
 
     // Entrada de voz (ver docs/referencias/REFERENCIA_NEWTERMUX.md) — mismo criterio de campo de
@@ -253,6 +348,20 @@ class ChatFragment : Fragment() {
     private var mSpeechManager: com.termux.app.util.SpeechInputManager? = null
 
     private var mAttachedImageBase64: String? = null
+
+    // Documento adjunto (ver handlePickedDocument()/augmentTextWithAttachedDocument()) — los
+    // chunks ya trozados (DocumentChunker.chunkText()) quedan en memoria hasta el próximo
+    // envío o hasta que el usuario lo quite; nunca se persisten en ChatHistoryStore (a
+    // diferencia de la imagen adjunta) porque solo importan para el PRÓXIMO mensaje, no como
+    // parte del historial guardado — el texto ya quedó inyectado en el prompt real de ese
+    // turno, ver postStreamingRequest/makeOllamaRequest etc.
+    private var mAttachedDocumentChunks: List<DocumentChunker.Chunk>? = null
+    private var mAttachedDocumentName: String? = null
+
+    // Gana la opción IMAGEN del chooser de mBtnAttach (ver updateAttachButtonState()) — a
+    // diferencia de antes, el botón en sí queda SIEMPRE habilitado porque adjuntar DOCUMENTO
+    // funciona con cualquier motor/modelo.
+    private var mImageAttachAllowed = true
 
     private var mSelectedModel = MODELS[0]
     // Modelos REALES pulled en Ollama (ver checkOllamaStatus/refreshOllamaModels) — vacío
@@ -268,6 +377,12 @@ class ChatFragment : Fragment() {
     private val mCancelled = AtomicBoolean(false)
     private var mRequestThread: Thread? = null
     private val mMainHandler = Handler(Looper.getMainLooper())
+
+    // Id del mensaje "assistant" que se está regenerando (ver regenerateAssistantMessage()) —
+    // null cuando el request en curso es un envío normal. finishLoading() lo consulta para
+    // decidir si el contenido recién terminado debe empujarse a ChatMessage.versions en vez
+    // de solo quedar como el content final (comportamiento normal de cualquier otro request).
+    private var mRegeneratingAssistantId: String? = null
 
     // Bug real (auditoría 2026-08-13, ver docs/viejo/AUDITORIA_CODIGO_2026-08-13.md
     // §1.9): Thread.interrupt() (ver cancelRequest()) no desbloquea una lectura ya bloqueada
@@ -315,6 +430,10 @@ class ChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
+        // API keys BYO de proveedores cloud (cloudApiKeyKey() arriba) — ver
+        // .claude/rules/kairos-secrets-never-revealed.md.
+        view.filterTouchesWhenObscured = true
 
         mRecycler = view.findViewById(R.id.recycler_chat)
         mRecycler.layoutManager = LinearLayoutManager(requireContext())
@@ -343,6 +462,9 @@ class ChatFragment : Fragment() {
         mImagePreviewRow = view.findViewById(R.id.image_preview_row)
         mImagePreviewThumb = view.findViewById(R.id.image_preview_thumb)
         mImagePreviewRemove = view.findViewById(R.id.image_preview_remove)
+        mDocumentPreviewRow = view.findViewById(R.id.document_preview_row)
+        mDocumentPreviewName = view.findViewById(R.id.document_preview_name)
+        mDocumentPreviewRemove = view.findViewById(R.id.document_preview_remove)
         mBtnSwitchEngine = view.findViewById(R.id.btn_switch_engine)
         mBtnSwitchEngine.setOnClickListener { showEngineSelector() }
         view.findViewById<View>(R.id.offline_switch_engine).setOnClickListener { showEngineSelector() }
@@ -360,11 +482,25 @@ class ChatFragment : Fragment() {
         mEngineSelectorView = buildEngineSelectorView()
         (view as ViewGroup).addView(mEngineSelectorView)
 
+        mBtnSearch = view.findViewById(R.id.btn_search)
+        mSearchBar = view.findViewById(R.id.search_bar)
+        mSearchInput = view.findViewById(R.id.search_input)
+        mSearchCount = view.findViewById(R.id.search_count)
+        mSearchClose = view.findViewById(R.id.search_close)
+        mBtnSearch.setOnClickListener { toggleSearchBar() }
+        mSearchClose.setOnClickListener { toggleSearchBar() }
+        mSearchInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable) { applySearchQuery(s.toString()) }
+        })
+
         mBtnSend.setOnClickListener { sendMessage() }
         mBtnClear.setOnClickListener { clearHistory() }
         mBtnSettings.setOnClickListener { showQuickSettingsDialog() }
         mBtnAttach.setOnClickListener { onAttachClicked() }
         mImagePreviewRemove.setOnClickListener { clearAttachedImage() }
+        mDocumentPreviewRemove.setOnClickListener { clearAttachedDocument() }
         mErrorDismiss.setOnClickListener { mErrorBar.visibility = View.GONE }
         mErrorToggleDetail.setOnClickListener {
             val expanding = mErrorDetail.visibility != View.VISIBLE
@@ -544,25 +680,76 @@ class ChatFragment : Fragment() {
     }
 
     /**
-     * Recorta `mMessages` (memoria) a los últimos N mensajes configurados en
-     * "kairos_llm_prefs"/"history_limit" — se llama tras cada turno completo (ver
-     * finishLoading) y al mover el slider en showQuickSettingsDialog(), nunca a mitad de
-     * un streaming (cortar un mensaje que se está generando lo dejaría a medias). Los
-     * mensajes descartados no se re-persisten: persistHistory() siempre escribe el estado
-     * actual de mMessages, así que lo que se recorta acá desaparece también de disco en el
-     * próximo persistHistory().
+     * Recorta `mMessages` (memoria y disco, vía persistHistory() posterior) en DOS pasadas
+     * independientes — se llama tras cada turno completo (ver finishLoading) y al mover el
+     * slider en showQuickSettingsDialog(), nunca a mitad de un streaming (cortar un mensaje
+     * que se está generando lo dejaría a medias):
+     *
+     * 1) Tope duro de seguridad por CANTIDAD de mensajes ("kairos_llm_prefs"/"history_limit",
+     *    default DEFAULT_HISTORY_LIMIT, preset "∞" = sin límite) — comportamiento original,
+     *    sin cambios de fondo.
+     * 2) Presupuesto real de TOKENS del modelo/motor activo (ver enforceTokenBudget()) —
+     *    hallazgo real de docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md,
+     *    patrón context.ts::trimConversation() de Local-Browser-AI. Corre SIEMPRE, incluso
+     *    con el preset "∞" de (1): son dos preocupaciones distintas — (1) es cuánta
+     *    conversación quiere el usuario RETENER (para navegar/buscar), (2) es cuánto texto
+     *    puede tolerar de verdad la ventana de contexto real del modelo activo sin que el
+     *    motor trunque/falle. Ninguna de las dos reemplaza a la otra.
+     *
+     * Los mensajes descartados no se re-persisten: persistHistory() siempre escribe el
+     * estado actual de mMessages, así que lo que se recorta acá desaparece también de disco
+     * en el próximo persistHistory().
      */
     private fun enforceHistoryLimit() {
         val ctx = context ?: return
         val stored = ctx.getSharedPreferences("kairos_llm_prefs", 0)
             .getInt("history_limit", DEFAULT_HISTORY_LIMIT)
-        // Preset "∞" (ver OllamaConfigFragment) — sin límite, no se recorta ni memoria ni disco.
-        if (stored == HISTORY_LIMIT_UNLIMITED) return
-        val limit = stored.coerceIn(MIN_HISTORY_LIMIT, MAX_HISTORY_LIMIT)
-        if (mMessages.size <= limit) return
-        val excess = mMessages.size - limit
-        repeat(excess) { mMessages.removeAt(0) }
+        if (stored != HISTORY_LIMIT_UNLIMITED) {
+            val limit = stored.coerceIn(MIN_HISTORY_LIMIT, MAX_HISTORY_LIMIT)
+            if (mMessages.size > limit) repeat(mMessages.size - limit) { mMessages.removeAt(0) }
+        }
+        enforceTokenBudget(ctx)
         if (::mAdapter.isInitialized) mAdapter.notifyDataSetChanged()
+    }
+
+    /**
+     * Segunda pasada de enforceHistoryLimit() — recorta los mensajes más VIEJOS hasta entrar
+     * en `activeContextTokens() * CONTEXT_BUDGET_RATIO` (ver constantes arriba), recorriendo
+     * mMessages del más reciente hacia atrás (mismo criterio que trimConversation() de la
+     * referencia). El mensaje más reciente nunca se descarta acá aunque, por sí solo, ya
+     * exceda el presupuesto — perderlo sería peor que mandarlo igual y dejar que el motor lo
+     * trunque él mismo.
+     */
+    private fun enforceTokenBudget(ctx: Context) {
+        if (mMessages.size <= 1) return
+        val budget = (activeContextTokens(ctx) * CONTEXT_BUDGET_RATIO).toInt()
+        if (budget <= 0) return
+        var used = 0
+        var keepFrom = 0
+        for (i in mMessages.indices.reversed()) {
+            val tokens = estimateTokens(mMessages[i].content)
+            if (used > 0 && used + tokens > budget) { keepFrom = i + 1; break }
+            used += tokens
+        }
+        if (keepFrom > 0) repeat(keepFrom) { mMessages.removeAt(0) }
+    }
+
+    /** Heurística barata (chars/4, sin tokenizer real) — ver TOKEN_ESTIMATE_CHARS_PER_TOKEN. */
+    private fun estimateTokens(text: String): Int {
+        if (text.isEmpty()) return 0
+        return (text.length / TOKEN_ESTIMATE_CHARS_PER_TOKEN).coerceAtLeast(1)
+    }
+
+    /**
+     * contextTokens real del modelo/motor activo — ver las constantes
+     * DEFAULT_LOCAL_CONTEXT_TOKENS/OLLAMA_DEFAULT_CONTEXT_TOKENS/CLOUD_DEFAULT_CONTEXT_TOKENS
+     * arriba para la fuente real (o el default conservador documentado) de cada caso.
+     */
+    private fun activeContextTokens(ctx: Context): Int = when {
+        mEngine == ENGINE_CLOUD -> CLOUD_DEFAULT_CONTEXT_TOKENS
+        isLocalModel(mSelectedModel) -> ctx.getSharedPreferences("kairos_llm_prefs", 0)
+            .getInt("context_size", DEFAULT_LOCAL_CONTEXT_TOKENS)
+        else -> mContextLengthCache[mSelectedModel]?.takeIf { it > 0 } ?: OLLAMA_DEFAULT_CONTEXT_TOKENS
     }
 
     /**
@@ -791,6 +978,7 @@ class ChatFragment : Fragment() {
         "openai" -> "OpenAI"
         "anthropic" -> "Anthropic"
         "grok" -> "Grok"
+        "custom" -> getString(R.string.chat_custom_provider_name)
         else -> provider
     }
 
@@ -804,7 +992,11 @@ class ChatFragment : Fragment() {
             .setSingleChoiceItems(labels, CLOUD_PROVIDERS.indexOf(currentCloudProvider())) { dialog, which ->
                 val provider = CLOUD_PROVIDERS[which]
                 dialog.dismiss()
-                if (cloudApiKey(provider).trim().length < 20) {
+                if (provider == "custom" && cloudPrefs().getString(CLOUD_CUSTOM_BASE_URL_KEY, "").isNullOrBlank()) {
+                    // "custom" necesita Base URL antes que nada — sin eso no hay a dónde pegarle
+                    // el request, ni siquiera tiene sentido pedir la API key todavía.
+                    requestCustomProviderConfig()
+                } else if (cloudApiKey(provider).trim().length < 20) {
                     requestCloudApiKey(provider)
                 } else {
                     cloudPrefs().edit().putString(CLOUD_PROVIDER_KEY, provider).apply()
@@ -838,6 +1030,59 @@ class ChatFragment : Fragment() {
                     securePrefs().setSecret(cloudApiKeyKey(provider), key)
                     cloudPrefs().edit().putString(CLOUD_PROVIDER_KEY, provider).apply()
                     toast(getString(R.string.chat_api_key_saved_toast, cloudProviderName(provider)))
+                    selectEngine(ENGINE_CLOUD)
+                }
+            }
+            .setNegativeButton(getString(R.string.chat_cancel), null)
+            .show()
+    }
+
+    /** Config extra del proveedor "custom" (BYO endpoint OpenAI-compatible) — pide Base URL
+     *  (obligatoria, debe empezar con "http") y opcionalmente el nombre del modelo (default
+     *  DEFAULT_CUSTOM_MODEL si se deja vacío). Encadena a requestCloudApiKey("custom") para la
+     *  API key si todavía falta, mismo patrón que el resto de proveedores. Pedido real de un
+     *  usuario vía Telegram: "añadir [...] API personalizada compatible con OpenAI, usando API
+     *  Key + Base URL, para [...] usar diferentes proveedores y modelos" (OpenRouter, Groq,
+     *  Azure OpenAI, vLLM/llama.cpp server remoto, etc.). */
+    private fun requestCustomProviderConfig() {
+        val ctx = context ?: return
+        val layout = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+        }
+        val urlInput = android.widget.EditText(ctx).apply {
+            hint = getString(R.string.chat_custom_base_url_hint)
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            setText(cloudPrefs().getString(CLOUD_CUSTOM_BASE_URL_KEY, ""))
+        }
+        val modelInput = android.widget.EditText(ctx).apply {
+            hint = getString(R.string.chat_custom_model_hint, DEFAULT_CUSTOM_MODEL)
+            isSingleLine = true
+            setText(cloudPrefs().getString(CLOUD_CUSTOM_MODEL_KEY, ""))
+            setPadding(0, dp(8), 0, 0)
+        }
+        layout.addView(urlInput)
+        layout.addView(modelInput)
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.chat_custom_config_dialog_title))
+            .setMessage(getString(R.string.chat_custom_config_dialog_message))
+            .setView(layout)
+            .setPositiveButton(getString(R.string.chat_save)) { _, _ ->
+                val baseUrl = urlInput.text?.toString()?.trim().orEmpty()
+                if (baseUrl.isBlank() || !baseUrl.startsWith("http")) {
+                    toast(getString(R.string.chat_custom_base_url_invalid_toast))
+                    return@setPositiveButton
+                }
+                val model = modelInput.text?.toString()?.trim().orEmpty()
+                cloudPrefs().edit()
+                    .putString(CLOUD_CUSTOM_BASE_URL_KEY, baseUrl)
+                    .putString(CLOUD_CUSTOM_MODEL_KEY, model)
+                    .apply()
+                if (cloudApiKey("custom").trim().length < 20) {
+                    requestCloudApiKey("custom")
+                } else {
+                    cloudPrefs().edit().putString(CLOUD_PROVIDER_KEY, "custom").apply()
                     selectEngine(ENGINE_CLOUD)
                 }
             }
@@ -910,6 +1155,9 @@ class ChatFragment : Fragment() {
      *   - OpenAI:   POST https://api.openai.com/v1/chat/completions (Bearer)
      *   - Anthropic: POST https://api.anthropic.com/v1/messages (x-api-key + anthropic-version) → content[0].text
      *   - Grok:     POST https://api.x.ai/v1/chat/completions (Bearer)
+     *   - Custom:   POST <baseUrl>/chat/completions (Bearer) — endpoint OpenAI-compatible
+     *               configurado por el usuario (Base URL + modelo, ver
+     *               requestCustomProviderConfig()), reusa el mismo body/parseo que "openai".
      * Emite el texto del assistant vía onPartial (chunk entero por turno, no hay streaming
      * unificado). Llama finishLoading() en todos los caminos.
      */
@@ -1021,6 +1269,17 @@ class ChatFragment : Fragment() {
                 },
                 contentPath = "content[0].text"
             )
+            "custom" -> {
+                val baseUrl = cloudPrefs().getString(CLOUD_CUSTOM_BASE_URL_KEY, "").orEmpty()
+                val model = cloudPrefs().getString(CLOUD_CUSTOM_MODEL_KEY, "").orEmpty()
+                    .ifBlank { DEFAULT_CUSTOM_MODEL }
+                CloudSpec(
+                    url = customCompletionsUrl(baseUrl),
+                    headers = mapOf("Authorization" to "Bearer $apiKey"),
+                    body = openAiBody(model, fullPrompt),
+                    contentPath = "choices[0].message.content"
+                )
+            }
             else -> CloudSpec(
                 url = "https://api.x.ai/v1/chat/completions",
                 headers = mapOf("Authorization" to "Bearer $apiKey"),
@@ -1028,6 +1287,14 @@ class ChatFragment : Fragment() {
                 contentPath = "choices[0].message.content"
             )
         }
+    }
+
+    /** Arma la URL final de "/chat/completions" para el proveedor "custom" — el usuario suele
+     *  pegar solo la base (ej. "https://openrouter.ai/api/v1"), sin el path final, mismo
+     *  formato que espera cualquier endpoint OpenAI-compatible real. */
+    private fun customCompletionsUrl(baseUrl: String): String {
+        val trimmed = baseUrl.trim().trimEnd('/')
+        return if (trimmed.endsWith("/chat/completions")) trimmed else "$trimmed/chat/completions"
     }
 
     /** Body OpenAI-compatible (deepseek/openai/grok comparten /chat/completions). */
@@ -1291,43 +1558,58 @@ class ChatFragment : Fragment() {
     // el heurístico de nombre VISION_MODEL_HINT_REGEX como antes, nunca se bloquea solo por
     // falta de dato). Ver refreshVisionCapability().
     private val mVisionCapabilityCache = mutableMapOf<String, Boolean?>()
+    // contextTokens real por modelo de Ollama (0/ausente = no confirmado todavía) — cacheado
+    // en el mismo request HTTP que mVisionCapabilityCache, ver refreshVisionCapability() y
+    // activeContextTokens().
+    private val mContextLengthCache = mutableMapOf<String, Int?>()
 
     /**
-     * El botón de adjuntar imagen (ver mBtnAttach) solo tiene sentido con Ollama remoto —
-     * el motor local (.gguf, llama.cpp embebido) no tiene vision projector, ver comentario
-     * de clase. Si el usuario adjuntó una imagen y después cambia a un modelo local, se
-     * descarta en vez de mandarla en silencio a un motor que la ignoraría por completo.
-     *
-     * Pedido explícito del usuario (ver docs/humano/humano57.md): "si no soporta imagen no
-     * debe salir para subir imagen" — además del caso de motor local, ahora también se
-     * deshabilita cuando la propia API de Ollama confirma (campo "capabilities" de
-     * /api/show, ver refreshVisionCapability) que el modelo elegido no soporta imágenes.
+     * mBtnAttach queda SIEMPRE habilitado desde el hallazgo de
+     * docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md: adjuntar DOCUMENTO
+     * (.txt/.md, ver onAttachClicked()) funciona con cualquier motor/modelo. Lo que sigue
+     * variando es la opción IMAGEN del chooser (ver mImageAttachAllowed) — el motor local
+     * (.gguf, llama.cpp embebido) no tiene vision projector (ver comentario de clase), Cloud
+     * API (ENGINE_CLOUD) no tiene ningún camino de imagen implementado (makeCloudRequest()
+     * ignora imageBase64 por completo — mSelectedModel puede seguir siendo un nombre de
+     * Ollama residual al cambiar de motor, así que antes esto quedaba habilitado por error),
+     * y Ollama remoto depende de si el modelo activo confirma soporte de "vision" (ver
+     * refreshVisionCapability). Si el usuario tenía una imagen adjunta y deja de calificar,
+     * se descarta en vez de mandarla en silencio a un motor que la ignoraría — pedido
+     * explícito del usuario (ver docs/humano/humano57.md): "si no soporta imagen no debe
+     * salir para subir imagen".
      */
     private fun updateAttachButtonState() {
+        setAttachEnabled(true)
+        if (mEngine == ENGINE_CLOUD) {
+            mImageAttachAllowed = false
+            discardAttachedImage(getString(R.string.chat_image_discarded_cloud))
+            return
+        }
         if (isLocalModel(mSelectedModel)) {
-            setAttachEnabled(false)
-            if (mAttachedImageBase64 != null) {
-                clearAttachedImage()
-                toast(getString(R.string.chat_image_discarded_local))
-            }
+            mImageAttachAllowed = false
+            discardAttachedImage(getString(R.string.chat_image_discarded_local))
             return
         }
         when (mVisionCapabilityCache[mSelectedModel]) {
             false -> {
-                setAttachEnabled(false)
-                if (mAttachedImageBase64 != null) {
-                    clearAttachedImage()
-                    toast(getString(R.string.chat_image_discarded_no_vision, mSelectedModel))
-                }
+                mImageAttachAllowed = false
+                discardAttachedImage(getString(R.string.chat_image_discarded_no_vision, mSelectedModel))
             }
-            true -> setAttachEnabled(true)
+            true -> mImageAttachAllowed = true
             null -> {
-                // Sin confirmar todavía — se deja habilitado (mismo criterio que antes:
-                // el heurístico de nombre solo avisa al enviar, nunca bloquea por las
-                // dudas) mientras se consulta la API en segundo plano.
-                setAttachEnabled(true)
+                // Sin confirmar todavía — se deja habilitada (mismo criterio que antes: el
+                // heurístico de nombre solo avisa al enviar, nunca bloquea por las dudas)
+                // mientras se consulta la API en segundo plano.
+                mImageAttachAllowed = true
                 refreshVisionCapability(mSelectedModel)
             }
+        }
+    }
+
+    private fun discardAttachedImage(message: String) {
+        if (mAttachedImageBase64 != null) {
+            clearAttachedImage()
+            toast(message)
         }
     }
 
@@ -1338,22 +1620,29 @@ class ChatFragment : Fragment() {
 
     /**
      * Consulta OllamaApiClient.modelInfo() (una sola vez por modelo, resultado cacheado en
-     * mVisionCapabilityCache) para saber con certeza si el modelo soporta imágenes — campo
-     * real "capabilities" de /api/show. Si la consulta falla o el modelo no expone ese
-     * campo (versión vieja de Ollama), queda como "sin confirmar" (null) y el botón sigue
-     * disponible con el aviso heurístico de siempre — nunca se oculta solo por falta de
-     * dato, únicamente cuando la API confirma explícitamente que NO soporta.
+     * mVisionCapabilityCache Y mContextLengthCache — mismo request HTTP, sin costo extra)
+     * para saber con certeza si el modelo soporta imágenes (campo real "capabilities" de
+     * /api/show) y su ventana de contexto real (campo "model_info", ver
+     * OllamaApiClient.extractContextLength()). Si la consulta falla o el modelo no expone
+     * "capabilities" (versión vieja de Ollama), queda como "sin confirmar" (null) y el botón
+     * sigue disponible con el aviso heurístico de siempre — nunca se oculta solo por falta de
+     * dato, únicamente cuando la API confirma explícitamente que NO soporta. El context
+     * length ausente cae a OLLAMA_DEFAULT_CONTEXT_TOKENS en activeContextTokens().
      */
     private fun refreshVisionCapability(modelName: String) {
         Thread {
-            val supportsVision = try {
+            var supportsVision: Boolean? = null
+            var contextLength: Int? = null
+            try {
                 val detail = com.termux.app.util.OllamaApiClient.modelInfo(modelName)
-                if (detail.capabilities.isEmpty()) null
-                else detail.capabilities.any { it.equals("vision", ignoreCase = true) }
-            } catch (_: Exception) { null }
+                supportsVision = if (detail.capabilities.isEmpty()) null
+                    else detail.capabilities.any { it.equals("vision", ignoreCase = true) }
+                contextLength = detail.contextLength.takeIf { it > 0 }
+            } catch (_: Exception) { /* queda sin confirmar, ver doc de arriba */ }
             mMainHandler.post {
                 if (!isAdded) return@post
                 mVisionCapabilityCache[modelName] = supportsVision
+                mContextLengthCache[modelName] = contextLength
                 if (modelName == mSelectedModel) updateAttachButtonState()
             }
         }.start()
@@ -1546,12 +1835,15 @@ class ChatFragment : Fragment() {
         // Follow-up queue (Composer docks, ver mPendingQueue): con un request en curso el
         // mensaje NO se envía — se encola, el input se limpia y aparece "⏳ N en cola". El
         // request activo termina su streaming y finishLoading()→drainPendingQueue() lo
-        // reenvía en orden (FIFO). Los encolados no llevan imagen (el attach se descarta).
+        // reenvía en orden (FIFO). Los encolados no llevan imagen ni documento (el attach se
+        // descarta) — sin esto, dispatchMessage() consumiría el documento en el próximo turno
+        // de la cola, que no tiene nada que ver con el mensaje al que el usuario lo adjuntó.
         if (isWorking) {
             mPendingQueue.add(text)
             mInput.setText("")
             mInput.clearFocus()
             clearAttachedImage()
+            clearAttachedDocument()
             val n = mPendingQueue.size
             updateQueueIndicator()
             toast(getString(R.string.chat_message_queued_toast, n))
@@ -1584,6 +1876,18 @@ class ChatFragment : Fragment() {
         mInput.setText("")
         mInput.clearFocus()
         clearAttachedImage()
+        // Texto real que se manda al motor (ver augmentTextWithAttachedDocument()) — se
+        // calcula ANTES de limpiar el documento adjunto, y ANTES de que el resto de esta
+        // función se ramifique por motor, para que el mismo texto aumentado sirva sin
+        // importar cuál de los 4 caminos (local embebido/llama-server/Ollama/Cloud) termine
+        // usándose más abajo. `text` (sin aumentar) sigue siendo lo que se guarda/muestra en
+        // userMsg.content — mismo criterio que augmentPromptWithWebSearch().
+        val engineText = augmentTextWithAttachedDocument(text)
+        clearAttachedDocument()
+        // Un envío normal (a diferencia de regenerateAssistantMessage()) siempre crea un
+        // mensaje "assistant" nuevo — cualquier regeneración que hubiera quedado pendiente ya
+        // no aplica a este request.
+        mRegeneratingAssistantId = null
 
         val userMsg = ChatMessage(
             id = System.currentTimeMillis().toString(),
@@ -1626,12 +1930,14 @@ class ChatFragment : Fragment() {
         } else if (isShellCommand) {
             Thread { dispatchShellCommand(shellCommand, assistantId) }
         } else if (mEngine == ENGINE_CLOUD) {
-            Thread { dispatchCloudRequest(text, assistantId) }
+            Thread { dispatchCloudRequest(engineText, assistantId) }
         } else if (isLocalModel(mSelectedModel)) {
             // El botón de adjuntar ya queda deshabilitado/vaciado para modelos locales (ver
             // updateAttachButtonState) — imageBase64 debería ser siempre null acá, pero
             // makeLocalRequest ni siquiera acepta el parámetro: no hay forma de que una
-            // imagen llegue al motor local por este camino.
+            // imagen llegue al motor local por este camino. El documento adjunto SÍ llega acá
+            // (ver engineText arriba) — a diferencia de la imagen, el motor local no tiene
+            // ninguna limitación real para texto.
             // 2026-08-11 (humano97 R2 — decisión usuario): transporte de llama.cpp elegible
             // en el selector de motor — "embedded" = motor embebido JNI (sin puerto);
             // "http" = servidor llama-server 8085 (con puerto). Persistido en kairos_llm_prefs.
@@ -1641,17 +1947,17 @@ class ChatFragment : Fragment() {
                 if (transport == "http") {
                     if (llamaServerAvailable()) {
                         mMainHandler.post { if (isAdded) mStatusText.text = getString(R.string.chat_llamaserver_transport_status) }
-                        makeLlamaServerRequest(text, assistantId)
+                        makeLlamaServerRequest(engineText, assistantId)
                     } else {
                         showError(getString(R.string.chat_llamaserver_unavailable))
                         finishLoading()
                     }
                 } else {
-                    makeLocalRequest(text, assistantId)
+                    makeLocalRequest(engineText, assistantId)
                 }
             }
         } else {
-            Thread { makeOllamaRequest(text, assistantId, imageBase64) }
+            Thread { makeOllamaRequest(engineText, assistantId, imageBase64) }
         }
         mRequestThread!!.start()
     }
@@ -1777,13 +2083,26 @@ class ChatFragment : Fragment() {
         }
     }
 
-    /** Abre el picker nativo de imágenes — deshabilitado (con aviso) para modelos locales, ver updateAttachButtonState(). */
+    /**
+     * Chooser Imagen/Documento (hallazgo real de
+     * docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md) — con la opción imagen NO
+     * disponible (ver mImageAttachAllowed/updateAttachButtonState) se salta el diálogo y abre
+     * directo el picker de documentos: no tiene sentido forzar un paso extra cuando hay una
+     * sola opción real disponible.
+     */
     private fun onAttachClicked() {
-        if (isLocalModel(mSelectedModel)) {
-            toast(getString(R.string.chat_attach_disabled_local))
+        if (!mImageAttachAllowed) {
+            mPickDocumentLauncher.launch("*/*")
             return
         }
-        mPickImageLauncher.launch("image/*")
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.chat_attach_choose_title))
+            .setItems(
+                arrayOf(getString(R.string.chat_attach_image_option), getString(R.string.chat_attach_document_option))
+            ) { _, which ->
+                if (which == 0) mPickImageLauncher.launch("image/*") else mPickDocumentLauncher.launch("*/*")
+            }
+            .show()
     }
 
     /** Pide RECORD_AUDIO en runtime si falta (ver mRecordAudioPermissionLauncher) o arranca a escuchar directo si ya está concedido. */
@@ -1881,6 +2200,98 @@ class ChatFragment : Fragment() {
         mAttachedImageBase64 = null
         mImagePreviewRow.visibility = View.GONE
         mImagePreviewThumb.setImageBitmap(null)
+    }
+
+    /**
+     * Lee, trocea (DocumentChunker.chunkText()) y deja listo el documento elegido para el
+     * PRÓXIMO envío (ver augmentTextWithAttachedDocument()/dispatchMessage()). Soporte real y
+     * simple sin dependencias nuevas: solo texto plano (.txt/.md) — .pdf/.docx se reconocen
+     * para dar un aviso honesto ("aún no soportado") en vez de un "formato desconocido"
+     * genérico, ver PENDING_DOCUMENT_EXTENSIONS/SUPPORTED_DOCUMENT_EXTENSIONS.
+     */
+    private fun handlePickedDocument(uri: Uri) {
+        Thread {
+            val ctx = context ?: return@Thread
+            val displayName = queryDisplayName(ctx, uri) ?: uri.lastPathSegment ?: "documento"
+            val ext = displayName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+            if (ext in PENDING_DOCUMENT_EXTENSIONS) {
+                mMainHandler.post { if (isAdded) toast(getString(R.string.chat_document_pending_format, ext)) }
+                return@Thread
+            }
+            if (ext !in SUPPORTED_DOCUMENT_EXTENSIONS) {
+                mMainHandler.post { if (isAdded) toast(getString(R.string.chat_document_unsupported_format)) }
+                return@Thread
+            }
+            val text = try { readDocumentText(ctx, uri) } catch (_: Exception) { null }
+            mMainHandler.post {
+                if (!isAdded) return@post
+                if (text.isNullOrBlank()) {
+                    toast(getString(R.string.chat_document_read_failed))
+                    return@post
+                }
+                mAttachedDocumentChunks = DocumentChunker.chunkText(text)
+                mAttachedDocumentName = displayName
+                showDocumentPreview(displayName, text.length)
+            }
+        }.start()
+    }
+
+    /** Nombre real del archivo elegido (OpenableColumns.DISPLAY_NAME) — el último segmento
+     *  de la URI de un content:// picker casi nunca es el nombre legible real. */
+    private fun queryDisplayName(ctx: Context, uri: Uri): String? = try {
+        ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
+        }
+    } catch (_: Exception) { null }
+
+    /** Lectura acotada (MAX_DOCUMENT_BYTES) en vez de un `readBytes()` sin límite — evita
+     *  cargar un archivo gigante entero en memoria por error de selección del usuario. */
+    private fun readDocumentText(ctx: Context, uri: Uri): String {
+        val input = ctx.contentResolver.openInputStream(uri)
+            ?: throw IllegalStateException("No se pudo abrir el documento")
+        input.use { stream ->
+            val buffer = ByteArrayOutputStream()
+            val chunk = ByteArray(8192)
+            var total = 0
+            while (true) {
+                val n = stream.read(chunk)
+                if (n == -1) break
+                total += n
+                if (total > MAX_DOCUMENT_BYTES) throw IllegalStateException("Documento demasiado grande")
+                buffer.write(chunk, 0, n)
+            }
+            return buffer.toString("UTF-8")
+        }
+    }
+
+    private fun showDocumentPreview(name: String, charCount: Int) {
+        mDocumentPreviewName.text = getString(R.string.chat_document_attached_label, name, charCount)
+        mDocumentPreviewRow.visibility = View.VISIBLE
+    }
+
+    private fun clearAttachedDocument() {
+        mAttachedDocumentChunks = null
+        mAttachedDocumentName = null
+        mDocumentPreviewRow.visibility = View.GONE
+    }
+
+    /**
+     * Si hay un documento adjunto, antepone al prompt real (el que se manda al motor, NO el
+     * que se guarda/muestra en el chat — mismo criterio que augmentPromptWithWebSearch()) el
+     * o los fragmentos más relevantes a la pregunta actual (DocumentChunker.
+     * selectRelevantChunks(), dentro de DOCUMENT_CONTEXT_MAX_CHARS) — así un documento largo
+     * no desplaza el resto del contexto de la conversación ni excede la ventana del modelo.
+     * Se llama una sola vez en dispatchMessage(), ANTES de que se ramifique por motor — por
+     * eso funciona igual con el motor local embebido, llama-server HTTP, Ollama remoto y
+     * Cloud API (los 4 caminos reciben el mismo texto ya aumentado como "prompt").
+     */
+    private fun augmentTextWithAttachedDocument(text: String): String {
+        val chunks = mAttachedDocumentChunks ?: return text
+        val name = mAttachedDocumentName ?: "documento"
+        val relevant = DocumentChunker.selectRelevantChunks(chunks, text, DOCUMENT_CONTEXT_MAX_CHARS)
+        if (relevant.isBlank()) return text
+        return getString(R.string.chat_document_context_prefix, name, relevant, text)
     }
 
     private fun toast(message: String) {
@@ -2416,6 +2827,10 @@ class ChatFragment : Fragment() {
             mLoading = false
             mCancelBar.visibility = View.GONE
             updateSendButton()
+            // Regenerar respuesta (ver regenerateAssistantMessage()): el content recién
+            // terminado se empuja a ChatMessage.versions ANTES de recortar/persistir, para
+            // que enforceHistoryLimit()/persistHistory() ya vean el estado final.
+            finalizeRegenerationIfNeeded()
             // Recorta ANTES de persistir, no después — así lo que se escribe a disco ya
             // respeta el límite configurado (ver enforceHistoryLimit).
             enforceHistoryLimit()
@@ -2428,6 +2843,35 @@ class ChatFragment : Fragment() {
             // si hay mensajes encolados, se envía el siguiente automáticamente.
             drainPendingQueue()
         }
+    }
+
+    /**
+     * Cierra el ciclo de una regeneración (ver regenerateAssistantMessage()): el request que
+     * acaba de terminar (éxito, error, o cancelación) escribió su resultado en
+     * `assistantMsg.content` como cualquier otro request — acá se decide qué hacer con eso:
+     *   - Contenido no vacío → se agrega como versión nueva al final de `versions` y
+     *     `currentVersionIndex` apunta a ella (la UI siempre muestra la última generada).
+     *   - Contenido vacío (cancelado antes del primer token, o error sin texto parcial) → se
+     *     restaura la última versión buena en vez de dejar la burbuja en blanco.
+     * No-op para cualquier request que no sea una regeneración (mRegeneratingAssistantId null,
+     * el caso normal de un mensaje nuevo).
+     */
+    private fun finalizeRegenerationIfNeeded() {
+        val assistantId = mRegeneratingAssistantId ?: return
+        mRegeneratingAssistantId = null
+        val idx = mMessages.indexOfFirst { it.id == assistantId }
+        if (idx < 0) return
+        val msg = mMessages[idx]
+        if (msg.content.isBlank()) {
+            if (msg.versions.isNotEmpty()) {
+                msg.currentVersionIndex = msg.versions.size - 1
+                msg.content = msg.versions[msg.currentVersionIndex]
+            }
+        } else {
+            msg.versions.add(msg.content)
+            msg.currentVersionIndex = msg.versions.size - 1
+        }
+        mAdapter.notifyItemChanged(idx)
     }
 
     // Bug real (auditoría 2026-08-13, ver docs/viejo/AUDITORIA_CODIGO_2026-08-13.md
@@ -2598,6 +3042,231 @@ class ChatFragment : Fragment() {
         context?.let { ChatHistoryStore.clear(it) }
     }
 
+    // ── Editar mensaje del usuario (hallazgo referencia/ia/oalla-main) ─────────────────
+
+    /**
+     * Long-press sobre una burbuja de usuario (ver ChatAdapter.onBindViewHolder) — abre un
+     * diálogo con el texto actual editable. Al confirmar, `truncateAndResend` borra ese
+     * mensaje y todo lo posterior (la respuesta vieja + cualquier turno después) y reenvía el
+     * texto editado como si fuera un mensaje nuevo, reusando dispatchMessage().
+     * Bloqueado mientras hay un request en curso (isWorking): mutar mMessages a mitad de un
+     * request que la referencia por id (appendToAssistant/finishLoading) podría dejarlo
+     * apuntando a un mensaje que ya no existe.
+     */
+    /** Menú corto (long-click de una burbuja "user") entre Editar y Copiar — ver
+     *  onEditUserMessage()/copyMessageToClipboard(). */
+    private fun showUserMessageOptions(messageId: String, currentText: String) {
+        val ctx = context ?: return
+        val options = arrayOf(getString(R.string.chat_message_options_edit), getString(R.string.chat_message_options_copy))
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setItems(options) { _, which ->
+                if (which == 0) onEditUserMessage(messageId, currentText) else copyMessageToClipboard(currentText)
+            }
+            .show()
+    }
+
+    /** Copia el texto de un mensaje (user o assistant) al portapapeles del sistema — hallazgo
+     *  de referencia/ia/Uncensored-Local-AI-Multiplatform-main (lib/widgets/chat_bubble.dart,
+     *  botón "Copy" visible en cada burbuja). Kairos ya tenía editar/regenerar/versionado pero
+     *  ninguna forma de sacar el texto de una respuesta sin seleccionarlo a mano. */
+    private fun copyMessageToClipboard(text: String) {
+        val ctx = context ?: return
+        val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager ?: return
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.chat_copy_clipboard_label), text))
+        toast(getString(R.string.chat_copy_toast))
+    }
+
+    private fun onEditUserMessage(messageId: String, currentText: String) {
+        if (isWorking) {
+            toast(getString(R.string.chat_edit_disabled_working_toast))
+            return
+        }
+        val ctx = context ?: return
+        val input = EditText(ctx).apply {
+            setText(currentText)
+            setSelection(text?.length ?: 0)
+            isSingleLine = false
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+        }
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.chat_edit_message_title))
+            .setView(input)
+            .setPositiveButton(getString(R.string.chat_edit_resend)) { _, _ ->
+                val newText = input.text?.toString()?.trim().orEmpty()
+                if (newText.isNotEmpty()) truncateAndResend(messageId, newText)
+            }
+            .setNegativeButton(getString(R.string.chat_cancel), null)
+            .show()
+    }
+
+    /**
+     * Borra el mensaje `messageId` (debe ser "user") y todo lo que viene después en
+     * `mMessages` (su respuesta vieja + cualquier turno posterior), y reenvía `newText` como
+     * mensaje nuevo — mismo criterio que el patrón de oalla-main: editar un mensaje trunca la
+     * conversación desde ese punto. La imagen adjunta original (si la había) se preserva.
+     */
+    private fun truncateAndResend(messageId: String, newText: String) {
+        val idx = mMessages.indexOfFirst { it.id == messageId }
+        if (idx < 0) return
+        val originalImage = mMessages[idx].imageBase64
+        val removeCount = mMessages.size - idx
+        repeat(removeCount) { mMessages.removeAt(mMessages.size - 1) }
+        mAdapter.notifyItemRangeRemoved(idx, removeCount)
+        mRegeneratingAssistantId = null
+        persistHistory()
+        dispatchMessage(newText, originalImage)
+    }
+
+    // ── Regenerar respuesta con versionado (hallazgo referencia/ia/oalla-main) ─────────
+
+    /**
+     * Regenera la respuesta de `assistantId` SIN reemplazarla — la versión actual se guarda en
+     * `ChatMessage.versions` y la nueva generación se agrega al final (ver
+     * finalizeRegenerationIfNeeded(), llamado desde finishLoading()). Reusa el mismo texto del
+     * mensaje "user" inmediatamente anterior y el mismo camino de request que dispatchMessage()
+     * (Ollama/motor local/llama-server/cloud), sin pasar por /run, /ai o "!" — esos prefijos ya
+     * fueron resueltos en el turno original, regenerar solo tiene sentido para una respuesta de
+     * IA real.
+     *
+     * Simplificación deliberada: `versions` vive solo en memoria (ChatMessage, no
+     * ChatHistoryStore.StoredMessage) — persistir el historial de versiones hubiera significado
+     * tocar el formato en disco y enforceHistoryLimit() para algo recuperable con solo volver a
+     * tocar "⟳" tras reabrir la app. Ver comentario de ChatMessage.versions.
+     */
+    private fun regenerateAssistantMessage(assistantId: String) {
+        if (isWorking) {
+            toast(getString(R.string.chat_regenerate_working_toast))
+            return
+        }
+        val idx = mMessages.indexOfFirst { it.id == assistantId }
+        if (idx <= 0) return
+        val assistantMsg = mMessages[idx]
+        if (assistantMsg.role != "assistant") return
+        // "shell"/"cactus" (ver dispatchShellCommand()/dispatchCactusRun()) nunca pasaron por
+        // ningún motor de IA — regenerarlos por acá los mandaría a Ollama/llama-server como si
+        // fueran un prompt normal en vez de re-ejecutar el comando/needle. bindAssistantActions()
+        // ya oculta el botón "⟳" para estos casos; este guard es defensa en profundidad.
+        if (assistantMsg.model == "shell" || assistantMsg.model == "cactus") return
+        val userMsg = mMessages.getOrNull(idx - 1)?.takeIf { it.role == "user" } ?: return
+
+        if (assistantMsg.versions.isEmpty() && assistantMsg.content.isNotBlank()) {
+            assistantMsg.versions.add(assistantMsg.content)
+        }
+        assistantMsg.content = ""
+        assistantMsg.thought = ""
+        assistantMsg.isThinking = false
+        mAdapter.notifyItemChanged(idx)
+
+        mRegeneratingAssistantId = assistantId
+        setLoading(true)
+        mCancelled.set(false)
+        mThinkParser = ThinkStreamParser()
+
+        val text = userMsg.content
+        val image = userMsg.imageBase64
+        mRequestThread = when {
+            mEngine == ENGINE_CLOUD -> Thread { dispatchCloudRequest(text, assistantId) }
+            isLocalModel(mSelectedModel) -> {
+                val transport = requireContext().getSharedPreferences("kairos_llm_prefs", 0)
+                    .getString("llama_transport", "embedded")
+                Thread {
+                    if (transport == "http") {
+                        if (llamaServerAvailable()) {
+                            mMainHandler.post { if (isAdded) mStatusText.text = getString(R.string.chat_llamaserver_transport_status) }
+                            makeLlamaServerRequest(text, assistantId)
+                        } else {
+                            showError(getString(R.string.chat_llamaserver_unavailable))
+                            finishLoading()
+                        }
+                    } else {
+                        makeLocalRequest(text, assistantId)
+                    }
+                }
+            }
+            else -> Thread { makeOllamaRequest(text, assistantId, image) }
+        }
+        mRequestThread!!.start()
+    }
+
+    /** Navega entre versiones ya generadas de `assistantId` (ver ChatMessage.versions) — delta
+     *  +1/-1, saturado en los extremos (no da la vuelta). No-op si hay 0/1 versión. */
+    private fun switchVersion(assistantId: String, delta: Int) {
+        val idx = mMessages.indexOfFirst { it.id == assistantId }
+        if (idx < 0) return
+        val msg = mMessages[idx]
+        if (msg.versions.size <= 1) return
+        val newIndex = (msg.currentVersionIndex + delta).coerceIn(0, msg.versions.size - 1)
+        if (newIndex == msg.currentVersionIndex) return
+        msg.currentVersionIndex = newIndex
+        msg.content = msg.versions[newIndex]
+        mAdapter.notifyItemChanged(idx)
+        persistHistory()
+    }
+
+    // ── Búsqueda en el historial (hallazgo referencia/ia/oalla-main) ───────────────────
+
+    /** Muestra/oculta la barra de búsqueda (ver mSearchBar) — al ocultarla limpia el término
+     *  y quita cualquier resaltado que hubiera quedado. */
+    private fun toggleSearchBar() {
+        val show = mSearchBar.visibility != View.VISIBLE
+        mSearchBar.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) {
+            mSearchInput.requestFocus()
+        } else {
+            mSearchInput.setText("")
+            applySearchQuery("")
+        }
+    }
+
+    /**
+     * Filtro VISUAL (resalta coincidencias en la burbuja, no oculta mensajes — ver comentario
+     * de mSearchQuery) sobre todos los mensajes y TODAS sus versiones guardadas (ver
+     * ChatMessage.versions) — un mensaje cuenta como resultado si el término aparece en la
+     * versión actualmente mostrada o en cualquier versión anterior, aunque el resaltado en
+     * pantalla solo puede marcar la que está visible ahora mismo (simplificación: cambiar de
+     * versión con ◀▶ para ver el resaltado de una coincidencia en otra versión).
+     */
+    private fun applySearchQuery(query: String) {
+        mSearchQuery = query.trim()
+        val matchCount = if (mSearchQuery.isEmpty()) 0 else mMessages.count { msg ->
+            msg.content.contains(mSearchQuery, ignoreCase = true) ||
+                msg.versions.any { it.contains(mSearchQuery, ignoreCase = true) }
+        }
+        mSearchCount.text = when {
+            mSearchQuery.isEmpty() -> ""
+            matchCount == 0 -> getString(R.string.chat_search_no_matches)
+            else -> getString(R.string.chat_search_match_count, matchCount)
+        }
+        mAdapter.notifyDataSetChanged()
+        if (matchCount > 0) {
+            val firstIdx = mMessages.indexOfFirst { msg ->
+                msg.content.contains(mSearchQuery, ignoreCase = true) ||
+                    msg.versions.any { it.contains(mSearchQuery, ignoreCase = true) }
+            }
+            if (firstIdx >= 0) mRecycler.smoothScrollToPosition(firstIdx)
+        }
+    }
+
+    /** Resalta (fondo semitransparente) cada aparición de mSearchQuery en [text] — devuelve el
+     *  texto sin cambios (como CharSequence) si no hay término activo. */
+    private fun highlightSearchMatches(text: String): CharSequence {
+        if (mSearchQuery.isEmpty() || text.isEmpty()) return text
+        val spannable = SpannableString(text)
+        var start = 0
+        while (true) {
+            val idx = text.indexOf(mSearchQuery, start, ignoreCase = true)
+            if (idx < 0) break
+            spannable.setSpan(
+                BackgroundColorSpan(SEARCH_HIGHLIGHT_COLOR),
+                idx, idx + mSearchQuery.length,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+            start = idx + mSearchQuery.length
+        }
+        return spannable
+    }
+
     /**
      * [technicalDetail] es el mensaje crudo original (excepci\u00f3n nativa,
      * c\u00f3digo HTTP, etc.) \u2014 nunca se descarta, solo queda colapsado detr\u00e1s de
@@ -2642,6 +3311,15 @@ class ChatFragment : Fragment() {
         // ChatHistoryStore) porque el límite de historial (enforceHistoryLimit) acota su
         // crecimiento — no hace falta un cache de imágenes aparte.
         var imageBase64: String? = null,
+        // Versionado de regeneración (solo mensajes "assistant", ver
+        // regenerateAssistantMessage()/switchVersion()) — `content` siempre refleja la versión
+        // activa (`versions[currentVersionIndex]`); `versions` queda vacío hasta la primera
+        // regeneración (un mensaje que nunca se regeneró no paga el costo de duplicar su
+        // propio contenido acá). Solo en memoria — NO se persiste entre reinicios de la app
+        // (ChatHistoryStore.StoredMessage no tiene este campo), ver comentario completo en
+        // regenerateAssistantMessage().
+        var versions: MutableList<String> = mutableListOf(),
+        var currentVersionIndex: Int = 0,
     ) {
         // Cache de la miniatura ya decodificada — evita re-decodificar el mismo base64 en
         // cada scroll (RecyclerView re-bindea el holder cada vez que la fila vuelve a
@@ -2662,6 +3340,11 @@ class ChatFragment : Fragment() {
         val roleLabel: TextView = itemView.findViewById(R.id.bubble_role)
         val timestamp: TextView = itemView.findViewById(R.id.bubble_ts)
         val thought: TextView = itemView.findViewById(R.id.bubble_thought)
+        val versionPrev: TextView = itemView.findViewById(R.id.version_prev)
+        val versionLabel: TextView = itemView.findViewById(R.id.version_label)
+        val versionNext: TextView = itemView.findViewById(R.id.version_next)
+        val regenerate: TextView = itemView.findViewById(R.id.btn_regenerate)
+        val copy: TextView = itemView.findViewById(R.id.btn_copy)
     }
 
     private inner class ChatAdapter(val messages: List<ChatMessage>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -2685,17 +3368,27 @@ class ChatFragment : Fragment() {
             val msg = messages[position]
             when (holder) {
                 is ViewHolderUser -> {
-                    holder.content.text = msg.content
+                    holder.content.text = highlightSearchMatches(msg.content)
                     holder.roleLabel.text = getString(R.string.chat_role_user)
                     holder.timestamp.text = formatTime(msg.ts)
                     bindUserImage(holder, msg)
+                    // Editar mensaje (hallazgo referencia/ia/oalla-main) + Copiar (hallazgo
+                    // referencia/ia/Uncensored-Local-AI-Multiplatform-main, chat_bubble.dart)
+                    // \u2014 ver ChatFragment.onEditUserMessage()/copyMessageToClipboard().
+                    // Un solo long-click con las 2 acciones en vez de 2 gestos distintos, para
+                    // no introducir un segundo listener silencioso sobre la misma burbuja.
+                    holder.itemView.setOnLongClickListener {
+                        showUserMessageOptions(msg.id, msg.content)
+                        true
+                    }
                 }
                 is ViewHolderAssistant -> {
                     val stillWaiting = msg.content.isEmpty() && !msg.isThinking
-                    holder.content.text = if (stillWaiting) getString(R.string.chat_waiting_ellipsis) else msg.content
+                    holder.content.text = if (stillWaiting) getString(R.string.chat_waiting_ellipsis) else highlightSearchMatches(msg.content)
                     holder.roleLabel.text = "\u2B21 ${msg.model?.uppercase() ?: getString(R.string.chat_role_assistant_fallback)}"
                     holder.timestamp.text = formatTime(msg.ts)
                     bindThought(holder, msg, position)
+                    bindAssistantActions(holder, msg)
                 }
             }
         }
@@ -2744,6 +3437,49 @@ class ChatFragment : Fragment() {
             holder.thought.setOnClickListener {
                 msg.thoughtExpanded = !msg.thoughtExpanded
                 notifyItemChanged(position)
+            }
+        }
+
+        /**
+         * Botón "⟳ regenerar" (siempre visible una vez que la burbuja tiene contenido, se
+         * deshabilita mientras hay un request en curso) + navegación de versiones ◀ N/M ▶
+         * (visible solo con más de 1 versión guardada, ver ChatMessage.versions). Ver
+         * ChatFragment.regenerateAssistantMessage()/switchVersion().
+         */
+        private fun bindAssistantActions(holder: ViewHolderAssistant, msg: ChatMessage) {
+            // "shell"/"cactus" no pasan por ningún motor de IA — ver el guard equivalente en
+            // regenerateAssistantMessage().
+            val canRegenerate = msg.content.isNotEmpty() && msg.model != "shell" && msg.model != "cactus"
+            holder.regenerate.visibility = if (canRegenerate) View.VISIBLE else View.GONE
+            holder.regenerate.isEnabled = !isWorking
+            holder.regenerate.alpha = if (isWorking) 0.4f else 1.0f
+            holder.regenerate.contentDescription = getString(R.string.chat_regenerate_desc)
+            holder.regenerate.setOnClickListener { regenerateAssistantMessage(msg.id) }
+            holder.copy.contentDescription = getString(R.string.chat_copy_desc)
+            holder.copy.setOnClickListener { copyMessageToClipboard(msg.content) }
+
+            val versionCount = msg.versions.size
+            if (versionCount > 1) {
+                holder.versionPrev.visibility = View.VISIBLE
+                holder.versionLabel.visibility = View.VISIBLE
+                holder.versionNext.visibility = View.VISIBLE
+                holder.versionLabel.text = getString(
+                    R.string.chat_version_indicator_format, msg.currentVersionIndex + 1, versionCount
+                )
+                val hasPrev = msg.currentVersionIndex > 0
+                val hasNext = msg.currentVersionIndex < versionCount - 1
+                holder.versionPrev.isEnabled = hasPrev
+                holder.versionPrev.alpha = if (hasPrev) 1.0f else 0.3f
+                holder.versionPrev.contentDescription = getString(R.string.chat_version_prev_desc)
+                holder.versionNext.isEnabled = hasNext
+                holder.versionNext.alpha = if (hasNext) 1.0f else 0.3f
+                holder.versionNext.contentDescription = getString(R.string.chat_version_next_desc)
+                holder.versionPrev.setOnClickListener { switchVersion(msg.id, -1) }
+                holder.versionNext.setOnClickListener { switchVersion(msg.id, 1) }
+            } else {
+                holder.versionPrev.visibility = View.GONE
+                holder.versionLabel.visibility = View.GONE
+                holder.versionNext.visibility = View.GONE
             }
         }
     }

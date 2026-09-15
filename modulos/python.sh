@@ -100,12 +100,12 @@ pkg_install() {
   pkg install -y \
     -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" \
-    "$@" 2>&1 | tail -3
+    "$@"
 }
 
 # Helper: pip install con --break-system-packages
 pip_install() {
-  python3 -m pip install --break-system-packages "$@" 2>&1 | tail -3
+  python3 -m pip install --break-system-packages "$@"
 }
 
 update_registry() {
@@ -180,7 +180,7 @@ else
   info "Upgrade de paquetes..."
   pkg upgrade -y \
     -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" 2>&1 | tail -5
+    -o Dpkg::Options::="--force-confold"
 
   log "Termux actualizado"
   mark_done "termux_update"

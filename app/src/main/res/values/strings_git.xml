@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="git_module_name">Git / GitHub</string>
+    <string name="git_card_estado">ESTADO</string>
+    <string name="git_label_git_version">Versión de git</string>
+    <string name="git_label_gh_version">Versión de gh (GitHub CLI)</string>
+    <string name="git_label_active_project">Proyecto activo</string>
+    <string name="git_placeholder_dash">—</string>
+    <string name="git_error_gh_not_installed">no instalado</string>
+    <string name="git_btn_manage_projects">📁 Gestionar proyectos / elegir activo</string>
+    <string name="git_btn_clone">⬇ Clonar repositorio (URL)</string>
+    <string name="git_btn_status">📋 Estado (git status)</string>
+    <string name="git_btn_push">⬆ Guardar y subir (add + commit + push)</string>
+    <string name="git_btn_pull">🔄 Traer cambios (git pull)</string>
+    <string name="git_card_github">GITHUB (gh)</string>
+    <string name="git_btn_gh_auth_status">👤 Estado de sesión (gh auth status)</string>
+    <string name="git_btn_gh_login">🔑 Iniciar sesión en GitHub</string>
+    <string name="git_btn_gh_repo_create">✨ Crear repositorio en GitHub</string>
+    <string name="git_btn_gh_pr_list">🔀 Listar Pull Requests</string>
+    <string name="git_msg_project_set">Proyecto activo: %1$s</string>
+    <string name="git_toast_no_active_project">Elegí un proyecto activo primero (\"Gestionar proyectos\")</string>
+    <string name="git_msg_running">Ejecutando…</string>
+    <string name="git_output_empty_with_code">(sin salida — código %1$d)</string>
+    <string name="git_btn_close">Cerrar</string>
+    <string name="git_btn_cancel">Cancelar</string>
+    <string name="git_title_status">Estado</string>
+    <string name="git_title_pull">Traer cambios</string>
+    <string name="git_title_push">Guardar y subir</string>
+    <string name="git_btn_push_confirm">Subir</string>
+    <string name="git_hint_commit_message">Mensaje del commit</string>
+    <string name="git_default_commit_message">update desde Android</string>
+    <string name="git_title_clone">Clonar repositorio</string>
+    <string name="git_btn_clone_confirm">Clonar</string>
+    <string name="git_hint_repo_url">URL del repositorio (https://github.com/usuario/repo.git)</string>
+    <string name="git_title_repo_create">Crear repositorio</string>
+    <string name="git_btn_next">Siguiente</string>
+    <string name="git_hint_repo_name">Nombre del repositorio</string>
+    <string name="git_toast_repo_name_required">Falta el nombre del repositorio</string>
+    <string name="git_title_repo_visibility">Visibilidad</string>
+    <string name="git_visibility_public">Público</string>
+    <string name="git_visibility_private">Privado</string>
+</resources>

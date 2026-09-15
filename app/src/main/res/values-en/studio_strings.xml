@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirror EN de app/src/main/res/values/studio_strings.xml — creado 2026-09-01 al agregar 10
+     temas nuevos al editor de código de Estudio (ver SyntaxHighlighter.kt AVAILABLE_THEMES).
+     Solo cubre las claves editor_theme_*: el resto de studio_strings.xml (español, base) no
+     tenía mirror EN antes de esta ronda; no se tradujo acá para no exceder el alcance de la
+     tarea puntual de temas. -->
+<resources>
+    <string name="editor_theme_kairos_ink">Kairos Ink (dark)</string>
+    <string name="editor_theme_kairos_paper">Kairos Paper (light)</string>
+    <string name="editor_theme_kairos_contrast">Kairos Contrast (high contrast)</string>
+    <string name="editor_theme_dracula">Dracula (dark)</string>
+    <string name="editor_theme_nord">Nord (dark)</string>
+    <string name="editor_theme_gruvbox_dark">Gruvbox Dark (dark)</string>
+    <string name="editor_theme_gruvbox_light">Gruvbox Light (light)</string>
+    <string name="editor_theme_solarized_dark">Solarized Dark (dark)</string>
+    <string name="editor_theme_solarized_light">Solarized Light (light)</string>
+    <string name="editor_theme_monokai">Monokai (dark)</string>
+    <string name="editor_theme_one_dark">One Dark (dark)</string>
+    <string name="editor_theme_atom_one_light">Atom One Light (light)</string>
+    <string name="editor_theme_ayu_dark">Ayu Dark (dark)</string>
+    <string name="editor_theme_ayu_light">Ayu Light (light)</string>
+
+    <!-- Submenu titles for the "⋮" overflow menu (2026-09-03 reorg — see studio_menu_main.xml).
+         Added here too, unlike the rest of the base file's action_* strings, because this round
+         explicitly asked for ES/EN on any new string. -->
+    <string name="menu_group_file">📁 File</string>
+    <string name="menu_group_ai">🤖 AI</string>
+    <string name="menu_group_settings">⚙️ Settings</string>
+    <string name="action_studio_theme">🎨 Studio theme</string>
+    <string name="search_case_sensitive">Match case</string>
+    <string name="search_case_sensitive_label">Aa</string>
+</resources>

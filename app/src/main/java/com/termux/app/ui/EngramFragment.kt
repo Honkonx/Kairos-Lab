@@ -67,6 +67,12 @@ class EngramFragment : BaseModuleFragment() {
                         gravity = android.view.Gravity.END
                     }
                 })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
+                    }
+                })
             })
         }
         addCard(getString(R.string.engram_card_que_es)) {
@@ -147,6 +153,14 @@ class EngramFragment : BaseModuleFragment() {
             reinstallModuleService { ok ->
                 toast(if (ok) getString(R.string.engram_toast_actualizado) else getString(R.string.engram_toast_fallo_reinstalar))
             }
+        }
+        // Consistencia con Claude/Codex/Db/Entorno/Qemu/Remote/Ciberseguridad (auditoría de
+        // menús 2026-08-19, ver docs/viejo/AUDITORIA_CONSISTENCIA_MENUS_IA_2026-08-19.md, y
+        // auditoría de consistencia entre módulos 2026-09-01): Engram no tenía forma de
+        // desinstalarse desde su propia pantalla, solo desde Ajustes. Botón suelto (no
+        // addMaintenanceCard()) para no duplicar "Reinstalar" de arriba.
+        addCard(getString(R.string.engram_card_mantenimiento)) {
+            actionButton(getString(R.string.engram_btn_uninstall), DANGER) { confirmUninstallModule() }
         }
     }
 

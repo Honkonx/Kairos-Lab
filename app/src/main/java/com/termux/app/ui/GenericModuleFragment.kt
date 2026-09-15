@@ -103,6 +103,12 @@ class GenericModuleFragment : BaseModuleFragment() {
                             gravity = android.view.Gravity.END
                         }
                     })
+                    addView(terminalCloseButton().also {
+                        (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                            gravity = android.view.Gravity.END
+                            marginStart = dp(8)
+                        }
+                    })
                 })
             }
             estadoPillSlot = LinearLayout(requireContext()).apply {

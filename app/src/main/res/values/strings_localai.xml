@@ -96,6 +96,18 @@
     <string name="localai_model_qwencoder14b_name">Qwen2.5 Coder 14B Instruct</string>
     <string name="localai_model_qwencoder14b_desc">El modelo de código más grande del catálogo — mejor para tareas de programación complejas, pedí bastante RAM.</string>
 
+    <!-- Expansión 2026-09-01 (pedido explícito: "iguala el catalogo de IA local al de ollama",
+         mínimo 30 modelos 0.5B-12B agrupados por creador) — repos/archivos verificados contra
+         la Hub API real (huggingface.co/api/models/<repo>/tree/main) antes de agregarlos. -->
+    <string name="localai_model_gemma31b_name">Gemma 3 1B IT</string>
+    <string name="localai_model_gemma31b_desc">El más chico de la familia Gemma 3 — ideal para equipos con poca RAM, mismo linaje que la 4B y la 12B.</string>
+
+    <string name="localai_model_qwen306b_name">Qwen3 0.6B</string>
+    <string name="localai_model_qwen306b_desc">El más chico de la generación Qwen3 — arranca rápido en cualquier equipo, mejoras de razonamiento sobre Qwen2.5.</string>
+
+    <string name="localai_model_qwen317b_name">Qwen3 1.7B</string>
+    <string name="localai_model_qwen317b_desc">Escalón intermedio de Qwen3, entre el 0.6B y el 4B — buen balance de velocidad y calidad.</string>
+
     <!-- UI general -->
     <string name="localai_title">IA Local</string>
     <string name="localai_card_store_title">🛒 TIENDA DE MODELOS</string>

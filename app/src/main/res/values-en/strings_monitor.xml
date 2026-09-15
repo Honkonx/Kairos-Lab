@@ -1,4 +1,9 @@
 <resources>
+    <!-- Tabs (2026-09-03 reorg, explicit user request: "two tabs, one for general monitor
+         and one for module monitor") -->
+    <string name="monitor_tab_general">General</string>
+    <string name="monitor_tab_modules">Modules</string>
+
     <!-- Module/engine/CLI names shown in Monitor's status rows -->
     <string name="monitor_module_ollama">Ollama</string>
     <string name="monitor_module_n8n">n8n</string>
@@ -8,6 +13,11 @@
     <string name="monitor_engine_llamaserver">llama-server</string>
     <string name="monitor_cli_hermes">Hermes</string>
     <string name="monitor_cli_engram">Engram</string>
+
+    <!-- AI engines — model loaded into RAM/VRAM (Ollama's GET /api/ps) -->
+    <string name="monitor_ollama_loaded_model_label">Loaded model</string>
+    <string name="monitor_ollama_no_model_loaded">None loaded</string>
+    <string name="monitor_ollama_model_vram_format">%1$s (%2$s VRAM)</string>
 
     <!-- Section titles -->
     <string name="monitor_section_device">DEVICE</string>
@@ -163,11 +173,18 @@
     <string name="monitor_network_rate_unavailable">Not available on this device</string>
     <string name="monitor_device_processes">Visible processes</string>
     <string name="monitor_device_processes_value">%1$d</string>
+    <!-- Vulkan — pure hardware support (PackageManager, doesn't depend on Termux packages) -->
+    <string name="monitor_device_vulkan">Vulkan</string>
+    <string name="monitor_device_vulkan_unsupported">Not supported</string>
+    <string name="monitor_device_vulkan_supported">Supported</string>
+    <string name="monitor_device_vulkan_version">Supported (%1$d.%2$d.%3$d)</string>
 
     <!-- CPU -->
     <string name="monitor_cpu_usage">CPU: %1$d%% in use</string>
     <string name="monitor_cpu_cores">%1$d cores</string>
     <string name="monitor_cpu_measuring">Measuring…</string>
+    <string name="monitor_cpu_unavailable">Not available on this device</string>
+    <string name="monitor_cpu_history_label">CPU — last 5 min</string>
 
     <!-- Storage -->
     <string name="monitor_storage_no_permission">No storage permission</string>

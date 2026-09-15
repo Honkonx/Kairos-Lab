@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Strings del catalogo de modulos (app/src/main/assets/modules.json) - description/type/estimate
+    por modulo, migrados a recursos i18n reales (ver ModuleCatalog.kt seccion localizedString()).
+    Naming: module_<id>_description, module_<id>_type, module_<id>_estimate.
+    Un modulo sin entrada aca cae al valor crudo del JSON (fallback seguro, ver ModuleCatalog.kt).
+-->
+<resources>
+
+    <!-- ollama -->
+    <string name="module_ollama_description">Motor de IA local. Corre modelos LLM en ARM64 sin internet.</string>
+    <string name="module_ollama_type">Nativo</string>
+    <string name="module_ollama_estimate">~2 min</string>
+
+    <!-- n8n -->
+    <string name="module_n8n_description">Automatización de workflows. Nativo (udocker) o proot Debian, a elección. Puerto :5678.</string>
+    <string name="module_n8n_type"></string>
+    <string name="module_n8n_estimate">~5 min</string>
+
+    <!-- python -->
+    <string name="module_python_description">Python 3.13 nativo con pip y SQLite integrado.</string>
+    <string name="module_python_type">Nativo</string>
+    <string name="module_python_estimate">~2 min</string>
+
+    <!-- claude -->
+    <string name="module_claude_description">Editor de código con IA de Anthropic. Versión nativa ARM64.</string>
+    <string name="module_claude_type">Nativo</string>
+    <string name="module_claude_estimate">~2 min</string>
+
+    <!-- codex -->
+    <string name="module_codex_description">Asistente de código de OpenAI en terminal. Variante Normal o VL (code-mode).</string>
+    <string name="module_codex_type">Nativo</string>
+    <string name="module_codex_estimate">~1 min</string>
+
+    <!-- gemini -->
+    <string name="module_gemini_description">Asistente de código de Google en terminal (@google/gemini-cli).</string>
+    <string name="module_gemini_type">Herramienta</string>
+    <string name="module_gemini_estimate">~1 min</string>
+
+    <!-- antigravity -->
+    <string name="module_antigravity_description">CLI de Google Antigravity, binario nativo (agy).</string>
+    <string name="module_antigravity_type">Nativo</string>
+    <string name="module_antigravity_estimate">~2 min</string>
+
+    <!-- openclaw -->
+    <string name="module_openclaw_description">Gateway de IA local compatible con Claude. Versión nativa glibc.</string>
+    <string name="module_openclaw_type">Nativo</string>
+    <string name="module_openclaw_estimate">~2 min</string>
+
+    <!-- opencode -->
+    <string name="module_opencode_description">Editor de código con IA vía web. Soporta Ollama local.</string>
+    <string name="module_opencode_type">Nativo</string>
+    <string name="module_opencode_estimate">~2 min</string>
+
+    <!-- hermes -->
+    <string name="module_hermes_description">Agente IA con gateway para Telegram, Discord y SMS.</string>
+    <string name="module_hermes_type">Nativo</string>
+    <string name="module_hermes_estimate">~1 min</string>
+
+    <!-- remote -->
+    <string name="module_remote_description">Acceso SSH seguro :8022.</string>
+    <string name="module_remote_type">Nativo</string>
+    <string name="module_remote_estimate"></string>
+
+    <!-- expo -->
+    <string name="module_expo_description">Build de apps React Native con EAS CLI.</string>
+    <string name="module_expo_type">Nativo</string>
+    <string name="module_expo_estimate">~3 min</string>
+
+    <!-- engram -->
+    <string name="module_engram_description">Memoria persistente para agentes de IA. Compilado desde fuente en Go.</string>
+    <string name="module_engram_type">Nativo</string>
+    <string name="module_engram_estimate">~2 min</string>
+
+    <!-- freebuff -->
+    <string name="module_freebuff_description">Agente de código gratuito de CodebuffAI (Deepseek, MiMo, GLM, Minimax). Sin cuenta ni API key.</string>
+    <string name="module_freebuff_type">Nativo</string>
+    <string name="module_freebuff_estimate">~1 min</string>
+
+    <!-- codebuff -->
+    <string name="module_codebuff_description">Agente de código multi-modelo de CodebuffAI, sobre cualquier modelo de OpenRouter (instala vía npm — CodebuffAI no publica un binario nativo standalone para este producto).</string>
+    <string name="module_codebuff_type">Nativo</string>
+    <string name="module_codebuff_estimate">~1 min</string>
+
+    <!-- copilotcli -->
+    <string name="module_copilotcli_description">CLI oficial de GitHub Copilot. Requiere cuenta con Copilot activo.</string>
+    <string name="module_copilotcli_type">Nativo</string>
+    <string name="module_copilotcli_estimate">~1 min</string>
+
+    <!-- minimaxcli -->
+    <string name="module_minimaxcli_description">CLI oficial de MiniMax — texto, imagen, video, voz, música y búsqueda desde la terminal.</string>
+    <string name="module_minimaxcli_type">Nativo</string>
+    <string name="module_minimaxcli_estimate">~1 min</string>
+
+    <!-- mimocode -->
+    <string name="module_mimocode_description">Agente de código de Xiaomi, memoria persistente entre sesiones (experimental — sin build oficial Android en npm).</string>
+    <string name="module_mimocode_type">Nativo</string>
+    <string name="module_mimocode_estimate">~1 min</string>
+
+    <!-- mistralvibe -->
+    <string name="module_mistralvibe_description">Agente de código oficial de Mistral AI en terminal.</string>
+    <string name="module_mistralvibe_type">Nativo</string>
+    <string name="module_mistralvibe_estimate">~1 min</string>
+
+    <!-- qwencode -->
+    <string name="module_qwencode_description">CLI de código de Alibaba (fork de Gemini CLI) sobre el modelo Qwen3-Coder.</string>
+    <string name="module_qwencode_type">Nativo</string>
+    <string name="module_qwencode_estimate">~1 min</string>
+
+    <!-- ciberseguridad -->
+    <string name="module_ciberseguridad_description">Nivel básico: nmap + netcat + dirb + nikto + theHarvester + sqlmap + MVT + ClamAV (nativo). Nivel Pro: además un contenedor Kali Linux completo (proot-distro), con o sin interfaz gráfica. Para tu propia red o con autorización.</string>
+    <string name="module_ciberseguridad_type">Nativo</string>
+    <string name="module_ciberseguridad_estimate">~2 min (básico) / hasta ~30 min (pro: contenedor Kali + GUI, según red)</string>
+
+    <!-- entorno -->
+    <string name="module_entorno_description">Escritorio XFCE4 nativo listo para instalar (sin distro) — o una distro Linux completa (proot) si la necesitás.</string>
+    <string name="module_entorno_type">Nativo</string>
+    <string name="module_entorno_estimate">~3 min</string>
+
+    <!-- db -->
+    <string name="module_db_description">MySQL/MariaDB + PostgreSQL + SQLite + Redis — servidores completos y gestión de bases SQLite.</string>
+    <string name="module_db_type">Nativo</string>
+    <string name="module_db_estimate">~3 min</string>
+
+    <!-- stacks -->
+    <string name="module_stacks_description">Catálogo de stacks de desarrollo listos: Python+PostgreSQL, PHP+MySQL, React+Vite (TypeScript/JavaScript), HTML/CSS/JS vanilla (nativos en Termux, como una VPS chica) o una distro Linux completa (Debian/Ubuntu vía proot). Reutiliza los módulos Python/Base de Datos y agrega Node.js/PHP.</string>
+    <string name="module_stacks_type">Nativo</string>
+    <string name="module_stacks_estimate">~3-6 min por preset</string>
+
+    <!-- udocker -->
+    <string name="module_udocker_description">Contenedores sin root (Docker Hub y compatibles) vía PRoot — el mismo motor que ya usa n8n internamente, expuesto acá como herramienta general con pull/run/list/rm. No es Docker real (sin namespaces/cgroups del kernel); ver módulo Docker.</string>
+    <string name="module_udocker_type">Nativo</string>
+    <string name="module_udocker_estimate">~2 min</string>
+
+    <!-- qemu -->
+    <string name="module_qemu_description">qemu-user (correr binarios de otra arquitectura, ej. x86_64 en ARM64, uso real sin root) + qemu-system headless SIN aceleración KVM (Android no da /dev/kvm sin root) — software puro, lento; no incluye ninguna imagen de sistema operativo.</string>
+    <string name="module_qemu_type">Nativo</string>
+    <string name="module_qemu_estimate">~3 min</string>
+
+    <!-- docker -->
+    <string name="module_docker_description">Docker real (dockerd) NO es posible sin root en Android/Termux — el kernel no expone namespaces/cgroups a apps sin privilegios (limitación del sistema, no de Termux). Este módulo no instala nada falso: explica el motivo y dirige al módulo udocker, la alternativa real ya disponible en Kairos.</string>
+    <string name="module_docker_type">Nativo</string>
+    <string name="module_docker_estimate">instantáneo</string>
+
+    <!-- llamaserver -->
+    <string name="module_llamaserver_description">Motor de IA local — servidor HTTP de llama.cpp (compatible OpenAI) + motor embebido para el chat. Usa los .gguf del Chat IA y sirve a OpenCode/Hermes/OpenClaw.</string>
+    <string name="module_llamaserver_type">Nativo</string>
+    <string name="module_llamaserver_estimate">~1 min</string>
+
+    <!-- cactus -->
+    <string name="module_cactus_description">Motor de tool-calling local (45M params, ~28MB RAM). Ejecuta tareas y scripts en bash/python/json con IA (razonador vía Ollama/llama-server) o sin IA (modo directo).</string>
+    <string name="module_cactus_type">Nativo</string>
+    <string name="module_cactus_estimate">~2 min</string>
+
+    <!-- ide -->
+    <string name="module_ide_description">IDE directo en Termux: Neovim + NvChad + GitHub Copilot + CodeCompanion. Abre con nvim desde la terminal.</string>
+    <string name="module_ide_type">Nativo</string>
+    <string name="module_ide_estimate">~4 min</string>
+
+    <!-- apk -->
+    <string name="module_apk_description">Compila proyectos Android en el dispositivo (sin Android Studio): aapt2 + javac + kotlinc + d8 + zipalign + apksigner. Soporta Java y Kotlin (JVM puro) — NO compila React Native/JS ni C/C++ nativo vía CMake/NDK. Compilá desde Download, sus subcarpetas o ~/proyectos.</string>
+    <string name="module_apk_type">Nativo</string>
+    <string name="module_apk_estimate">~5 min</string>
+
+    <!-- kimi -->
+    <string name="module_kimi_description">CLI de código oficial de Moonshot AI (Kimi). Requiere Node.js 22.19+.</string>
+    <string name="module_kimi_type">Nativo</string>
+    <string name="module_kimi_estimate">~2 min</string>
+
+    <!-- kilo -->
+    <string name="module_kilo_description">CLI de código (fork del motor OpenCode) con su propio ecosistema de proveedores.</string>
+    <string name="module_kilo_type">Nativo</string>
+    <string name="module_kilo_estimate">~1 min</string>
+
+    <!-- cursor -->
+    <string name="module_cursor_description">Agente de código de Cursor en terminal (binario oficial con Node embebido, capa glibc).</string>
+    <string name="module_cursor_type">Nativo</string>
+    <string name="module_cursor_estimate">~3 min</string>
+
+    <!-- hf -->
+    <string name="module_hf_description">Gestión de modelos, datasets y spaces de Hugging Face desde la terminal (hf download con resume, hf upload).</string>
+    <string name="module_hf_type">Nativo</string>
+    <string name="module_hf_estimate">~1 min</string>
+
+    <!-- verificar -->
+    <string name="module_verificar_description">Verifica en vivo que los módulos instalados sigan funcionando (6 estrategias: cmd, pkg, dir, file, plugin, config).</string>
+    <string name="module_verificar_type">Diagnóstico</string>
+    <string name="module_verificar_estimate">&lt;10 s</string>
+
+    <!-- repo -->
+    <string name="module_repo_description">Empaqueta módulos instalados en .deb reales y arma un repo apt local (Packages/Release + checksums). Instalación/actualización de módulos robusta: dpkg-deb o ar como fallback.</string>
+    <string name="module_repo_type">DevOps</string>
+    <string name="module_repo_estimate">~1 min</string>
+
+    <!-- nodejs -->
+    <string name="module_nodejs_description">Node.js LTS nativo (npm incluido) + Corepack (pnpm/yarn).</string>
+    <string name="module_nodejs_type">Nativo</string>
+    <string name="module_nodejs_estimate">~1 min</string>
+
+    <!-- perl -->
+    <string name="module_perl_description">Intérprete Perl — dependencia de algunas herramientas (ej. PSQL Format).</string>
+    <string name="module_perl_type">Nativo</string>
+    <string name="module_perl_estimate">~1 min</string>
+
+    <!-- php -->
+    <string name="module_php_description">PHP CLI nativo.</string>
+    <string name="module_php_type">Nativo</string>
+    <string name="module_php_estimate">~1 min</string>
+
+    <!-- ruby -->
+    <string name="module_ruby_description">Ruby CLI + gem nativo.</string>
+    <string name="module_ruby_type">Nativo</string>
+    <string name="module_ruby_estimate">~1 min</string>
+
+    <!-- kotlin -->
+    <string name="module_kotlin_description">Compilador Kotlin (kotlinc) nativo.</string>
+    <string name="module_kotlin_type">Nativo</string>
+    <string name="module_kotlin_estimate">~2 min</string>
+
+    <!-- rust -->
+    <string name="module_rust_description">Rust (rustc + cargo) nativo, precompilado para ARM64.</string>
+    <string name="module_rust_type">Nativo</string>
+    <string name="module_rust_estimate">~3 min</string>
+
+    <!-- clang -->
+    <string name="module_clang_description">Compilador Clang (C/C++) nativo de Termux.</string>
+    <string name="module_clang_type">Nativo</string>
+    <string name="module_clang_estimate">~2 min</string>
+
+    <!-- golang -->
+    <string name="module_golang_description">Go (compilador + toolchain) nativo.</string>
+    <string name="module_golang_type">Nativo</string>
+    <string name="module_golang_estimate">~2 min</string>
+
+    <!-- gh -->
+    <string name="module_gh_description">Cliente oficial de GitHub (gh) — repos, PRs, issues desde terminal.</string>
+    <string name="module_gh_type">Herramienta</string>
+    <string name="module_gh_estimate">~1 min</string>
+
+    <!-- typescript -->
+    <string name="module_typescript_description">TypeScript (tsc) — instala Node.js primero si falta.</string>
+    <string name="module_typescript_type">Herramienta</string>
+    <string name="module_typescript_estimate">~1 min</string>
+
+    <!-- nestjs -->
+    <string name="module_nestjs_description">CLI de NestJS (comando `nest`) — instala Node.js primero si falta.</string>
+    <string name="module_nestjs_type">Herramienta</string>
+    <string name="module_nestjs_estimate">~1 min</string>
+
+    <!-- prettier -->
+    <string name="module_prettier_description">Formateador de código Prettier — instala Node.js primero si falta.</string>
+    <string name="module_prettier_type">Herramienta</string>
+    <string name="module_prettier_estimate">~1 min</string>
+
+    <!-- livesrv -->
+    <string name="module_livesrv_description">Servidor estático con recarga automática (`live-server`) — instala Node.js primero si falta.</string>
+    <string name="module_livesrv_type">Herramienta</string>
+    <string name="module_livesrv_estimate">~1 min</string>
+
+    <!-- localtunnel -->
+    <string name="module_localtunnel_description">Túneles HTTP vía Localtunnel (`lt`), con fix de apertura de URL en Android — instala Node.js primero si falta.</string>
+    <string name="module_localtunnel_type">Herramienta</string>
+    <string name="module_localtunnel_estimate">~1 min</string>
+
+    <!-- vercel -->
+    <string name="module_vercel_description">CLI de Vercel para deploys — instala Node.js primero si falta.</string>
+    <string name="module_vercel_type">Herramienta</string>
+    <string name="module_vercel_estimate">~1 min</string>
+
+    <!-- markserv -->
+    <string name="module_markserv_description">Servidor de Markdown en vivo — instala Node.js primero si falta.</string>
+    <string name="module_markserv_type">Herramienta</string>
+    <string name="module_markserv_estimate">~1 min</string>
+
+    <!-- psqlformat -->
+    <string name="module_psqlformat_description">Formateador de SQL (`psqlformat`, requiere Perl) — instala Node.js primero si falta.</string>
+    <string name="module_psqlformat_type">Herramienta</string>
+    <string name="module_psqlformat_estimate">~1 min</string>
+
+    <!-- ncu -->
+    <string name="module_ncu_description">Revisa/actualiza versiones de package.json (`ncu`) — instala Node.js primero si falta.</string>
+    <string name="module_ncu_type">Herramienta</string>
+    <string name="module_ncu_estimate">~1 min</string>
+
+    <!-- ngrok -->
+    <string name="module_ngrok_description">Túneles HTTP vía Ngrok (variante npm) — instala Node.js primero si falta.</string>
+    <string name="module_ngrok_type">Herramienta</string>
+    <string name="module_ngrok_estimate">~1 min</string>
+
+    <!-- languages -->
+    <string name="module_languages_description">Instala/gestiona lenguajes de programación nativos de Termux (Node.js, Perl, PHP, Rust, C/C++, Go) — un switch por lenguaje, con versión real detectada.</string>
+    <string name="module_languages_type">Contenedor</string>
+    <string name="module_languages_estimate">~1-3 min por lenguaje</string>
+
+    <!-- packages -->
+    <string name="module_packages_description">Herramientas de desarrollo npm listas para activar/desactivar (TypeScript, NestJS CLI, Prettier, Live Server, Localtunnel, Vercel CLI, Markserv, PSQL Format, NPM Check Updates, Ngrok) — un switch por herramienta.</string>
+    <string name="module_packages_type">Contenedor</string>
+    <string name="module_packages_estimate">~1 min por herramienta</string>
+
+    <!-- pi -->
+    <string name="module_pi_description">Agente de codificación por terminal (earendil-works/pi, npm). Comando: pi. Sin flags/login propios confirmados — se instala vía npm con Node.js/ripgrep/git/fd.</string>
+    <string name="module_pi_type">Nativo</string>
+    <string name="module_pi_estimate">~2 min</string>
+
+    <!-- codegraph -->
+    <string name="module_codegraph_description">Análisis estático de código: genera un grafo de relaciones entre archivos/funciones/clases/módulos de un proyecto (colbymchenry/codegraph). NO es un agente de IA — es una herramienta de navegación/refactor.</string>
+    <string name="module_codegraph_type">Nativo</string>
+    <string name="module_codegraph_estimate">~2 min</string>
+
+    <!-- ohmypi -->
+    <string name="module_ohmypi_description">Versión mejorada/standalone de Pi Coding Agent (can1357/oh-my-pi) — binario glibc con addons Rust (AST grep, diff, fuzzy find, shell exec), sesiones y MCP. Comando: omp. Instala vía glibc nativo (recomendado por el proyecto).</string>
+    <string name="module_ohmypi_type">Nativo</string>
+    <string name="module_ohmypi_estimate">~3 min</string>
+</resources>

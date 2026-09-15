@@ -679,10 +679,6 @@ class OllamaConfigFragment : BaseModuleFragment() {
         }.start()
     }
 
-    private fun runOnMain(block: () -> Unit) {
-        if (!isAdded) return
-        activity?.runOnUiThread { if (isAdded) block() }
-    }
 
     private fun save() {
         val temp = tempInput.text.toString().toFloatOrNull()

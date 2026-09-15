@@ -49,6 +49,10 @@ object KairosBootstrap {
             val scriptsDir = File(HOME, "scripts")
             val installDir = File(scriptsDir, "install")
             installDir.mkdirs()
+            // Payload de la instrumentación "sin root" de compil-apk-termux — ver el
+            // "when" de abajo (smali_hook.py/RemoteLogger.java/native_logger.c/log_server.py).
+            val loggerDir = File(HOME, ".kairos_apk_logger")
+            loggerDir.mkdirs()
 
             if (isAlreadyExtracted(context)) return
 
@@ -66,6 +70,15 @@ object KairosBootstrap {
                     name == "kairos_manager.py" -> {
                         // Copy the Python manager script to $HOME/kairos_manager.py
                         extractAsset(context, "scripts/kairos_manager.py", File(HOME, "kairos_manager.py"))
+                    }
+                    name == "smali_hook.py" || name == "RemoteLogger.java" ||
+                    name == "native_logger.c" || name == "log_server.py" -> {
+                        // Payload de la instrumentación "sin root" de compil-apk-termux (ver
+                        // modulos/apk.sh, cmd_instrument) — fuente VictorH028/no-root-logger,
+                        // ver docs/humano331.md. loggerDir se crea una sola vez más abajo (no
+                        // existe todavía en este punto del extractor, a diferencia de
+                        // installDir).
+                        extractAsset(context, "scripts/$name", File(loggerDir, name))
                     }
                     name == "rootfs_package_list.txt" -> {
                         // Lista de paquetes del rootfs embebido (ver tools/rootfs/package_list.txt,

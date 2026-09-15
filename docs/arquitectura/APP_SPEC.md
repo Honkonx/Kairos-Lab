@@ -1,26 +1,26 @@
 # APP_SPEC.md — Especificación de Kairos
 
-**Versión actual:** `0.118.0` (`versionCode` 118, ver `app/build.gradle`)
-**APK:** compilado vía GitHub Actions/GitLab CI, o localmente (ver `BUILD.md`).
+**Repo:** github.com/Honkonx/kairos-lab
+**APK:** compilado vía GitHub Actions/GitLab CI, o localmente con Android Studio + NDK — ver `Build` más abajo.
 
 ---
 
 ## Qué es
 
 Fork de termux-app (github.com/termux/termux-app) que unifica en un solo APK:
-- **Motor Termux** (Java) — sesiones bash reales, procesos, bootstrap APT,
+- **Motor Termux** (Java, protegido) — sesiones bash reales, procesos, bootstrap APT,
   terminal VT100 (`terminal-emulator/` NDK C + `terminal-view/`).
 - **UI nativa** (Kotlin, `app/src/main/java/com/termux/app/ui/`) — dashboard de
   módulos de IA local, chat, monitor del sistema, configuración, gestor de archivos,
-  editor de código, túneles, y una "nube" personal de almacenamiento.
+  editor de código, túneles, "nube" personal.
 
-Sin React Native — toda la UI es nativa Java/Kotlin. Sin root. Los modelos de IA corren
-localmente (Ollama nativo o llama.cpp embebido vía NDK), sin depender de internet en
-runtime salvo para la descarga inicial de modelos. Objetivo `arm64-v8a` únicamente.
+Sin React Native — toda la UI es nativa. Sin root. Los modelos de IA corren localmente
+(Ollama nativo o llama.cpp embebido vía NDK), sin depender de internet en runtime salvo para
+la descarga inicial. ARM64 (`arm64-v8a`) únicamente.
 
 ---
 
-## Restricciones fijas de plataforma
+## Restricciones fijas — no cambiar sin motivo documentado
 
 | Parámetro | Valor real (`gradle.properties`/`build.gradle`) | Motivo |
 |-----------|-------|--------|
@@ -30,20 +30,20 @@ runtime salvo para la descarga inicial de modelos. Objetivo `arm64-v8a` únicame
 | `NDK` | 29.0.14206865 (r29) | Requerido por `terminal-emulator` C y `llama-engine/` |
 | `AGP` | 8.13.2 | `com.android.tools.build:gradle` en `build.gradle` raíz |
 | `Gradle` | 9.2.1 | `gradle/wrapper/gradle-wrapper.properties` |
-| `Kotlin` | 2.2.21 | |
+| `Kotlin` | 2.2.21 | Requerido por compatibilidad de metadata con `sora-editor` |
 | `Java` | 17 | Engine y compilación |
-| `sharedUserId` | `com.termux` | Preservado para compatibilidad con permisos/paquetes del Termux original (ver `AndroidManifest.xml`) |
+| `sharedUserId` | `com.termux` | Preservar — Termux original comparte este UID, todos los permisos/paquetes de Termux dependen de esto (ver `AndroidManifest.xml`) |
 
 ---
 
-## Arquitectura de directorios
+## Arquitectura
 
 ```
 kairos/
-├── app/                              ← todo el trabajo de la app va acá
+├── app/                              ← TODO el trabajo de la app va acá
 │   └── src/main/
 │       ├── assets/
-│       │   ├── modules.json          ← definición del catálogo de módulos
+│       │   ├── modules.json          ← definición de los módulos (ver abajo)
 │       │   └── scripts/              ← copia embebida de modulos/*.sh (fallback offline)
 │       ├── java/com/termux/app/
 │       │   ├── TermuxActivity.java       ← Activity principal, overlay terminal, FAB, modo adaptado
@@ -51,7 +51,7 @@ kairos/
 │       │   ├── TermuxInstaller.java      ← Bootstrap APT (primera vez)
 │       │   ├── TermuxApplication.java    ← Entry point, arranca ModuleEventBridge
 │       │   ├── ModuleController.kt       ← Instala/arranca/detiene módulos vía ProcessBuilder
-│       │   ├── ui/                       ← Fragments por módulo + CliToolFragment
+│       │   ├── ui/                       ← fragments dedicados por módulo + CliToolFragment
 │       │   │                                genérico para CLI tools + GenericModuleFragment
 │       │   │                                fallback + pantallas core (ver APP_SCREENS.md)
 │       │   ├── wizard/                   ← WizardActivity.java + fragments (ViewPager2)
@@ -61,33 +61,34 @@ kairos/
 │       └── res/
 │           ├── layout/activity_kairos.xml    ← BottomNav + FAB + fragment container
 │           ├── layout/activity_termux.xml    ← Terminal overlay (normal + modo adaptado)
-│           ├── menu/bottom_nav_menu.xml      ← tabs principales
+│           ├── menu/bottom_nav_menu.xml      ← tabs reales
 │           ├── menu/more_nav_menu.xml        ← pantallas del menú "Más"
 │           └── values/colors_kairos.xml      ← Sistema de diseño (ver abajo)
 ├── llama-engine/                     ← Módulo NDK, llama.cpp embebido
-├── terminal-emulator/                ← NDK C, VT100 (heredado de termux-app)
-├── terminal-view/                    ← Android widget (heredado de termux-app)
-├── termux-shared/                    ← Utilidades compartidas (heredado de termux-app)
+├── terminal-emulator/                ← 🔒 Protegido — NDK C, VT100
+├── terminal-view/                    ← 🔒 Protegido — Android widget
+├── termux-shared/                    ← 🔒 Protegido (salvo `module/`)
 ├── modulos/                          ← Scripts reales que instalan/arrancan cada módulo (bash)
-├── tools/rootfs/                     ← `build_rootfs.py` — arma el rootfs embebido (ver ROOTFS_EMBEBIDO.md)
-├── .github/workflows/                ← workflows de CI (ver BUILD.md)
+├── tools/rootfs/                     ← `build_rootfs.py` — arma el rootfs embebido
+├── .github/workflows/                ← build-app.yml (liviano), build-app-rootfs.yml,
+│                                        build-app-rootfsv1.yml, build-rootfs.yml
 └── docs/                             ← esta documentación
 ```
 
 ---
 
-## UI — Navegación
+## UI — Navegación real
 
-### Bottom navigation
+### Bottom navigation — 5 tabs (`bottom_nav_menu.xml`)
 
 ```
 ⊞ Módulos  |  ◈ Chat IA  |  ◉ Sistema  |  ⚙ Config  |  ⋯ Más
 ```
 
 `BottomNavigationView` tiene un límite duro de 5 ítems (límite real de la librería, no una
-sugerencia). El 5º ítem ("Más") abre un menú con las pantallas que no entran en la barra.
+sugerencia). El 5º ítem ("Más") abre un `PopupMenu` con las pantallas que no entran.
 
-### Menú "Más"
+### Menú "Más" — pantallas adicionales (`more_nav_menu.xml`)
 
 | id | Título | Fragment |
 |---|---|---|
@@ -102,35 +103,31 @@ Ver `docs/arquitectura/APP_SCREENS.md` para el detalle de cada una.
 
 ### Wizard (primer arranque)
 
-`ViewPager2` + `FragmentStateAdapter`, con varias pantallas secuenciales:
+`ViewPager2` + `FragmentStateAdapter`, con pantallas dedicadas para:
 
 1. `WizardWelcomeFragment` — bienvenida.
 2. `WizardPermissionsFragment` — permisos de Android (almacenamiento, notificaciones).
-3. `WizardPhantomProcessFragment` — ayuda opcional para desactivar el límite de procesos
-   fantasma de Android 12+ (auto-detección vía ADB inalámbrico, o guía manual).
-4. `WizardBatteryFragment` — ayuda opcional para quitar restricciones de batería.
-5. `WizardInstallFragment` — bootstrap Termux + rootfs (embebido o descarga runtime) + script
-   de configuración inicial, con progreso en vivo paso a paso.
-6. `WizardCheckFragment` — comprobación final opcional, "Comprobar y actualizar" u "Omitir".
+3. `WizardInstallFragment` — bootstrap Termux + rootfs (embebido o descarga runtime) + `kairos.sh`.
+4. `WizardCheckFragment` — comprobación final, opcional.
 
-Ver `docs/bootstrap/ROOTFS_EMBEBIDO.md` para el diseño del rootfs embebido.
+Ver `docs/bootstrap/rootfs-embebido.md` para el diseño del rootfs embebido y sus dos variantes
+de build (liviana vs. con rootfs incluido en el APK).
 
 ---
 
 ## Sistema de módulos
 
-**`app/src/main/assets/modules.json`** define el catálogo completo de módulos disponibles:
-herramientas de IA local y agentes de código (Ollama, llama.cpp/`llamaserver`, Claude Code,
-Codex CLI, OpenCode, OpenClaw, Kilo, Kimi, y otros CLIs de IA), automatización (n8n), un
-entorno de escritorio Linux embebido (`entorno`/Mini PC, proot-distro), acceso remoto
-(`remote`, SSH + túneles), bases de datos (`db`), contenedores (`docker`, `udocker`),
-virtualización (`qemu`), un IDE integrado (`ide`), y utilidades generales (Python, gestor de
-paquetes, herramientas de seguridad, etc.). Cada entrada tiene esta forma:
+**`app/src/main/assets/modules.json`** define el catálogo completo de módulos: motores de IA
+(`ollama`, `python`, `claude`, `codex`, `antigravity`, `openclaw`, `opencode`, `hermes`,
+`remote`, `expo`, `engram`, y otras CLIs de IA/desarrollo), automatización (`n8n`), seguridad
+(`ciberseguridad`), entorno de escritorio (`entorno`), base de datos (`db`), contenedores/VMs
+(`udocker`, `qemu`, `docker`), inferencia local (`llamaserver`, `cactus`), IDE (`ide`), y más.
+Cada entrada tiene estos campos:
 
 ```json
 {
   "id": "ollama", "name": "Ollama", "description": "...",
-  "script": "ollama.sh",
+  "repo": "Honkonx/kairos-lab", "script": "ollama.sh",
   "icon": "⬡", "iconBg": "#1A4A2E",
   "port": "11434", "size": "~850MB", "type": "Nativo",
   "estimate": "~2 min", "requiresProot": false,
@@ -139,9 +136,9 @@ paquetes, herramientas de seguridad, etc.). Cada entrada tiene esta forma:
 }
 ```
 
-- **`hasSwitch`**: si el módulo tiene un proceso de servidor real (Ollama, n8n, OpenClaw,
-  OpenCode, Remote...) vs. herramientas CLI sin servidor propio (Python, Claude Code, Codex,
-  Antigravity CLI, Hermes, Expo) — estas últimas no tienen switch ON/OFF, solo "abrir
+- **`hasSwitch`**: si el módulo tiene proceso de servidor real (Ollama, n8n, OpenClaw,
+  OpenCode, Remote) vs. herramientas CLI sin servidor propio (Python, Claude, Codex,
+  Antigravity, Hermes, Expo) — estas últimas no tienen switch ON/OFF, solo "abrir
   terminal".
 - **`requiresProot`**: si depende de proot-distro (Debian) en vez de correr nativo.
 - **`ModuleController.kt`** es la fuente de verdad para instalar (`installModule()`),
@@ -152,14 +149,14 @@ paquetes, herramientas de seguridad, etc.). Cada entrada tiene esta forma:
   por los propios scripts de `modulos/*.sh` — la UI lo lee, no lo escribe directo.
 
 Ver `docs/modulos/` para el detalle completo por módulo (permisos, instalación,
-opciones, detección).
+opciones, detección — un doc dedicado por módulo).
 
 ---
 
 ## Sistema de diseño — 3 temas seleccionables
 
-Kairos tiene **3 temas seleccionables** (Config → 🎨 Tema). El código nunca referencia
-colores fijos — todo pasa por **atributos de tema** (`?attr/kairosX` en XML,
+Kairos tiene **3 temas seleccionables** (Config → 🎨 Tema), y el código no referencia colores
+fijos en ningún punto de la UI — todo pasa por **atributos de tema** (`?attr/kairosX` en XML,
 `ctx.kairosThemeColor(R.attr.kairosX)` en Kotlin, ver
 `app/src/main/java/com/termux/app/util/KairosThemeColors.kt`), resueltos en runtime por el
 estilo activo (`app/src/main/res/values/themes_kairos.xml`:
@@ -167,7 +164,7 @@ estilo activo (`app/src/main/res/values/themes_kairos.xml`:
 `SharedPreferences` (`KairosThemePrefs.kt`) y se aplica con `setTheme()` antes de
 `super.onCreate()` en `TermuxActivity`.
 
-**Oscuro** (por defecto — `colors_kairos.xml`):
+**Oscuro** (default — `colors_kairos.xml`):
 
 | Token (atributo) | Hex | Uso |
 |-------|-----|-----|
@@ -185,7 +182,7 @@ estilo activo (`app/src/main/res/values/themes_kairos.xml`:
 | `kairosRed` | `#EF4444` | Error/peligro |
 | `kairosAmber` | `#F59E0B` | Advertencia |
 | `kairosBorder` / `kairosDivider` | `#1F1F1F` / `#151515` | Bordes/separadores |
-| `kairosStatusRunning`/`Stopped`/`Installing`/`Error`/`NotInstalled` | ver arriba | Estado visual por módulo — también pinta el badge circular superpuesto en el ícono de cada fila |
+| `kairosStatusRunning`/`Stopped`/`Installing`/`Error`/`NotInstalled` | ver arriba | Estado visual por módulo — también pinta el badge circular superpuesto en el ícono de cada fila (`ModuleListAdapter`/`PluginListAdapter`, patrón inspirado en paneles de gestión de homelab) |
 
 **Señal** (cian-teal frío, `colors_kairos_senal.xml`) — mismos tokens, paleta distinta: fondo
 `#0A0E14`→`#1B222E`, texto `#E4EAF2`/`#7C8B9E`/`#4A5568`, acentos `kairosBlue=#4FD1C5` (cian, no
@@ -195,22 +192,21 @@ azul puro), `kairosGreen=#48BB78`, `kairosRed=#F56565`, `kairosAmber=#ECC94B`.
 tokens con fondos claros y `android:windowLightStatusBar`/`windowLightNavigationBar` activados
 en el estilo.
 
-### Componentes UI reusables (`BaseModuleFragment.kt`)
+### Componentes UI reusables (`BaseModuleFragment.kt`, heredado por los fragments de módulo)
 
-Heredados por la mayoría de los fragments de módulo, reemplazan grupos de botones mutuamente
-excluyentes por controles más compactos:
+Reemplazan grupos de botones mutuamente excluyentes por controles más compactos:
 
 | Componente | Uso | Ejemplo real |
 |---|---|---|
 | `dropdownSwitchRow()` | Elegir 1 de N opciones + encendido/apagado que bloquea el dropdown mientras está ON | n8n (🏠 local / 🌐 Cloudflare + switch), OpenCode (puerto 3000/4096 + switch) |
 | `switchRow()` | Encendido/apagado simple, sin opciones | Remote (SSH, túnel Cloudflare), OpenClaw (gateway), Db (MySQL/PostgreSQL/Redis — 3 switches independientes), Ollama, Hermes Gateway, LlamaServer |
-| `dropdownRow()` | Elegir 1 de N opciones que NO son un toggle binario (sin switch) | Ciberseguridad (acciones de sqlmap), Hermes (proveedor IA local: Ollama vs llama-server) |
+| `dropdownRow()` | Elegir 1 de N opciones que NO son un toggle binario (sin switch) | Ciberseguridad (4 acciones de sqlmap), Hermes (proveedor IA local: Ollama vs llama-server) |
 
 ---
 
 ## Convenciones de código
 
-**Java (engine heredado de Termux):** sin lambdas, `this.` explícito, `@Override` en
+**Java (engine Termux, protegido):** sin lambdas, `this.` explícito, `@Override` en
 todo método sobreescrito, sin dependencias externas al SDK Android.
 
 **Kotlin (UI y utilidades):** idiomático, `if (!isAdded) return` antes de cualquier
@@ -221,9 +217,8 @@ contra crashes de fragment-detached), I/O de archivos siempre en `Thread` separa
 **Interop Kotlin↔Java:** cualquier función de un `object` Kotlin llamada desde `.java`
 necesita `@JvmStatic` (si no, solo existe como método de instancia en `INSTANCE`) y
 `@JvmOverloads` si tiene parámetros con default (si no, Java no ve el overload de menor
-aridad). Cuando un parámetro con default se agrega en el medio de una firma (no al final),
-`@JvmOverloads` no genera el overload que Java necesita — hay que agregar un overload manual
-explícito.
+aridad) — y ojo con un parámetro con default que no queda al final de la firma, ahí
+`@JvmOverloads` no genera el overload necesario y hace falta uno manual.
 
 **XML layouts:** snake_case, `@+id/` prefix, evitar dp hardcodeado.
 
@@ -235,8 +230,23 @@ explícito.
 ./gradlew :app:assembleDebug
 ```
 
-Ver `docs/arquitectura/BUILD.md` para el detalle completo de los workflows de CI y el build
-local.
+Compilación vía **GitHub Actions/GitLab CI** (vía principal, reproducible) o **build local en
+Windows** (`tools/build-local.ps1`, con Android Studio + SDK/NDK instalados — ver
+`docs/arquitectura/BUILD.md` para el detalle) — 4 workflows reales en `.github/workflows/`:
+- **`build-app.yml`** ("Build Kairos APK") — build liviano, sin rootfs embebido, el
+  wizard lo descarga en runtime.
+- **`build-app-rootfs.yml`** ("Build Kairos APK (con rootfs embebido)") — con rootfs
+  embebido como asset del APK (requiere una Release previa de `build-rootfs.yml` +
+  `GITHUB_TOKEN` pasado explícito).
+- **`build-app-rootfsv1.yml`** ("Build Kairos APK (con rootfs embebido) v1") — variante
+  mejorada de `build-app-rootfs.yml`: auto-detecta la release más reciente con prefijo
+  `rootfs-` en vez de requerir el tag a mano.
+- **`build-rootfs.yml`** ("Build Kairos rootfs") — arma el rootfs desde
+  `tools/rootfs/build_rootfs.py` + `tools/rootfs/package_list.txt`, publica una GitHub
+  Release (no es una release de la app, es un artefacto interno).
+
+Ver `docs/bootstrap/rootfs-embebido.md` para el mecanismo del rootfs y
+`docs/arquitectura/BUILD.md` para el detalle completo de build local vs CI.
 
 ---
 
@@ -244,21 +254,23 @@ local.
 
 | Componente | Estado |
 |-----------|--------|
-| UI Módulos + hoja de instalación | ✅ Funcional |
+| UI Módulos + BottomSheet instalación | ✅ Funcional |
 | Sistema de switches start/stop | ✅ Funcional (`ModuleController.kt`, con `waitForPortOpen()`) |
 | Chat (motor Ollama + motor llama.cpp separados) | ✅ Funcional |
 | Sistema/Monitor/Config/Archivos/Túnel/Procesos/IA Local/Nube | ✅ Funcional |
 | Terminal overlay + modo adaptado (barras + sidebar) | ✅ Funcional |
 | Wizard primer arranque | ✅ Funcional |
-| Rootfs embebido (opcional) + descarga runtime | ✅ Funcional |
+| Rootfs embebido (opcional) + descarga runtime | ✅ Funcional (la variante liviana requiere que el repo de descarga sea público o esté autenticado) |
 | llama.cpp NDK (`llama-engine/`) | ✅ Funcional |
-| Fix del phantom process killer (Android 12+) | ✅ Funcional — 3 vías (guiada/beta/manual) |
+| Fix del phantom process killer (Android 12+) | ✅ Funcional — 3 vías (guiada/beta/manual), ver doc dedicado |
+| `--force` real en el botón "Actualizar" de varios módulos | ❌ Gap conocido |
+| Vía de "actualizar sin reinstalar todo" | ❌ Gap conocido |
 
 ---
 
 ## Ver también
 
 - `docs/arquitectura/APP_SCREENS.md` — cada pantalla real, en detalle.
-- `docs/modulos/` — documentación por módulo.
-- `docs/bootstrap/ROOTFS_EMBEBIDO.md` — mecanismo de rootfs.
-- `docs/ia-local/LLAMA_CPP_EMBEBIDO.md` — módulo llama.cpp.
+- `docs/modulos/` — doc por módulo.
+- `docs/bootstrap/rootfs-embebido.md` — mecanismo de rootfs.
+- `docs/ia-local/llama-cpp-local-engine.md` — módulo llama.cpp.

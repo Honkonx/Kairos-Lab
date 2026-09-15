@@ -174,6 +174,24 @@ class CiberseguridadFragment : BaseModuleFragment() {
         // Banner legal/ético fijo (ver KDoc de la clase) — arriba de todo, antes de "🌐 RED".
         addDisclaimerBanner()
 
+        // Bug real reportado por el usuario (2026-09-08, confirmado por ADB — registry sin
+        // ninguna entrada "ciberseguridad.*" tras un intento real, log/checkpoint mostrando el
+        // script interrumpido a mitad de camino): "la primera vez ponen la opcion pro/completa,
+        // se instala la basica y a la hora es que sale la pro". Causa raíz de UX (independiente
+        // del fix de ciberseguridad.sh que evita perder el registro): isModuleInstalled() ya da
+        // "true" apenas nmap está en PATH (BINARY_FALLBACK, PASO 1 de ciberseguridad.sh — pocos
+        // segundos), MUCHO antes de que Kali termine de instalar en segundo plano (puede tardar
+        // varios minutos — la imagen pesa varios cientos de MB). Sin este banner, buildContent()
+        // saltaba directo a la UI "instalado" mostrando tier=básico (el registry todavía no
+        // tiene tier=pro) con el botón "Instalar nivel Pro" como si el usuario nunca hubiera
+        // elegido Pro, cuando en realidad la instalación de Pro seguía corriendo en background
+        // (ModuleController.isInstalling() lo confirma). El banner se auto-actualiza (poll cada
+        // 3s, mismo criterio que BaseModuleFragment.pollInstallingButtonState()) y reconstruye
+        // la pantalla entera apenas la instalación real termina.
+        if (com.termux.app.ModuleController.isInstalling(getModuleId())) {
+            addInstallingBanner()
+        }
+
         // Card "🌐 RED" — pedido explícito del usuario: datos reales del dispositivo (IP
         // local, ya existía) + un panel tipo "mini terminal" con dispositivos conectados en
         // la LAN (nuevo, 2026-08-17). El scan NUNCA corre solo — requiere tocar "Escanear" —
@@ -288,6 +306,38 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 showScanResultDialog(getString(com.termux.R.string.ciberseguridad_disclaimer_full_dialog_title), disclaimerFullText().lines())
             })
         }
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Banner "instalando en segundo plano" (ver KDoc de la clase, 2026-09-08) — visible solo
+    // mientras ModuleController.isInstalling(getModuleId()) es true. Se auto-actualiza con un
+    // poll simple (mismo criterio que BaseModuleFragment.pollInstallingButtonState(), pero acá
+    // reconstruye TODA la pantalla en vez de solo un botón, porque el objetivo es que el resto
+    // del contenido — tier/Kali/tabs — refleje el estado final real apenas esté disponible).
+    // ────────────────────────────────────────────────────────────
+
+    private fun addInstallingBanner() {
+        addCard(getString(com.termux.R.string.ciberseguridad_installing_banner_title)) {
+            addView(TextView(requireContext()).apply {
+                text = getString(com.termux.R.string.ciberseguridad_installing_banner_body)
+                textSize = 12f
+                setTextColor(requireContext().kairosThemeColor(com.termux.R.attr.kairosText2))
+                setPadding(dp(14), dp(4), dp(14), dp(4))
+            })
+        }
+        pollInstallStillRunning()
+    }
+
+    private fun pollInstallStillRunning() {
+        if (!isAdded) return
+        if (!com.termux.app.ModuleController.isInstalling(getModuleId())) {
+            container.removeAllViews()
+            buildContent()
+            return
+        }
+        container.postDelayed({
+            if (isAdded) pollInstallStillRunning()
+        }, 3000)
     }
 
     // ────────────────────────────────────────────────────────────
@@ -449,7 +499,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
 
     private fun loadLocalIp() {
         Thread {
-            val ip = try { RemoteManager.getLocalIp() } catch (_: Exception) { "—" }
+            val ip = try { RemoteManager.getLocalIp(context) } catch (_: Exception) { "—" }
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
@@ -498,7 +548,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
         val (checkCode, _, _) = ManagerNativeUtils.runShell("command -v nmap", 5)
         if (checkCode != 0) return LanScanResult.NotInstalled
 
-        val ip = RemoteManager.getLocalIp()
+        val ip = RemoteManager.getLocalIp(context)
         val octets = ip.split(".")
         if (octets.size != 4) return LanScanResult.Error(getString(com.termux.R.string.ciberseguridad_invalid_local_ip, ip))
         val subnet = "${octets[0]}.${octets[1]}.${octets[2]}.0/24"
@@ -1038,16 +1088,8 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 getString(com.termux.R.string.ciberseguridad_pro_headless_item),
                 getString(com.termux.R.string.ciberseguridad_pro_gui_item)
             )) { _, which ->
-                val variant = if (which == 1) "pro-gui" else "pro-headless"
-                installModuleInBackground(variant) { ok ->
-                    if (ok) {
-                        toast(getString(com.termux.R.string.ciberseguridad_kali_installed_toast))
-                        container.removeAllViews()
-                        buildContent()
-                    } else {
-                        toast(getString(com.termux.R.string.ciberseguridad_install_failed_log))
-                    }
-                }
+                val tierVariant = if (which == 1) "pro-gui" else "pro-headless"
+                showKaliCategoryDialog(tierVariant, com.termux.R.string.ciberseguridad_kali_installed_toast)
             }
             .setNegativeButton(getString(com.termux.R.string.ciberseguridad_cancel), null)
             .show()
@@ -1064,20 +1106,98 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 getString(com.termux.R.string.ciberseguridad_pro_headless_item),
                 getString(com.termux.R.string.ciberseguridad_pro_gui_item)
             )) { _, which ->
-                val variant = when (which) {
-                    1 -> "pro-headless"
-                    2 -> "pro-gui"
-                    else -> "basico"
+                when (which) {
+                    1 -> showKaliCategoryDialog("pro-headless", com.termux.R.string.ciberseguridad_installed_toast)
+                    2 -> showKaliCategoryDialog("pro-gui", com.termux.R.string.ciberseguridad_installed_toast)
+                    else -> {
+                        installModuleInBackground("basico") { ok ->
+                            if (ok) {
+                                toast(getString(com.termux.R.string.ciberseguridad_installed_toast))
+                                container.removeAllViews()
+                                buildContent()
+                            } else {
+                                toast(getString(com.termux.R.string.ciberseguridad_install_failed_log))
+                            }
+                        }
+                        // Rebuild inmediato (ver KDoc de la clase, banner "instalando en segundo
+                        // plano", 2026-09-08) — ModuleController.isInstalling() ya devuelve true
+                        // en este punto (installModule() marca activeInstalls.add() de forma
+                        // síncrona antes de que installModuleInBackground() retorne), así que el
+                        // banner aparece de inmediato en vez de recién la próxima vez que el
+                        // usuario vuelva a esta pantalla. Si el módulo ya estaba instalado
+                        // (reinstalar/cambiar variante), esto muestra el banner de inmediato; si
+                        // era la primera instalación (isModuleInstalled() todavía false),
+                        // buildContent() vuelve a caer en showNotInstalled(), que ya maneja su
+                        // propio estado de "instalando" (ver pollInstallingButtonState()).
+                        if (isAdded) { container.removeAllViews(); buildContent() }
+                    }
                 }
-                installModuleInBackground(variant) { ok ->
+            }
+            .setNegativeButton(getString(com.termux.R.string.ciberseguridad_cancel), null)
+            .show()
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Selección de metapaquete Kali por categoría (2026-09-09, hallazgo de referencia
+    // proot-distro-nethunter/BUILD_NH(), ver docs/referencias/ciberseguridad/
+    // AUDITORIA_KALI_GUI_REPOS_2026-09-08.md punto 1) — antes PASO 7b de ciberseguridad.sh
+    // instalaba siempre kali-tools-top10 fijo; ahora expone el catálogo real de 13 perfiles
+    // oficiales de Kali para que el usuario elija solo lo que necesita.
+    //
+    // Codificación real: ModuleController.installModule() solo reenvía --variant/--force/
+    // --silent al script (ver args.addAll(listOf("--variant", effectiveVariant)) en
+    // ModuleController.kt) — no existe un canal genérico para flags extra tipo --kali-tools=.
+    // En vez de ampliar esa infraestructura compartida (fuera del alcance/permiso de esta
+    // ronda, que solo autoriza tocar ciberseguridad.sh y este Fragment), la categoría se
+    // codifica DENTRO del mismo valor de --variant que el script ya recibe, como sufijo
+    // "<tier>:<categoria>" (ej. "pro-headless:web") — ciberseguridad.sh lo parsea (ver PASO 0
+    // de ese script). El sistema de variantes en sí (basico/pro-headless/pro-gui, --describe)
+    // no cambia — la categoría es un parámetro dentro de la variante "pro-*", no una variante
+    // nueva, tal como pide la tarea.
+    // ────────────────────────────────────────────────────────────
+
+    private data class KaliCategory(val id: String, val labelRes: Int)
+
+    private val kaliCategories = listOf(
+        KaliCategory("top10", com.termux.R.string.ciberseguridad_kali_cat_top10),
+        KaliCategory("default", com.termux.R.string.ciberseguridad_kali_cat_default),
+        KaliCategory("large", com.termux.R.string.ciberseguridad_kali_cat_large),
+        KaliCategory("everything", com.termux.R.string.ciberseguridad_kali_cat_everything),
+        KaliCategory("info-gathering", com.termux.R.string.ciberseguridad_kali_cat_info_gathering),
+        KaliCategory("web", com.termux.R.string.ciberseguridad_kali_cat_web),
+        KaliCategory("crypto-stego", com.termux.R.string.ciberseguridad_kali_cat_crypto_stego),
+        KaliCategory("passwords", com.termux.R.string.ciberseguridad_kali_cat_passwords),
+        KaliCategory("forensics", com.termux.R.string.ciberseguridad_kali_cat_forensics),
+        KaliCategory("fuzzing", com.termux.R.string.ciberseguridad_kali_cat_fuzzing),
+        KaliCategory("reverse-engineering", com.termux.R.string.ciberseguridad_kali_cat_reverse_engineering),
+        KaliCategory("sniffing-spoofing", com.termux.R.string.ciberseguridad_kali_cat_sniffing_spoofing),
+        KaliCategory("exploitation", com.termux.R.string.ciberseguridad_kali_cat_exploitation)
+    )
+
+    /**
+     * Diálogo de selección de categoría, mostrado DESPUÉS de elegir tier (headless/gui) en
+     * [showProInstallDialog]/[showSilentInstallVariantDialog] — llama a
+     * `installModuleInBackground("$tierVariant:${category.id}", ...)` con el mismo patrón de
+     * toast+rebuild que ya usaban esos 2 métodos (ver su comentario para el motivo del rebuild
+     * inmediato).
+     */
+    private fun showKaliCategoryDialog(tierVariant: String, successToastRes: Int) {
+        if (!isAdded) return
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(com.termux.R.string.ciberseguridad_kali_category_dialog_title))
+            .setMessage(getString(com.termux.R.string.ciberseguridad_kali_category_dialog_message))
+            .setItems(kaliCategories.map { getString(it.labelRes) as CharSequence }.toTypedArray()) { _, which ->
+                val category = kaliCategories[which]
+                installModuleInBackground("$tierVariant:${category.id}") { ok ->
                     if (ok) {
-                        toast(getString(com.termux.R.string.ciberseguridad_installed_toast))
+                        toast(getString(successToastRes))
                         container.removeAllViews()
                         buildContent()
                     } else {
                         toast(getString(com.termux.R.string.ciberseguridad_install_failed_log))
                     }
                 }
+                if (isAdded) { container.removeAllViews(); buildContent() }
             }
             .setNegativeButton(getString(com.termux.R.string.ciberseguridad_cancel), null)
             .show()

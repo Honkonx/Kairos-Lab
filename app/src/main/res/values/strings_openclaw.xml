@@ -95,4 +95,6 @@
     <string name="openclaw_toast_reinstalling">Reinstalando OpenClaw…</string>
     <string name="openclaw_toast_updated">OpenClaw actualizado</string>
     <string name="openclaw_toast_install_failed">Falló — revisa ~/kairos_logs/install_openclaw.log</string>
+    <string name="openclaw_card_mantenimiento">MANTENIMIENTO</string>
+    <string name="openclaw_btn_uninstall">🗑 Desinstalar</string>
 </resources>

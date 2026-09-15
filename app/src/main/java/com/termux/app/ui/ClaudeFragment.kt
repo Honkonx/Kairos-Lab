@@ -28,6 +28,14 @@ class ClaudeFragment : BaseModuleFragment() {
     private lateinit var estadoPillSlot: LinearLayout
     private lateinit var oauthStatusSlot: LinearLayout
 
+    // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
+    // CLAUDE_CODE_OAUTH_TOKEN (~/.claude_oauth_token) — ver
+    // .claude/rules/kairos-secrets-never-revealed.md.
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
+
     // Permisos por herramienta (--allow-tool/--deny-tool), gap documentado en
     // docs/modulos/CLAUDE_CODE.md (lote 1 de la auditoría de módulos, 2026-08-25). Texto crudo
     // separado por comas, aplicado al mismo flujo de PROMPT DIRECTO ya existente (no una sesión
@@ -74,6 +82,12 @@ class ClaudeFragment : BaseModuleFragment() {
                 addView(terminalStatusPill().also {
                     (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
                         gravity = android.view.Gravity.END
+                    }
+                })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
                     }
                 })
             })
@@ -128,11 +142,23 @@ class ClaudeFragment : BaseModuleFragment() {
             }
         }
         addCard(getString(R.string.claude_card_sesion)) {
+            // Bug real reportado por el usuario (2026-09-01): estos dos botones abrían la
+            // terminal directo con "claude --continue"/"--resume" en la carpeta por defecto,
+            // sin pasar por el mismo diálogo de "¿Dónde abrir?" que ya usa "Abrir en directorio
+            // raíz" arriba — --continue/--resume operan sobre el HISTORIAL de la carpeta actual
+            // (confirmado contra code.claude.com/docs/en/cli-reference), así que elegir carpeta
+            // acá importa tanto como para abrir la TUI normal.
             actionButton(getString(R.string.claude_btn_continue_last), GHOST) {
-                openClaudeHere(null, "--continue")
+                promptOpenLocation(
+                    onDefault = { openClaudeHere(null, "--continue") },
+                    onChooseFolder = { path -> openClaudeHere(path, "--continue") }
+                )
             }
             actionButton(getString(R.string.claude_btn_resume_session), GHOST) {
-                openClaudeHere(null, "--resume")
+                promptOpenLocation(
+                    onDefault = { openClaudeHere(null, "--resume") },
+                    onChooseFolder = { path -> openClaudeHere(path, "--resume") }
+                )
             }
         }
         // Confirmado contra code.claude.com/docs/en/cli-reference (2026-08-19, ronda de

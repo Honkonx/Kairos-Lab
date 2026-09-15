@@ -39,7 +39,13 @@ class CommandPaletteAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val command = visibleCommands[position]
         holder.bind(command)
-        holder.itemView.setOnClickListener { onCommandSelected(command) }
+        // command.isEnabled == false: el ítem se muestra atenuado (ver ViewHolder.bind) pero
+        // sigue en la lista — tocarlo es un no-op en vez de disparar una acción que hoy ya
+        // fallaría con un Toast (ej. "Panel Git" sin proyecto abierto). Ver comentario de
+        // [Command] para el contexto de esta ronda (2026-09-01).
+        holder.itemView.setOnClickListener {
+            if (command.isEnabled) onCommandSelected(command)
+        }
     }
 
     class ViewHolder(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
@@ -54,6 +60,12 @@ class CommandPaletteAdapter(
             } else {
                 icon.visibility = android.view.View.INVISIBLE
             }
+            // Atenuado simple (alpha), sin depender de un color/tema nuevo — misma técnica que
+            // Android usa por defecto para vistas `enabled=false`.
+            val alpha = if (command.isEnabled) 1.0f else 0.4f
+            itemView.alpha = alpha
+            icon.alpha = alpha
+            title.alpha = alpha
         }
     }
 }

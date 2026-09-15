@@ -377,11 +377,6 @@ class ModelsFragment : BaseModuleFragment() {
         }.start()
     }
 
-    private fun runOnMain(block: () -> Unit) {
-        if (!isAdded) return
-        activity?.runOnUiThread { if (isAdded) block() }
-    }
-
     private fun addStatusRow(text: String) {
         modelsContainer.addView(TextView(requireContext()).apply {
             this.text = text
@@ -419,7 +414,31 @@ class ModelsFragment : BaseModuleFragment() {
                     .setMessage(body)
                     .setPositiveButton(getString(R.string.models_action_close), null)
                     .setNegativeButton(getString(R.string.models_action_delete)) { _, _ -> confirmDelete(name) }
+                    // "Descargar de memoria" (unload, distinto de "Eliminar" — no borra el
+                    // .gguf del disco). OllamaApiClient.unloadModel() ya existía a nivel
+                    // nativo (POST /api/generate keep_alive:0), solo faltaba exponerlo en la
+                    // UI (auditoría referencia/ia/*, 2026-08-31).
+                    .setNeutralButton(getString(R.string.models_action_unload)) { _, _ -> unloadModel(name) }
                     .show()
+            }
+        }.start()
+    }
+
+    /** Descarga el modelo de RAM (keep_alive=0) sin borrar el .gguf del disco — distinto de
+     * confirmDelete(). No requiere confirmación (no destruye nada, Ollama lo vuelve a cargar
+     * solo en el próximo request). */
+    private fun unloadModel(name: String) {
+        Thread {
+            val error = try {
+                OllamaApiClient.unloadModel(name)
+                null
+            } catch (e: Exception) {
+                e.message ?: getString(R.string.models_unknown)
+            }
+            if (!isAdded) return@Thread
+            runOnMain {
+                if (!isAdded) return@runOnMain
+                toast(if (error == null) getString(R.string.models_unloaded) else getString(R.string.models_error_prefix, error))
             }
         }.start()
     }

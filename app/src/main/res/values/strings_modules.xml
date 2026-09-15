@@ -15,6 +15,8 @@
     <string name="modules_notification_stopped_text">El proceso dejó de correr — tócalo en Módulos para reiniciarlo.</string>
     <string name="modules_ram_format">%1$.1fGB / %2$.1fGB</string>
     <string name="modules_ram_unavailable">—</string>
+    <string name="modules_terminal_sessions_one">1 sesión de terminal activa</string>
+    <string name="modules_terminal_sessions_many">%1$d sesiones de terminal activas</string>
     <string name="modules_updating_repo">↻ Actualizando repositorio…</string>
     <string name="modules_starting">Iniciando %1$s…</string>
     <string name="modules_error_output">Error: %1$s</string>
@@ -23,6 +25,11 @@
 
     <!-- ═══════════════ OpenCodeFragment.kt ═══════════════ -->
     <string name="opencode_label_variant">Variante</string>
+    <!-- 2026-09-09: valores reales de "opencode.variant" (registry), ver
+         OpenCodeNative.info()/variantDisplayLabel() en OpenCodeFragment.kt. -->
+    <string name="opencode_variant_value_glibc">Termux · glibc</string>
+    <string name="opencode_variant_value_bionic">Bionic nativo</string>
+    <string name="opencode_variant_value_bionic_wallentx">Bionic · fallback</string>
     <string name="opencode_label_version">Versión</string>
     <string name="opencode_dash">—</string>
     <string name="opencode_label_web_server">Servidor web</string>
@@ -82,6 +89,13 @@
     <string name="codex_card_sesion">SESIÓN</string>
     <string name="codex_btn_resume_session">🕒 Reanudar última sesión</string>
     <string name="codex_btn_install_change_channel">⚙ Instalar / cambiar canal</string>
+    <!-- Selector de variante real (ronda 2026-09-09, ver docs/humano328.md): "Normal" (canal
+         termux, DioNanos/codex-termux, con fallback automático a wallentx/codex-termux si la
+         vía npm falla) vs "VL" (DioNanos/codex-vl, con code-mode, sin fallback — a sabiendas). -->
+    <string name="codex_variant_dialog_title">Elegir variante — Codex CLI</string>
+    <string name="codex_variant_dialog_message">Ambas se instalan vía npm. \"Normal\" tiene respaldo automático si la instalación falla; \"VL\" no lo tiene — se elige a sabiendas.</string>
+    <string name="codex_variant_normal">Normal (recomendado) — DioNanos/codex-termux</string>
+    <string name="codex_variant_vl">VL — DioNanos/codex-vl (con code-mode)</string>
     <string name="codex_reinstalling">Reinstalando Codex CLI…</string>
     <string name="codex_updated">Codex CLI actualizado</string>
     <string name="codex_update_failed">Falló — revisa ~/kairos_logs/install_codex.log</string>
@@ -176,5 +190,7 @@
     <string name="base_module_config_copied">Config copiada al portapapeles</string>
     <string name="base_module_terminal_tui_background">TUI en segundo plano</string>
     <string name="base_module_terminal_tui_not_started">TUI no iniciada</string>
+    <string name="base_module_close_terminal">✕ Cerrar terminal</string>
+    <string name="base_module_terminal_closed">Terminal de %1$s cerrada</string>
 
 </resources>

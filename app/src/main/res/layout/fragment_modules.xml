@@ -183,6 +183,80 @@
 
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Sesiones de terminal activas (2026-09-01, ver
+                 docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md) — chip
+                 GONE por defecto, solo visible cuando hay ≥1 sesión TUI de módulo abierta
+                 (minimizada o visible). Tocarlo despliega un PopupMenu con cada sesión
+                 nombrada; elegir una reabre esa terminal exacta (TermuxActivity.
+                 openTerminalWithCommand reusa la sesión existente por nombre, no crea una
+                 nueva). Resuelve el pedido del usuario de "entrar rápido" a una terminal
+                 minimizada sin tener que recordar en qué módulo la dejó. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/terminal_sessions_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="?attr/kairosBgSurface"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="0dp"
+                app:contentPadding="0dp"
+                app:strokeColor="?attr/kairosBorder"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:id="@+id/terminal_sessions_row"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:text="⌨"
+                        android:textSize="16sp" />
+
+                    <!-- Puntos de color por sesión con CLI de IA en primer plano (2026-09-01,
+                         "ambient CLI awareness" — ver docs/referencias/terminal/
+                         AUDITORIA_CATEGORIA_TERMINAL.md, hallazgo de stdusk). Poblado en
+                         código (ModulesFragment.refreshTerminalSessionsForegroundDots()), uno
+                         por sesión activa que resultó ser claude/codex/opencode en foreground
+                         ahora mismo — vacío/GONE si ninguna sesión activa es un CLI de IA. -->
+                    <LinearLayout
+                        android:id="@+id/terminal_sessions_dots"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal" />
+
+                    <TextView
+                        android:id="@+id/terminal_sessions_label"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="0 sesiones activas"
+                        android:textColor="?attr/kairosGreen"
+                        android:textSize="12.5sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="›"
+                        android:textColor="?attr/kairosText3"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Buscador (2026-08-26, mismo patrón que plugin_search de fragment_plugins.xml)
                  — filtra por nombre/id/descripción/categoría entre los módulos instalados que
                  ya se muestran acá. -->

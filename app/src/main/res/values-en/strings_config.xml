@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- ConfigFragment.kt -->
+    <!-- Category tabs (2026-09-03 reorg, explicit user request: "make it like mini pc, ssh,
+         database, tabs by category") — group the same sections that already existed, no
+         functionality was removed. -->
+    <string name="config_tab_general">General</string>
+    <string name="config_tab_interfaz">Interface</string>
+    <string name="config_tab_terminal">Terminal</string>
+    <string name="config_tab_sistema">System</string>
+    <string name="config_tab_mantenimiento">Maintenance</string>
+    <string name="config_tab_notificaciones">Notifications</string>
     <string name="config_row_ver_log">View Kairos log</string>
     <string name="config_row_auto_start">Auto-start modules</string>
     <string name="config_toast_auto_start_on">Installed modules will start when Kairos opens (not when the phone turns on)</string>
@@ -10,20 +19,36 @@
     <string name="config_row_notify_modules_down">Notify when modules go down</string>
     <string name="config_row_floating_widget">Floating quick-access widget</string>
     <string name="config_toast_grant_overlay">Grant the overlay permission and turn the switch back on</string>
+    <string name="config_row_terminal_sessions_indicator">Active terminal sessions indicator</string>
     <string name="config_row_install_fzf_zsh">Install fzf + autosuggestions (zsh)</string>
     <string name="config_row_set_nvim_editor">✏️ Set nvim as default editor</string>
     <string name="config_row_external_input">⌨ Use external keyboard/mouse (OTG/Bluetooth)</string>
-    <string name="config_row_classic_terminal">Classic terminal (no adapted UI)</string>
+    <!-- Terminal-mode dropdown (2026-09-08, replaces the binary switch above). Starts with 2
+         options (Classic/Adapted); "Simple" (Phase 2) gets added once that evolution has real
+         content. Still stores the same pref_classic_terminal boolean already read by
+         TermuxActivity/ConfigExportManager — only the presentation changed. -->
+    <string name="config_row_terminal_mode">Terminal mode</string>
+    <string name="config_terminal_mode_adapted">Adapted</string>
+    <string name="config_terminal_mode_classic">Classic</string>
     <string name="config_toast_classic_terminal_on">Modules will open in classic terminal</string>
     <string name="config_toast_classic_terminal_off">Modules will open in adapted mode (Kairos)</string>
+    <!-- Adapted-terminal style — only visible when the mode above is "Adapted". Style A
+         ("Workstation", default: extends the existing sidebar/settings) vs Style B ("Panel
+         stack": same actions in a bottom sheet, see
+         TermuxActivity#showAdaptedActionsBottomSheet()). -->
+    <string name="config_row_terminal_adapted_style">Adapted terminal style</string>
+    <string name="config_terminal_style_a">A — Workstation</string>
+    <string name="config_terminal_style_b">B — Panel stack</string>
     <string name="config_info_architecture">Architecture</string>
     <string name="config_info_kairos">Kairos</string>
     <string name="config_info_root_access">Root access</string>
     <string name="config_root_checking">Checking…</string>
     <string name="config_root_detected">Detected</string>
-    <string name="config_root_not_detected">Not detected</string>
+    <string name="config_root_not_detected_retry">Not detected · tap to retry</string>
     <string name="config_row_restore_backup">⭳ Restore backup</string>
     <string name="config_row_uninstall_module">Uninstall a module</string>
+    <string name="config_row_module_doctor">🩺 Module diagnostics</string>
+    <string name="config_toast_module_doctor_running">Running diagnostics for all modules…</string>
     <string name="config_row_exit_app">Exit (stop everything and close)</string>
     <string name="config_telegram_header">TELEGRAM NOTIFICATIONS</string>
     <string name="config_telegram_hint_token">Bot token (BotFather)</string>
@@ -162,6 +187,8 @@
 
     <!-- VncViewerActivity.kt -->
     <string name="vnc_viewer_connecting">Connecting to 127.0.0.1:%1$d…</string>
+    <!-- QEMU (unix socket, see EXTRA_SOCKET_PATH/VncClient.kt) — no port to show. -->
+    <string name="vnc_viewer_connecting_socket">Connecting to the VNC server (unix socket)…</string>
     <string name="vnc_viewer_password_hint">VNC password (vncpasswd)</string>
     <string name="vnc_viewer_password_title">VNC server is requesting a password</string>
     <string name="vnc_viewer_btn_connect">Connect</string>
@@ -174,4 +201,51 @@
     <string name="vnc_viewer_toast_reconnect_failed">VNC: could not reconnect (%1$s)</string>
     <string name="vnc_viewer_reason_connection_lost">connection lost</string>
     <string name="vnc_viewer_open_keyboard">Open keyboard</string>
+
+    <!-- 3-dot menu + orientation, see docs/humano316.md -->
+    <string name="vnc_viewer_open_menu">More options</string>
+    <string name="vnc_viewer_menu_minimize">Minimize (stays connected)</string>
+    <string name="vnc_viewer_menu_orientation">Orientation…</string>
+    <string name="vnc_viewer_menu_close">Close (disconnect)</string>
+    <string name="vnc_viewer_orientation_title">Viewer orientation</string>
+    <string name="vnc_viewer_orientation_landscape">Landscape (default)</string>
+    <string name="vnc_viewer_orientation_portrait">Portrait</string>
+    <string name="vnc_viewer_orientation_auto">Automatic (follows sensor)</string>
+
+    <!-- Update — AppUpdater.kt/AppInstaller.kt (self-update mechanism outside Play Store,
+         ported from techjarves/Mobile-Harness, see
+         docs/referencias/herramientas/AUDITORIA_MOBILE_HARNESS_2026-09-09.md). Card in the
+         Maintenance tab of Settings. -->
+    <string name="config_update_header">UPDATE</string>
+    <string name="config_update_current_version">Installed version</string>
+    <string name="config_update_status_never_checked">Not checked yet</string>
+    <string name="config_update_status_checking">Checking for updates…</string>
+    <string name="config_update_status_uptodate">Kairos is up to date</string>
+    <string name="config_update_status_available">Update available: v%1$s (code %2$d)</string>
+    <string name="config_update_status_error">Could not check: %1$s</string>
+    <string name="config_update_btn_check">Check for update</string>
+    <string name="config_update_btn_download_install">Download and install v%1$s</string>
+    <string name="config_update_btn_download_install_short">Download and install</string>
+    <string name="config_update_confirm_title">Update to v%1$s</string>
+    <string name="config_update_confirm_message">The APK will be downloaded, its hash and signature verified, and the system confirmation shown before installing.</string>
+    <string name="config_update_permission_title">A permission is missing</string>
+    <string name="config_update_permission_message">Kairos needs permission to install unknown apps — the system Settings screen to enable it will open now.</string>
+    <string name="config_update_btn_open_settings">Open Settings</string>
+    <string name="config_update_progress_title">Updating Kairos</string>
+    <string name="config_update_progress_downloading_mb">Downloading… %1$d / %2$d MB</string>
+    <string name="config_update_progress_downloading_mb_unknown">Downloading… %1$d MB</string>
+    <string name="config_update_progress_download_error">Failed to download the update</string>
+    <string name="config_update_progress_verifying">Verifying APK hash and signature…</string>
+    <string name="config_update_progress_verify_error">Security verification failed — not installing</string>
+    <string name="config_update_progress_installing">Installing (confirm in the system dialog)…</string>
+    <string name="config_update_progress_install_error">Failed to install the update</string>
+    <string name="config_update_progress_success">Update installed</string>
+    <string name="config_update_debug_manifest_row">[DEBUG] Test manifest URL</string>
+    <string name="config_update_debug_manifest_title">Test URL (debug only)</string>
+    <string name="config_update_debug_manifest_message">Points to a local tools/serve-update-server.sh instead of the real GitHub Release. Empty = use the real URL.</string>
+    <string name="config_update_debug_manifest_hint">https://xxxx.trycloudflare.com/kairos-update.json</string>
+    <string name="config_update_debug_manifest_save">Save</string>
+    <string name="config_update_debug_manifest_saved">Test URL saved</string>
+    <string name="config_update_debug_manifest_clear">Clear override</string>
+    <string name="config_update_debug_manifest_cleared">Override cleared — using the real URL again</string>
 </resources>

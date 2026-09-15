@@ -514,7 +514,20 @@ class CliToolFragment : BaseModuleFragment() {
                     actionButton(getString(labelRes), GHOST) { runPromptVariant(template, getString(hintRes)) }
                 }
                 config.continueSessionCommand?.let { cmd ->
-                    actionButton(getString(R.string.clitool_btn_continue_session), GHOST) { launchCliTerminalCommand(cmd) }
+                    // Fix 2026-09-01 (unificación pedida por el usuario, mismo patrón que
+                    // ClaudeFragment/CodexFragment/AntigravityFragment): retomar la última
+                    // sesión opera sobre el historial de la carpeta actual, así que antes de
+                    // ejecutar "$cmd" (ej. "kilo --continue", "qwen --continue") se ofrece el
+                    // mismo diálogo de "¿Dónde abrir?" que ya usa "Abrir terminal" arriba —
+                    // cubre de una sola vez a los 7 CLIs de este Fragment compartido que
+                    // definen continueSessionCommand (mimocode, mistralvibe, qwencode, kilo,
+                    // cursor-agent, pi, ohmypi).
+                    actionButton(getString(R.string.clitool_btn_continue_session), GHOST) {
+                        promptOpenLocation(
+                            onDefault = { launchCliTerminalCommand(cmd) },
+                            onChooseFolder = { path -> launchCliTerminalCommand("cd '$path' && $cmd") }
+                        )
+                    }
                 }
                 config.approvalModeFlag?.let { flag ->
                     actionButton(getString(R.string.clitool_btn_approval_mode), GHOST) { showApprovalModeDialog(flag) }

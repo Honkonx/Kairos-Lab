@@ -169,8 +169,8 @@ _moduledeb_build_deb() {
 
   if command -v dpkg-deb &>/dev/null; then
     info "Empaquetando con dpkg-deb -b ..."
-    dpkg-deb -b "$_staging" "$_out" 2>&1 | tail -2
-    [ "${PIPESTATUS[0]}" -eq 0 ] || error "dpkg-deb -b falló"
+    dpkg-deb -b "$_staging" "$_out"
+    [ $? -eq 0 ] || error "dpkg-deb -b falló"
     [ -f "$_out" ] || error "dpkg-deb no generó el .deb"
     return 0
   fi
@@ -335,7 +335,7 @@ _moduledeb_pack() {
 
   step "Empaquetando módulo '$_id' (manifest resuelto: $_manifest)"
 
-  local _pkgname _desc _verkey _ver
+  local _pkgname _desc _verkey _ver _variant
   _pkgname=$(jq -r '.package_name' "$_manifest")
   # description no es campo del contrato --describe-files (§2.1) — el manifest a mano
   # viejo sí lo tenía, este cae a un default legible si falta.
@@ -343,6 +343,21 @@ _moduledeb_pack() {
   [ -z "$_desc" ] && _desc="Módulo Kairos '$_id' (repackaged desde una instalación ya hecha)"
   _verkey=$(jq -r '.version_registry_key // empty' "$_manifest")
   _ver=$(_moduledeb_version "$_id" "$_verkey")
+
+  # Bug real confirmado 2026-09-11 (ver MEJORAS_PENDIENTES.md "moduledeb: variant en
+  # nombre de .deb"): el campo "variant" del manifest (ya documentado en el schema del
+  # comment de cabecera de este archivo, nunca leído acá) se ignoraba por completo — dos
+  # .deb de variantes DISTINTAS del mismo módulo (ej. opencode instalado con glibc vs con
+  # bionic, ollama gpu vs standard) salían con EXACTAMENTE el mismo nombre de archivo y se
+  # pisaban entre sí al subirlos a Kairos-Lab, sin forma de distinguirlos. Se sanitiza a
+  # caracteres válidos de nombre de paquete Debian (regex real: ^[a-z0-9][a-z0-9+.-]*$,
+  # ver man deb-control) por si algún módulo guarda su variante con "_" (ej.
+  # ollama.install_mode=termux_npm) — dpkg-deb rechaza "_" en Package:.
+  _variant=$(jq -r '.variant // empty' "$_manifest")
+  if [ -n "$_variant" ] && [ "$_variant" != "null" ]; then
+    _variant=$(printf '%s' "$_variant" | tr '[:upper:]_' '[:lower:]-' | tr -cd 'a-z0-9.+-')
+    [ -n "$_variant" ] && _pkgname="${_pkgname}-${_variant}"
+  fi
 
   local _staging="$MODULEDEB_BUILD_DIR/.build_${_id}_$$"
   rm -rf "$_staging"

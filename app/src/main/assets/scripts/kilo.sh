@@ -263,7 +263,7 @@ else
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+      -o Dpkg::Options::="--force-confold" || \
       error "No se pudieron instalar las dependencias glibc"
     [ -f "$GLIBC_LD" ] || error "glibc ld.so no encontrado tras la instalación"
   fi

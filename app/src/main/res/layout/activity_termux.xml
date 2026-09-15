@@ -33,6 +33,19 @@
             android:layout_above="@+id/bottom_bar_container"
             android:layout_height="match_parent">
 
+            <!-- Fondo de imagen elegido por el usuario (personalización de terminal, ver
+                 TermuxTerminalSessionActivityClient#applyTerminalBackgroundImageOrColor() para
+                 el mecanismo completo) — hermano ANTERIOR a terminal_view, mismo z-order que
+                 un FrameLayout normal (DrawerLayout no exige un único content view). Arranca
+                 GONE; solo se muestra cuando hay una imagen guardada en kairos_prefs. -->
+            <ImageView
+                android:id="@+id/terminal_bg_image"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                android:contentDescription="@string/label_terminal_background_image" />
+
             <com.termux.view.TerminalView
                 android:id="@+id/terminal_view"
                 android:layout_width="match_parent"
@@ -129,6 +142,47 @@
                             android:layout_weight="1"
                             android:text="@string/action_terminal_quick_settings" />
                     </LinearLayout>
+
+                    <!-- Comandos personalizados de terminal — botones con nombre corto + comando
+                         real definidos por el usuario, que escriben ese comando en la sesión
+                         activa al tocarlos (ver TermuxActivity#refreshCustomCommandsDrawer() y
+                         TerminalCustomCommandsManager.kt). Idea adoptada de
+                         referencia/termux/NewTermux-main ("custom command buttons" del left
+                         drawer, ver docs/referencias/termux/REFERENCIA_NEWTERMUX.md), agregada
+                         dentro del sidebar normal ya existente en vez de un mecanismo nuevo. -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:alpha="0.2"
+                        android:background="?attr/kairosText3" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.08"
+                        android:paddingStart="16dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="16dp"
+                        android:paddingBottom="4dp"
+                        android:text="@string/title_custom_terminal_commands"
+                        android:textColor="?attr/kairosText3"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:id="@+id/custom_commands_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/add_custom_command_button"
+                        style="?android:attr/buttonBarButtonStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/action_add_custom_command" />
                 </LinearLayout>
 
                 <!-- Contenido del modo adaptado — poblado en runtime por
@@ -155,6 +209,25 @@
                         android:paddingTop="16dp"
                         android:paddingBottom="8dp"
                         tools:text="OPENCODE" />
+
+                    <!-- Línea de uso/token/costo/plan para agentes IA (Claude Code/Codex/OpenCode) —
+                         pedido explícito del usuario: "una línea para ver el uso, token, costo,
+                         plan, modelos". Poblada por TermuxActivity#refreshAdaptedDrawerUsage() vía
+                         UsageStatsFetcher.kt (best-effort: oculta si no hay credenciales/sesión que
+                         leer, nunca muestra un error). Arranca GONE. -->
+                    <TextView
+                        android:id="@+id/adapted_drawer_usage"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"
+                        android:textColor="?attr/kairosText3"
+                        android:paddingStart="16dp"
+                        android:paddingEnd="16dp"
+                        android:paddingBottom="8dp"
+                        android:visibility="gone"
+                        tools:text="Claude: 42% uso 5h · 8% uso 7d · 3.2k tok sesión"
+                        tools:visibility="visible" />
 
                     <!-- Command palette chico: filtra las filas de adapted_drawer_actions por texto
                          en vivo (ver TermuxActivity#populateAdaptedDrawerContent()/setupAdaptedDrawerSearch())
@@ -271,7 +344,7 @@
                 android:gravity="center_vertical"
                 android:paddingStart="8dp"
                 android:paddingEnd="4dp"
-                android:paddingTop="4dp"
+                android:paddingTop="10dp"
                 android:paddingBottom="2dp">
 
                 <!-- Touch target Material mínimo (48dp) — antes minWidth=0dp con solo el glifo
@@ -322,6 +395,36 @@
 
             </LinearLayout>
 
+            <!-- Pestañas de sesiones nombradas activas (Fase 1 del roadmap de terminal — ver
+                 MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases", docs/humano318.md).
+                 Poblada/ocultada por TermuxActivity#refreshAdaptedSessionTabs(): GONE con 0 o 1
+                 sesión nombrada activa (antes de esta fila, cambiar de sesión con 2+ módulos
+                 corriendo a la vez requería el drawer lateral o el menú popup de
+                 ModulesFragment#showTerminalSessionsMenu() — ninguno de los dos deja ver TODAS
+                 las sesiones abiertas a la vez). HorizontalScrollView porque MAX_SESSIONS=8
+                 (ver TermuxTerminalSessionActivityClient) no entra siempre en una sola pantalla.
+                 Las pestañas en sí (TextView de nombre + "✕" de cerrar) son Views creadas en
+                 código, mismo patrón que terminal_adapted_deps_row/createAdaptedDependencyChip(). -->
+            <HorizontalScrollView
+                android:id="@+id/terminal_adapted_tabs_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:fillViewport="false"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <LinearLayout
+                    android:id="@+id/terminal_adapted_tabs_row"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="4dp" />
+
+            </HorizontalScrollView>
+
             <!-- Subtítulo con estado real + versión — poblado por
                  TermuxActivity#refreshAdaptedBarInfo(). Ej. "● Activo · v1.18.3".
                  textColor kairos_text2 (antes kairos_text3, #555555 sobre el fondo kairos_bg2
@@ -363,6 +466,51 @@
                 tools:visibility="visible" />
 
         </LinearLayout>
+
+        <!-- Panel embebido de acciones rápidas de la terminal adaptada (pedido explícito del
+             usuario 2026-09-08, docs/humano324.md: "falta el administrador de archivos,
+             navegador... sin salir de la terminal adaptada", y corregido el mismo día en
+             docs/humano325.md: "falta la opción de que sean pestañas" — la primera versión
+             cubría TODO el overlay incluyendo terminal_adapted_bar, tapando la fila de pestañas
+             mientras el panel estaba activo, lo que hacía imposible cambiar de pestaña sin
+             cerrar el panel primero). Ahora POSICIONADO IGUAL que drawer_layout (layout_below/
+             layout_above compartiendo los mismos anchors) — dentro de terminal_adapted_bar
+             (título/☰/Minimizar/Cerrar/pestañas) queda SIEMPRE visible y funcional, tal como
+             pasa al cambiar entre sesiones de terminal reales. Título y "Cerrar" del panel los
+             maneja el propio terminal_adapted_bar existente (ver TermuxActivity#showAdaptedPanel()/
+             setTerminalAdaptedBarView()), sin una franja propia duplicada. Poblado en runtime
+             por TermuxActivity#showAdaptedFilesPanel()/showAdaptedBrowserPanel() vía
+             getSupportFragmentManager(). Arranca GONE. -->
+        <FrameLayout
+            android:id="@+id/terminal_adapted_panel_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/terminal_adapted_bar"
+            android:layout_above="@+id/bottom_bar_container"
+            android:background="?attr/kairosBg"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- "Ventanas" (Roadmap de terminal Fase 1, último ítem de ingeniería pendiente — ver
+             MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases") — split view real de 2
+             superficies simultáneas: sesión de terminal arriba, panel utilitario Archivos/
+             Navegador abajo. Arranca VACÍO y GONE — TermuxActivity#applySplitLayout() reparenta
+             acá mismo, en runtime, los 2 CONTENEDORES completos que ya existen arriba
+             (drawer_layout y terminal_adapted_panel_container, con TODOS sus hijos intactos —
+             TerminalView y el Fragment Archivos/Navegador activo no se recrean) cuando el
+             usuario activa "Ventanas" desde el sidebar (ver showAdaptedSplitModeDialog()), y los
+             devuelve a sus anchors normales de este RelativeLayout al desactivarlo. Mismos
+             anchors que esos 2 contenedores (layout_below/layout_above de
+             terminal_adapted_bar/bottom_bar_container) para ocupar exactamente la misma área que
+             ocupaban por separado. -->
+        <LinearLayout
+            android:id="@+id/terminal_split_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_below="@id/terminal_adapted_bar"
+            android:layout_above="@+id/bottom_bar_container"
+            android:orientation="vertical"
+            android:visibility="gone" />
 
     </RelativeLayout>
 

@@ -20,7 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.termux.R
 import com.termux.app.util.TERMUX_BASH_PATH
-import com.termux.app.util.TERMUX_PGREP_PATH
+import com.termux.app.util.ManagerNativeUtils
 import com.termux.app.util.applyTermuxEnv
 import com.termux.app.util.shellQuote
 import com.termux.shared.termux.TermuxConstants
@@ -268,7 +268,11 @@ class DbSchemaFragment : Fragment() {
                 when (engine) {
                     DbEngine.SQLITE -> Result.success(scanSqliteFiles().map { it.absolutePath to it.name })
                     DbEngine.MYSQL -> {
-                        if (!isProcessAlive("mysqld")) {
+                        // Bug real confirmado por ADB (auditoría 2026-09-08, mismo hallazgo que
+                        // DbFragment.refreshServerStatus() — ver comentario ahí): el binario real
+                        // es "mariadbd", no "mysqld". "pgrep -x" también se saca acá, mismo
+                        // criterio ya probado en DbFragment.isAlive() (comentario en ese archivo).
+                        if (!isProcessAlive("mariadbd")) {
                             throw IllegalStateException(getString(R.string.db_schema_mysql_not_running))
                         }
                         Result.success(loadMysqlDatabases().map { it to it })
@@ -495,14 +499,20 @@ class DbSchemaFragment : Fragment() {
     // para binarios de Termux (ver ProcessBuilderExt.applyTermuxEnv).
     // ────────────────────────────────────────────────────────────
 
+    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver docs/humano326.md — mismo
+    // hallazgo aplicado en DbFragment.isAlive()): ningún flag de pgrep arregla esto — es una
+    // restricción de Android (Yama ptrace_scope=1 + dominio SELinux "untrusted_app_27" del
+    // proceso de la app, confirmado con `ps -Z`) que impide ver vía /proc procesos que no son
+    // descendientes directos, aunque compartan UID. Fix real: chequear el puerto TCP del motor
+    // (mismo criterio que "pg_isready" ya usa del lado shell, ver modulos/db.sh bug #31).
     private fun isProcessAlive(processName: String): Boolean {
-        return try {
-            val pb = ProcessBuilder(TERMUX_PGREP_PATH, "-x", processName)
-            pb.applyTermuxEnv()
-            pb.start().waitFor() == 0
-        } catch (_: Exception) {
-            false
+        val port = when (processName) {
+            "mariadbd" -> 3306
+            "postgres" -> 5432
+            "redis-server" -> 6379
+            else -> return false
         }
+        return ManagerNativeUtils.checkPort(port)
     }
 
     private fun sqlEscape(value: String): String = value.replace("'", "''")

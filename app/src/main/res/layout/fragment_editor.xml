@@ -37,6 +37,22 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/btn_preview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:background="?attr/kairosBgElevated"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:text="@string/editor_preview"
+            android:textColor="?attr/kairosText"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/btn_save"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -62,5 +78,26 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
+
+    <!-- Vista previa Markdown renderizada (Markwon) — solo visible para archivos .md, ver
+         EditorFragment.togglePreview(). Comparte el mismo espacio que editor_container:
+         nunca están visibles los dos a la vez. -->
+    <ScrollView
+        android:id="@+id/markdown_preview_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/markdown_preview_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:textColor="?attr/kairosText"
+            android:textIsSelectable="true"
+            android:textSize="14sp" />
+
+    </ScrollView>
 
 </LinearLayout>

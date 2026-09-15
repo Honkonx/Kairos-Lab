@@ -131,7 +131,7 @@ else
   else
     info "Instalando nodejs-lts..."
     pkg_update_with_fallback
-    pkg install nodejs-lts -y 2>/dev/null || error "No se pudo instalar Node.js"
+    pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
     command -v node &>/dev/null || error "Node.js no disponible tras instalación"
     log "Node.js instalado: $(node --version)"
     mark_done "node"
@@ -144,7 +144,7 @@ if check_done "npm_install"; then
   log "MiniMax CLI ya instalado [checkpoint]"
 else
   info "Ejecutando: npm install -g ${MINIMAX_PKG}"
-  npm install -g "$MINIMAX_PKG" 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "npm install falló"
+  npm install -g "$MINIMAX_PKG" || error "npm install falló"
   # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
   # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "mmx" "${MINIMAX_PKG%@latest}"

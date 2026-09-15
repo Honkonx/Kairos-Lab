@@ -191,6 +191,12 @@
     <string name="llamaserver_btn_elegir_modelo">🗂 Elegir modelo (.gguf)</string>
     <string name="llamaserver_btn_catalogo">📥 Catálogo de modelos (GGUF)</string>
     <string name="llamaserver_toast_elegi_modelo">Elegí un modelo primero</string>
+    <!-- Aviso de RAM libre antes de cargar el modelo (MemoryMonitor.kt, auditoría referencia/ia/*, 2026-08-31) -->
+    <string name="llamaserver_ram_warning_title">Poca RAM libre</string>
+    <string name="llamaserver_ram_warning_message">Solo quedan ~%1$s GB de RAM libres en el dispositivo. Cargar el modelo ahora puede provocar que Android cierre la app sin aviso. ¿Continuar igual?</string>
+    <string name="llamaserver_ram_warning_continue">Continuar</string>
+    <string name="llamaserver_ram_warning_cancel">Cancelar</string>
+    <string name="llamaserver_ram_warning_toast">RAM del dispositivo casi al límite — puede haber lentitud</string>
     <string name="llamaserver_toast_iniciando">Iniciando llama-server…</string>
     <string name="llamaserver_toast_iniciado_ok">llama-server iniciado</string>
     <string name="llamaserver_toast_iniciado_fail">No se pudo iniciar — revisá el modelo elegido</string>

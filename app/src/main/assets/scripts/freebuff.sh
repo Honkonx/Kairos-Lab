@@ -398,7 +398,7 @@ _freebuff_install_via_native_bun() {
   info "Instalando Freebuff con el runtime bun nativo (bun install -g ${FREEBUFF_PKG})..."
   export BUN_INSTALL="$HOME/.bun"
   mkdir -p "$BUN_INSTALL/bin"
-  "$TERMUX_PREFIX/bin/bun" install -g "$FREEBUFF_PKG" --os=linux --backend=copyfile >/dev/null 2>&1 || {
+  "$TERMUX_PREFIX/bin/bun" install -g "$FREEBUFF_PKG" --os=linux --backend=copyfile || {
     warn "'bun install -g ${FREEBUFF_PKG} --os=linux --backend=copyfile' falló"
     return 1
   }
@@ -426,7 +426,7 @@ _freebuff_install_via_native_bun() {
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || {
+      -o Dpkg::Options::="--force-confold" || {
       warn "No se pudieron instalar las dependencias glibc para Freebuff"
       return 1
     }
@@ -536,7 +536,7 @@ if $_NATIVE && ! $_NATIVE_BUN; then
       pkg_update_with_fallback
       pkg install -y "${_MISSING_DEPS[@]}" \
         -o Dpkg::Options::="--force-confdef" \
-        -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+        -o Dpkg::Options::="--force-confold" || \
         error "No se pudieron instalar las dependencias glibc"
       [ -f "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || \
         error "glibc ld.so no encontrado tras la instalación"
@@ -575,7 +575,7 @@ if ! $_NATIVE && ! $_NATIVE_BUN; then
     else
       info "Instalando nodejs-lts..."
       pkg_update_with_fallback
-      pkg install nodejs-lts -y 2>/dev/null || error "No se pudo instalar Node.js"
+      pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
       command -v node &>/dev/null || error "Node.js no disponible tras instalación"
       log "Node.js instalado: $(node --version)"
       mark_done "node"
@@ -590,7 +590,7 @@ if ! $_NATIVE && ! $_NATIVE_BUN; then
     log "Freebuff ya instalado [checkpoint]"
   else
     info "Ejecutando: npm install -g ${FREEBUFF_PKG}"
-    npm install -g "$FREEBUFF_PKG" --force 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "npm install falló"
+    npm install -g "$FREEBUFF_PKG" --force; [ $? -eq 0 ] || error "npm install falló"
     # Bug real confirmado por ADB (docs/humano269.md, auditoría 2026-08-27, mismo patrón ya
     # documentado en lib.sh/expo.sh): el symlink que "npm install -g" genera no ejecuta directo
     # en este dispositivo — aplicar el wrapper ANTES del chequeo de abajo, no después.

@@ -60,11 +60,16 @@ class StacksFragment : BaseModuleFragment() {
     }
 
     /** Estado propio de cada carpeta de proyecto elegida — no se comparte entre carpetas
-     * (idéntico a como funcionaba en el StacksProjectFragment original). */
+     * (idéntico a como funcionaba en el StacksProjectFragment original).
+     * [udockerMode] agregado 2026-09-03 (pedido explícito del usuario): "simple" (default,
+     * imagen angosta por stack detectado, comportamiento de siempre) o "full" (debian:bookworm
+     * con el set completo "esencial para programar" — ver _install_essentials() en
+     * modulos/stacks.sh). Solo tiene efecto cuando target=="udocker". */
     private class ProjectState(
         var target: String = "native",
         var selectedDistro: String? = null,
-        var runCmdText: String = ""
+        var runCmdText: String = "",
+        var udockerMode: String = "simple"
     )
 
     private val projectPaths = mutableListOf<String>()
@@ -84,6 +89,9 @@ class StacksFragment : BaseModuleFragment() {
     private var runCmdText: String
         get() = activeState.runCmdText
         set(value) { activeState.runCmdText = value; if (isAdded) saveProjects() }
+    private var udockerMode: String
+        get() = activeState.udockerMode
+        set(value) { activeState.udockerMode = value; if (isAdded) saveProjects() }
 
     private lateinit var cmdEdit: EditText
     private lateinit var runSwitch: SwitchRow
@@ -126,6 +134,7 @@ class StacksFragment : BaseModuleFragment() {
                         target = s.optString("target", "native"),
                         selectedDistro = s.optString("selectedDistro").ifBlank { null },
                         runCmdText = s.optString("runCmdText", ""),
+                        udockerMode = s.optString("udockerMode", "simple"),
                     )
                 }
             }
@@ -144,6 +153,7 @@ class StacksFragment : BaseModuleFragment() {
                     .put("target", state.target)
                     .put("selectedDistro", state.selectedDistro ?: "")
                     .put("runCmdText", state.runCmdText)
+                    .put("udockerMode", state.udockerMode)
             )
         }
         prefs.edit().putString(KEY_PATHS, pathsArr.toString()).putString(KEY_STATES, statesObj.toString()).apply()
@@ -249,6 +259,21 @@ class StacksFragment : BaseModuleFragment() {
                     2 -> { target = "udocker"; selectedDistro = null; refreshView() }
                 }
             }.root)
+            // Pedido 2026-09-03: solo aplica a target=="udocker" — elegir entre la imagen
+            // angosta de siempre por stack detectado ("simple") o debian:bookworm con el set
+            // completo "esencial para programar" ("full", ver _install_essentials() en
+            // modulos/stacks.sh). No se muestra para native/distro (no aplica).
+            if (target == "udocker") {
+                val modeOptions = listOf(
+                    getString(R.string.stacks_udocker_mode_simple),
+                    getString(R.string.stacks_udocker_mode_full)
+                )
+                val modeIndex = if (udockerMode == "full") 1 else 0
+                addView(dropdownRow(getString(R.string.stacks_label_udocker_mode), modeOptions, modeIndex) { index ->
+                    udockerMode = if (index == 1) "full" else "simple"
+                    refreshView()
+                }.root)
+            }
             addView(infoRow(getString(R.string.stacks_label_elegido), targetLabel()))
         }
 
@@ -309,8 +334,17 @@ class StacksFragment : BaseModuleFragment() {
 
     private fun targetLabel(): String = when (target) {
         "distro" -> getString(R.string.stacks_target_label_distro, selectedDistro ?: getString(R.string.stacks_no_selection))
-        "udocker" -> getString(R.string.stacks_target_label_udocker, udockerImageForTags(detectedTags) ?: getString(R.string.stacks_no_stack_recognized))
+        "udocker" -> getString(R.string.stacks_target_label_udocker, udockerImageLabel())
         else -> getString(R.string.stacks_target_label_native)
+    }
+
+    /** Imagen udocker real según el modo elegido (2026-09-03) — "full" siempre usa
+     * debian:bookworm (fija, no depende del stack detectado), "simple" sigue usando
+     * [udockerImageForTags] como siempre. */
+    private fun udockerImageLabel(): String = if (udockerMode == "full") {
+        "debian:bookworm (${getString(R.string.stacks_udocker_mode_full)})"
+    } else {
+        udockerImageForTags(detectedTags) ?: getString(R.string.stacks_no_stack_recognized)
     }
 
     private fun udockerImageForTags(tags: List<String>): String? = when {
@@ -321,9 +355,10 @@ class StacksFragment : BaseModuleFragment() {
         else -> null
     }
 
-    private fun dependenciesDescription(): String = when (target) {
-        "udocker" -> getString(R.string.stacks_deps_udocker)
-        "distro" -> getString(R.string.stacks_deps_distro)
+    private fun dependenciesDescription(): String = when {
+        target == "udocker" && udockerMode == "full" -> getString(R.string.stacks_deps_udocker_full)
+        target == "udocker" -> getString(R.string.stacks_deps_udocker)
+        target == "distro" -> getString(R.string.stacks_deps_distro)
         else -> getString(R.string.stacks_deps_native)
     }
 
@@ -421,7 +456,7 @@ class StacksFragment : BaseModuleFragment() {
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 if (names.isEmpty()) {
-                    toast(getString(R.string.stacks_no_distros))
+                    offerInstallDebian()
                     return@runOnUiThread
                 }
                 AlertDialog.Builder(requireContext())
@@ -431,6 +466,40 @@ class StacksFragment : BaseModuleFragment() {
                     }
                     .setNegativeButton(getString(R.string.stacks_cancel), null)
                     .show()
+            }
+        }.start()
+    }
+
+    /** Pedido 2026-09-03: si no hay NINGUNA distro instalada, ofrecer instalar Debian
+     * automáticamente en vez de solo avisar que no hay ninguna (antes bloqueaba acá — el
+     * usuario tenía que ir al módulo Entorno primero). Debian confirmado por el usuario como
+     * default ("la más liviana y completa"). Reusa [EntornoNative.distroInstall], el mismo
+     * mecanismo que ya usa EntornoFragment para instalar distros — no reinventa la llamada a
+     * proot-distro acá. */
+    private fun offerInstallDebian() {
+        if (!isAdded) return
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.stacks_no_distros))
+            .setMessage(getString(R.string.stacks_install_debian_message))
+            .setPositiveButton(getString(R.string.stacks_install_debian_confirm)) { _, _ -> installDebianAndUse() }
+            .setNegativeButton(getString(R.string.stacks_cancel), null)
+            .show()
+    }
+
+    private fun installDebianAndUse() {
+        val progress = ProgressDialogController(requireContext())
+        progress.show(getString(R.string.stacks_install_debian_progress_title), getString(R.string.stacks_install_debian_progress_message))
+        Thread {
+            val result = EntornoNative.distroInstall("debian")
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (result.optBoolean("ok", false)) {
+                    progress.success(getString(R.string.stacks_install_debian_success_title), getString(R.string.stacks_install_debian_success_message))
+                    target = "distro"; selectedDistro = "debian"; refreshView()
+                } else {
+                    progress.failure(getString(R.string.stacks_install_debian_failure_title), result.optString("error", getString(R.string.stacks_unknown)))
+                }
             }
         }.start()
     }
@@ -448,20 +517,23 @@ class StacksFragment : BaseModuleFragment() {
             "--silent"
         )
         if (target == "distro" && selectedDistro != null) args += listOf("--project-distro", selectedDistro!!)
+        if (target == "udocker") args += listOf("--project-udocker-mode", udockerMode)
         args += extra
         return args
     }
 
     private fun confirmInstall(path: String) {
-        if (target == "distro" && selectedDistro == null) {
-            toast(getString(R.string.stacks_pick_distro_first)); return
-        }
-        if (target == "udocker" && udockerImageForTags(detectedTags) == null) {
+        // selectedDistro==null ya no bloquea la instalación (2026-09-03): si el usuario no
+        // eligió ninguna, stacks.sh instala Debian automáticamente — solo pickDistroTarget()
+        // sigue pidiendo elegir explícitamente cuando SÍ hay distros instaladas.
+        // udockerMode=="full" tampoco depende del stack detectado (imagen fija debian:bookworm)
+        // — el chequeo de stack reconocido solo aplica al modo "simple".
+        if (target == "udocker" && udockerMode == "simple" && udockerImageForTags(detectedTags) == null) {
             toast(getString(R.string.stacks_no_udocker_stack)); return
         }
         val destino = when (target) {
-            "distro" -> getString(R.string.stacks_destino_distro, selectedDistro)
-            "udocker" -> getString(R.string.stacks_destino_udocker, udockerImageForTags(detectedTags))
+            "distro" -> getString(R.string.stacks_destino_distro, selectedDistro ?: "debian")
+            "udocker" -> getString(R.string.stacks_destino_udocker, udockerImageLabel())
             else -> getString(R.string.stacks_destino_native)
         }
         AlertDialog.Builder(requireContext())

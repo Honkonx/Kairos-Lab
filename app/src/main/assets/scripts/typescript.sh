@@ -99,7 +99,7 @@ if command -v tsc &>/dev/null && [ "${FORCE:-false}" != "true" ]; then
   registry_write typescript "installed=true"
 else
   ensure_node_installed
-  if ! npm install -g typescript &>/dev/null; then
+  if ! npm install -g typescript; then
     error "No se pudo instalar typescript (npm install -g typescript falló)"
   fi
   command -v tsc &>/dev/null || error "typescript no disponible tras la instalación (npm)"
@@ -119,7 +119,7 @@ if ! tsc --version &>/dev/null; then
   _TS_NM="$(npm root -g 2>/dev/null)/@typescript"
   _TS_VER=$(node -e "console.log(require('$_TS_NM/../typescript/package.json').version)" 2>/dev/null)
   if [ -n "$_TS_VER" ]; then
-    npm install -g "@typescript/typescript-linux-arm64@${_TS_VER}" --force 2>&1 | tail -5
+    npm install -g "@typescript/typescript-linux-arm64@${_TS_VER}" --force
   fi
   if [ -d "$_TS_NM/typescript-linux-arm64" ]; then
     rm -rf "$_TS_NM/typescript-android-arm64"

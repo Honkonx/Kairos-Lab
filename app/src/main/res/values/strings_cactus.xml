@@ -4,6 +4,12 @@
     <string name="cactus_installed">Cactus Needle instalado</string>
     <string name="cactus_install_failed">Falló la instalación — revisá el log en Módulos</string>
 
+    <!-- Pestañas (reorganización 2026-09-08, mismo patrón que QemuFragment/RemoteFragment) -->
+    <string name="cactus_tab_estado">Estado</string>
+    <string name="cactus_tab_ejecutar">Ejecutar</string>
+    <string name="cactus_tab_tareas">Tareas</string>
+    <string name="cactus_tab_avanzado">Avanzado</string>
+
     <string name="cactus_card_estado">ESTADO</string>
     <string name="cactus_ollama_label">Ollama (:11434)</string>
     <string name="cactus_llama_label">llama-server (:8085)</string>

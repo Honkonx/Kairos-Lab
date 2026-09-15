@@ -142,12 +142,25 @@
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
         <!-- Visor VNC embebido (VncClient/VncCanvasView, com.termux.app.vnc) — conecta al
-             vncserver/tigervncserver que ya arranca EntornoNative.vncStart() en 127.0.0.1:5901.
-             Ver docs/x11/X11_EMBEBIDO.md / docs/humano/humano136.md. -->
+             vncserver/tigervncserver que ya arranca EntornoNative.vncStart() en 127.0.0.1:5901
+             (o al -vnc propio de QEMU en 5902, ver QemuFragment.kt/bootVmVnc()). Ver
+             docs/x11/X11_EMBEBIDO.md / docs/humano/humano136.md.
+             android:screenOrientation="sensorLandscape" (2026-09-03, ver docs/humano316.md): bug
+             real reportado por el usuario — el escritorio remoto (TigerVNC default 1280x720,
+             QEMU/guest lo que sea) es siempre horizontal, pero esta Activity nunca fijaba
+             orientación propia y heredaba portrait del sistema en la mayoría de teléfonos,
+             mostrando el framebuffer horizontal chico y letterboxed dentro de una ventana
+             vertical. "sensorLandscape" (no "landscape" fijo) sigue dejando rotar el dispositivo
+             entre landscape-normal/landscape-reverse, solo excluye portrait — mismo criterio que
+             el mecanismo "forceLandscape" ya real de com.termux.x11.MainActivity (ver KDoc de
+             EntornoNative.ensureX11LandscapeDefault()), aplicado acá porque esta Activity es de
+             Kairos (no protegida) y no depende de esa preferencia de x11-server. -->
         <activity
             android:name=".app.ui.VncViewerActivity"
             android:exported="false"
-            android:configChanges="orientation|screenSize|keyboardHidden|screenLayout"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden|screenLayout"
+            android:supportsPictureInPicture="true"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
         <!-- Visor del servidor X11 embebido (Xlorie/termux-x11). Clases en el módulo
@@ -383,6 +396,43 @@
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/apk_builder_paths" />
+        </provider>
+
+        <!-- FileProvider dedicado para "Abrir con" desde FileManagerFragment.kt (esfuerzo
+             bajo #5, docs/arquitectura/INVESTIGACION_GESTOR_ARCHIVOS_2026-09-01.md) — a
+             diferencia del provider "apkbuilder" de arriba (limitado a ~/proyectos), este
+             cubre las dos raíces reales del explorador: $HOME de Termux completo y el
+             almacenamiento externo. No reusa ".files" (TermuxOpenReceiver$ContentProvider)
+             porque ese exige la policy "allow-external-apps" pensada para plugins de
+             terceros, no para el propio explorador de archivos abriendo un archivo local
+             en otra app instalada. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${TERMUX_PACKAGE_NAME}.filemanager"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_manager_paths" />
+        </provider>
+
+        <!-- FileProvider dedicado para el APK de auto-actualización descargado por
+             AppUpdater.kt (app/src/main/java/com/termux/app/util/AppUpdater.kt, guardado en
+             filesDir/updates/) — solo lo usa AppInstaller.kt en el caso MIUI/Xiaomi/Redmi/Poco
+             (Intent(ACTION_INSTALL_PACKAGE) clásico, necesita una Uri content:// con permiso de
+             lectura otorgado al instalador de paquetes del sistema); el camino normal
+             (PackageInstaller.Session) escribe los bytes directo, sin pasar por ningún
+             FileProvider. Alcance mínimo a propósito, igual que "apkbuilder"/"filemanager" de
+             arriba: solo filesDir/updates/, no todo el almacenamiento interno de la app. Ver
+             docs/referencias/herramientas/AUDITORIA_MOBILE_HARNESS_2026-09-09.md. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${TERMUX_PACKAGE_NAME}.updater"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/app_updater_paths" />
         </provider>
 
 

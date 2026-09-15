@@ -169,11 +169,11 @@ _mimocode_download_native_fork() {
   local _deb="$_tmp/$(basename "$_asset_url")"
   mkdir -p "$_tmp"
   info "Descargando MiMo Code nativo del fork ($(basename "$_asset_url"), repo $MIMOCODE_FORK_SOURCE_REPO)..."
-  curl -fsSL "$_asset_url" -o "$_deb" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+  curl -fsSL "$_asset_url" -o "$_deb" || { rm -rf "$_tmp"; return 1; }
 
   local _extract="$_tmp/extract"
   mkdir -p "$_extract"
-  dpkg-deb -x "$_deb" "$_extract" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+  dpkg-deb -x "$_deb" "$_extract" || { rm -rf "$_tmp"; return 1; }
 
   # Mismo bug/fix real ya confirmado en freebuff.sh/codebuff.sh/codegraph.sh
   # (docs/humano281.md): dpkg-deb -x deja el árbol bajo la RUTA ABSOLUTA COMPLETA
@@ -230,8 +230,8 @@ _mimocode_download_native() {
   mkdir -p "$tmp" "$MIMO_DIR"
 
   info "Descargando binario nativo ARM64 ($tarball, release $latest)..."
-  curl -fsSL "$url" -o "$tmp/$tarball" 2>/dev/null || { rm -rf "$tmp"; return 1; }
-  tar -zxf "$tmp/$tarball" -C "$MIMO_DIR" 2>/dev/null || { rm -rf "$tmp"; return 1; }
+  curl -fsSL "$url" -o "$tmp/$tarball" || { rm -rf "$tmp"; return 1; }
+  tar -zxf "$tmp/$tarball" -C "$MIMO_DIR" || { rm -rf "$tmp"; return 1; }
   rm -rf "$tmp"
 
   # No asumir el nombre del binario extraído — tomar el único archivo
@@ -248,7 +248,7 @@ _mimocode_download_native() {
   if [ -f "$GLIBC_LD" ]; then
     info "Aplicando patchelf al binario nativo..."
     if [ -x "$PATCHELF" ]; then
-      "$PATCHELF" --set-interpreter "$GLIBC_LD" "$_real_bin" 2>/dev/null || \
+      "$PATCHELF" --set-interpreter "$GLIBC_LD" "$_real_bin" || \
         warn "patchelf falló — el binario puede requerir ajuste manual"
     else
       warn "patchelf no encontrado en $PATCHELF — el binario puede requerir ajuste manual"
@@ -320,7 +320,7 @@ else
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+      -o Dpkg::Options::="--force-confold" || \
       error "No se pudieron instalar las dependencias glibc"
     [ -f "$GLIBC_LD" ] || error "glibc ld.so no encontrado tras la instalación"
   fi

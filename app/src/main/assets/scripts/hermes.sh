@@ -31,6 +31,24 @@
 #    [ERROR] mensaje (exit 1)
 #
 #  REPO: https://github.com/Honkonx/termux-ai-stack
+#  VERSIÓN: 2.1.0 | Septiembre 2026 — mitigación "wheel prebuilt primero,
+#  compilar como fallback" para firecrawl-anydoc (dependencia BASE, no
+#  opcional/extra, de hermes-agent — "firecrawl-anydoc==0.2.4" exact-pinned
+#  en su pyproject.toml). Confirmado (WebFetch a pypi.org/pypi/firecrawl-anydoc/json
+#  y a github.com/firecrawl/anydoc): es literalmente el mismo límite que
+#  hf_xet (docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md) — bindings
+#  Python (maturin, PyO3 abi3-py310) del crate Rust "anydoc", sin wheel
+#  publicado para Android/Bionic (solo manylinux/musllinux/macOS/Windows),
+#  así que pip siempre cae a compilar el sdist en el dispositivo — confirmado
+#  fallando en vivo con el mismo patrón de error exacto que hf_xet
+#  (docs/humano330.md, sección 5.3). PASO 3.5 (nuevo) busca un wheel ya
+#  cross-compilado en Releases de kairos-lab (mismo mecanismo/convención de
+#  nombre que hf.sh PASO 1.5, ".github/workflows/build-firecrawl-anydoc.yml"
+#  es el workflow que lo produce) ANTES de que PASO 4 (pip install -e
+#  '.[termux-all]') intente compilarlo desde fuente. Todavía NO existe ningún
+#  Release con ese asset (el workflow existe pero no fue disparado ni
+#  verificado en dispositivo real) — forward-compatible, igual que hf.sh: en
+#  cuanto exista, este módulo lo usa sin más cambios.
 #  VERSIÓN: 2.0.0 | Junio 2026
 # ============================================================
 
@@ -115,6 +133,65 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 check_done() { grep -q "^hermes_${1}=done" "$CHECKPOINT" 2>/dev/null; }
 mark_done()  { grep -q "^hermes_${1}=done" "$CHECKPOINT" 2>/dev/null || echo "hermes_${1}=done" >> "$CHECKPOINT"; }
 
+# ── Mitigación firecrawl-anydoc: wheel prebuilt primero, compilar como fallback ──
+# Ver nota de versión 2.1.0 arriba. firecrawl-anydoc es dependencia BASE (no
+# opcional/extra) de hermes-agent, exact-pinned "==0.2.4" — mismo patrón exacto que
+# hf_xet en hf.sh (mismo repo destino, misma convención de nombre de asset).
+HERMES_FIRECRAWL_PREBUILT_REPO="Honkonx/kairos-lab"
+# Mantener en sync con el pin real de hermes-agent (pyproject.toml,
+# "firecrawl-anydoc==X.Y.Z") — si upstream sube la versión, un wheel prebuilt de una
+# versión vieja no calza con el pin exacto y pip lo descarta en el PASO 4 (fallback
+# normal a compilar desde fuente, sin romper nada, solo sin la mitigación).
+HERMES_FIRECRAWL_ANYDOC_VERSION="0.2.4"
+
+# Busca en los Releases de kairos-lab un wheel de firecrawl-anydoc ya cross-compilado
+# para aarch64-linux-android (convención de nombre
+# "firecrawl_anydoc-*aarch64*android*.whl", mismo mecanismo que
+# _hf_try_prebuilt_xet_wheel() en hf.sh) y lo instala en el venv que PASO 4 va a
+# reutilizar — si pip ya lo ve satisfecho con la versión exacta pinneada, no intenta
+# compilar Rust. Devuelve 1 (sin error ruidoso) si no existe el asset todavía o si
+# algo falla — intento best-effort, el fallback real es el PASO 4 tal como está hoy.
+_hermes_try_prebuilt_anydoc_wheel() {
+  local _venv_python="$1"
+  command -v curl &>/dev/null || return 1
+  [ -x "$_venv_python" ] || return 1
+
+  local _releases_json _asset_url
+  _releases_json=$(curl -fsSL "https://api.github.com/repos/${HERMES_FIRECRAWL_PREBUILT_REPO}/releases?per_page=10" 2>/dev/null)
+  [ -z "$_releases_json" ] && return 1
+  _asset_url=$(echo "$_releases_json" | grep -o '"browser_download_url": *"[^"]*firecrawl_anydoc-'"${HERMES_FIRECRAWL_ANYDOC_VERSION}"'[^"]*aarch64[^"]*android[^"]*\.whl"' | \
+    head -1 | grep -o 'https://[^"]*')
+  [ -z "$_asset_url" ] && return 1
+
+  info "Wheel prebuilt de firecrawl-anydoc encontrado en kairos-lab (aarch64-linux-android) — descargando..."
+  local _wheel_tmp; _wheel_tmp="$(mktemp -d)/$(basename "$_asset_url")"
+  curl -fsSL "$_asset_url" -o "$_wheel_tmp" 2>/dev/null || {
+    warn "No se pudo descargar el wheel prebuilt de firecrawl-anydoc — se compilará desde fuente"
+    return 1
+  }
+  verify_sha256 "$_wheel_tmp" "${HERMES_FIRECRAWL_PREBUILT_SHA256:-}" || {
+    warn "SHA256 del wheel prebuilt de firecrawl-anydoc no coincide con el pinneado — se compilará desde fuente"
+    rm -f "$_wheel_tmp"
+    return 1
+  }
+  pip_install "$_venv_python" --force-reinstall --no-deps "$_wheel_tmp" >/dev/null 2>&1 || {
+    warn "El wheel prebuilt de firecrawl-anydoc no se pudo instalar en el venv — se compilará desde fuente"
+    rm -f "$_wheel_tmp"
+    return 1
+  }
+  rm -f "$_wheel_tmp"
+  # Verificación funcional real (no solo "pip install" con exit 0), mismo patrón que
+  # _hf_try_prebuilt_xet_wheel() — el módulo importa como "anydoc", no como
+  # "firecrawl_anydoc" (ver README real del paquete: "installs as firecrawl-anydoc,
+  # imports as anydoc").
+  "$_venv_python" -c "import anydoc" >/dev/null 2>&1 || {
+    warn "wheel prebuilt de firecrawl-anydoc instalado pero no importa en el venv — se compilará desde fuente"
+    return 1
+  }
+  log "firecrawl-anydoc instalado desde wheel prebuilt en el venv (sin compilar Rust en el dispositivo)"
+  return 0
+}
+
 # ── Verificar si ya está instalado ────────────────────────────
 if command -v hermes &>/dev/null && [ -d "$INSTALL_DIR" ] && ! $FORCE; then
   log "Hermes ya instalado — $(hermes --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
@@ -193,7 +270,7 @@ else
   if pkg install -y \
     -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" \
-    "${TERMUX_PKGS[@]}" 2>/dev/null; then
+    "${TERMUX_PKGS[@]}"; then
     log "Paquetes instalados"
     mark_done "pkgs"
   else
@@ -246,13 +323,34 @@ else
   mark_done "venv"
 fi
 
+PIP_PYTHON="$INSTALL_DIR/venv/bin/python"
+
+# ============================================================
+# PASO 3.5 — firecrawl-anydoc: wheel prebuilt (si existe)
+# ============================================================
+# Intento best-effort ANTES de PASO 4 — si funciona, el "pip install -e
+# '.[termux-all]'" de más abajo encuentra firecrawl-anydoc==0.2.4 ya satisfecho en
+# el venv y no intenta compilar Rust. Ver _hermes_try_prebuilt_anydoc_wheel() arriba
+# y VERSIÓN 2.1.0 en el header de este archivo. No incrementa TOTAL_STEPS — mismo
+# criterio no-numérico que hf.sh usa para su sub-paso equivalente (PASO 1.5).
+step "PASO 3.5 — firecrawl-anydoc: buscando wheel prebuilt (evita compilar Rust en el dispositivo)"
+if check_done "anydoc_prebuilt_attempt"; then
+  log "Ya intentado en un run anterior [checkpoint] — no se reintenta la búsqueda"
+else
+  if _hermes_try_prebuilt_anydoc_wheel "$PIP_PYTHON"; then
+    :
+  else
+    info "Sin wheel prebuilt disponible todavía — PASO 4 compilará firecrawl-anydoc desde fuente (puede fallar, ver docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md)"
+  fi
+  mark_done "anydoc_prebuilt_attempt"
+fi
+
 # ============================================================
 # PASO 4 — Dependencias Python
 # ============================================================
 step "4/$TOTAL_STEPS Instalando dependencias Python"
 
 cd "$INSTALL_DIR"
-PIP_PYTHON="$INSTALL_DIR/venv/bin/python"
 export VIRTUAL_ENV="$INSTALL_DIR/venv"
 
 if check_done "deps"; then
@@ -275,7 +373,7 @@ else
   # a version that satisfies the requirement install". Bug real confirmado por ejecución en
   # dispositivo (ronda 2026-08-29) — introducido en el mismo cambio 2026-08-28 (docs/humano281.md)
   # que migró estos 4 call-sites a pip_install(); mismo bug confirmado también en hf.sh.
-  pip_install "$PIP_PYTHON" --upgrade pip setuptools wheel -q
+  pip_install "$PIP_PYTHON" --upgrade pip setuptools wheel
 
   # psutil y cryptography vía pkg (binarios ARM64 precompilados de Termux) — evita
   # que pip los compile desde fuente dentro del venv (build nativo/Rust, lento o
@@ -329,7 +427,7 @@ else
     if [ -f "$INSTALL_DIR/scripts/install_psutil_android.py" ]; then
       info "Pre-compilando psutil para Android (instalador oficial de hermes-agent)..."
       "$PIP_PYTHON" "$INSTALL_DIR/scripts/install_psutil_android.py" \
-        --pip "$PIP_PYTHON -m pip" 2>/dev/null || \
+        --pip "$PIP_PYTHON -m pip" || \
         warn "psutil Android prebuild falló"
     fi
   fi
@@ -354,29 +452,33 @@ else
   #     mencionan módulos removidos de stdlib entre 3.12-3.14 (typing.io, pipes,
   #     cgi, distutils) como fuente de incompatibilidades reales en runtime, no
   #     solo de checkeo de versión.
-  #   - Consecuencia práctica: --ignore-requires-python puede lograr que pip
-  #     complete el install (bypassea el chequeo de METADATA), pero (a) algunas
-  #     dependencias Rust-backed pueden no tener wheel ARM64/py3.14 e intentar
-  #     compilar desde fuente dentro del venv (lento/pesado en un teléfono, o
-  #     directamente falla), y (b) aun si el install "termina", `hermes` puede
-  #     crashear al ejecutarse por APIs de stdlib removidas. Esto es un bloqueo
-  #     externo real (upstream de hermes-agent, no de este script) — no hay
-  #     forma de arreglarlo bajando la versión de Python vía pkg (Termux solo
-  #     empaqueta una versión de `python` en el repo principal; versiones viejas
-  #     quedarían en TUR de forma parcial/no garantizada). Por eso PASO 5 abajo
-  #     ahora SÍ falla el script si `hermes --version` no responde tras el
-  #     install, en vez de solo advertir — así el registry no reporta
-  #     "instalado" cuando el binario está roto por esta incompatibilidad.
+  #   - Consecuencia práctica ANTES considerada (a) algunas dependencias
+  #     Rust-backed pueden no tener wheel ARM64/py3.14 e intentar compilar desde
+  #     fuente dentro del venv (lento/pesado en un teléfono), y (b) aun si el
+  #     install "termina", `hermes` podría crashear al ejecutarse por APIs de
+  #     stdlib removidas. Por eso PASO 5 abajo SÍ falla el script si `hermes
+  #     --version` no responde tras el install, en vez de solo advertir — así
+  #     el registry no reporta "instalado" cuando el binario está roto.
+  #
+  #     CONFIRMADO EN VIVO 2026-08-31 (ver docs/humano291.md, comentario de
+  #     PASO 5 más abajo): el escenario (b) — crash real en runtime por
+  #     incompatibilidad de Python 3.14 — NO ocurre en la práctica. Una
+  #     instalación completa (sin interrumpir, con tiempo real para que
+  #     `cryptography` termine de compilar en Rust) deja un `hermes --version`
+  #     100% funcional con Python 3.14.6. El único riesgo real que queda es (a)
+  #     — que la compilación tarde varios minutos y algo (timeout, contención
+  #     de pip con otro módulo) la interrumpa antes de terminar — no una
+  #     incompatibilidad de runtime genuina.
   info "Instalando Hermes (perfil .[termux-all])..."
-  if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux-all]' -c constraints-termux.txt -q; then
+  if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux-all]' -c constraints-termux.txt; then
     log "Instalado con perfil .[termux-all]"
   else
     warn "termux-all falló — probando .[termux]..."
-    if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux]' -c constraints-termux.txt -q; then
+    if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux]' -c constraints-termux.txt; then
       log "Instalado con perfil .[termux]"
     else
       warn "termux falló — probando instalación base..."
-      pip_install "$PIP_PYTHON" --ignore-requires-python -e '.' -c constraints-termux.txt -q || \
+      pip_install "$PIP_PYTHON" --ignore-requires-python -e '.' -c constraints-termux.txt || \
         error "Instalación falló en los 3 perfiles"
       log "Instalado con perfil base"
     fi
@@ -414,13 +516,25 @@ else
   # hermes.installed=true en el registry sin condición — es decir, el registry
   # (y por lo tanto HermesFragment.isModuleInstalled(), que lee exactamente esa
   # key) podía reportar "instalado" con un binario que ni siquiera corre
-  # `hermes --version`. Escenario real y confirmado arriba (PASO 4): Termux
-  # empaqueta Python 3.14.6 pero hermes-agent exige <3.14 — con
-  # --ignore-requires-python el `pip install` puede terminar "bien" y aun así
-  # dejar un binario que crashea al ejecutarse por incompatibilidades reales de
-  # runtime, no solo el chequeo de versión. Ahora se trata como fallo duro para
-  # que el registry nunca quede desincronizado del estado real.
-  error "hermes no responde tras la instalación (binario roto o incompatible — probable incompatibilidad hermes-agent/Python 3.14, ver comentario PASO 4). Revisa manualmente: hermes --version"
+  # `hermes --version`. Ahora se trata como fallo duro para que el registry
+  # nunca quede desincronizado del estado real.
+  #
+  # CORRECCIÓN 2026-08-31 (ver docs/humano291.md): el comentario de esta sección
+  # asumía que `hermes --version` fallando era "probable incompatibilidad
+  # hermes-agent/Python 3.14" — investigado a fondo (repo real de hermes-agent,
+  # issue abierto NousResearch/hermes-agent#59877 sin resolución, docs oficiales
+  # de Termux del proyecto) y CONFIRMADO EN VIVO que es falso: una instalación
+  # completa (sin interrumpir) con Python 3.14.6 real de Termux funciona
+  # perfecto — "hermes --version" imprime "Hermes Agent v0.21.0 ... Python:
+  # 3.14.6". La causa real de los fallos reportados era que instalaciones
+  # anteriores nunca tenían tiempo de terminar (compilar la dependencia
+  # `cryptography` en Rust es genuinamente lento en un teléfono, varios
+  # minutos) — se interrumpían o competían por el lock de pip con otro módulo
+  # antes de llegar acá. Este PASO 5 no necesita ningún fix de compatibilidad
+  # de Python; si algún día vuelve a fallar de verdad, no asumir de nuevo que
+  # es la versión de Python sin volver a verificar con una instalación limpia
+  # y con tiempo suficiente primero.
+  error "hermes no responde tras la instalación (binario roto — revisá manualmente: hermes --version, y confirmá que la instalación tuvo tiempo de terminar del todo antes de asumir una causa)"
 fi
 
 # ============================================================

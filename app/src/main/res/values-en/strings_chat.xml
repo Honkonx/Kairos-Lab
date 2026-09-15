@@ -22,7 +22,7 @@
     <string name="chat_local_models_none">No models downloaded yet — you can still pick this one, then download one later from Local AI</string>
     <string name="chat_verifying">Checking…</string>
     <string name="chat_cloud_connected">Connected with %1$s — paid models, no local GPU needed</string>
-    <string name="chat_cloud_not_connected">Gemini · DeepSeek · OpenAI · Anthropic · Grok — bring your own API key</string>
+    <string name="chat_cloud_not_connected">Gemini · DeepSeek · OpenAI · Anthropic · Grok · Custom — bring your own API key</string>
     <string name="chat_ollama_installed_subtitle">Installed — uses the models you already pulled with Ollama</string>
     <string name="chat_ollama_not_installed_subtitle">Not installed — go to Modules → Ollama to install it first</string>
     <string name="chat_ollama_not_installed_toast">Ollama isn\'t installed — go to Modules → Ollama to install it</string>
@@ -34,6 +34,12 @@
     <string name="chat_api_key_invalid_toast">The key looks invalid (too short) — the change was cancelled</string>
     <string name="chat_api_key_saved_toast">Key saved for %1$s</string>
     <string name="chat_no_api_key_saved">No API key saved for %1$s. Tap the engine selector (☁️) and choose the provider again to enter the key.</string>
+    <string name="chat_custom_provider_name">Custom (OpenAI-compatible)</string>
+    <string name="chat_custom_config_dialog_title">Custom provider</string>
+    <string name="chat_custom_config_dialog_message">OpenAI API-compatible endpoint (OpenRouter, Groq, Azure OpenAI, your own proxy, a remote vLLM/llama.cpp server, etc.). The model is optional.</string>
+    <string name="chat_custom_base_url_hint">https://api.example.com/v1</string>
+    <string name="chat_custom_model_hint">Model (optional, default: %1$s)</string>
+    <string name="chat_custom_base_url_invalid_toast">The Base URL looks invalid — it must start with http</string>
     <string name="chat_cloud_status">Cloud API · %1$s</string>
     <string name="chat_cloud_status_byo">Cloud API (BYO key)</string>
     <string name="chat_cloud_http_error">%1$s responded with HTTP %2$d</string>
@@ -128,6 +134,39 @@
     <string name="chat_web_search_key_invalid_toast">The key looks invalid (too short)</string>
     <string name="chat_llamaserver_transport_status">llama-server (port 8085)…</string>
     <string name="chat_engine_option_loading">…</string>
+
+    <!-- Edit message / regenerate response / search chat (referencia/ia/oalla-main finding) -->
+    <string name="chat_edit_message_title">Edit message</string>
+    <string name="chat_edit_resend">Resend</string>
+    <string name="chat_edit_disabled_working_toast">Wait for the current response to finish (or cancel it) before editing a message</string>
+    <string name="chat_regenerate_working_toast">Wait for the current response to finish before regenerating</string>
+    <string name="chat_regenerate_desc">Regenerate response</string>
+    <string name="chat_version_prev_desc">Previous version</string>
+    <string name="chat_version_next_desc">Next version</string>
+    <string name="chat_version_indicator_format">%1$d/%2$d</string>
+    <string name="chat_search_hint">Search the chat...</string>
+    <string name="chat_search_no_matches">No matches</string>
+    <string name="chat_search_match_count">%1$d match(es)</string>
+
+    <!-- Copy message to clipboard (finding from referencia/ia/Uncensored-Local-AI-Multiplatform-main,
+         lib/widgets/chat_bubble.dart — visible "Copy" button on every bubble) -->
+    <string name="chat_copy_desc">Copy message</string>
+    <string name="chat_copy_clipboard_label">Kairos message</string>
+    <string name="chat_copy_toast">Copied to clipboard</string>
+    <string name="chat_message_options_edit">Edit</string>
+    <string name="chat_message_options_copy">Copy</string>
+
+    <!-- Attach documents + token budget (real finding from
+         docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md) -->
+    <string name="chat_image_discarded_cloud">Image discarded: Cloud API doesn\'t support images yet</string>
+    <string name="chat_attach_choose_title">Attach</string>
+    <string name="chat_attach_image_option">🖼️ Image</string>
+    <string name="chat_attach_document_option">📄 Document (.txt, .md)</string>
+    <string name="chat_document_pending_format">".%1$s" isn\'t supported yet — needs an additional extraction library (pending, see the audit). Only .txt and .md for now.</string>
+    <string name="chat_document_unsupported_format">Unsupported format — only .txt and .md for now</string>
+    <string name="chat_document_read_failed">Couldn\'t read the selected document</string>
+    <string name="chat_document_attached_label">📄 %1$s (%2$d characters)</string>
+    <string name="chat_document_context_prefix">Context from the attached document "%1$s" (most relevant fragments to the question, auto-selected):\n%2$s\n\nUser question: %3$s</string>
 
     <!-- VoiceToAgentDialog.kt -->
     <string name="voice_agent_mic_permission_denied">Without microphone permission, dictation isn\'t possible</string>

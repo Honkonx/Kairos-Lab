@@ -60,10 +60,41 @@
             android:paddingVertical="4dp"
             android:paddingHorizontal="6dp">
 
+            <!-- Historial de navegación tipo browser (atrás/adelante) — ArrayDeque en
+                 memoria del Fragment, no persistido entre sesiones (ver
+                 docs/arquitectura/INVESTIGACION_GESTOR_ARCHIVOS_2026-09-01.md, esfuerzo bajo #3). -->
+            <TextView
+                android:id="@+id/btn_back"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="◀"
+                android:textColor="?attr/kairosText"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_forward"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="▶"
+                android:textColor="?attr/kairosText"
+                android:textSize="13sp" />
+
             <TextView
                 android:id="@+id/btn_up"
-                android:layout_width="34dp"
-                android:layout_height="34dp"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
                 android:background="@drawable/bg_file_icon"
                 android:clickable="true"
                 android:focusable="true"
@@ -78,13 +109,233 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="10dp"
+                android:layout_marginStart="8dp"
                 android:singleLine="true"
                 android:ellipsize="start"
                 android:fontFamily="monospace"
                 android:textColor="?attr/kairosText2"
                 android:textSize="12sp"
                 tools:text="/data/data/com.termux/files/home" />
+
+            <!-- Mostrar/ocultar archivos ocultos (esfuerzo bajo #3 de la investigación). -->
+            <TextView
+                android:id="@+id/btn_toggle_hidden"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="👁"
+                android:textColor="?attr/kairosText"
+                android:textSize="13sp" />
+
+            <!-- Marcadores (esfuerzo bajo #2): estrella marca/desmarca la carpeta actual,
+                 el botón de la lista abre el diálogo de acceso rápido. -->
+            <TextView
+                android:id="@+id/btn_bookmark"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="☆"
+                android:textColor="?attr/kairosText"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/btn_bookmarks_list"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="🔖"
+                android:textColor="?attr/kairosText"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Barra contextual de selección múltiple (esfuerzo bajo #1) — oculta por defecto,
+         visible cuando FileManagerFragment.selectionMode == true. Reemplaza el clipboard
+         de un solo archivo por operaciones batch sobre todos los ítems marcados. -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/selection_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="?attr/kairosBg2"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="0dp"
+        app:contentPadding="0dp"
+        app:strokeColor="?attr/kairosGreen"
+        app:strokeWidth="1dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingVertical="6dp"
+            android:paddingHorizontal="8dp">
+
+            <TextView
+                android:id="@+id/selection_count"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="?attr/kairosText"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="3 seleccionados" />
+
+            <TextView
+                android:id="@+id/btn_sel_copy"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="📋"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_sel_cut"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="✂"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_sel_compress"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="🗜"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_sel_delete"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="🗑"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_sel_cancel"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="?attr/kairosText"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Barra persistente de portapapeles (fix UX 2026-09-14, docs/humano334.md) — antes la
+         única señal de "hay algo copiado/cortado" era un Snackbar de ~2.75s que desaparecía
+         solo; visible mientras FileManagerFragment.clipboardFiles no esté vacío. -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/clipboard_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
+        android:visibility="gone"
+        app:cardBackgroundColor="?attr/kairosBg2"
+        app:cardCornerRadius="10dp"
+        app:cardElevation="0dp"
+        app:contentPadding="0dp"
+        app:strokeColor="?attr/kairosGreen"
+        app:strokeWidth="1dp"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingVertical="6dp"
+            android:paddingHorizontal="8dp">
+
+            <TextView
+                android:id="@+id/clipboard_bar_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="?attr/kairosText"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                tools:text="Copiado: 3 archivos" />
+
+            <TextView
+                android:id="@+id/btn_clipboard_paste"
+                android:layout_width="wrap_content"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:paddingHorizontal="10dp"
+                android:text="@string/file_manager_action_paste_here"
+                android:textColor="?attr/kairosText"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_clipboard_cancel"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="?attr/kairosText"
+                android:textSize="13sp" />
 
         </LinearLayout>
 

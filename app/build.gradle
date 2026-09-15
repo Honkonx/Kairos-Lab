@@ -18,7 +18,13 @@ android {
 
     compileSdkVersion project.properties.compileSdkVersion.toInteger()
     ndkVersion = System.getenv("JITPACK_NDK_VERSION") ?: project.properties.ndkVersion
-    def appVersionName = System.getenv("TERMUX_APP_VERSION_NAME") ?: ""
+    // -PappVersionName/-PappVersionCode (gradle property) tienen prioridad sobre las env vars
+    // ya existentes — agregado para tools/serve-update-server.sh (auto-actualización, Fase 5:
+    // compilar un APK debug de prueba con un versionCode/versionName arbitrarios sin tocar el
+    // valor real 127/"0.1.0" de defaultConfig). No cambia el comportamiento de CI (build-app.yml
+    // sigue usando solo TERMUX_APP_VERSION_NAME, nunca pasa -PappVersionName/-PappVersionCode).
+    def appVersionName = project.hasProperty("appVersionName") ? project.property("appVersionName").toString() : (System.getenv("TERMUX_APP_VERSION_NAME") ?: "")
+    def appVersionCodeOverride = project.hasProperty("appVersionCode") ? project.property("appVersionCode").toString() : System.getenv("KAIROS_APP_VERSION_CODE")
     def apkVersionTag = System.getenv("TERMUX_APK_VERSION_TAG") ?: ""
     def splitAPKsForDebugBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS") ?: "1"
     def splitAPKsForReleaseBuilds = System.getenv("TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS") ?: "0" // F-Droid does not support split APKs #1904
@@ -114,10 +120,22 @@ android {
         versionCode 127
         versionName "0.1.0"
 
+        if (appVersionCodeOverride) versionCode = appVersionCodeOverride.toInteger()
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)
 
         buildConfigField "String", "TERMUX_PACKAGE_VARIANT", "\"" + project.ext.packageVariant + "\"" // Used by TermuxApplication class
+        // Auto-actualización (AppUpdater.kt) — manifiesto JSON publicado como asset FIJO de la
+        // última Release de GitHub, resuelto vía el link "latest/download" (no depende de saber
+        // el tag exacto). Apunta a Honkonx/kairos-lab (repo PÚBLICO), NUNCA a kairos-dev
+        // (privado) — mismo criterio ya fijado para el rootfs embebido más abajo en este archivo
+        // (ver rootfsRepoName/comentario "Apunta al futuro repo PÚBLICO kairos-lab" y
+        // docs/humano267.md: "ningún link de descarga (rootfs, paquetes, update) debe apuntar al
+        // repo privado kairos-dev"). Consecuencia real HOY, aceptada a propósito (mismo trade-off
+        // que el rootfs): este chequeo falla (404) hasta que kairos-lab tenga una Release real
+        // con este asset publicado — AppUpdater.check() debe tratar ese 404 como "sin
+        // actualización disponible todavía", no como un crash.
+        buildConfigField "String", "APP_UPDATE_MANIFEST_URL", "\"https://github.com/Honkonx/kairos-lab/releases/latest/download/kairos-update.json\""
 
         manifestPlaceholders.TERMUX_PACKAGE_NAME = "com.termux"
         manifestPlaceholders.TERMUX_APP_NAME = "Kairos"
@@ -252,7 +270,7 @@ android {
 
 dependencies {
     testImplementation "junit:junit:4.13.2"
-    testImplementation "org.robolectric:robolectric:4.10"
+    testImplementation "org.robolectric:robolectric:4.16"
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:1.1.5"
 
     // Extracción de tar.xz 100% en JVM para RootfsInstaller.kt — sin shellear al

@@ -2,6 +2,8 @@ package com.termux.app.vnc
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.DataInputStream
@@ -35,6 +37,18 @@ class VncClient(
     private val host: String,
     private val port: Int,
     private val passwordProvider: () -> String?,
+    // Ruta de un socket unix (dominio AF_UNIX) a conectar en vez de TCP [host]:[port] — agregado
+    // para QEMU (docs/mini-pc/AUDITORIA_COMUNICACION_2026-09-08.md hallazgo #3): el servidor VNC
+    // de QEMU ahora arranca con "-vnc unix:<ruta>" (ver modulos/qemu.sh run_vm.sh) en vez de TCP
+    // loopback — más seguro (el socket queda restringido por permisos de archivo, no expuesto en
+    // un puerto conectable por cualquier proceso del mismo UID). null (default) preserva el
+    // comportamiento de siempre — Mini PC/Entorno sigue conectando por TCP a 127.0.0.1:5901, sin
+    // cambios. android.net.LocalSocket con Namespace.FILESYSTEM es el mecanismo real de Android
+    // para sockets unix con ruta de filesystem real (no el namespace abstracto de Linux) — Kairos
+    // corre en el mismo proceso/UID que el rootfs de Termux (ver CLAUDE.md "Communication: Direct
+    // Java method calls"), así que el archivo de socket que crea QEMU dentro de $HOME es
+    // directamente accesible acá.
+    private val socketPath: String? = null,
 ) {
     interface Listener {
         fun onConnected(width: Int, height: Int)
@@ -107,6 +121,7 @@ class VncClient(
 
     @Volatile private var running = false
     private var socket: Socket? = null
+    private var localSocket: LocalSocket? = null
     private var input: DataInputStream? = null
     private var output: DataOutputStream? = null
     private var thread: Thread? = null
@@ -180,16 +195,29 @@ class VncClient(
 
     private fun closeQuietly() {
         try { socket?.close() } catch (_: Exception) {}
-        socket = null; input = null; output = null
+        try { localSocket?.close() } catch (_: Exception) {}
+        socket = null; localSocket = null; input = null; output = null
     }
 
     // ── Sesión completa: handshake + auth + init + loop de updates ──────────────
 
     private fun runSession() {
-        val sock = Socket(host, port).apply { tcpNoDelay = true }
-        socket = sock
-        val inp = DataInputStream(BufferedInputStream(sock.getInputStream(), 64 * 1024))
-        val out = DataOutputStream(BufferedOutputStream(sock.getOutputStream()))
+        val inp: DataInputStream
+        val out: DataOutputStream
+        if (socketPath != null) {
+            // Socket unix (QEMU vía -vnc unix:<ruta>, ver docstring de [socketPath]) — sin
+            // tcpNoDelay (no aplica a AF_UNIX, no es un socket TCP).
+            val ls = LocalSocket()
+            ls.connect(LocalSocketAddress(socketPath, LocalSocketAddress.Namespace.FILESYSTEM))
+            localSocket = ls
+            inp = DataInputStream(BufferedInputStream(ls.inputStream, 64 * 1024))
+            out = DataOutputStream(BufferedOutputStream(ls.outputStream))
+        } else {
+            val sock = Socket(host, port).apply { tcpNoDelay = true }
+            socket = sock
+            inp = DataInputStream(BufferedInputStream(sock.getInputStream(), 64 * 1024))
+            out = DataOutputStream(BufferedOutputStream(sock.getOutputStream()))
+        }
         input = inp; output = out
 
         negotiateVersion(inp, out)

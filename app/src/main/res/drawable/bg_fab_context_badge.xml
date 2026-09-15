@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondo del badge de contexto persistente sobre el FAB de terminal (ver
+     activity_kairos.xml#fab_terminal_badge / TermuxActivity.updateFabContextBadge()). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/kairosBlue" />
+    <corners android:radius="12dp" />
+</shape>

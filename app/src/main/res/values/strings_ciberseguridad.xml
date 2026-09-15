@@ -12,6 +12,14 @@
     <string name="ciberseguridad_disclaimer_short">Usá estas herramientas solo contra sistemas propios o con autorización explícita — el mal uso puede ser ilegal.</string>
     <string name="ciberseguridad_disclaimer_full">Ciberseguridad instala y da acceso a herramientas reales de pentesting/OSINT (nmap, theHarvester, nikto, dirb, sqlmap y, en el nivel Pro, un contenedor Kali Linux completo).\n\nUsar estas herramientas contra redes, sistemas, dominios o cuentas que no son tuyos, o sin autorización explícita y verificable del propietario, puede constituir un delito según las leyes de tu país (por ejemplo, acceso no autorizado a sistemas informáticos o interceptación de datos).\n\nKairos no verifica ni puede verificar que tengas esa autorización — sos vos quien asume toda la responsabilidad legal y ética por cada acción que ejecutes con estas herramientas, dentro o fuera de la terminal completa que expone este módulo.</string>
 
+    <!-- Banner "instalando en segundo plano" (2026-09-08, bug real reportado: "se instala la
+         básica y a la hora es que sale la pro" — el nivel básico queda usable a los pocos
+         segundos [nmap ya está en PATH], mucho antes de que Kali termine de instalar en
+         segundo plano; sin este banner la pantalla se veía como si básico fuera el resultado
+         final, sin ningún indicio de que Pro seguía instalando) -->
+    <string name="ciberseguridad_installing_banner_title">⏳ Instalando en segundo plano…</string>
+    <string name="ciberseguridad_installing_banner_body">El nivel básico ya está listo. Si elegiste Pro, el contenedor Kali Linux (y la interfaz gráfica, si la pediste) puede tardar varios minutos — la descarga pesa varios cientos de MB. Esta pantalla se actualiza sola cuando termine, no hace falta cerrar ni reabrir la app.</string>
+
     <!-- Card RED -->
     <string name="ciberseguridad_network_card_title">🌐 RED</string>
     <string name="ciberseguridad_ip_local_label">IP local</string>
@@ -158,6 +166,30 @@
     <string name="ciberseguridad_pro_gui_item">Pro con GUI (básico + Kali con escritorio XFCE)</string>
     <string name="ciberseguridad_kali_installed_toast">Kali Linux instalado</string>
     <string name="ciberseguridad_install_failed_log">Fallo — revisá ~/kairos_logs/install_ciberseguridad.log</string>
+
+    <!-- Selección de metapaquete Kali por categoría (2026-09-09, hallazgo de referencia
+         proot-distro-nethunter — ver docs/referencias/ciberseguridad/AUDITORIA_KALI_GUI_REPOS_2026-09-08.md
+         punto 1): antes se instalaba siempre kali-tools-top10 fijo, ahora el usuario elige de un
+         catálogo real de 13 perfiles oficiales de Kali, codificado como "variante:categoria"
+         dentro del mismo parámetro "variant" que ya usa ciberseguridad.sh (ver
+         ModuleController.installModule, solo reenvía "variant"/"force" al script — sin canal
+         genérico de flags extra; nota: XML no admite doble guion dentro de un comentario, por
+         eso acá se nombran los flags sin el prefijo de guiones). -->
+    <string name="ciberseguridad_kali_category_dialog_title">Elegí qué instalar en Kali</string>
+    <string name="ciberseguridad_kali_category_dialog_message">Cada categoría instala solo las herramientas de ese perfil — ahorra tiempo y espacio si no necesitás todo.</string>
+    <string name="ciberseguridad_kali_cat_top10">Top 10 (curado, default)</string>
+    <string name="ciberseguridad_kali_cat_default">Default (set estándar de Kali)</string>
+    <string name="ciberseguridad_kali_cat_large">Large (set grande de Kali)</string>
+    <string name="ciberseguridad_kali_cat_everything">Everything (todo Kali, muy pesado)</string>
+    <string name="ciberseguridad_kali_cat_info_gathering">Recolección de información</string>
+    <string name="ciberseguridad_kali_cat_web">Web</string>
+    <string name="ciberseguridad_kali_cat_crypto_stego">Cripto / esteganografía</string>
+    <string name="ciberseguridad_kali_cat_passwords">Contraseñas</string>
+    <string name="ciberseguridad_kali_cat_forensics">Forense</string>
+    <string name="ciberseguridad_kali_cat_fuzzing">Fuzzing</string>
+    <string name="ciberseguridad_kali_cat_reverse_engineering">Ingeniería inversa</string>
+    <string name="ciberseguridad_kali_cat_sniffing_spoofing">Sniffing / spoofing</string>
+    <string name="ciberseguridad_kali_cat_exploitation">Explotación</string>
 
     <!-- Instalación silenciosa -->
     <string name="ciberseguridad_silent_install_dialog_title">Instalar Ciberseguridad en segundo plano</string>

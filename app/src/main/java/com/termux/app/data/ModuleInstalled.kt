@@ -186,6 +186,11 @@ object ModuleInstalled {
         "repo" to "repo",
         "pi" to "pi",
         "codegraph" to "codegraph",
+        // git.sh (2026-09-08, módulo nuevo extraído de expo.sh — ver docs/humano*.md): instala
+        // git + gh vía install_single_pkg(), `command -v git` coincide con el moduleId por
+        // coincidencia — entrada explícita por prolijidad, mismo criterio que "kimi"/"kilo"/"hf"
+        // de arriba (documentado para no depender silenciosamente de esa coincidencia).
+        "git" to "git",
     )
 
     /**

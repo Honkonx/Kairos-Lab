@@ -128,9 +128,14 @@ if check_done "deps"; then
 else
   info "Instalando golang, git, sqlite..."
   pkg_update_with_fallback
-  pkg install -y golang git sqlite 2>&1 | tail -3
+  pkg install -y golang git sqlite || error "No se pudieron instalar golang/git/sqlite"
   command -v go &>/dev/null || error "golang no disponible tras instalación"
   command -v git &>/dev/null || error "git no disponible tras instalación"
+  # Fix real (auditoría QA 2026-09-14, docs/humano338.md): "sqlite" nunca se verificaba tras
+  # el install (a diferencia de go/git arriba) — un fallo puntual de ese paquete solo se
+  # notaría recién en PASO 3 (compilación Go con CGO contra libsqlite3), con un error de
+  # linker menos claro que este chequeo directo.
+  command -v sqlite3 &>/dev/null || error "sqlite3 no disponible tras instalación"
   log "Dependencias OK: $(go version 2>/dev/null)"
   mark_done "deps"
 fi

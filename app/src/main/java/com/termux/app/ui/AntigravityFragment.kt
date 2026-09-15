@@ -98,6 +98,12 @@ class AntigravityFragment : BaseModuleFragment() {
                         gravity = android.view.Gravity.END
                     }
                 })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
+                    }
+                })
             })
         }
         refreshEstadoPill()
@@ -130,8 +136,14 @@ class AntigravityFragment : BaseModuleFragment() {
         // reales soportados (familia Gemini 3.x, Claude Sonnet/Opus 4.6, GPT-OSS 120B) —
         // agregado como campo opcional dentro del mismo diálogo de prompt directo, mismo
         // patrón que CliToolFragment.askModelThenRun().
+        // Fix 2026-09-01 (unificación pedida por el usuario): "agy --continue" retoma la
+        // conversación de la carpeta actual, igual que "Abrir en terminal" de arriba — antes
+        // no pasaba por el mismo diálogo de "¿Dónde abrir?", ahora sí.
         actionButton(getString(R.string.antigravity_btn_continue_last), GHOST) {
-            launchTerminalCommand("agy --continue")
+            promptOpenLocation(
+                onDefault = { launchTerminalCommand("agy --continue") },
+                onChooseFolder = { path -> launchTerminalCommand("cd '$path' && agy --continue") }
+            )
         }
         // submenu_antigravity() en termux-ai-stack-dev/scripts/menu_nativo.sh tiene una
         // opción [2] "Abrir agy en proyecto" que lista $HOME/proyectos y hace

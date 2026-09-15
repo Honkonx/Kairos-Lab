@@ -290,10 +290,18 @@ object ModuleController {
     fun isRunning(moduleId: String): Boolean {
         // db (2026-08-10, ampliado 2026-08-25 para Redis v1.1.0 — modulos/db.sh línea 108
         // "pgrep -f redis-server &>/dev/null && REDIS_RUNNING=true"): tres servidores
-        // independientes (mysqld, postgres, redis-server) — el módulo cuenta como
-        // "corriendo" si CUALQUIERA de los tres está vivo.
+        // independientes (mariadbd, postgres, redis-server) — el módulo cuenta como
+        // "corriendo" si CUALQUIERA de los tres está vivo. Causa raíz REAL confirmada por ADB
+        // en vivo (2026-09-08, ver docs/humano326.md, ronda de consolidación de módulos): no
+        // era un tema de nombre de binario ni de flags de pgrep — ningún flag de pgrep
+        // funciona acá, porque el pgrep que lanza la app (dominio SELinux "untrusted_app_27")
+        // nunca es ancestro de mariadbd/postgres/redis-server (viven en el árbol de la sesión
+        // de terminal de TermuxService, un árbol hermano) y Yama ptrace_scope=1 bloquea ver
+        // vía /proc a cualquier proceso que no sea descendiente directo, aunque comparta UID.
+        // Fix real: chequeo de puerto TCP (mismo criterio que "pg_isready" ya usa del lado
+        // shell en postgres_start.sh, ver modulos/db.sh bug #31) en vez de mirar procesos.
         if (moduleId == "db") {
-            return isProcessAlive("mysqld") || isProcessAlive("postgres") || isProcessAlive("redis-server")
+            return ManagerNativeUtils.checkPort(3306) || ManagerNativeUtils.checkPort(5432) || ManagerNativeUtils.checkPort(6379)
         }
         getTmuxSession(moduleId)?.let { session ->
             val tmuxAlive = try {
@@ -331,14 +339,30 @@ object ModuleController {
             return getModulePort(moduleId)?.let { ManagerNativeUtils.checkPort(it) } ?: false
         }
         getProcessName(moduleId)?.let { process ->
+            // "remote" (sshd) ya tiene puerto fijo (getModulePort=8022) — se prefiere el
+            // chequeo de puerto (mismo motivo que el fallback de arriba, línea ~335) en vez de
+            // isProcessAlive(), que depende de pgrep y no es confiable desde el proceso de la
+            // app (ver comentario de isProcessAlive() más abajo para la causa raíz real).
+            getModulePort(moduleId)?.let { return ManagerNativeUtils.checkPort(it) }
             return isProcessAlive(process)
         }
         return false
     }
 
     private fun isProcessAlive(process: String): Boolean {
+        // Fallback para un futuro módulo con nombre de proceso fijo pero SIN puerto conocido
+        // (hoy ningún caller real llega hasta acá — "db" usa checkPort() directo y "remote" ya
+        // tiene puerto vía getModulePort(), ver isRunning() arriba). Causa raíz REAL confirmada
+        // por ADB en vivo (2026-09-08, ver docs/humano326.md): ningún flag de pgrep ("-x", sin
+        // flag, "-f") es confiable acá — es una restricción de Android (Yama ptrace_scope=1 +
+        // dominio SELinux "untrusted_app_27" del proceso de la app, confirmado con `ps -Z`) que
+        // impide ver vía /proc procesos que no son descendientes directos del propio pgrep,
+        // aunque compartan UID — no hay forma de arreglar esto solo con flags. Se deja "-f"
+        // como mejor esfuerzo (no empeora nada, y si algún día el proceso SÍ es descendiente
+        // directo del árbol de la app, funciona) pero no se debe confiar en este resultado sin
+        // verificarlo en dispositivo real para cada caso de uso nuevo.
         return try {
-            val pb = ProcessBuilder(TERMUX_PGREP_PATH, "-x", process)
+            val pb = ProcessBuilder(TERMUX_PGREP_PATH, "-f", process)
             applyTermuxEnv(pb)
             val p = pb.start()
             p.waitFor(5, TimeUnit.SECONDS) && p.exitValue() == 0
@@ -467,69 +491,96 @@ object ModuleController {
         // tarea encolada si hay una esperando.
         InstallQueueManager.submit(onQueued = { onProgress(INSTALL_QUEUED_MESSAGE) }) {
         Thread {
+            // Reintento automático de UNA sola vez para la excepción transitoria real
+            // confirmada en dispositivo (2026-09-03, ver docs/humano317.md/humano318.md):
+            // instalaciones concurrentes bajo carga pesada (varios módulos a la vez) a veces
+            // fallan con InterruptedIOException("read interrupted by close() on another
+            // thread!") dentro de process.inputStream.bufferedReader().forEachLine — investigado
+            // a fondo sin encontrar un cancelInstall()/destroyForcibly() explícito responsable;
+            // lo más probable es una condición de carrera real del propio Process/ProcessManager
+            // de Android bajo el fork() churn pesado de instalar muchos módulos a la vez, no un
+            // bug propio arreglable de raíz. usedTransientRetry evita reintentar más de una vez
+            // (un fallo real del script no debe reintentarse solo — sería confuso para el
+            // usuario) y solo aplica a ESTA excepción puntual, nunca a cualquier Exception.
+            var usedTransientRetry = false
             try {
-                val args = mutableListOf(TERMUX_BASH_PATH, script, "--silent")
-                if (effectiveVariant != null) {
-                    args.addAll(listOf("--variant", effectiveVariant))
-                }
-                if (force) {
-                    args.add("--force")
-                }
-                val pb = ProcessBuilder(args)
-                applyTermuxEnv(pb)
-                pb.redirectErrorStream(true)
-                val process = pb.start()
-                runningInstalls[moduleId] = process
-                // Bug real (2026-08-06, ver docs/humano/humano77.md): BufferedWriter solo
-                // vuelca a disco cuando su buffer interno se llena o el bloque .use{}
-                // cierra el writer (o sea, cuando el proceso hijo termina). Si el script
-                // se cuelga sin terminar (ej. "pkg install" sin timeout esperando red), el
-                // log queda en 0 bytes en disco para siempre, aunque el script ya haya
-                // impreso varias líneas — "log vacío" se confunde con "nunca arrancó"
-                // cuando en realidad puede seguir corriendo colgado en segundo plano.
-                // flush() por línea convierte eso en un log parcial diagnosticable.
-                logFile.bufferedWriter().use { writer ->
-                    process.inputStream.bufferedReader().forEachLine { line ->
-                        writer.write(line)
-                        writer.newLine()
-                        writer.flush()
-                        onProgress(line)
+                while (true) {
+                    try {
+                        val args = mutableListOf(TERMUX_BASH_PATH, script, "--silent")
+                        if (effectiveVariant != null) {
+                            args.addAll(listOf("--variant", effectiveVariant))
+                        }
+                        if (force) {
+                            args.add("--force")
+                        }
+                        val pb = ProcessBuilder(args)
+                        applyTermuxEnv(pb)
+                        pb.redirectErrorStream(true)
+                        val process = pb.start()
+                        runningInstalls[moduleId] = process
+                        // Bug real (2026-08-06, ver docs/humano/humano77.md): BufferedWriter solo
+                        // vuelca a disco cuando su buffer interno se llena o el bloque .use{}
+                        // cierra el writer (o sea, cuando el proceso hijo termina). Si el script
+                        // se cuelga sin terminar (ej. "pkg install" sin timeout esperando red), el
+                        // log queda en 0 bytes en disco para siempre, aunque el script ya haya
+                        // impreso varias líneas — "log vacío" se confunde con "nunca arrancó"
+                        // cuando en realidad puede seguir corriendo colgado en segundo plano.
+                        // flush() por línea convierte eso en un log parcial diagnosticable.
+                        logFile.bufferedWriter().use { writer ->
+                            process.inputStream.bufferedReader().forEachLine { line ->
+                                writer.write(line)
+                                writer.newLine()
+                                writer.flush()
+                                onProgress(line)
+                            }
+                        }
+                        val exitCode = process.waitFor()
+                        if (exitCode != 0) {
+                            // Pieza adoptada de CodeAssist (Subprocess.kt, ver
+                            // docs/referencias/REFERENCIA_CODEASSIST.md) — si el script murió por una señal real
+                            // (segfault, killed, etc.) en vez de un `exit 1` normal, dejarlo explícito
+                            // en el log en vez de que el usuario solo vea "falló" sin saber por qué.
+                            decodeExitSignal(exitCode)?.let { signal ->
+                                try { logFile.appendText("\n[SEÑAL] Proceso terminado por $signal (exit code $exitCode)\n") } catch (_: Exception) {}
+                            }
+                        }
+                        installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
+                            try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
+                        }
+                        // Bug real (ver docs/humano/humano166.md/humano167.md, "al instalar un plugin no sale
+                        // instalado y todavía da la opción de instalar"): ModuleInstalled cachea el
+                        // registry (30s) y el binario/verificación en vivo (10s/30s) — sin invalidar acá,
+                        // un fragment que releía el estado justo después de que este script terminara
+                        // (y ya escribiera "<id>.installed=true" en el registry en disco) seguía viendo
+                        // el snapshot cacheado ANTES de la instalación. Se invalida siempre (éxito o
+                        // fallo) porque un intento fallido también puede haber dejado el módulo a medio
+                        // instalar (algunos scripts marcan checkpoints parciales).
+                        com.termux.app.data.ModuleInstalled.invalidate(moduleId)
+                        runningInstalls.remove(moduleId)
+                        context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "installModule($moduleId) — terminó, exitCode=$exitCode") }
+                        onComplete(exitCode == 0)
+                    } catch (e: Exception) {
+                        val isTransientStreamClose = !usedTransientRetry && (
+                            e is java.io.InterruptedIOException ||
+                            (e.message?.contains("read interrupted by close", ignoreCase = true) == true)
+                        )
+                        if (isTransientStreamClose) {
+                            usedTransientRetry = true
+                            runningInstalls.remove(moduleId)
+                            context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "installModule($moduleId) — InterruptedIOException transitoria (${e.message}), reintentando instalación completa una vez") }
+                            continue
+                        }
+                        try { logFile.appendText("\n[EXCEPCIÓN] ${e.message}\n") } catch (_: Exception) {}
+                        installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
+                            try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
+                        }
+                        com.termux.app.data.ModuleInstalled.invalidate(moduleId)
+                        runningInstalls.remove(moduleId)
+                        context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "installModule($moduleId) — excepción: ${e.message}") }
+                        onComplete(false)
                     }
+                    break
                 }
-                val exitCode = process.waitFor()
-                if (exitCode != 0) {
-                    // Pieza adoptada de CodeAssist (Subprocess.kt, ver
-                    // docs/referencias/REFERENCIA_CODEASSIST.md) — si el script murió por una señal real
-                    // (segfault, killed, etc.) en vez de un `exit 1` normal, dejarlo explícito
-                    // en el log en vez de que el usuario solo vea "falló" sin saber por qué.
-                    decodeExitSignal(exitCode)?.let { signal ->
-                        try { logFile.appendText("\n[SEÑAL] Proceso terminado por $signal (exit code $exitCode)\n") } catch (_: Exception) {}
-                    }
-                }
-                installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
-                    try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
-                }
-                // Bug real (ver docs/humano/humano166.md/humano167.md, "al instalar un plugin no sale
-                // instalado y todavía da la opción de instalar"): ModuleInstalled cachea el
-                // registry (30s) y el binario/verificación en vivo (10s/30s) — sin invalidar acá,
-                // un fragment que releía el estado justo después de que este script terminara
-                // (y ya escribiera "<id>.installed=true" en el registry en disco) seguía viendo
-                // el snapshot cacheado ANTES de la instalación. Se invalida siempre (éxito o
-                // fallo) porque un intento fallido también puede haber dejado el módulo a medio
-                // instalar (algunos scripts marcan checkpoints parciales).
-                com.termux.app.data.ModuleInstalled.invalidate(moduleId)
-                runningInstalls.remove(moduleId)
-                context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "installModule($moduleId) — terminó, exitCode=$exitCode") }
-                onComplete(exitCode == 0)
-            } catch (e: Exception) {
-                try { logFile.appendText("\n[EXCEPCIÓN] ${e.message}\n") } catch (_: Exception) {}
-                installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
-                    try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
-                }
-                com.termux.app.data.ModuleInstalled.invalidate(moduleId)
-                runningInstalls.remove(moduleId)
-                context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "installModule($moduleId) — excepción: ${e.message}") }
-                onComplete(false)
             } finally {
                 // Contraparte de InstallQueueManager.submit() de arriba — SIEMPRE libera el
                 // cupo (éxito, fallo, o excepción) y arranca la siguiente instalación encolada,
@@ -732,14 +783,27 @@ object ModuleController {
             )
             else -> null
         }
-        // codex.sh: canal "termux" instala vía npm (@mmmbuto/codex-cli-termux); canal
-        // "native" baja un binario prebuilt a $PREFIX/opt/codex-native + symlink en
-        // $PREFIX/bin/codex (ver codex.sh --variant native). Canal real leído de
-        // "codex.channel", escrito al final de codex.sh en ambas ramas.
+        // codex.sh: rediseño 2026-09-09 (docs/humano328.md) — 3 canales reales posibles, leídos
+        // de "codex.channel" (escrito al final de codex.sh en las 3 ramas):
+        //   · "termux" (default): @mmmbuto/codex-cli-termux vía npm — "npm uninstall" se lleva
+        //     también el symlink $PREFIX/bin/codex que el propio npm creó.
+        //   · "termux-fallback": respaldo nativo automático (wallentx/codex-termux) cuando la
+        //     vía npm normal falló — mismo binario prebuilt que antes vivía en la vieja
+        //     variante "native" (WangChengYeh/codex_android, retirada), solo que ahora en
+        //     opt/codex-wallentx en vez de opt/codex-native.
+        //   · "vl": @mmmbuto/codex-vl vía npm, bin real "codex-vl" — "npm uninstall" solo se
+        //     lleva $PREFIX/bin/codex-vl, NO el symlink $PREFIX/bin/codex que codex.sh crea a
+        //     mano como alias (ver PASO 2 de codex.sh) para que el resto de la UI de Kairos
+        //     siga invocando "codex" sin importar la variante — hay que borrarlo aparte o
+        //     queda un symlink roto apuntando a un binario que ya no existe.
         "codex" -> when (readRegistryValue("codex", "channel")) {
-            "native" -> DeepUninstallPlan(
-                "rm -rf \"$TERMUX_PREFIX_PATH/opt/codex-native\" \"$TERMUX_PREFIX_PATH/bin/codex\"",
-                "Binario nativo de Codex eliminado ($TERMUX_PREFIX_PATH/opt/codex-native)"
+            "termux-fallback" -> DeepUninstallPlan(
+                "rm -rf \"$TERMUX_PREFIX_PATH/opt/codex-wallentx\" \"$TERMUX_PREFIX_PATH/bin/codex\"",
+                "Binario del respaldo nativo de Codex eliminado ($TERMUX_PREFIX_PATH/opt/codex-wallentx)"
+            )
+            "vl" -> DeepUninstallPlan(
+                "npm uninstall -g @mmmbuto/codex-vl; rm -f \"$TERMUX_PREFIX_PATH/bin/codex\"",
+                "Paquete npm '@mmmbuto/codex-vl' desinstalado (y el alias codex -> codex-vl)"
             )
             "termux" -> DeepUninstallPlan(
                 "npm uninstall -g @mmmbuto/codex-cli-termux",

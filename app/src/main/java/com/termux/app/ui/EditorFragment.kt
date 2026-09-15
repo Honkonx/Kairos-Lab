@@ -5,12 +5,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.termux.R
+import com.termux.app.ui.studio.editor.EditorSchemeSetup
+import com.termux.app.ui.studio.editor.SyntaxHighlighter
 import io.github.rosemoe.sora.widget.CodeEditor
+import io.noties.markwon.Markwon
 import java.io.File
 
 /**
@@ -18,59 +22,51 @@ import java.io.File
  * dependencia sin modificar, ver app/build.gradle) en vez de copiar código de
  * proyectos GPL como Xed-Editor. Sin archivos binarios ni mayores a 5MB.
  *
- * Resaltado de sintaxis (fix real 2026-08-01, ver docs/referencias/REFERENCIA_XED_EDITOR.md): el
- * código de wiring (`setupSyntaxHighlighting`/`ensureTextMateInitialized`) ya estaba
- * implementado desde una ronda anterior, pero sin efecto real — sora-editor no trae
- * bundleados los archivos de gramática (.tmLanguage.json) ni de tema, y bajarlos vía
- * WebFetch arriesgaba corromper el JSON silenciosamente (sin forma de probarlo antes
- * de un build real). Los assets de `app/src/main/assets/textmate/` ahora son una copia
- * DIRECTA (sin pasar por WebFetch) de `referencia/ides/Xed-Editor-main/core/main/src/main/
- * assets/textmate/` — mismo proyecto que valida en producción (Xed-Editor está
- * publicado en F-Droid/IzzyOnDroid) las mismas gramáticas TextMate contra la misma
- * librería sora-editor que ya usa Kairos. Xed-Editor es GPLv3 — copiar estos archivos
- * de DATOS (gramáticas/config, no código de la librería en sí) es compatible, ver
+ * Resaltado de sintaxis (fix real 2026-08-01, ver docs/referencias/ides/REFERENCIA_XED_EDITOR.md):
+ * los assets de `app/src/main/assets/textmate/` son una copia DIRECTA de
+ * `referencia/ides/Xed-Editor-main/core/main/src/main/assets/textmate/` — mismo proyecto que
+ * valida en producción (Xed-Editor está publicado en F-Droid/IzzyOnDroid) las mismas gramáticas
+ * TextMate contra la misma librería sora-editor que ya usa Kairos. Xed-Editor es GPLv3 — copiar
+ * estos archivos de DATOS (gramáticas/config, no código de la librería en sí) es compatible, ver
  * `referencia/ides/Xed-Editor-main/LICENSE` y el aviso de atribución en
- * `app/src/main/assets/textmate/ATTRIBUTION.md`. Solo se copiaron los 12 lenguajes que
- * `EXTENSION_TO_SCOPE` (abajo) realmente mapea — no las ~48 gramáticas completas del
- * proyecto de origen, para no inflar el APK con lenguajes que Kairos nunca abre.
+ * `app/src/main/assets/textmate/ATTRIBUTION.md`.
+ *
+ * Reusa `SyntaxHighlighter`/`EditorSchemeSetup` (hallazgo real 2026-08-31, auditoría fresca de
+ * `referencia/ides/CodeAssist-main`/`Xed-Editor-main`, ver `docs/referencias/ides/`): este
+ * fragment tenía su PROPIO wiring de TextMate duplicado (12 lenguajes, tema `darcula.json`
+ * suelto) en vez de reusar el wiring ya construido para Estudio
+ * (`com.termux.app.ui.studio.editor.SyntaxHighlighter`, 20 lenguajes incluyendo css/html/yaml/
+ * groovy/jsx/tsx, temas Kairos `kairos-ink`/`kairos-paper`/`kairos-contrast`) — dos
+ * implementaciones de la misma pieza, una estrictamente más completa que la otra. Migrado a
+ * llamar `SyntaxHighlighter.apply()` directo: mismo resultado visual para los 12 lenguajes que
+ * ya cubría, más soporte real para el resto sin duplicar código (DRY,
+ * `.claude/rules/clean-code-principles.md`).
+ *
+ * Vista previa Markdown (hallazgo real 2026-08-31, ver
+ * docs/referencias/interfaz/REFERENCIA_FLET.md seccion "Profundizacion 2026-08-24" -
+ * markdown_viewer_app de proyectos_flet-main mostro que Kairos no renderiza Markdown en
+ * ningun lado, solo lo resalta como texto plano/sintaxis): io.noties.markwon ya estaba
+ * declarado en app/build.gradle (core/ext-strikethrough/linkify/recycler) sin ningun uso
+ * real en el codigo -- quedaba como dependencia muerta. El boton "Vista previa" (visible
+ * solo para archivos .md) usa esa dependencia ya presente para renderizar el Markdown
+ * actual del editor en un TextView dentro de un ScrollView separado
+ * (markdown_preview_container en fragment_editor.xml), sin agregar ninguna libreria nueva
+ * ni tocar build.gradle.
  */
 class EditorFragment : Fragment() {
 
     private lateinit var editor: CodeEditor
     private lateinit var fileNameText: TextView
+    private lateinit var btnPreview: TextView
+    private lateinit var editorContainer: FrameLayout
+    private lateinit var markdownPreviewContainer: ScrollView
+    private lateinit var markdownPreviewText: TextView
     private var filePath: String = ""
     private var originalText: String = ""
+    private var isMarkdownFile: Boolean = false
+    private var isPreviewMode: Boolean = false
 
     companion object {
-        // Inicialización de FileProviderRegistry/GrammarRegistry es global al proceso,
-        // no por instancia de fragment — solo hace falta una vez.
-        private var textMateInitialized = false
-        private var themeLoaded = false
-
-        private const val THEME_ASSET_PATH = "textmate/darcula.json"
-        private const val THEME_NAME = "darcula"
-
-        // Mapeo extensión → scope TextMate — mismos scopes que usa el propio demo de
-        // sora-editor (ver comentario de clase). Extensiones sin gramática conocida
-        // (properties/conf/cfg/ini/toml/csv/log/bashrc/profile/gradle) caen a texto
-        // plano a propósito — no existe una gramática estándar confiable para todas
-        // y es mejor texto plano que un mapeo adivinado.
-        private val EXTENSION_TO_SCOPE = mapOf(
-            "java" to "source.java",
-            "kt" to "source.kotlin",
-            "py" to "source.python",
-            "xml" to "text.xml",
-            "html" to "text.html.basic",
-            "js" to "source.js",
-            "ts" to "source.ts",
-            "md" to "text.html.markdown",
-            "json" to "source.json",
-            "yaml" to "source.yaml",
-            "yml" to "source.yaml",
-            "sh" to "source.shell",
-            "css" to "source.css"
-        )
-
         fun newInstance(path: String): EditorFragment {
             return EditorFragment().apply {
                 arguments = Bundle().apply { putString("file_path", path) }
@@ -89,16 +85,48 @@ class EditorFragment : Fragment() {
         fileNameText = view.findViewById(R.id.file_name_text)
         fileNameText.text = File(filePath).name
 
+        editorContainer = view.findViewById(R.id.editor_container)
         editor = CodeEditor(requireContext())
-        view.findViewById<FrameLayout>(R.id.editor_container).addView(
+        editorContainer.addView(
             editor,
             FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT)
         )
+        // Mismas preferencias (tamaño de fuente, tab, wordwrap, línea actual, tema Kairos) y
+        // autocompletado que ya usa Estudio — antes este editor quedaba con los defaults crudos
+        // de sora-editor, sin ninguna de las preferencias que el usuario configura en Ajustes.
+        // EditorSchemeSetup.apply() ya habilita EditorAutoCompletion internamente.
+        EditorSchemeSetup.apply(editor)
+
+        btnPreview = view.findViewById(R.id.btn_preview)
+        markdownPreviewContainer = view.findViewById(R.id.markdown_preview_container)
+        markdownPreviewText = view.findViewById(R.id.markdown_preview_text)
 
         view.findViewById<View>(R.id.back_btn).setOnClickListener { confirmBackIfDirty() }
         view.findViewById<View>(R.id.btn_save).setOnClickListener { save() }
+        btnPreview.setOnClickListener { togglePreview() }
 
         loadFile()
+    }
+
+    /**
+     * Alterna entre editar el Markdown y ver su render (Markwon). Guard `isAdded` porque
+     * `Markwon.create(requireContext())` puede correr después de que el usuario ya salió
+     * del Fragment si el archivo es grande (ver `.claude/rules/kotlin-kairos-android-patterns.md`).
+     */
+    private fun togglePreview() {
+        if (!isAdded) return
+        isPreviewMode = !isPreviewMode
+        if (isPreviewMode) {
+            val markwon = Markwon.create(requireContext())
+            markwon.setMarkdown(markdownPreviewText, editor.text.toString())
+            editorContainer.visibility = View.GONE
+            markdownPreviewContainer.visibility = View.VISIBLE
+            btnPreview.text = getString(R.string.editor_preview_edit)
+        } else {
+            markdownPreviewContainer.visibility = View.GONE
+            editorContainer.visibility = View.VISIBLE
+            btnPreview.text = getString(R.string.editor_preview)
+        }
     }
 
     private fun loadFile() {
@@ -116,76 +144,18 @@ class EditorFragment : Fragment() {
         try {
             originalText = file.readText()
             editor.setText(originalText)
-            setupSyntaxHighlighting(file.extension.lowercase())
+            // Delega en el mismo wiring de TextMate que usa Estudio — ver comentario de clase.
+            // SyntaxHighlighter.apply() nunca lanza (cae a EmptyLanguage si la extensión no
+            // tiene grammar bundleado), mismo contrato de "nunca romper la edición" que tenía
+            // el código duplicado que reemplaza.
+            SyntaxHighlighter.apply(editor, file.name)
+            val extension = file.extension.lowercase()
+            isMarkdownFile = extension == "md"
+            btnPreview.visibility = if (isMarkdownFile) View.VISIBLE else View.GONE
         } catch (e: Exception) {
             toast(getString(R.string.editor_read_error, e.message ?: "null"))
             parentFragmentManager.popBackStack()
         }
-    }
-
-    /**
-     * Configura resaltado TextMate si los assets de gramática/tema están presentes en
-     * app/src/main/assets/textmate/ (ver comentario de clase — hoy no lo están, así que
-     * esto siempre cae al modo texto plano sin ningún cambio de comportamiento visible).
-     * Nunca lanza — cualquier fallo (asset faltante, JSON malformado si algún día se
-     * agregan a mano sin validar) deja el editor en texto plano, no lo rompe.
-     */
-    private fun setupSyntaxHighlighting(extension: String) {
-        val scopeName = EXTENSION_TO_SCOPE[extension] ?: return // sin gramática mapeada: texto plano
-        if (!textmateAssetAvailable("textmate/languages.json")) return // assets no bundleados: texto plano
-        try {
-            ensureTextMateInitialized()
-            val language = io.github.rosemoe.sora.langs.textmate.TextMateLanguage.create(scopeName, true)
-            editor.setEditorLanguage(language)
-            if (themeLoaded) {
-                editor.colorScheme = io.github.rosemoe.sora.langs.textmate.TextMateColorScheme.create(
-                    io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry.getInstance()
-                )
-            }
-        } catch (e: Exception) {
-            // No interrumpe la edición — solo se queda en texto plano.
-            android.util.Log.w("EditorFragment", "No se pudo activar resaltado de sintaxis: ${e.message}")
-        }
-    }
-
-    private fun textmateAssetAvailable(path: String): Boolean {
-        return try {
-            requireContext().assets.open(path).close()
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
-
-    private fun ensureTextMateInitialized() {
-        if (textMateInitialized) return
-        val fileProviderRegistry = io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry.getInstance()
-        fileProviderRegistry.addFileProvider(
-            io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver(requireContext().assets)
-        )
-        io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry.getInstance()
-            .loadGrammars("textmate/languages.json")
-
-        // El tema es un asset separado (ej. textmate/quietlight.json) — igual de
-        // opcional/ausente hoy que las gramáticas, se activa solo si aparece.
-        if (textmateAssetAvailable(THEME_ASSET_PATH)) {
-            try {
-                val themeRegistry = io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry.getInstance()
-                requireContext().assets.open(THEME_ASSET_PATH).use { input ->
-                    themeRegistry.loadTheme(
-                        io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel(
-                            org.eclipse.tm4e.core.registry.IThemeSource.fromInputStream(input, THEME_ASSET_PATH, null),
-                            THEME_NAME
-                        )
-                    )
-                }
-                themeRegistry.setTheme(THEME_NAME)
-                themeLoaded = true
-            } catch (e: Exception) {
-                android.util.Log.w("EditorFragment", "No se pudo cargar el tema TextMate: ${e.message}")
-            }
-        }
-        textMateInitialized = true
     }
 
     private fun isDirty(): Boolean = editor.text.toString() != originalText

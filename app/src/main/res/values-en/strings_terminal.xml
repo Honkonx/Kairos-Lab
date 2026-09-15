@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PasteSafetyUtils.kt — multiline paste safety review, see docs/referencias/terminal/REFERENCIA_TTYX.md -->
+    <string name="terminal_paste_review_title">Review before pasting</string>
+    <string name="terminal_paste_review_title_danger">⚠️ Potentially dangerous command</string>
+    <string name="terminal_paste_review_message">You are about to paste %1$d lines into the terminal. Review the content before continuing.</string>
+    <string name="terminal_paste_review_message_danger">You are about to paste %1$d lines into the terminal. Detected: %2$s. Review the content carefully before continuing.</string>
+    <string name="terminal_paste_review_cancel">Cancel</string>
+    <string name="terminal_paste_review_confirm">Paste</string>
+    <string name="terminal_paste_review_confirm_danger">Paste anyway</string>
+
+    <!-- Terminal background image — see TermuxTerminalSessionActivityClient
+         #applyTerminalBackgroundImageOrColor() for the mechanism, and TermuxActivity
+         #showTerminalBackgroundImageDialog()/#pickTerminalBackgroundImage() for the UI. -->
+    <string name="action_terminal_background_image">Background image →</string>
+    <string name="title_terminal_background_image">Terminal background</string>
+    <string name="action_choose_background_image">Choose image…</string>
+    <string name="action_remove_background_image">Remove background image</string>
+    <string name="label_terminal_background_image">Terminal background image</string>
+    <string name="msg_terminal_background_image_removed">Background image removed</string>
+
+    <!-- Adapted terminal session tabs (Phase 1 of the terminal roadmap — see
+         MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases") — TermuxActivity
+         #refreshAdaptedSessionTabs()/#createAdaptedSessionTabView(). -->
+    <string name="terminal_tab_close_content_description">Close %1$s tab</string>
+    <string name="terminal_tab_close_last_session_confirm">"%1$s" is the only active terminal. Close it anyway?</string>
+</resources>

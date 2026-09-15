@@ -352,8 +352,8 @@ else
     log "Cloudflared ya disponible"
   else
     info "Descargando cloudflared linux/arm64..."
-    curl -fL "$CLOUDFLARED_URL" -o "$CF_DEST" 2>/dev/null || \
-      timeout 30 wget -q -O "$CF_DEST" "$CLOUDFLARED_URL" 2>/dev/null
+    curl -fL "$CLOUDFLARED_URL" -o "$CF_DEST" || \
+      timeout 30 wget -O "$CF_DEST" "$CLOUDFLARED_URL"
 
     if [ -f "$CF_DEST" ] && [ -s "$CF_DEST" ]; then
       chmod +x "$CF_DEST"
@@ -391,7 +391,7 @@ if ! check_done "mosh_install"; then
     info "Instalando mosh (sesiones resilientes a cambios de red)..."
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install -y mosh 2>/dev/null && command -v mosh-server &>/dev/null && {
+    pkg install -y mosh && command -v mosh-server &>/dev/null && {
       log "mosh-server instalado"
       mark_done "mosh_install"
     } || warn "mosh no se pudo instalar — SSH sigue funcionando igual, solo se pierde la resiliencia a cambios de red"

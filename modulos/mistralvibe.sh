@@ -205,7 +205,7 @@ else
   else
     info "Instalando python..."
     pkg_update_with_fallback
-    pkg install python -y 2>/dev/null || error "No se pudo instalar Python"
+    pkg install python -y || error "No se pudo instalar Python"
     command -v python3 &>/dev/null || error "Python no disponible tras instalación"
     log "Python instalado: $(python3 --version)"
     mark_done "python"
@@ -230,7 +230,7 @@ else
   pkg_update_with_fallback
   pkg install -y rust clang make libffi openssl pkg-config \
     -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+    -o Dpkg::Options::="--force-confold" || \
     error "No se pudo instalar el toolchain de compilación (rust/clang/make)"
   command -v cargo &>/dev/null || error "cargo no disponible tras instalar rust"
   mark_done "build_toolchain"
@@ -248,16 +248,27 @@ else
   # docs/humano278.md): serializa con flock contra cualquier OTRO módulo instalando por pip
   # al mismo tiempo — confirmado en dispositivo que esta instalación falló mientras
   # ciberseguridad.sh corría pip install en paralelo.
-  # ANDROID_API_LEVEL/GYP_DEFINES (2026-08-29, confirmado contra el install.sh real de
-  # referencia/termux/core-termux-main/core/tools/ai/mistral-vibe/): sin esto, alguna
-  # dependencia nativa de mistral-vibe con un paso de build basado en gyp intenta
-  # autodetectar el NDK de Android y se queda esperando/tarda muchísimo más de lo normal —
-  # coincide con el síntoma real visto en este dispositivo (la instalación nunca terminaba
-  # dentro del timeout del lock de pip). GYP_DEFINES="android_ndk_path=''" le dice
-  # explícitamente que no hay NDK que buscar.
+  # ANDROID_API_LEVEL/GYP_DEFINES (2026-08-29, patrón portado de referencia/termux/
+  # core-termux-main/core/tools/ai/mistral-vibe/install.sh) — evita que algún paso de build
+  # basado en gyp intente autodetectar el NDK de Android; correcto tenerlo, pero NO era la
+  # causa real del cuelgue visto en este dispositivo (corrección 2026-08-31, ver
+  # docs/humano291.md en adelante: la causa raíz confirmada, la misma que Hermes, es una
+  # condición de carrera real de cargo/maturin compilando la dependencia nativa Rust
+  # 'watchfiles' en paralelo — "Text file busy" (os error 26) — no una detección de NDK).
+  # CARGO_BUILD_JOBS=1 (2026-08-31, confirmado con una instalación limpia real: exit 0,
+  # mistral-vibe-2.24.5 instalado) fuerza el build de watchfiles a un solo hilo y elimina la
+  # carrera — mismo síntoma raíz que hermes.sh (cryptography), distinta dependencia Rust.
   export ANDROID_API_LEVEL=24
   export GYP_DEFINES="android_ndk_path=''"
-  pip_install "$PIP_PYTHON" "$MISTRALVIBE_PKG" 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "pip install falló"
+  export CARGO_BUILD_JOBS=1
+  # Sin "| tail -5" (2026-09-03, ver docs/humano318.md): un pipe a tail no imprime NADA hasta
+  # que ve EOF de su entrada — sin progreso en vivo durante toda la instalación, y si falla
+  # antes de las últimas 5 líneas el error real queda descartado. El output real de pip ya
+  # llega tal cual al log de instalación (ModuleController.kt captura stdout+stderr combinado
+  # del script completo), así que alcanza con no filtrarlo — mismo criterio que udocker.sh.
+  pip_install "$PIP_PYTHON" "$MISTRALVIBE_PKG" 2>&1
+  _mistralvibe_pip_rc=$?
+  [ "$_mistralvibe_pip_rc" -eq 0 ] || error "pip install falló (ver output arriba)"
   # verify_binary_installed() en vez de command -v a secas (2026-08-22, ver docs/humano/humano201.md).
   verify_binary_installed vibe || error "vibe no ejecuta tras la instalación (revisá manualmente: vibe --version)"
 

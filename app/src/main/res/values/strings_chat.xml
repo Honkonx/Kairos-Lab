@@ -22,7 +22,7 @@
     <string name="chat_local_models_none">Sin modelos descargados todavía — se puede elegir igual, después bajás uno desde IA Local</string>
     <string name="chat_verifying">Verificando…</string>
     <string name="chat_cloud_connected">Conectado con %1$s — modelos de pago sin GPU local</string>
-    <string name="chat_cloud_not_connected">Gemini · DeepSeek · OpenAI · Anthropic · Grok — traé tu propia API key</string>
+    <string name="chat_cloud_not_connected">Gemini · DeepSeek · OpenAI · Anthropic · Grok · Custom — traé tu propia API key</string>
     <string name="chat_ollama_installed_subtitle">Instalada — usa los modelos que ya bajaste con Ollama</string>
     <string name="chat_ollama_not_installed_subtitle">No instalada — andá a Módulos → Ollama para instalarla primero</string>
     <string name="chat_ollama_not_installed_toast">Ollama no está instalada — andá a Módulos → Ollama para instalarla</string>
@@ -34,6 +34,12 @@
     <string name="chat_api_key_invalid_toast">La clave parece inválida (muy corta) — se cancela el cambio</string>
     <string name="chat_api_key_saved_toast">Clave guardada para %1$s</string>
     <string name="chat_no_api_key_saved">No hay API key guardada para %1$s. Toca el selector de motor (☁️) y volvé a elegir el proveedor para ingresar la clave.</string>
+    <string name="chat_custom_provider_name">Custom (compatible OpenAI)</string>
+    <string name="chat_custom_config_dialog_title">Proveedor personalizado</string>
+    <string name="chat_custom_config_dialog_message">Endpoint compatible con la API de OpenAI (OpenRouter, Groq, Azure OpenAI, un proxy propio, vLLM/llama.cpp server remoto, etc.). El modelo es opcional.</string>
+    <string name="chat_custom_base_url_hint">https://api.ejemplo.com/v1</string>
+    <string name="chat_custom_model_hint">Modelo (opcional, default: %1$s)</string>
+    <string name="chat_custom_base_url_invalid_toast">La Base URL parece inválida — tiene que empezar con http</string>
     <string name="chat_cloud_status">Cloud API · %1$s</string>
     <string name="chat_cloud_status_byo">Cloud API (BYO key)</string>
     <string name="chat_cloud_http_error">%1$s respondió HTTP %2$d</string>
@@ -128,6 +134,40 @@
     <string name="chat_web_search_key_invalid_toast">La clave parece inválida (muy corta)</string>
     <string name="chat_llamaserver_transport_status">llama-server (puerto 8085)…</string>
     <string name="chat_engine_option_loading">…</string>
+
+    <!-- Editar mensaje / regenerar respuesta / buscar en el chat (hallazgo referencia/ia/oalla-main) -->
+    <string name="chat_edit_message_title">Editar mensaje</string>
+    <string name="chat_edit_resend">Reenviar</string>
+    <string name="chat_edit_disabled_working_toast">Esperá a que termine la respuesta actual (o cancelala) antes de editar un mensaje</string>
+    <string name="chat_regenerate_working_toast">Esperá a que termine la respuesta actual antes de regenerar</string>
+    <string name="chat_regenerate_desc">Regenerar respuesta</string>
+    <string name="chat_version_prev_desc">Versión anterior</string>
+    <string name="chat_version_next_desc">Versión siguiente</string>
+    <string name="chat_version_indicator_format">%1$d/%2$d</string>
+    <string name="chat_search_hint">Buscar en el chat...</string>
+    <string name="chat_search_no_matches">Sin resultados</string>
+    <string name="chat_search_match_count">%1$d resultado(s)</string>
+
+    <!-- Copiar mensaje al portapapeles (hallazgo referencia/ia/Uncensored-Local-AI-Multiplatform-main,
+         lib/widgets/chat_bubble.dart — botón "Copy" visible en cada burbuja) — falta real en
+         Kairos pese a ya tener editar/regenerar/versionado, ver auditoría 2026-09-01. -->
+    <string name="chat_copy_desc">Copiar mensaje</string>
+    <string name="chat_copy_clipboard_label">Mensaje de Kairos</string>
+    <string name="chat_copy_toast">Copiado al portapapeles</string>
+    <string name="chat_message_options_edit">Editar</string>
+    <string name="chat_message_options_copy">Copiar</string>
+
+    <!-- Adjuntar documentos + presupuesto de tokens (hallazgo real de
+         docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md) -->
+    <string name="chat_image_discarded_cloud">Imagen descartada: Cloud API no soporta imágenes todavía</string>
+    <string name="chat_attach_choose_title">Adjuntar</string>
+    <string name="chat_attach_image_option">🖼️ Imagen</string>
+    <string name="chat_attach_document_option">📄 Documento (.txt, .md)</string>
+    <string name="chat_document_pending_format">".%1$s" todavía no soportado — requiere una librería de extracción adicional (pendiente, ver auditoría). Por ahora solo .txt y .md.</string>
+    <string name="chat_document_unsupported_format">Formato no soportado — por ahora solo .txt y .md</string>
+    <string name="chat_document_read_failed">No se pudo leer el documento seleccionado</string>
+    <string name="chat_document_attached_label">📄 %1$s (%2$d caracteres)</string>
+    <string name="chat_document_context_prefix">Contexto del documento adjunto "%1$s" (fragmentos más relevantes a la pregunta, seleccionados automáticamente):\n%2$s\n\nPregunta del usuario: %3$s</string>
 
     <!-- VoiceToAgentDialog.kt -->
     <string name="voice_agent_mic_permission_denied">Sin permiso de micrófono no se puede dictar</string>

@@ -29,6 +29,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.tabs.TabLayout
 import com.termux.R
 import com.termux.app.ModuleController
 import com.termux.app.util.EntornoNative
@@ -50,8 +51,6 @@ import com.termux.app.util.kairosThemeColor
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
-import java.net.Inet4Address
-import java.net.NetworkInterface
 
 /**
  * Tab de Monitor/Diagnóstico — dashboard único de la app tras la fusión con el ex-tab
@@ -72,6 +71,21 @@ import java.net.NetworkInterface
 class MonitorFragment : Fragment() {
 
     private lateinit var container: LinearLayout
+
+    // Pestañas General/Módulos (2026-09-03, pedido explícito del usuario: "dos pestañas, una
+    // para monitor general y otra para monitor de módulos") — mismo patrón que
+    // EntornoFragment.buildTabsSection(), pero SIN reconstruir contenido al cambiar de
+    // pestaña: todas las secciones se construyen UNA sola vez en onCreateView (igual que
+    // siempre), solo se alternan con visibility GONE/VISIBLE. Esto preserva intacto el
+    // polling de startPolling()/todos los refresh*() — los lateinit fields de cada sección
+    // siguen existiendo y actualizándose aunque su tab no esté visible en este momento,
+    // así que al volver a una pestaña ya muestra datos frescos sin re-consultar nada.
+    // sectionTarget decide a cuál de los dos contenedores van sectionTitle()/cardContainer()
+    // mientras se arma la pantalla — se reasigna una sola vez, entre bloque y bloque, nunca
+    // en runtime tras onCreateView().
+    private lateinit var generalTabContent: LinearLayout
+    private lateinit var modulesTabContent: LinearLayout
+    private lateinit var sectionTarget: LinearLayout
     private lateinit var ramCanvas: TextView
     private lateinit var ramAvailable: TextView
     private lateinit var ramTotal: TextView
@@ -114,6 +128,16 @@ class MonitorFragment : Fragment() {
     // primera pasada de readCpuInfo() solo siembra la base, no dibuja %.
     private var lastCpuTotal: Long = 0L
     private var lastCpuIdle: Long = 0L
+
+    // Auditoría referencia/herramientas/Podroid-main (StatusViewModel.kt::vmLoadHistory,
+    // patrón "lista acotada" — `(history + pct).takeLast(MAX)`) + referencia/token-uso/
+    // claude-monitor (budget-popover.ts::drawSparkline) — mismo mecanismo confirmado por 2
+    // proyectos independientes: buffer acotado de muestras + mini-gráfico Canvas. 60
+    // muestras a un tick de polling de 5s = 5 minutos de historial visible. Ver
+    // MEJORAS_PENDIENTES.md para la ficha completa.
+    private val cpuHistory = mutableListOf<Float>()
+    private val maxCpuHistorySamples = 60
+    private lateinit var cpuSparkline: TextView
     private var lastRxBytes: Long = -1L
     private var lastTxBytes: Long = -1L
     private var lastNetSampleTime: Long = 0L
@@ -180,6 +204,44 @@ class MonitorFragment : Fragment() {
         }
         scroll.addView(container)
 
+        // TabLayout General/Módulos — mismo estilo que EntornoFragment.buildTabsSection()
+        // (indicador ?attr/kairosGreen, texto kairosText3/kairosText). MODE_FIXED (solo 2
+        // pestañas, a diferencia de las 5 scrollables de Entorno) para que ambas ocupen el
+        // ancho completo, mismo criterio visual que fragment_file_manager.xml.
+        val tabLayout = TabLayout(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).also {
+                it.bottomMargin = dp(4)
+            }
+            tabMode = TabLayout.MODE_FIXED
+            setSelectedTabIndicatorColor(ctx.kairosThemeColor(R.attr.kairosGreen))
+            setTabTextColors(ctx.kairosThemeColor(R.attr.kairosText3), ctx.kairosThemeColor(R.attr.kairosText))
+            setBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg2))
+            addTab(newTab().setText(getString(R.string.monitor_tab_general)))
+            addTab(newTab().setText(getString(R.string.monitor_tab_modules)))
+        }
+        container.addView(tabLayout)
+
+        generalTabContent = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        modulesTabContent = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        container.addView(generalTabContent)
+        container.addView(modulesTabContent)
+
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                generalTabContent.visibility = if (tab.position == 0) View.VISIBLE else View.GONE
+                modulesTabContent.visibility = if (tab.position == 1) View.VISIBLE else View.GONE
+            }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+
+        // ── Pestaña "General": dispositivo (RAM/almacenamiento/CPU/info) + red +
+        // paquetes de Termux/pip + diagnóstico ──
+        sectionTarget = generalTabContent
+
         sectionTitle(getString(R.string.monitor_section_device))
         val ramCard = buildMetricCard(R.attr.kairosGreen)
         ramCanvas = ramCard.canvas
@@ -197,14 +259,51 @@ class MonitorFragment : Fragment() {
         cpuLine1 = cpuMetricCard.line1
         cpuLine2 = cpuMetricCard.line2
         cpuLine3 = cpuMetricCard.line3
+        // Sparkline de historial de CPU% — se agrega al mismo card container que ya
+        // contiene la fila del anillo (row.parent), no se crea un card nuevo aparte.
+        val cpuHolder = cpuMetricCard.row.parent as LinearLayout
+        cpuHolder.addView(TextView(ctx).apply {
+            text = getString(R.string.monitor_cpu_history_label)
+            textSize = 10f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            setPadding(dp(20), 0, dp(20), dp(4))
+        })
+        cpuSparkline = TextView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dp(40)).also {
+                it.leftMargin = dp(20); it.rightMargin = dp(20); it.bottomMargin = dp(14)
+            }
+        }
+        cpuHolder.addView(cpuSparkline)
         deviceInfoContainer = cardContainer()
         deviceIpValue = labeledRow(deviceInfoContainer, getString(R.string.monitor_device_ip), "—", R.attr.kairosText)
         deviceUptimeValue = labeledRow(deviceInfoContainer, getString(R.string.monitor_device_uptime), "—", R.attr.kairosText)
         labeledRow(deviceInfoContainer, getString(R.string.monitor_device_android), getString(R.string.monitor_device_android_value, Build.VERSION.SDK_INT), R.attr.kairosText)
         labeledRow(deviceInfoContainer, getString(R.string.monitor_device_arch), Build.SUPPORTED_ABIS[0], R.attr.kairosText)
         deviceGpuValue = labeledRow(deviceInfoContainer, getString(R.string.monitor_device_gpu), getString(R.string.monitor_loading), R.attr.kairosText)
+        // Auditoría referencia/ia/2026-09-01 (OfflineLLM-main, utils/VulkanDetector.kt):
+        // dato de CAPACIDAD DE HARDWARE puro vía PackageManager, sin depender de ningún
+        // paquete de Termux (a diferencia de refreshGpuInfo(), que necesita mesa-utils/
+        // glxinfo instalado para el renderer real) — se consulta una sola vez acá mismo
+        // (llamada local instantánea, no necesita Thread aparte).
+        labeledRow(deviceInfoContainer, getString(R.string.monitor_device_vulkan), readVulkanSupport(), R.attr.kairosText)
         deviceNetworkValue = labeledRow(deviceInfoContainer, getString(R.string.monitor_device_network_rate), getString(R.string.monitor_network_rate_measuring), R.attr.kairosText)
         deviceProcessesValue = labeledRow(deviceInfoContainer, getString(R.string.monitor_device_processes), getString(R.string.monitor_loading), R.attr.kairosText)
+
+        sectionTitle(getString(R.string.monitor_section_network))
+        networkContainer = cardContainer()
+
+        sectionTitle(getString(R.string.monitor_section_termux_packages))
+        pkgSummary = infoOnlyCard(getString(R.string.monitor_loading))
+
+        sectionTitle(getString(R.string.monitor_section_pip_packages))
+        pipSummary = infoOnlyCard(getString(R.string.monitor_loading))
+
+        sectionTitle(getString(R.string.monitor_section_diagnostics))
+        diagnosticContainer = cardContainer()
+
+        // ── Pestaña "Módulos": módulos en ejecución + motores de IA + herramientas CLI +
+        // bases de datos + escritorio (Entorno) + procesos pm2 ──
+        sectionTarget = modulesTabContent
 
         sectionTitle(getString(R.string.monitor_section_modules))
         modulesContainer = cardContainer()
@@ -231,18 +330,6 @@ class MonitorFragment : Fragment() {
             setPadding(dp(14), dp(24), dp(14), dp(24))
         }
         procesosContainer.addView(procesosEmptyState)
-
-        sectionTitle(getString(R.string.monitor_section_network))
-        networkContainer = cardContainer()
-
-        sectionTitle(getString(R.string.monitor_section_termux_packages))
-        pkgSummary = infoOnlyCard(getString(R.string.monitor_loading))
-
-        sectionTitle(getString(R.string.monitor_section_pip_packages))
-        pipSummary = infoOnlyCard(getString(R.string.monitor_loading))
-
-        sectionTitle(getString(R.string.monitor_section_diagnostics))
-        diagnosticContainer = cardContainer()
 
         return scroll
     }
@@ -343,14 +430,23 @@ class MonitorFragment : Fragment() {
             val rows = targets.map { (id, name) ->
                 val running = try { ModuleController.isRunning(id) } catch (_: Exception) { false }
                 val port = if (running) readModulePort(id) else null
-                Triple(id, name, Pair(running, port))
+                // Auditoría referencia/ia/2026-09-01 (OllamaServer-master, app/api/OllamaApi.ts
+                // ps()): OllamaApiClient.psModels() (GET /api/ps, modelo(s) cargados en RAM/VRAM
+                // AHORA MISMO, distinto de /api/tags que lista lo instalado en disco) ya existía
+                // en el proyecto para OllamaFragment pero Monitor nunca lo llamaba — mismo gap
+                // real, cerrado acá. Solo se consulta cuando el módulo está corriendo (si no,
+                // el server ni siquiera acepta conexiones).
+                val loadedModels = if (id == "ollama" && running) {
+                    try { com.termux.app.util.OllamaApiClient.psModels() } catch (_: Exception) { null }
+                } else null
+                Triple(id, name, Triple(running, port, loadedModels))
             }
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
                 aiEnginesContainer.removeAllViews()
-                for ((id, name, runningAndPort) in rows) {
-                    val (running, port) = runningAndPort
+                for ((id, name, extra) in rows) {
+                    val (running, port, loadedModels) = extra
                     val value = when {
                         running && !port.isNullOrBlank() -> getString(R.string.monitor_status_running_port, port)
                         running -> getString(R.string.monitor_status_running)
@@ -358,6 +454,19 @@ class MonitorFragment : Fragment() {
                     }
                     aiEnginesContainer.addView(statusRow(name, value, if (running) R.attr.kairosGreen else R.attr.kairosText3, id,
                         if (running) R.drawable.ic_start else R.drawable.ic_stop))
+                    if (id == "ollama" && running && loadedModels != null) {
+                        val modelText = if (loadedModels.isEmpty()) {
+                            getString(R.string.monitor_ollama_no_model_loaded)
+                        } else {
+                            loadedModels.joinToString(", ") { m ->
+                                getString(R.string.monitor_ollama_model_vram_format, m.name, m.sizeVramHuman)
+                            }
+                        }
+                        aiEnginesContainer.addView(statusRow(
+                            getString(R.string.monitor_ollama_loaded_model_label), modelText,
+                            if (loadedModels.isEmpty()) R.attr.kairosText3 else R.attr.kairosText
+                        ))
+                    }
                 }
             }
         }.start()
@@ -414,9 +523,16 @@ class MonitorFragment : Fragment() {
     // ── Bases de datos ───────────────────────────────────────────────────
     // Pedido explícito de esta ronda: estado real de los motores de BD que soporta
     // Kairos (modulos/db.sh) y del último stack instalado (modulos/stacks.sh). MySQL y
-    // PostgreSQL corren como daemons propios (mysqld/postgres) — mismo chequeo
-    // "pgrep -x" que ya hace db.sh en su modo --status, vía el helper compartido
-    // ManagerNativeUtils.pgrepX() (mismo patrón que ModuleController.isProcessAlive()).
+    // PostgreSQL corren como daemons propios (mariadbd/postgres).
+    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver docs/humano326.md): no era
+    // un tema de flag de pgrep ("-x" ni "-f") ni de nombre de binario — es una restricción de
+    // Android (Yama ptrace_scope=1 + dominio SELinux "untrusted_app_27" del proceso de la app,
+    // confirmado con `ps -Z`) que impide ver vía /proc procesos que no son descendientes
+    // directos del propio pgrep, aunque compartan UID — mariadbd/postgres viven en el árbol de
+    // la sesión de terminal de TermuxService, un árbol hermano. Ningún flag de pgrep arregla
+    // esto. Fix real: chequeo de puerto TCP (mismo criterio que "pg_isready" ya usa del lado
+    // shell en postgres_start.sh, ver modulos/db.sh bug #31), vía ManagerNativeUtils.checkPort()
+    // — reemplaza el intento anterior con pgrepF()/pgrepX(), insuficiente por sí solo.
     // SQLite no tiene daemon (CLI embebida, se abre por archivo) — se informa
     // disponibilidad del binario, no "corriendo". Los presets de stacks.sh (php -S,
     // npm run dev, python -m http.server) tampoco tienen un proceso gestionado por
@@ -427,8 +543,8 @@ class MonitorFragment : Fragment() {
 
     private fun refreshDatabases() {
         Thread {
-            val mysqlRunning = try { ManagerNativeUtils.pgrepX("mysqld") } catch (_: Exception) { false }
-            val postgresRunning = try { ManagerNativeUtils.pgrepX("postgres") } catch (_: Exception) { false }
+            val mysqlRunning = try { ManagerNativeUtils.checkPort(3306) } catch (_: Exception) { false }
+            val postgresRunning = try { ManagerNativeUtils.checkPort(5432) } catch (_: Exception) { false }
             val sqliteAvailable = try { isTermuxBinaryAvailable("sqlite3") } catch (_: Exception) { false }
             val reg = try { ManagerNativeUtils.readRegistry() } catch (_: Exception) { emptyMap() }
             val stacksInstalled = reg["stacks.installed"] == "true"
@@ -1579,6 +1695,86 @@ class MonitorFragment : Fragment() {
         target.background = android.graphics.drawable.BitmapDrawable(resources, bmp)
     }
 
+    /**
+     * Umbral de color único para anillos de uso (RAM/almacenamiento) — repropósito del
+     * patrón "función de tono centralizada" de referencia/token-uso/usage-monitor
+     * (ApiUsageCardFormatting.kt::toneFor / UsageArcChart.kt::arcColor): el color de
+     * advertencia sale de UN solo lugar, con cortes en piso truncado (89.9% no debe leer
+     * como "cruzó el 90%"), en vez de repetir el mismo if/else en cada card que dibuja el
+     * dato. `normalAttr` es el color de categoría de la card cuando NO hay advertencia
+     * (verde para RAM, azul para almacenamiento — cada card conserva su identidad visual
+     * propia mientras el uso es sano).
+     */
+    private fun toneForUsage(fraction: Float, normalAttr: Int): Int = when {
+        fraction >= 0.90f -> R.attr.kairosRed
+        fraction >= 0.75f -> R.attr.kairosAmber
+        else -> normalAttr
+    }
+
+    /**
+     * Sparkline de historial de CPU% — relleno bajo la curva + línea de trazo redondeado,
+     * mismo algoritmo que referencia/herramientas/Podroid-main/VmLoadGraph.kt (Compose
+     * DrawScope) y referencia/token-uso/claude-monitor/budget-popover.ts::drawSparkline
+     * (Canvas 2D web), traducido a Canvas/Paint nativo de Android (lo reusable es el
+     * ALGORITMO — mapeo muestra→(x,y) + relleno de área — no el lenguaje de origen). El
+     * eje Y usa un rango fijo 0-100% (a diferencia de esas 2 referencias, que normalizan
+     * al min/max de la ventana) porque CPU% ya tiene un rango conocido y fijo — normalizar
+     * al min/max local exageraría visualmente variaciones chicas como si fueran grandes.
+     */
+    private fun drawCpuSparkline() {
+        if (!isAdded) return
+        val view = cpuSparkline
+        val width = view.width
+        if (width <= 0) {
+            // Todavía no se completó el primer layout pass — reintentar cuando el View
+            // tenga un ancho real medido, en vez de dibujar sobre un bitmap de 0px.
+            view.post { drawCpuSparkline() }
+            return
+        }
+        val ctx = requireContext()
+        val height = dp(40)
+        val samples = cpuHistory
+        val bmp = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        if (samples.size >= 2) {
+            val accent = ctx.kairosThemeColor(R.attr.kairosAmber)
+            val stepX = width.toFloat() / (maxCpuHistorySamples - 1).coerceAtLeast(1)
+            val startIndex = maxCpuHistorySamples - samples.size
+            val path = android.graphics.Path()
+            val fillPath = android.graphics.Path()
+            samples.forEachIndexed { i, pct ->
+                val x = (startIndex + i) * stepX
+                val y = height - (pct.coerceIn(0f, 100f) / 100f) * height
+                if (i == 0) {
+                    path.moveTo(x, y)
+                    fillPath.moveTo(x, height.toFloat())
+                    fillPath.lineTo(x, y)
+                } else {
+                    path.lineTo(x, y)
+                    fillPath.lineTo(x, y)
+                }
+            }
+            val lastX = (startIndex + samples.size - 1) * stepX
+            fillPath.lineTo(lastX, height.toFloat())
+            fillPath.close()
+            val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = accent
+                alpha = 40
+                style = Paint.Style.FILL
+            }
+            canvas.drawPath(fillPath, fillPaint)
+            val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = accent
+                style = Paint.Style.STROKE
+                strokeWidth = dp(2).toFloat()
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+            }
+            canvas.drawPath(path, linePaint)
+        }
+        view.background = android.graphics.drawable.BitmapDrawable(resources, bmp)
+    }
+
     private fun parseKb(line: String): Long {
         val numeric = line.replace(Regex("[^0-9]"), "")
         return if (numeric.isEmpty()) 0L else numeric.toLong()
@@ -1603,12 +1799,14 @@ class MonitorFragment : Fragment() {
                     val availMb = availableKb / 1024
                     val totalMb = totalKb / 1024
                     val pct = (percent * 100).toInt()
+                    val accent = toneForUsage(percent, R.attr.kairosGreen)
 
                     ramCanvas.text = "$pct%"
+                    ramCanvas.setTextColor(requireContext().kairosThemeColor(accent))
                     ramAvailable.text = getString(R.string.monitor_ram_available, availMb)
                     ramTotal.text = getString(R.string.monitor_ram_total, totalMb)
                     ramUsed.text = getString(R.string.monitor_ram_used, usedMb, pct)
-                    drawMetricArc(ramCanvas, percent, R.attr.kairosGreen)
+                    drawMetricArc(ramCanvas, percent, accent)
                 }
             }
         } catch (_: Exception) {
@@ -1641,10 +1839,13 @@ class MonitorFragment : Fragment() {
             val freeGb = free / (1024f * 1024f * 1024f)
             val usedGb = used / (1024f * 1024f * 1024f)
 
+            val storageFraction = used.toFloat() / total
+            val storageAccent = toneForUsage(storageFraction, R.attr.kairosBlue)
             storageCanvas.text = "${pct}%"
+            storageCanvas.setTextColor(requireContext().kairosThemeColor(storageAccent))
             storageAvailable.text = getString(R.string.monitor_storage_available_gb, "%.1f".format(freeGb))
             storageTotal.text = getString(R.string.monitor_storage_total_used, "%.1f".format(totalGb), "%.1f".format(usedGb), pct)
-            drawMetricArc(storageCanvas, used.toFloat() / total, R.attr.kairosBlue)
+            drawMetricArc(storageCanvas, storageFraction, storageAccent)
         } catch (_: Exception) {
             storageCanvas.text = "—"
             storageAvailable.text = getString(R.string.monitor_storage_read_error)
@@ -1691,7 +1892,7 @@ class MonitorFragment : Fragment() {
      */
     private fun refreshDeviceLiveInfo() {
         if (!isAdded) return
-        deviceIpValue.text = getLocalIp()
+        deviceIpValue.text = com.termux.app.util.RemoteManager.getLocalIp(context)
         deviceUptimeValue.text = readUptime()
         deviceNetworkValue.text = readNetworkRate()
     }
@@ -1762,6 +1963,9 @@ class MonitorFragment : Fragment() {
                         cpuLine2.text = getString(R.string.monitor_cpu_cores, Runtime.getRuntime().availableProcessors())
                         cpuLine3.text = readLoadAverage()
                         drawMetricArc(cpuCanvas, usedFraction, R.attr.kairosAmber)
+                        cpuHistory.add(pct.toFloat())
+                        if (cpuHistory.size > maxCpuHistorySamples) cpuHistory.removeAt(0)
+                        drawCpuSparkline()
                     }
                 } else {
                     cpuLine1.text = getString(R.string.monitor_cpu_measuring)
@@ -1842,6 +2046,28 @@ class MonitorFragment : Fragment() {
     }
 
     /**
+     * Soporte y versión real de Vulkan del dispositivo vía PackageManager (repropósito de
+     * referencia/ia/OfflineLLM-main/utils/VulkanDetector.kt) — dato de hardware relevante si
+     * Kairos alguna vez habilita un backend Vulkan para llama.cpp (hoy solo CPU/OpenCL vía
+     * getprop, ver comentario de refreshGpuInfo() arriba). El bit-shift de versión sigue el
+     * mismo formato que expone Android para "android.hardware.vulkan.version": bits 31-22
+     * major, 21-12 minor, 11-0 patch.
+     */
+    private fun readVulkanSupport(): String {
+        val pm = requireContext().packageManager
+        val supported = pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL)
+        if (!supported) return getString(R.string.monitor_device_vulkan_unsupported)
+        val rawVersion = pm.systemAvailableFeatures
+            .firstOrNull { it.name == "android.hardware.vulkan.version" }
+            ?.version ?: 0
+        if (rawVersion <= 0) return getString(R.string.monitor_device_vulkan_supported)
+        val major = (rawVersion shr 22) and 0x3FF
+        val minor = (rawVersion shr 12) and 0x3FF
+        val patch = rawVersion and 0xFFF
+        return getString(R.string.monitor_device_vulkan_version, major, minor, patch)
+    }
+
+    /**
      * Conteo de procesos VISIBLES para Kairos vía `ps -A` — desde Android 7 (hidepid),
      * una app sin root solo ve sus propios procesos en /proc, no los de todo el sistema
      * (mismo límite ya documentado en rootSandboxProcessCount/detectSystemRestrictions()
@@ -1866,19 +2092,6 @@ class MonitorFragment : Fragment() {
         }.start()
     }
 
-    private fun getLocalIp(): String {
-        try {
-            val interfaces = java.util.Collections.list(NetworkInterface.getNetworkInterfaces())
-            for (intf in interfaces) {
-                val addrs = java.util.Collections.list(intf.inetAddresses)
-                for (addr in addrs) {
-                    if (!addr.isLoopbackAddress && addr is Inet4Address) return addr.hostAddress ?: "—"
-                }
-            }
-        } catch (_: Exception) {}
-        return "127.0.0.1"
-    }
-
     private fun readUptime(): String {
         try {
             BufferedReader(FileReader("/proc/uptime")).use { reader ->
@@ -1896,7 +2109,7 @@ class MonitorFragment : Fragment() {
     // ── Helpers de UI (mismo lenguaje visual que ConfigFragment/BaseModuleFragment) ──
 
     private fun sectionTitle(text: String) {
-        container.addView(TextView(requireContext()).apply {
+        sectionTarget.addView(TextView(requireContext()).apply {
             this.text = text
             textSize = 10f
             setTypeface(typeface, android.graphics.Typeface.BOLD)
@@ -1919,7 +2132,7 @@ class MonitorFragment : Fragment() {
         }
         val inner = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         card.addView(inner)
-        container.addView(card)
+        sectionTarget.addView(card)
         return inner
     }
 
@@ -2015,8 +2228,9 @@ class MonitorFragment : Fragment() {
 
     private fun openModuleDetail(moduleId: String) {
         Thread {
+            val appCtx = context?.applicationContext ?: return@Thread
             val module = try {
-                com.termux.app.data.ModuleCatalog.load(requireContext().applicationContext)
+                com.termux.app.data.ModuleCatalog.load(appCtx)
                     .firstOrNull { it.id == moduleId }
             } catch (_: Exception) {
                 null

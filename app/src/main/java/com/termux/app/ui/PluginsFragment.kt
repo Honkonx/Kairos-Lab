@@ -203,7 +203,7 @@ class PluginsFragment : Fragment() {
         refreshBtn.text = getString(R.string.plugins_btn_updating)
         Snackbar.make(v, getString(R.string.plugins_msg_searching_updates), Snackbar.LENGTH_SHORT).show()
         Thread {
-            val refreshed = ModuleCatalog.refreshRemote(requireContext())
+            val refreshed = ModuleCatalog.refreshRemote(context ?: return@Thread)
                 .filterNot { it.internal || it.hideFromCatalog }
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {

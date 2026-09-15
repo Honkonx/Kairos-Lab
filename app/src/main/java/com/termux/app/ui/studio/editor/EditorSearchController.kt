@@ -53,9 +53,14 @@ class EditorSearchController(
     private val counterLabel: TextView = barRoot.findViewById(R.id.search_match_counter)
     private val replaceRow: View = barRoot.findViewById(R.id.search_replace_row)
     private val replacementInput: EditText = barRoot.findViewById(R.id.search_replacement_input)
+    private val caseSensitiveButton: TextView = barRoot.findViewById(R.id.search_case_sensitive_button)
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingCounterRefresh: Runnable? = null
+
+    /** Arranca en `false` (insensible a mayúsculas) — comportamiento idéntico al que ya tenía
+     * la barra antes de este toggle, así que ningún usuario existente ve un cambio sorpresa. */
+    private var caseSensitive = false
 
     val rootView: View = barRoot
 
@@ -72,6 +77,12 @@ class EditorSearchController(
             replaceRow.visibility = if (replaceRow.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
         barRoot.findViewById<ImageButton>(R.id.search_close_button).setOnClickListener { hide() }
+        caseSensitiveButton.setOnClickListener {
+            caseSensitive = !caseSensitive
+            caseSensitiveButton.alpha = if (caseSensitive) 1.0f else 0.45f
+            val currentQuery = queryInput.text?.toString().orEmpty()
+            if (currentQuery.isNotEmpty()) runSearch(currentQuery)
+        }
 
         barRoot.findViewById<View>(R.id.search_replace_button).setOnClickListener { replaceCurrent() }
         barRoot.findViewById<View>(R.id.search_replace_all_button).setOnClickListener { replaceAll() }
@@ -112,7 +123,7 @@ class EditorSearchController(
         }
         val options = EditorSearcher.SearchOptions(
             EditorSearcher.SearchOptions.TYPE_NORMAL,
-            /* caseInsensitive = */ true
+            /* caseInsensitive = */ !caseSensitive
         )
         codeEditor.searcher.search(pattern, options)
         refreshCounter()

@@ -166,10 +166,10 @@ else
     pkg_update_with_fallback
     pkg install -y glibc-repo \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+      -o Dpkg::Options::="--force-confold" || \
       error "No se pudo instalar glibc-repo"
     info "Actualizando índices de paquetes (repo glibc recién agregado)..."
-    pkg update -y 2>/dev/null || error "pkg update falló tras agregar glibc-repo"
+    pkg update -y || error "pkg update falló tras agregar glibc-repo"
   fi
 
   _MISSING_DEPS=()
@@ -184,7 +184,7 @@ else
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+      -o Dpkg::Options::="--force-confold" || \
       error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
 
@@ -198,7 +198,7 @@ if check_done "cursor_install"; then
   log "Cursor CLI ya instalado [checkpoint]"
 else
   info "Ejecutando: curl https://cursor.com/install -fsSL | bash"
-  curl https://cursor.com/install -fsSL | bash 2>&1 | tail -15
+  curl https://cursor.com/install -fsSL | bash
   [ ${PIPESTATUS[0]} -eq 0 ] || error "Instalador de Cursor falló"
 
   export PATH="$HOME/.local/bin:$PATH"
@@ -233,7 +233,7 @@ else
       if [ -x "$_CURSOR_PATCHELF_BIN" ]; then
         info "Aplicando patchelf al Node.js embebido de cursor-agent..."
         chmod +x "$_CURSOR_NODE_BIN"
-        "$_CURSOR_PATCHELF_BIN" --set-interpreter "$_CURSOR_LOADER" "$_CURSOR_NODE_BIN" 2>/dev/null || \
+        "$_CURSOR_PATCHELF_BIN" --set-interpreter "$_CURSOR_LOADER" "$_CURSOR_NODE_BIN" || \
           warn "patchelf falló sobre el node embebido — el binario puede requerir ajuste manual"
       else
         warn "patchelf no encontrado en $_CURSOR_PATCHELF_BIN — el binario puede requerir ajuste manual"

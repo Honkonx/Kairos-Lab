@@ -163,6 +163,11 @@
     <string name="stacks_packages_preset_java_summary">pkg openjdk-21 · nativo Termux (javac/java — kotlinc aparte para Kotlin)</string>
     <string name="stacks_packages_preset_dotnet_title">C# / .NET</string>
     <string name="stacks_packages_preset_dotnet_summary">Requiere distro (Debian/Ubuntu) — sin paquete nativo de Termux</string>
+    <string name="stacks_packages_preset_linux_completo_title">Linux completo</string>
+    <string name="stacks_packages_preset_linux_completo_summary">Instala una distro Linux real de cero (Debian o Ubuntu) vía proot-distro</string>
+    <string name="stacks_packages_installs_own_distro">instala su propia distro</string>
+    <string name="stacks_packages_choose_flavor_title">Elegí la distro a instalar</string>
+    <string name="stacks_packages_target_flavor">distro nueva (%1$s)</string>
     <string name="stacks_packages_recommended_pill">recomendado</string>
     <string name="stacks_packages_needs_distro">necesita distro</string>
     <string name="stacks_packages_extras_title">Extras — %1$s</string>

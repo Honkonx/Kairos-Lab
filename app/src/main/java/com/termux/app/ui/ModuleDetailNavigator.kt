@@ -29,6 +29,7 @@ object ModuleDetailNavigator {
             "n8n" -> N8nFragment()
             "remote" -> RemoteFragment()
             "expo" -> ExpoFragment()
+            "git" -> GitFragment()
             "entorno" -> EntornoFragment()
             "engram" -> EngramFragment()
             "llamaserver" -> LlamaServerFragment()

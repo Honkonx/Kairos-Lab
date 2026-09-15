@@ -29,7 +29,17 @@ object OllamaApiClient {
     // ["completion", "vision", "tools"]) — vacío en versiones viejas que no lo exponen
     // todavía, ver ChatFragment.refreshVisionCapability() para cómo se interpreta esa
     // ambigüedad (nunca se asume "no soporta" solo por falta de dato).
-    data class ModelDetail(val parameterSize: String, val family: String, val capabilities: List<String> = emptyList())
+    // contextLength: ventana de contexto real del modelo (tokens), 0 = no se pudo determinar.
+    // Ollama no expone esto en un campo fijo — vive dentro de "model_info" con un nombre que
+    // varía según la familia del modelo (ej. "llama.context_length", "qwen2.context_length"),
+    // ver parseo en modelInfo(). Usado por ChatFragment para el recorte de historial por
+    // presupuesto de tokens (ver docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md).
+    data class ModelDetail(
+        val parameterSize: String,
+        val family: String,
+        val capabilities: List<String> = emptyList(),
+        val contextLength: Int = 0
+    )
     // Modelo cargado en memoria (VRAM/RAM) ahora mismo — dato real de /api/ps que la UI
     // nunca consultaba: OllamaFragment mostraba "Ninguno" hardcodeado en MODELO ACTIVO sin
     // importar si había un modelo realmente cargado tras un chat reciente.
@@ -195,8 +205,23 @@ object OllamaApiClient {
         return ModelDetail(
             parameterSize = details?.optString("parameter_size", "—") ?: "—",
             family = details?.optString("family", "—") ?: "—",
-            capabilities = caps
+            capabilities = caps,
+            contextLength = extractContextLength(json.optJSONObject("model_info"))
         )
+    }
+
+    // "model_info" es un objeto plano cuyas claves dependen de la arquitectura del modelo
+    // (ej. "llama.context_length", "qwen2.context_length", "gemma3.context_length") — no hay
+    // un nombre de campo fijo, así que se busca la primera clave que termine en
+    // ".context_length" en vez de asumir una sola familia.
+    private fun extractContextLength(modelInfo: JSONObject?): Int {
+        if (modelInfo == null) return 0
+        val keys = modelInfo.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            if (key.endsWith(".context_length")) return modelInfo.optInt(key, 0)
+        }
+        return 0
     }
 
     // ── Config (~/.ollama_user_config) ─────────────────────────────────

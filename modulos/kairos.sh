@@ -104,7 +104,7 @@ _kairos_help() {
     info "Instalando glow (renderer de markdown en terminal)..."
     # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
     pkg_update_with_fallback
-    pkg install glow -y 2>/dev/null || error "No se pudo instalar glow"
+    pkg install glow -y || error "No se pudo instalar glow"
     log "glow instalado — usá: kairos help <módulo>"
     return 0
   fi
@@ -155,15 +155,21 @@ TERMUX_CONFIG="$HOME/.termux"
 check_done() { grep -q "^$1$" "$CHECKPOINT" 2>/dev/null; }
 mark_done()  { echo "$1" >> "$CHECKPOINT"; }
 
-# Helper: pkg install silencioso
+# Helper: pkg install
 pkg_install() {
   # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md — cubre
   # a todos los llamadores de este helper en un solo lugar (DRY).
   pkg_update_with_fallback
+  # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): antes esto pipeaba a
+  # "tail -3", que retiene TODO el output hasta el final (sin progreso en vivo) y descarta
+  # todo salvo las últimas 3 líneas si la instalación falla — mismo antipatrón ya corregido
+  # en udocker.sh/mistralvibe.sh. Este helper es el más usado de todo el bootstrap (PASOs
+  # 3-6), así que ocultaba el motivo real de instalación fallida en la mayoría del log de
+  # arranque de la app.
   pkg install -y \
     -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" \
-    "$@" 2>&1 | tail -3
+    "$@"
 }
 
 # ── Verificar si ya está listo ────────────────────────────────
@@ -237,7 +243,7 @@ else
   info "Upgrade de paquetes existentes..."
   pkg upgrade -y \
     -o Dpkg::Options::="--force-confdef" \
-    -o Dpkg::Options::="--force-confold" 2>&1 | tail -5
+    -o Dpkg::Options::="--force-confold"
 
   log "Termux actualizado"
   mark_done "pkg_update"
@@ -300,6 +306,18 @@ else
     libopenblas \
     || warn "Algunos paquetes build tuvieron advertencias"
 
+  # Fix real (auditoría QA 2026-09-14, docs/humano338.md): este paso mezcla paquetes
+  # realmente críticos (clang/make/rustc, de los que varios módulos dependen para compilar
+  # desde fuente) con otros más opcionales — el "|| warn" de arriba solo avisa un fallo
+  # combinado del pkg install completo, y mark_done corre siempre, sin importar cuáles
+  # binarios reales quedaron disponibles. Se agrega el mismo chequeo visible por binario que
+  # ya usa PASO 3 más arriba — no aborta el bootstrap (siguen siendo best-effort, mismo
+  # criterio que esta función ya tenía), pero deja de esconder en silencio si clang/make/rustc
+  # no quedaron instalados de verdad.
+  for cmd in clang make rustc pkg-config; do
+    command -v "$cmd" &>/dev/null && log "$cmd ✓" || warn "$cmd no instalado"
+  done
+
   log "Toolchain de compilación instalado"
   mark_done "build_pkgs"
 fi
@@ -316,7 +334,7 @@ else
   pkg_install glibc-repo || warn "glibc-repo: advertencia"
 
   # Actualizar índice con el nuevo repo
-  pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" 2>&1 | tail -2
+  pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
 
   info "Instalando glibc + patchelf..."
   pkg_install \
@@ -381,6 +399,13 @@ else
     dos2unix \
     || warn "Algunas utilidades tuvieron advertencias"
 
+  # Fix real (auditoría QA 2026-09-14, docs/humano338.md): mismo motivo que PASO 4 — chequeo
+  # visible por binario en vez de un "|| warn" combinado que esconde cuál paquete puntual
+  # falló. No aborta (best-effort, mismo criterio ya existente para este paso).
+  for cmd in nano lsof ps bc dos2unix; do
+    command -v "$cmd" &>/dev/null && log "$cmd ✓" || warn "$cmd no instalado"
+  done
+
   log "Multimedia + utilidades instalados"
   mark_done "media_util_pkgs"
 fi
@@ -395,7 +420,7 @@ if check_done "pip_upgrade"; then
 else
   if command -v python3 &>/dev/null; then
     info "Actualizando pip..."
-    python3 -m pip install --upgrade pip --break-system-packages 2>&1 | tail -2
+    python3 -m pip install --upgrade pip --break-system-packages
     PIP_VER=$(python3 -m pip --version 2>/dev/null | awk '{print $2}')
     log "pip $PIP_VER"
   else
@@ -420,10 +445,10 @@ else
     # alcanza, no hace falta "actualizarlo".
 
     info "Instalando corepack..."
-    npm install -g corepack 2>&1 | tail -2
+    npm install -g corepack
 
     info "Instalando pm2..."
-    npm install -g pm2 2>&1 | tail -2
+    npm install -g pm2
 
     # Bug real confirmado (reporte de usuario, 2026-07-31): "por que pm2 no se instala".
     # `npm install -g` de arriba nunca chequeaba su propio exit code (silenciado por el

@@ -93,17 +93,90 @@ object GitBridge {
         }
     }
 
-    fun push(projectPath: String, callback: (GitResult<String>) -> Unit) {
-        val command = "git -C ${quote(projectPath)} push"
-        runGit(command) { raw ->
-            callback(raw.map { output -> output.ifBlank { "Push completado." } })
+    /**
+     * [githubToken] opcional (ver [GitHubDeviceAuth]/`GitHubAuthPrefs`) -- cuando está presente,
+     * se resuelve la URL real del remote `origin` (`git remote get-url`) y, si es una URL
+     * `https://github.com/...`, se le inyecta el token como credencial (`https://<token>@...`)
+     * SOLO para este comando puntual (`git push <url-con-token>`, sin `--set-upstream` ni tocar
+     * la config del repo) -- el token nunca queda persistido en `.git/config` ni en el remote
+     * guardado. Si no hay token, o el remote no es GitHub/https, se corre `git push` normal
+     * (mismo comportamiento de antes, depende de credenciales ya configuradas a mano/SSH).
+     */
+    fun push(projectPath: String, githubToken: String? = null, callback: (GitResult<String>) -> Unit) {
+        pushOrPull(projectPath, githubToken, "push", callback)
+    }
+
+    fun pull(projectPath: String, githubToken: String? = null, callback: (GitResult<String>) -> Unit) {
+        pushOrPull(projectPath, githubToken, "pull", callback)
+    }
+
+    private fun pushOrPull(
+        projectPath: String,
+        githubToken: String?,
+        subcommand: String,
+        callback: (GitResult<String>) -> Unit
+    ) {
+        val defaultMessage = if (subcommand == "push") "Push completado." else "Pull completado."
+        if (githubToken.isNullOrBlank()) {
+            val command = "git -C ${quote(projectPath)} $subcommand"
+            runGit(command) { raw -> callback(raw.map { it.ifBlank { defaultMessage } }) }
+            return
+        }
+
+        val remoteUrlCommand = "git -C ${quote(projectPath)} remote get-url origin"
+        runGit(remoteUrlCommand) { remoteResult ->
+            val authenticatedUrl = when (remoteResult) {
+                is GitResult.Failure -> null
+                is GitResult.Success -> {
+                    if (remoteResult.value.exitCode != 0) null
+                    else authenticatedGitHubUrl(remoteResult.value.stdout.trim(), githubToken)
+                }
+            }
+            val command = if (authenticatedUrl != null) {
+                "git -C ${quote(projectPath)} $subcommand ${quote(authenticatedUrl)}"
+            } else {
+                "git -C ${quote(projectPath)} $subcommand"
+            }
+            runGit(command) { raw -> callback(raw.map { it.ifBlank { defaultMessage } }) }
         }
     }
 
-    fun pull(projectPath: String, callback: (GitResult<String>) -> Unit) {
-        val command = "git -C ${quote(projectPath)} pull"
+    /** Devuelve `remoteUrl` con el token inyectado como credencial (`https://<token>@github.com/...`)
+     * cuando es una URL `https://github.com/...` sin credenciales ya embebidas -- null en
+     * cualquier otro caso (remote SSH, remote de otro host, o URL con `user@`/`user:pass@` ya
+     * presente, que no se debe pisar). */
+    private fun authenticatedGitHubUrl(remoteUrl: String, githubToken: String): String? {
+        if (!remoteUrl.startsWith("https://github.com/")) return null
+        if (remoteUrl.contains("@")) return null
+        return remoteUrl.replaceFirst("https://", "https://x-access-token:$githubToken@")
+    }
+
+    /** `git stash push` — guarda cambios locales (staged + unstaged, no untracked) en la pila
+     * de stash y limpia el working tree. Hallazgo real de la auditoría de `referencia/ides/`
+     * (2026-08-31, ver `docs/humano/`): GitBridge cubría status/log/diff/commit/push/pull pero
+     * no stash — hueco real, bajo riesgo, mismo patrón `runGit` que el resto del archivo. */
+    fun stashSave(projectPath: String, callback: (GitResult<String>) -> Unit) {
+        val command = "git -C ${quote(projectPath)} stash push"
         runGit(command) { raw ->
-            callback(raw.map { output -> output.ifBlank { "Pull completado." } })
+            callback(raw.map { output -> output.ifBlank { "Cambios guardados en el stash." } })
+        }
+    }
+
+    /** `git stash pop` — aplica el stash más reciente y lo saca de la pila. Falla con un mensaje
+     * honesto de `git` (vía [honestErrorMessage]) si hay conflictos o la pila está vacía. */
+    fun stashPop(projectPath: String, callback: (GitResult<String>) -> Unit) {
+        val command = "git -C ${quote(projectPath)} stash pop"
+        runGit(command) { raw ->
+            callback(raw.map { output -> output.ifBlank { "Stash aplicado." } })
+        }
+    }
+
+    /** `git stash list` — cuántas entradas hay en la pila, para decidir si mostrar el botón
+     * "Aplicar stash" habilitado o no (no tiene sentido intentar un pop sobre una pila vacía). */
+    fun stashList(projectPath: String, callback: (GitResult<List<String>>) -> Unit) {
+        val command = "git -C ${quote(projectPath)} stash list"
+        runGit(command) { raw ->
+            callback(raw.map { output -> output.lineSequence().filter { it.isNotBlank() }.toList() })
         }
     }
 

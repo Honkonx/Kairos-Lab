@@ -94,6 +94,14 @@ public class TermuxApplication extends Application {
         // corría si el usuario tocaba el botón a mano en Ajustes/wizard. No bloquea el
         // arranque (Thread propio adentro) — ver RootfsUpdateScheduler.kt para el detalle.
         com.termux.app.util.RootfsUpdateScheduler.maybeCheckPeriodically(context);
+
+        // Default horizontal para el visor X11 embebido — bug real reportado por el usuario
+        // (arrancaba vertical, esperaba 1280x720 horizontal, ver docs/humano316.md). Corre en
+        // TODOS los procesos de la app (incluido ":xserver", donde vive com.termux.x11.MainActivity)
+        // porque Application.onCreate() se invoca una vez por proceso — barato e idempotente
+        // (solo escribe si la preferencia nunca se seteó). Ver KDoc de
+        // EntornoNative.ensureX11LandscapeDefault() para la causa raíz completa.
+        com.termux.app.util.EntornoNative.INSTANCE.ensureX11LandscapeDefault(context);
     }
 
     public static void setLogConfig(Context context) {

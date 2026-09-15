@@ -55,12 +55,28 @@
     <string name="action_toggle_soft_keyboard">Keyboard</string>
     <string name="action_terminal_quick_settings">Aa · Terminal</string>
     <string name="title_terminal_quick_settings">Terminal</string>
+
+    <!-- Comandos personalizados de terminal (sidebar normal) -->
+    <string name="title_custom_terminal_commands">Comandos personalizados</string>
+    <string name="action_add_custom_command">+ Agregar comando</string>
+    <string name="title_add_custom_command">Nuevo comando</string>
+    <string name="title_edit_custom_command">Editar comando</string>
+    <string name="hint_custom_command_label">Nombre corto (ej. \"Actualizar\")</string>
+    <string name="hint_custom_command_value">Comando real (ej. \"pkg update -y &amp;&amp; pkg upgrade -y\")</string>
+    <string name="action_save_custom_command">Guardar</string>
+    <string name="action_delete_custom_command">Borrar</string>
+    <string name="msg_custom_command_limit_reached">Límite de %1$d comandos personalizados alcanzado</string>
+    <string name="msg_custom_command_no_active_session">No hay una sesión de terminal activa</string>
+    <string name="msg_custom_command_fields_required">Completá nombre y comando</string>
     <string name="label_font_size">Tamaño de fuente</string>
     <string name="label_terminal_theme">Tema</string>
     <string name="label_terminal_theme_default">Por defecto</string>
     <string name="action_change_terminal_theme">Cambiar tema →</string>
     <string name="title_terminal_theme_picker">Elegir tema</string>
     <string name="error_terminal_theme_write_failed">No se pudo aplicar el tema</string>
+    <!-- Strings de fondo de imagen de terminal (ES+EN reales) viven en
+         strings_terminal.xml / values-en/strings_terminal.xml — convención bilingüe de este
+         archivo modular, distinta de este strings.xml legado (sin values-en/strings.xml propio). -->
 
     <string name="msg_enabling_terminal_toolbar">Enabling Terminal Toolbar</string>
     <string name="msg_disabling_terminal_toolbar">Disabling Terminal Toolbar</string>
@@ -69,6 +85,32 @@
     <string name="action_terminal_adapted_minimize">Minimizar</string>
     <string name="action_terminal_adapted_close">Cerrar</string>
     <string name="action_terminal_adapted_menu">Más opciones</string>
+
+    <!-- Panel embebido (administrador de archivos/navegador) de la terminal adaptada, pedido
+         explícito del usuario 2026-09-08 (docs/humano324.md) — ver
+         TermuxActivity#showAdaptedPanel(). Los "_tab_" son la etiqueta corta de la pestaña
+         (terminal_adapted_tabs_row); los "_panel_...title" son el título completo de la franja
+         de cierre del panel — pueden diferir en longitud a propósito. -->
+    <string name="terminal_adapted_panel_files_title">Administrador de archivos</string>
+    <string name="terminal_adapted_panel_browser_title">Navegador</string>
+    <string name="terminal_adapted_tab_files">📁 Archivos</string>
+    <string name="terminal_adapted_tab_browser">🌐 Navegador</string>
+    <string name="hint_terminal_adapted_browser_url">https://ejemplo.com o una búsqueda</string>
+
+    <!-- "Accesibilidad" del panel/sidebar adaptado (pedido explícito del usuario 2026-09-08,
+         docs/humano325.md) — ver TermuxActivity#showAdaptedAccessibilityDialog(). -->
+    <string name="title_terminal_adapted_accessibility">Accesibilidad</string>
+    <string name="terminal_adapted_accessibility_tab_mode_label">Abrir Archivos/Navegador como pestaña</string>
+    <string name="msg_terminal_transcript_copied">Transcript copiado al portapapeles</string>
+
+    <!-- "Ventanas" — split view real de 2 superficies simultáneas de la terminal adaptada
+         (Roadmap de terminal Fase 1, último ítem de ingeniería pendiente — ver
+         MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases"). Ver
+         TermuxActivity#showAdaptedSplitModeDialog()/applySplitLayout(). -->
+    <string name="title_terminal_adapted_split_mode">Ventanas</string>
+    <string name="terminal_adapted_split_mode_label">Split: sesión + panel a la vez</string>
+    <string name="terminal_adapted_split_mode_explain">Divide la pantalla en 2: la sesión de terminal arriba, Archivos o Navegador abajo (elegí cuál con las pestañas de siempre). Arrastrá la línea divisoria para ajustar el tamaño.</string>
+    <string name="terminal_adapted_split_divider_content_description">Ajustar tamaño del split</string>
 
 
 

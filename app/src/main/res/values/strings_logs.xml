@@ -1,0 +1,6 @@
+<resources>
+    <!-- LogsFragment.kt — copiar/compartir + filtro por severidad (auditoría referencia/ia/*, 2026-08-31) -->
+    <string name="logs_share_title">Compartir log</string>
+    <string name="logs_share_copied">Log copiado al portapapeles</string>
+    <string name="logs_share_empty">No hay líneas visibles para compartir con el filtro actual</string>
+</resources>

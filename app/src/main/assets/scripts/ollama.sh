@@ -284,7 +284,7 @@ else
       info "Instalando $dep..."
       pkg install "$dep" -y \
         -o Dpkg::Options::="--force-confdef" \
-        -o Dpkg::Options::="--force-confold" 2>/dev/null
+        -o Dpkg::Options::="--force-confold"
     fi
   done
 
@@ -320,7 +320,7 @@ else
       pkg_update_with_fallback
       pkg install vulkan-tools vulkan-loader-android -y \
         -o Dpkg::Options::="--force-confdef" \
-        -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+        -o Dpkg::Options::="--force-confold" || \
         warn "vulkan-tools/loader no disponibles — continuando"
 
       # Detección de vendor de GPU (mismo criterio que entorno.sh:_check_gpu(),
@@ -355,7 +355,7 @@ else
           # Turnip (Freedreno) — driver Vulkan nativo Adreno
           pkg install mesa-vulkan-icd-freedreno -y \
             -o Dpkg::Options::="--force-confdef" \
-            -o Dpkg::Options::="--force-confold" 2>/dev/null && \
+            -o Dpkg::Options::="--force-confold" && \
             log "Turnip (Freedreno) instalado" || \
             warn "mesa-vulkan-icd-freedreno no disponible"
           ;;
@@ -365,7 +365,7 @@ else
           # Vulkan nativo Mesa para estos vendors en Termux todavía.
           pkg install mesa virglrenderer-android -y \
             -o Dpkg::Options::="--force-confdef" \
-            -o Dpkg::Options::="--force-confold" 2>/dev/null && \
+            -o Dpkg::Options::="--force-confold" && \
             log "mesa + virglrenderer-android instalados ($OLLAMA_GPU_VENDOR)" || \
             warn "mesa/virglrenderer-android no disponibles ($OLLAMA_GPU_VENDOR)"
           ;;
@@ -446,7 +446,7 @@ else
         while [ "$DOWNLOAD_ATTEMPT" -le 3 ] && ! ollama_binary_works; do
           [ -e "$TERMUX_PREFIX/bin/ollama" ] && rm -f "$TERMUX_PREFIX/bin/ollama"
           info "Corriendo el instalador real (ollama-termux) — baja el binario del último Release (intento $DOWNLOAD_ATTEMPT/3)..."
-          ollama-termux 2>&1 | tail -5
+          ollama-termux
           if ! ollama_binary_works && [ "$DOWNLOAD_ATTEMPT" -lt 3 ]; then
             warn "El binario real todavía no funciona — reintentando en 3s..."
             sleep 3

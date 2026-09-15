@@ -66,12 +66,22 @@
 
             </LinearLayout>
 
+            <!-- Menú por-archivo (copiar/cortar/renombrar/eliminar/abrir con/seleccionar) —
+                 reemplaza el chevron decorativo; el long-press del row completo ahora activa
+                 el modo de selección múltiple en vez de abrir este menú (ver
+                 FileManagerFragment.kt showFileMenu()). -->
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="›"
+                android:id="@+id/file_menu_btn"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_file_icon"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackgroundBorderless"
+                android:gravity="center"
+                android:text="⋮"
                 android:textColor="?attr/kairosText3"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
         </LinearLayout>

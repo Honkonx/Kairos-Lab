@@ -27,11 +27,18 @@ class CodexFragment : BaseModuleFragment() {
     override fun buildContent() {
         if (!isModuleInstalled()) { showNotInstalled(getModuleName()); return }
         addCard(getString(R.string.codex_card_estado)) {
-            addView(infoRow(getString(R.string.codex_label_canal), "termux"))
-            // codex.sh (_update_reg, prefijo "codex.") escribe codex.version al registry en
-            // cada instalación — este valor estaba hardcodeado en "—" sin leerlo nunca (bug
-            // confirmado en auditoría 2026-08-01, ver docs/humano/humano34.md).
-            val codexVersion = com.termux.app.data.ModuleRegistry(requireContext()).load().get("codex.version")
+            // codex.sh (_update_reg, prefijo "codex.") escribe codex.version Y codex.channel al
+            // registry en cada instalación. "Canal" estaba hardcodeado al literal "termux" sin
+            // leerlo nunca (mismo bug de codex.version, auditoría 2026-08-01,
+            // docs/humano/humano34.md) — desde el rediseño de 2 variantes + fallback automático
+            // (2026-09-09, docs/humano328.md) el valor real puede ser "termux" (DioNanos/
+            // codex-termux vía npm), "termux-fallback" (respaldo nativo automático,
+            // wallentx/codex-termux) o "vl" (DioNanos/codex-vl, opt-in) — mostrar el valor real
+            // en vez del literal fijo.
+            val registryData = com.termux.app.data.ModuleRegistry(requireContext()).load()
+            val codexChannel = registryData.get("codex.channel")
+            addView(infoRow(getString(R.string.codex_label_canal), codexChannel?.ifBlank { getString(R.string.codex_dash) } ?: getString(R.string.codex_dash)))
+            val codexVersion = registryData.get("codex.version")
             addView(infoRow(getString(R.string.codex_label_version), codexVersion?.ifBlank { getString(R.string.codex_dash) } ?: getString(R.string.codex_dash)))
             estadoPillSlot = LinearLayout(requireContext()).apply {
                 orientation = HORIZONTAL
@@ -63,6 +70,12 @@ class CodexFragment : BaseModuleFragment() {
                 addView(terminalStatusPill().also {
                     (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
                         gravity = android.view.Gravity.END
+                    }
+                })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
                     }
                 })
             })
@@ -103,16 +116,26 @@ class CodexFragment : BaseModuleFragment() {
             }
         }
         addCard(getString(R.string.codex_card_sesion)) {
+            // Mismo fix que ClaudeFragment (2026-09-01, pedido del usuario de unificar TODOS
+            // los botones de resume/continue con el diálogo de "¿Dónde abrir?"): "codex resume"
+            // retoma la sesión guardada del directorio actual, así que abría directo en la
+            // carpeta por defecto sin dejar elegir dónde.
             actionButton(getString(R.string.codex_btn_resume_session), GHOST) {
-                launchTerminalCommand("codex resume --last")
+                promptOpenLocation(
+                    onDefault = { launchTerminalCommand("codex resume --last") },
+                    onChooseFolder = { path -> launchTerminalCommand("cd '$path' && codex resume --last") }
+                )
             }
         }
         engramSetupButton("codex")
+        // Antes reinstalaba siempre el mismo canal (reinstallModuleService, variant=null) sin
+        // dar forma real de elegir — codex.sh solo soportaba "--variant native" (repo
+        // abandonado) invocable a mano, nunca expuesto acá. Rediseño 2026-09-09
+        // (docs/humano328.md): 2 variantes reales seleccionables ("Normal" con respaldo
+        // automático, "VL" con code-mode, sin respaldo) — mismo patrón de diálogo que
+        // N8nFragment.showSilentInstallVariantDialog() (setItems + installModuleInBackground).
         actionButton(getString(R.string.codex_btn_install_change_channel), GHOST) {
-            toast(getString(R.string.codex_reinstalling))
-            reinstallModuleService { ok ->
-                toast(if (ok) getString(R.string.codex_updated) else getString(R.string.codex_update_failed))
-            }
+            showVariantSelectorDialog()
         }
         // Consistencia con Db/Entorno/Qemu/Remote/Ciberseguridad (auditoría de menús
         // 2026-08-19, ver docs/viejo/AUDITORIA_CONSISTENCIA_MENUS_IA_2026-08-19.md):
@@ -137,6 +160,48 @@ class CodexFragment : BaseModuleFragment() {
                 })
             }
         }.start()
+    }
+
+    // Diálogo real de selección de variante (2026-09-09, docs/humano328.md) — mismo patrón que
+    // N8nFragment.showSilentInstallVariantDialog(): setItems + installModuleInBackground no
+    // sirve tal cual acá porque necesita force=true para que codex.sh no se salga temprano por
+    // "ya instalado" al cambiar de canal (installModuleInBackground() hardcodea force=false) —
+    // se llama a ModuleController.installModule() directo, mismo mecanismo real que
+    // reinstallModuleService() de BaseModuleFragment pero con variant explícito.
+    private fun showVariantSelectorDialog() {
+        val opciones = arrayOf(
+            getString(R.string.codex_variant_normal),
+            getString(R.string.codex_variant_vl),
+        )
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.codex_variant_dialog_title))
+            .setMessage(getString(R.string.codex_variant_dialog_message))
+            .setItems(opciones) { _, which ->
+                val variant = if (which == 0) "termux" else "vl"
+                installCodexVariant(variant)
+            }
+            .setNegativeButton(getString(R.string.codex_dialog_cancel), null)
+            .show()
+    }
+
+    private fun installCodexVariant(variant: String) {
+        val id = getModuleId()
+        if (com.termux.app.ModuleController.isInstalling(id)) {
+            toast(getString(R.string.base_module_already_installing, getModuleName()))
+            return
+        }
+        toast(getString(R.string.codex_reinstalling))
+        com.termux.app.ModuleController.installModule(id, requireContext(), variant, true, {}) { ok ->
+            if (!isAdded) return@installModule
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                toast(if (ok) getString(R.string.codex_updated) else getString(R.string.codex_update_failed))
+                if (ok) {
+                    container.removeAllViews()
+                    buildContent()
+                }
+            }
+        }
     }
 
     // submenu_codex() de termux-ai-stack (menu_nativo.sh) tiene "[2] Abrir en proyecto"

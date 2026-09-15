@@ -2,7 +2,8 @@
 .gradle/
 .kotlin/
 build/
-# Excepción: paquete Kotlin real llamado "build" (no directorio de salida de Gradle).
+# Excepción: paquete Kotlin real llamado "build" (no directorio de salida de Gradle),
+# no un output de Gradle — "build/" sin anclar matchea cualquier carpeta con ese nombre.
 !app/src/main/java/com/termux/app/ui/studio/build/
 !app/src/main/java/com/termux/app/ui/studio/build/*.kt
 .build-tools/
@@ -15,17 +16,23 @@ local.properties
 *.keystore
 *.jks
 
-# Rootfs local (build_rootfs.py -> tar.xz copiado a mano en app/src/main/assets/) — binario
-# generado en build time, nunca código fuente.
+# Rootfs local (build_rootfs.py -> tar.xz copiado a mano en app/src/main/assets/) —
+# binario de ~300MB generado en build time (local o CI), nunca código fuente. Anclado a
+# app/src/main/assets/ para no matchear otro archivo del mismo nombre en otra carpeta.
 /app/src/main/assets/kairos_rootfs.tar.xz
 .externalNativeBuild
 .cxx/
 *.zip
 release/
 *.so
+# Excepción: los binarios vendorizados reales de X11 embebido sí se trackean.
 !x11-server/libs/**/*.so
+
 __pycache__/
 *.pyc
+
+# Build vendor de llama.cpp (descargado por la tarea downloadLlamaCpp de gradle, no se versiona)
+llama-engine/llama.cpp/
 
 # ── OS files ──
 .DS_Store
@@ -35,6 +42,3 @@ __pycache__/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Build vendor de llama.cpp (descargado por la tarea downloadLlamaCpp de gradle, no se versiona)
-llama-engine/llama.cpp/

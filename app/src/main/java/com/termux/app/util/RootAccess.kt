@@ -1,5 +1,8 @@
 package com.termux.app.util
 
+import android.util.Log
+import java.util.concurrent.TimeUnit
+
 /**
  * Helper centralizado para acceso root opcional/oportunista — MVP implementado 2026-08-25 a
  * partir de la investigación real en `docs/arquitectura/INVESTIGACION_MODO_ROOT_2026-08-25.md`
@@ -21,6 +24,8 @@ package com.termux.app.util
  */
 object RootAccess {
 
+    private const val LOG_TAG = "RootAccess"
+
     @Volatile
     private var cachedHasRoot: Boolean? = null
 
@@ -28,6 +33,14 @@ object RootAccess {
      * Detección real, cacheada en memoria (no cambia durante la vida del proceso — un
      * dispositivo no se rootea/desrootea en caliente mientras la app corre). Mismo one-liner ya
      * usado en `modulos/docker.sh` (`command -v su && su -c "id"`), portado a `ProcessBuilder`.
+     *
+     * Bug real corregido 2026-09-14 (ver `docs/humano334.md`): un timeout (el gestor de root
+     * mostrando su diálogo de confirmación mientras el usuario todavía no respondió) se
+     * cacheaba como `false` para siempre, sin distinguirlo de "el usuario denegó" — un usuario
+     * que otorgaba el permiso DESPUÉS de ese primer timeout seguía viendo "sin root" en Kairos
+     * hasta reiniciar el proceso completo de la app. Ahora solo se cachea un resultado
+     * DEFINITIVO (el proceso `su` terminó, con el exit code que sea) — un timeout deja
+     * `cachedHasRoot` sin tocar, así que la próxima llamada vuelve a intentar.
      */
     fun hasRoot(): Boolean {
         cachedHasRoot?.let { return it }
@@ -36,13 +49,35 @@ object RootAccess {
             pb.redirectErrorStream(true)
             val process = pb.start()
             val out = process.inputStream.bufferedReader().readText()
-            val exited = process.waitFor(3, java.util.concurrent.TimeUnit.SECONDS)
-            exited && process.exitValue() == 0 && out.contains("uid=")
-        } catch (_: Exception) {
+            val exited = process.waitFor(3, TimeUnit.SECONDS)
+            if (!exited) {
+                process.destroyForcibly()
+                Log.w(LOG_TAG, "hasRoot(): timeout esperando 'su -c id' — ¿diálogo del " +
+                    "gestor de root sin responder todavía? No se cachea, se reintenta en la " +
+                    "próxima llamada (usar invalidateCache() para forzarlo antes).")
+                return false
+            }
+            process.exitValue() == 0 && out.contains("uid=")
+        } catch (e: Exception) {
+            // A diferencia del timeout de arriba, esto SÍ es un resultado definitivo — el
+            // proceso ni siquiera pudo arrancar (típicamente "su" no existe en el PATH del
+            // gestor de root, o no hay ningún gestor de root instalado), no una ambigüedad de
+            // "puede que el usuario todavía no haya respondido".
+            Log.w(LOG_TAG, "hasRoot(): excepción real al intentar 'su -c id': ${e.message}")
             false
         }
         cachedHasRoot = result
         return result
+    }
+
+    /**
+     * Fuerza un nuevo chequeo en la próxima llamada a [hasRoot], descartando el resultado
+     * cacheado — para un botón "Reintentar" en la UI (ej. Config) cuando el usuario acaba de
+     * otorgarle permiso a Kairos en su gestor de root y `hasRoot()` seguía devolviendo `false`
+     * de una llamada anterior.
+     */
+    fun invalidateCache() {
+        cachedHasRoot = null
     }
 
     data class RootResult(val ok: Boolean, val stdout: String, val stderr: String)

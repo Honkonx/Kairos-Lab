@@ -8,4 +8,6 @@
     <string name="editor_action_cancel">Cancelar</string>
     <string name="editor_saved">Guardado</string>
     <string name="editor_save_error">Error al guardar: %1$s</string>
+    <string name="editor_preview">Vista previa</string>
+    <string name="editor_preview_edit">Editar</string>
 </resources>

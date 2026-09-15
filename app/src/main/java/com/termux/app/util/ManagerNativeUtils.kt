@@ -56,6 +56,37 @@ object ManagerNativeUtils {
     fun pgrepX(name: String): Boolean =
         runExec(listOf(TERMUX_PGREP_PATH, "-x", name), 5).first == 0
 
+    /**
+     * Chequeo de "actividad real" de un proceso vía delta de `/proc/<pid>/io` entre dos
+     * lecturas separadas por [sampleMs] (ronda 2026-09-09, docs/humano328.md, hallazgo de
+     * referencia/termux/RDeX-main/smb_tui.py:33-52) — a diferencia de un simple "¿el PID
+     * existe?" (que solo dice running/stopped), esto distingue un proceso VIVO pero
+     * colgado/inactivo de uno con transferencia de datos real en curso (descarga de un
+     * modelo GGUF, `pull` de una imagen grande, un futuro módulo Nube/SMB). Devuelve `false`
+     * si el archivo no es legible (proceso muerto, o /proc/<pid>/io restringido por el mismo
+     * tipo de límite de visibilidad ya documentado para pgrep entre procesos de distinto
+     * dominio SELinux — ver DbFragment.isAlive()) — mismo criterio "false honesto" que el
+     * resto de checks de este archivo, nunca lanza.
+     */
+    fun isProcessBusy(pid: Int, sampleMs: Long = 500): Boolean {
+        val ioFile = File("/proc/$pid/io")
+        fun readBytes(): Long? = try {
+            var sum = 0L
+            var found = false
+            ioFile.forEachLine { line ->
+                if (line.startsWith("rchar:") || line.startsWith("wchar:")) {
+                    sum += line.substringAfter(":").trim().toLongOrNull() ?: 0L
+                    found = true
+                }
+            }
+            if (found) sum else null
+        } catch (_: Exception) { null }
+        val before = readBytes() ?: return false
+        try { Thread.sleep(sampleMs) } catch (_: InterruptedException) { return false }
+        val after = readBytes() ?: return false
+        return after > before
+    }
+
     fun checkPort(port: Int, host: String = "127.0.0.1"): Boolean {
         return try {
             Socket().use { socket ->
@@ -68,36 +99,37 @@ object ManagerNativeUtils {
     }
 
     /**
-     * Corre un binario por argv directo (sin pasar por un shell) — equivalente a
-     * run_cmd() de kairos_manager.py cuando el comando no necesita interpretación de
-     * shell (pipes, &&, comillas). Preferido sobre runShell() siempre que se pueda,
-     * evita cualquier problema de quoting (shlex.quote en la versión Python).
+     * Núcleo compartido de runExec()/runExecWithStdin()/runShell() — las 3 solo diferían en
+     * cómo se arma el [ProcessBuilder] y si hay [stdin] que escribir; el resto (lectura de
+     * stdout/stderr en threads separados, orden waitFor→destroyForcibly→join, manejo de
+     * timeout) era código idéntico copiado 3 veces. Ya causó un bug real de divergencia: el
+     * fix de orden destroyForcibly()-antes-de-join() (2026-08-24, ver docs/humano222.md,
+     * "claude doctor" colgado ~2min pese al timeout de 30s) se aplicó a runExec()/runShell()
+     * pero se había olvidado en runExecWithStdin() en la ronda siguiente — con un solo helper,
+     * el próximo fix de este tipo solo hace falta aplicarlo una vez.
+     *
+     * Bug real evitado en la lectura de streams (mismo commit 2026-08-24): sin try/catch
+     * dentro de cada Thread lector, destroyForcibly() cerrando los streams mientras el Thread
+     * está bloqueado en readText() propaga una InterruptedIOException sin capturar fuera de un
+     * Thread sin manejador propio — mata TODO el proceso de la app (confirmado en logcat:
+     * FATAL EXCEPTION).
      */
-    fun runExec(args: List<String>, timeoutSeconds: Long = 30): Triple<Int, String, String> {
+    private fun runProcessWithTimeout(pb: ProcessBuilder, timeoutSeconds: Long, stdin: String? = null): Triple<Int, String, String> {
         return try {
-            val pb = ProcessBuilder(args)
             pb.applyTermuxEnv()
             val process = pb.start()
             val out = StringBuilder()
             val err = StringBuilder()
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md — probando el
-            // switch de n8n desde la UI real, la app entera crasheaba en loop): sin try/catch
-            // acá, destroyForcibly() más abajo cierra los streams del proceso mientras estos
-            // Threads están bloqueados en readText() — la excepción (InterruptedIOException)
-            // sin capturar se propaga fuera de un Thread sin manejador propio y mata TODO el
-            // proceso de la app (confirmado en logcat: FATAL EXCEPTION, mismo patrón real ya
-            // encontrado en ModuleController.startModule()).
             val outThread = Thread { try { out.append(process.inputStream.bufferedReader().readText()) } catch (_: Exception) {} }
             val errThread = Thread { try { err.append(process.errorStream.bufferedReader().readText()) } catch (_: Exception) {} }
             outThread.start(); errThread.start()
+            if (stdin != null) process.outputStream.use { it.write(stdin.toByteArray()); it.flush() }
             val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md — "claude doctor"
-            // colgado ~2min pese al timeout de 30s declarado): destroyForcibly() DEBE correr
-            // ANTES de outThread.join()/errThread.join(), no después. Esos threads bloquean en
-            // readText() hasta que el proceso cierra sus streams — si el proceso sigue vivo
-            // (no terminó dentro del timeout), join() espera para siempre porque el stream
-            // nunca se cierra, así que destroyForcibly() nunca llegaba a ejecutarse. Destruir
-            // primero cierra los streams, lo que libera los threads lectores de inmediato.
+            // destroyForcibly() DEBE correr ANTES de outThread.join()/errThread.join(), no
+            // después — esos threads bloquean en readText() hasta que el proceso cierra sus
+            // streams; si el proceso sigue vivo (no terminó dentro del timeout), join() espera
+            // para siempre porque el stream nunca se cierra. Destruir primero libera los
+            // threads lectores de inmediato.
             if (!finished) process.destroyForcibly()
             outThread.join(); errThread.join()
             if (!finished) {
@@ -109,76 +141,31 @@ object ManagerNativeUtils {
             Triple(1, "", e.message ?: "error")
         }
     }
+
+    /**
+     * Corre un binario por argv directo (sin pasar por un shell) — equivalente a
+     * run_cmd() de kairos_manager.py cuando el comando no necesita interpretación de
+     * shell (pipes, &&, comillas). Preferido sobre runShell() siempre que se pueda,
+     * evita cualquier problema de quoting (shlex.quote en la versión Python).
+     */
+    fun runExec(args: List<String>, timeoutSeconds: Long = 30): Triple<Int, String, String> =
+        runProcessWithTimeout(ProcessBuilder(args), timeoutSeconds)
 
     /**
      * Igual que [runExec] pero escribe [stdin] al proceso y cierra su stream de entrada antes
      * de esperar la salida — para binarios como `vncpasswd` que solo aceptan la contraseña de
      * forma interactiva por stdin, nunca por argv (ver EntornoNative.vncSetPassword(), humano202).
      */
-    fun runExecWithStdin(args: List<String>, stdin: String, timeoutSeconds: Long = 15): Triple<Int, String, String> {
-        return try {
-            val pb = ProcessBuilder(args)
-            pb.applyTermuxEnv()
-            val process = pb.start()
-            val out = StringBuilder()
-            val err = StringBuilder()
-            // Ver comentario de runExec() arriba — mismo bug real de crash (InterruptedIOException
-            // sin capturar) y mismo bug real de orden join()/destroyForcibly() (esta función
-            // todavía tenía el orden viejo, no se había corregido en la ronda anterior).
-            val outThread = Thread { try { out.append(process.inputStream.bufferedReader().readText()) } catch (_: Exception) {} }
-            val errThread = Thread { try { err.append(process.errorStream.bufferedReader().readText()) } catch (_: Exception) {} }
-            outThread.start(); errThread.start()
-            process.outputStream.use { it.write(stdin.toByteArray()); it.flush() }
-            val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
-            if (!finished) process.destroyForcibly()
-            outThread.join(); errThread.join()
-            if (!finished) {
-                Triple(1, "", "timeout")
-            } else {
-                Triple(process.exitValue(), out.toString().trim(), err.toString().trim())
-            }
-        } catch (e: Exception) {
-            Triple(1, "", e.message ?: "error")
-        }
-    }
+    fun runExecWithStdin(args: List<String>, stdin: String, timeoutSeconds: Long = 15): Triple<Int, String, String> =
+        runProcessWithTimeout(ProcessBuilder(args), timeoutSeconds, stdin)
 
     /**
      * Corre un comando vía `bash -c` — solo para los pocos casos que de verdad
      * necesitan interpretación de shell (pipes, &&, `&` de backgrounding). Preferir
      * runExec() cuando el comando es un binario + argumentos simples.
      */
-    fun runShell(cmd: String, timeoutSeconds: Long = 30): Triple<Int, String, String> {
-        return try {
-            val pb = ProcessBuilder(TERMUX_BASH_PATH, "-c", cmd)
-            pb.applyTermuxEnv()
-            val process = pb.start()
-            val out = StringBuilder()
-            val err = StringBuilder()
-            // Ver comentario de runExec() arriba — mismo bug real de crash (InterruptedIOException
-            // sin capturar) al cerrar los streams desde destroyForcibly() mientras el Thread
-            // lector está bloqueado en readText().
-            val outThread = Thread { try { out.append(process.inputStream.bufferedReader().readText()) } catch (_: Exception) {} }
-            val errThread = Thread { try { err.append(process.errorStream.bufferedReader().readText()) } catch (_: Exception) {} }
-            outThread.start(); errThread.start()
-            val finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md — "claude doctor"
-            // colgado ~2min pese al timeout de 30s declarado): destroyForcibly() DEBE correr
-            // ANTES de outThread.join()/errThread.join(), no después. Esos threads bloquean en
-            // readText() hasta que el proceso cierra sus streams — si el proceso sigue vivo
-            // (no terminó dentro del timeout), join() espera para siempre porque el stream
-            // nunca se cierra, así que destroyForcibly() nunca llegaba a ejecutarse. Destruir
-            // primero cierra los streams, lo que libera los threads lectores de inmediato.
-            if (!finished) process.destroyForcibly()
-            outThread.join(); errThread.join()
-            if (!finished) {
-                Triple(1, "", "timeout")
-            } else {
-                Triple(process.exitValue(), out.toString().trim(), err.toString().trim())
-            }
-        } catch (e: Exception) {
-            Triple(1, "", e.message ?: "error")
-        }
-    }
+    fun runShell(cmd: String, timeoutSeconds: Long = 30): Triple<Int, String, String> =
+        runProcessWithTimeout(ProcessBuilder(TERMUX_BASH_PATH, "-c", cmd), timeoutSeconds)
 
     fun humanSize(bytes: Long): String {
         var b = bytes.toDouble()

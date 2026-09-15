@@ -47,11 +47,52 @@ object SyntaxHighlighter {
     private const val THEME_DIR = ASSETS_PREFIX + "theme/"
 
     /** Nombre interno de theme -> archivo `.json` en `assets/textmate/theme/`. La clave es el
-     * valor guardado en [com.termux.app.ui.studio.settings.EditorPrefs.editorTheme]. */
-    val AVAILABLE_THEMES = listOf("kairos-ink", "kairos-paper", "kairos-contrast")
+     * valor guardado en [com.termux.app.ui.studio.settings.EditorPrefs.editorTheme].
+     *
+     * "dracula" agregado 2026-08-31 (auditoría `referencia/ides/android-code-studio-dev`, ver
+     * `docs/referencias/ides/REFERENCIA_ANDROID_CODE_STUDIO.md`): ese fork de AndroidIDE trae 8
+     * schemes de sora-editor (formato propio, no TextMate) — la paleta real de "Dracula"
+     * (`editor/impl/.../schemes/dracula-dark/default-dark.json`, colores hexadecimales) se
+     * adaptó a mano al formato TextMate JSON que ya usa Kairos (`dracula.json`, mismo esquema de
+     * scopes que `kairos-ink.json`) — no es una copia del archivo GPLv3 de ACS, solo referencia
+     * de paleta (Dracula es un theme público conocido, draculatheme.com).
+     *
+     * 10 temas más agregados 2026-09-01 (auditoría `referencia/terminal/stdusk`, ver
+     * `docs/referencias/terminal/REFERENCIA_STDUSK.md`): `stdusk/assets/schemes/` trae ~200
+     * esquemas de color pero en formato Xresources plano (`*.foreground`/`*.background`/16
+     * colores ANSI `*.color0`..`*.color15`) — **no** trae datos por scope de sintaxis
+     * (keyword/string/comment/tipo/etc.), que es lo que un theme TextMate real necesita. Una
+     * conversión mecánica 1:1 de 16 colores ANSI a scopes de sintaxis da resultados de baja
+     * calidad (ej. mapear "color1" a keyword sin más contexto ignora que cada theme real tiene
+     * convenciones propias de qué scope usa qué acento). En vez de eso, para estos 10 (Nord,
+     * Gruvbox Dark/Light, Solarized Dark/Light, Monokai, One Dark, Atom One Light, Ayu Dark/Light
+     * — todos presentes en el catálogo de `stdusk` con esos nombres o variantes cercanas:
+     * "Atom"→One Dark, "AtomOneLight", "ayu"/"ayu_light", "Monokai Soda"→Monokai) se tomó
+     * background/foreground/cursor real del archivo de `stdusk` (coincide con el theme público)
+     * y se completaron los scopes de sintaxis con la paleta oficial/ampliamente publicada de cada
+     * theme (Nord: nordtheme.com; Gruvbox: morhetz/gruvbox; Solarized: ethanschoonover.com/solarized;
+     * Monokai: paleta clásica; One Dark/Atom One Light: atom-one-*-vscode; Ayu: ayu-theme) — mismo
+     * criterio que ya se usó para "dracula" arriba, no una copia de ningún archivo de terceros. */
+    val AVAILABLE_THEMES = listOf(
+        "kairos-ink", "kairos-paper", "kairos-contrast", "dracula",
+        "nord", "gruvbox-dark", "gruvbox-light", "solarized-dark", "solarized-light",
+        "monokai", "one-dark", "atom-one-light", "ayu-dark", "ayu-light"
+    )
     const val DEFAULT_THEME = "kairos-ink"
 
-    /** Extensión de archivo (sin punto, minúscula) -> scope TextMate del grammar bundleado. */
+    /**
+     * Extensión de archivo (sin punto, minúscula) -> scope TextMate del grammar bundleado.
+     *
+     * `css`/`html`/`htm`/`yaml`/`yml` agregados 2026-08-31 (auditoría fresca de
+     * `referencia/ides/CodeAssist-main`/`Xed-Editor-main`, ver `docs/referencias/ides/`): los
+     * grammars `textmate/css/` y `textmate/html/` ya estaban bundleados en
+     * `app/src/main/assets/textmate/` y registrados en `textmate/languages.json`
+     * (`scopeName: "source.css"` / `"text.html.basic"`) desde 2026-08-01, pero esta tabla nunca
+     * los mapeaba — un `.css`/`.html`/`.yaml` abierto en Estudio caía silenciosamente a texto
+     * plano ([EmptyLanguage]) pese a tener el grammar real disponible en el APK. `yaml`/`yml`
+     * tenía el mismo gap pese a que el editor de archivos simple ([com.termux.app.ui.EditorFragment],
+     * ahora migrado a usar esta misma tabla) ya los mapeaba antes.
+     */
     private val EXTENSION_TO_SCOPE = mapOf(
         "kt" to "source.kotlin",
         "kts" to "source.kotlin", // cubre también build.gradle.kts (Gradle Kotlin DSL)
@@ -72,7 +113,12 @@ object SyntaxHighlighter {
         "bash" to "source.shell",
         "zsh" to "source.shell",
         "md" to "text.html.markdown",
-        "markdown" to "text.html.markdown"
+        "markdown" to "text.html.markdown",
+        "css" to "source.css",
+        "html" to "text.html.basic",
+        "htm" to "text.html.basic",
+        "yaml" to "source.yaml",
+        "yml" to "source.yaml"
     )
 
     private var grammarsLoaded = false

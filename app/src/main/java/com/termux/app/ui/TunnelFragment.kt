@@ -470,6 +470,9 @@ class TunnelFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
+        // tokens de tunneling (ngrok/cloudflared) — ver .claude/rules/kairos-secrets-never-revealed.md.
+        view.filterTouchesWhenObscured = true
         refreshAll()
     }
 
@@ -742,6 +745,14 @@ class TunnelFragment : Fragment() {
         runInBackground({ TunnelManager.start(m.port, provider, token, domain, m.id, nativeLibDir) }) { result ->
             if (result.ok) {
                 rowViews[m.port]?.let { pollStatus(m.port, m.id, it) }
+                // Reconexión automática (hallazgo 4, docs/estructura/
+                // INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md): sondea el túnel
+                // recién arrancado y lo reintenta con backoff si se cae solo — hasta que el
+                // usuario lo pare a mano (TunnelManager.stop() cancela el watchdog) o se
+                // agoten los reintentos, en cuyo caso avisa acá con un toast.
+                TunnelManager.startWatchdog(m.port, provider, m.id, nativeLibDir) { message ->
+                    requireActivity().runOnUiThread { if (isAdded) toast(message) }
+                }
             } else {
                 // Para n8n, este "error" suele ser en realidad el aviso de que ya hay un
                 // túnel propio activo (TunnelManager.start()) — se muestra igual por

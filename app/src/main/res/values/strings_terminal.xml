@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- PasteSafetyUtils.kt — revisión de seguridad de paste multilínea, ver docs/referencias/terminal/REFERENCIA_TTYX.md -->
+    <string name="terminal_paste_review_title">Revisar antes de pegar</string>
+    <string name="terminal_paste_review_title_danger">⚠️ Comando potencialmente peligroso</string>
+    <string name="terminal_paste_review_message">Vas a pegar %1$d líneas en la terminal. Revisá el contenido antes de continuar.</string>
+    <string name="terminal_paste_review_message_danger">Vas a pegar %1$d líneas en la terminal. Se detectó: %2$s. Revisá el contenido con cuidado antes de continuar.</string>
+    <string name="terminal_paste_review_cancel">Cancelar</string>
+    <string name="terminal_paste_review_confirm">Pegar</string>
+    <string name="terminal_paste_review_confirm_danger">Pegar de todos modos</string>
+
+    <!-- Fondo de imagen de terminal — ver TermuxTerminalSessionActivityClient
+         #applyTerminalBackgroundImageOrColor() para el mecanismo, y TermuxActivity
+         #showTerminalBackgroundImageDialog()/#pickTerminalBackgroundImage() para la UI. -->
+    <string name="action_terminal_background_image">Imagen de fondo →</string>
+    <string name="title_terminal_background_image">Fondo de terminal</string>
+    <string name="action_choose_background_image">Elegir imagen…</string>
+    <string name="action_remove_background_image">Quitar imagen de fondo</string>
+    <string name="label_terminal_background_image">Imagen de fondo de la terminal</string>
+    <string name="msg_terminal_background_image_removed">Imagen de fondo quitada</string>
+
+    <!-- Pestañas de sesiones de terminal adaptada (Fase 1 del roadmap de terminal — ver
+         MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases") — TermuxActivity
+         #refreshAdaptedSessionTabs()/#createAdaptedSessionTabView(). -->
+    <string name="terminal_tab_close_content_description">Cerrar pestaña %1$s</string>
+    <string name="terminal_tab_close_last_session_confirm">"%1$s" es la única terminal activa. ¿Cerrarla igual?</string>
+</resources>

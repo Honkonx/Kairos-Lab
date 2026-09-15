@@ -70,4 +70,6 @@
 
     <string name="engram_sin_salida">(sin salida)</string>
     <string name="engram_dialog_cerrar">Cerrar</string>
+    <string name="engram_card_mantenimiento">MANTENIMIENTO</string>
+    <string name="engram_btn_uninstall">🗑 Desinstalar</string>
 </resources>

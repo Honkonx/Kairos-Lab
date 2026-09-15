@@ -118,7 +118,21 @@ object RemoteManager {
     // duplicar la misma lógica de socket UDP + fallback ifconfig en otro archivo — mismo
     // criterio DRY que el resto de este objeto (runCmd/pgrepX/pgrepF ya delegan a
     // ManagerNativeUtils en vez de reimplementar).
-    fun getLocalIp(): String {
+    //
+    // [context] opcional (2026-09-01, hallazgo real de `referencia/herramientas/Podroid-main/`
+    // — util/NetworkUtils.kt, ver docs/referencias/herramientas/REFERENCIA_PODROID.md): sin
+    // contexto, el truco de socket UDP puede devolver la IP del túnel de una VPN activa en vez
+    // de la IP real de LAN (Wi-Fi/Ethernet) — un comando "ssh -p 8022 user@<ip-de-vpn>" o una
+    // URL de escaneo LAN armados con esa IP son inalcanzables desde otro dispositivo de la red.
+    // Con contexto se usa ConnectivityManager, igual que Podroid: prioriza la red activa (por
+    // donde sale el tráfico real) salvo que sea VPN, y si no hay red activa útil recorre por
+    // preferencia de transporte (WiFi > Ethernet > Datos) saltando cualquier TRANSPORT_VPN.
+    // Los call-sites que no pasan contexto (o si ninguna red califica) siguen cayendo al truco
+    // UDP/ifconfig de siempre — retrocompatible, ningún llamador existente se rompe.
+    fun getLocalIp(context: Context? = null): String {
+        if (context != null) {
+            localIpViaConnectivityManager(context)?.let { return it }
+        }
         return try {
             DatagramSocket().use { socket ->
                 socket.connect(InetAddress.getByName("8.8.8.8"), 80)
@@ -130,10 +144,47 @@ object RemoteManager {
         }
     }
 
+    private val IP_TRANSPORT_PREFERENCE = intArrayOf(
+        NetworkCapabilities.TRANSPORT_WIFI,
+        NetworkCapabilities.TRANSPORT_ETHERNET,
+        NetworkCapabilities.TRANSPORT_CELLULAR
+    )
+
+    private fun localIpViaConnectivityManager(context: Context): String? {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return null
+            cm.activeNetwork?.let { active ->
+                val caps = cm.getNetworkCapabilities(active)
+                if (caps != null && !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                    firstIpv4Of(cm, active)?.let { return it }
+                }
+            }
+            for (transport in IP_TRANSPORT_PREFERENCE) {
+                for (network in cm.allNetworks) {
+                    val caps = cm.getNetworkCapabilities(network) ?: continue
+                    if (!caps.hasTransport(transport) || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
+                    firstIpv4Of(cm, network)?.let { return it }
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun firstIpv4Of(cm: ConnectivityManager, network: android.net.Network): String? {
+        val link = cm.getLinkProperties(network) ?: return null
+        for (linkAddress in link.linkAddresses) {
+            val addr = linkAddress.address
+            if (addr is Inet4Address && !addr.isLoopbackAddress) return addr.hostAddress
+        }
+        return null
+    }
+
     // ── SSH ──────────────────────────────────────────────────────────────
 
-    fun info(): RemoteInfo {
-        val ip = getLocalIp()
+    fun info(context: Context? = null): RemoteInfo {
+        val ip = getLocalIp(context)
         val user = whoami()
         val connsRaw = runCmd("ps aux 2>/dev/null | grep 'sshd:' | grep -v grep | grep -v 'sshd -D' | wc -l", 5).stdout
         val connections = connsRaw.toIntOrNull() ?: 0

@@ -18,7 +18,6 @@
     <string name="expo_btn_logout">🔓 Cerrar sesión expo.dev</string>
     <string name="expo_btn_info">ℹ Info / estado general</string>
     <string name="expo_btn_select_project">📁 Configurar proyecto activo</string>
-    <string name="expo_btn_git_push">⬆ Git push (proyecto activo)</string>
     <string name="expo_btn_update_cli">⬆ Actualizar EAS CLI</string>
     <string name="expo_error_unknown_action">Acción desconocida: %1$s</string>
     <string name="expo_msg_ok">OK</string>
@@ -49,13 +48,8 @@
     <string name="expo_hint_update_message">Mensaje del update</string>
     <string name="expo_title_publish_ota">Publicar update OTA (eas update)</string>
     <string name="expo_btn_publish">Publicar</string>
-    <string name="expo_hint_value">Valor</string>
     <string name="expo_doctor_no_issues">expo-doctor: sin problemas</string>
     <string name="expo_doctor_check">expo-doctor: revisar</string>
     <string name="expo_msg_no_output">Sin salida</string>
-    <string name="expo_error_no_project">Sin proyecto</string>
-    <string name="expo_error_not_git_repo">No es repo git</string>
-    <string name="expo_msg_push_ok">Push OK</string>
-    <string name="expo_error_push_failed">Push falló</string>
     <string name="expo_default_commit_message">update desde Android</string>
 </resources>

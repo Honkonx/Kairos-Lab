@@ -723,6 +723,12 @@ class StudioFragment : Fragment(), CommandHost {
             KeyboardShortcutAction.NEW_FILE -> onNewFile()
             KeyboardShortcutAction.OPEN_FILE -> onOpenFile()
             KeyboardShortcutAction.COMMAND_PALETTE -> showCommandPalette()
+            KeyboardShortcutAction.UNDO -> {
+                if (binding.codeEditor.canUndo()) binding.codeEditor.undo()
+            }
+            KeyboardShortcutAction.REDO -> {
+                if (binding.codeEditor.canRedo()) binding.codeEditor.redo()
+            }
         }
         return true
     }
@@ -745,6 +751,19 @@ class StudioFragment : Fragment(), CommandHost {
     override fun onEditorSettings() { startActivity(Intent(requireContext(), EditorSettingsActivity::class.java)) }
     override fun onAiSettings() { startActivity(Intent(requireContext(), AiProviderSettingsActivity::class.java)) }
     override fun onAskAi() = showAskAiDialog()
+    override fun onStudioTheme() = showStudioThemePicker()
+
+    // ── Señales de estado para CommandRegistry.buildCommands (isEnabled contextual, ver
+    // com.termux.app.ui.studio.palette.Command) — ronda 2026-09-01 ────────────────────────────
+    override fun hasOpenFile(): Boolean = ::tabsController.isInitialized && tabsController.activeFile() != null
+    override fun hasOpenProject(): Boolean = currentProjectPath != null
+    /** Chequeo de filesystem directo (`File(path, ".git").exists()`), no vía SAF -- mismo patrón
+     * que ya usa [openBuildScreen]/[openGitPanel] (ambos requieren [currentProjectPath] real, no
+     * el URI SAF) para operar. Barato: un solo `exists()`, no un recorrido recursivo. */
+    override fun hasGitRepo(): Boolean {
+        val path = currentProjectPath ?: return false
+        return File(path, ".git").exists()
+    }
 
     private fun openFile(uri: Uri) {
         val content = readTextFromUri(uri) ?: return
@@ -926,7 +945,16 @@ class StudioFragment : Fragment(), CommandHost {
         }
         binding.projectSessionRow.visibility = View.VISIBLE
         sessions.forEachIndexed { index, session ->
-            val chip = LayoutInflater.from(requireContext())
+            // Bug real reproducido en dispositivo (2026-09-04, crash en loop confirmado por
+            // logcat — UnsupportedOperationException resolviendo ?attr/studioBg):
+            // LayoutInflater.from(requireContext()) usaba el Context CRUDO del Fragment (tema
+            // ?attr/kairos* de la app, sin Theme.Studio.Oscuro/Claro aplicado), a diferencia de
+            // onCreateView() más arriba, que sí infla `binding` con
+            // inflater.cloneInContext(themedContext). binding.root.context ES ese
+            // ContextThemeWrapper (heredado de la vista raíz ya inflada con el tema de Estudio),
+            // así que reusarlo acá resuelve ?attr/studioBg/studioTextPrimary correctamente sin
+            // duplicar la resolución de StudioThemePrefs.
+            val chip = LayoutInflater.from(binding.root.context)
                 .inflate(R.layout.studio_item_project_chip, binding.projectSessionChips, false)
             chip.findViewById<android.widget.TextView>(R.id.chip_project_name).text = session.displayName
             chip.alpha = if (index == activeSessionIndex) 1.0f else 0.55f

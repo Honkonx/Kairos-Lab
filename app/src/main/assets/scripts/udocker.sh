@@ -232,6 +232,15 @@ step "1/2 Instalando udocker"
 
 export UDOCKER_USE_PROOT_EXECUTABLE=$(which proot 2>/dev/null || echo "$TERMUX_PREFIX/bin/proot")
 
+# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real, ver
+# docs/humano330.md, mismo fix ya confirmado y aplicado en n8n.sh --variant udocker): sin esto,
+# la resolución interna de udocker del binario "curl" (shutil.which(), cacheada en frío justo
+# después de instalar udockertools) puede fallar y "udocker pull" termina con "Error: in
+# download: %s" / X-ND-CURLSTATUS=1, aunque el mismo "curl" funcione perfecto para cualquier
+# descarga directa de este script. Mismo patrón que UDOCKER_USE_PROOT_EXECUTABLE arriba: ruta
+# absoluta fija en vez de depender de resolución por PATH.
+export UDOCKER_USE_CURL_EXECUTABLE="$TERMUX_PREFIX/bin/curl"
+
 if check_done "udocker_install"; then
   log "udocker ya instalado [checkpoint]"
 else
@@ -267,15 +276,21 @@ else
     # clonación vieja del fork (de antes de que el patch se subiera ahí) en vez de volver a
     # clonar y reconstruir contra el HEAD real — ver comentario largo de
     # udocker_fork_patch_active() arriba, causa raíz confirmada en dispositivo real.
-    if pip3 install --quiet --upgrade --no-cache-dir --force-reinstall "git+https://github.com/Honkonx/udocker.git" 2>/dev/null || \
-       pip install --quiet --upgrade --no-cache-dir --force-reinstall "git+https://github.com/Honkonx/udocker.git" 2>/dev/null; then
+    # Sin --quiet ni 2>/dev/null (2026-09-03, ver docs/humano318.md): silenciar TODO el
+    # output de pip acá dejaba, ante un doble fallo (fork y PyPI), un único mensaje genérico
+    # sin ninguna pista real de la causa (red, dependencia faltante, timeout). El output real
+    # de pip ya llega tal cual al log de instalación (ModuleController.kt captura stdout+stderr
+    # combinado del script completo a ~/kairos_logs/install_udocker.log), así que no hace falta
+    # ningún manejo especial acá — alcanza con no silenciarlo.
+    if pip3 install --upgrade --no-cache-dir --force-reinstall "git+https://github.com/Honkonx/udocker.git" || \
+       pip install --upgrade --no-cache-dir --force-reinstall "git+https://github.com/Honkonx/udocker.git"; then
       if udocker_fork_patch_active; then
         touch "$HOME/.udocker_fork_installed"
       else
         rm -f "$HOME/.udocker_fork_installed"
         warn "udocker instalado desde el fork pero el patch de plataforma android->linux no quedó activo — las descargas de imágenes pueden seguir fallando, revisar github.com/Honkonx/udocker manualmente"
       fi
-    elif pip3 install --quiet --upgrade --no-cache-dir --force-reinstall udocker 2>/dev/null || pip install --quiet --upgrade --no-cache-dir --force-reinstall udocker 2>/dev/null; then
+    elif pip3 install --upgrade --no-cache-dir --force-reinstall udocker || pip install --upgrade --no-cache-dir --force-reinstall udocker; then
       rm -f "$HOME/.udocker_fork_installed"
       warn "udocker instalado desde PyPI oficial (el fork no estuvo disponible) — las descargas de imágenes van a fallar con 'no image found in manifest for platform (android/arm64)' hasta que se reintente la instalación"
     else
@@ -307,7 +322,7 @@ else
     if curl -fsSL -m 120 -o "$_udocker_tmp_tarball" "$_mirror" && [ -s "$_udocker_tmp_tarball" ]; then
       export UDOCKER_TARBALL="$_udocker_tmp_tarball"
       info "Inicializando udockertools (mirror: ${_mirror##*/})..."
-      udocker install --force &>/dev/null
+      udocker install --force
       if [ -s "$HOME/.udocker/lib/VERSION" ]; then
         _UDOCKER_READY=true
         log "udockertools instalado (mirror: ${_mirror##*/})"
@@ -345,6 +360,10 @@ export UDOCKER_USE_PROOT_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/
 # app — un login shell de Termux tampoco exporta TMPDIR por defecto.
 export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
 mkdir -p "$TMPDIR"
+# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, ver docs/humano330.md): mismo fix que arriba con
+# TMPDIR — sin ruta absoluta fija, la resolución interna de udocker del binario "curl" puede
+# fallar en frío y "udocker pull" termina con "Error: in download: %s".
+export UDOCKER_USE_CURL_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/bin/curl"
 IMG="$1"
 [ -z "$IMG" ] && { echo "uso: pull.sh <imagen>" >&2; exit 1; }
 udocker pull "$IMG"
@@ -367,6 +386,9 @@ export UDOCKER_USE_PROOT_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/
 # app — un login shell de Termux tampoco exporta TMPDIR por defecto.
 export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
 mkdir -p "$TMPDIR"
+# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, ver docs/humano330.md) — este wrapper puede
+# disparar un "udocker pull" interno (línea de abajo) si la imagen no está cacheada todavía.
+export UDOCKER_USE_CURL_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/bin/curl"
 NAME="$1"; IMG="$2"; shift 2 2>/dev/null
 [ -z "$NAME" ] || [ -z "$IMG" ] && { echo "uso: run.sh <nombre> <imagen> [-- comando...]" >&2; exit 1; }
 [ "$1" = "--" ] && shift

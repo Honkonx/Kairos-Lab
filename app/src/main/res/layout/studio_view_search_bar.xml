@@ -49,6 +49,24 @@
             android:textSize="12sp"
             android:text="@string/search_no_matches" />
 
+        <!-- Toggle "coincidir mayúsculas/minúsculas" (gap real: EditorSearcher ya soporta
+             caseInsensitive=false vía EditorSearcher.SearchOptions, pero la búsqueda siempre
+             corría fija en modo insensible — ver EditorSearchController.runSearch). Texto "Aa"
+             en vez de un ImageButton nuevo porque no hay ícono dedicado en el set de vectores de
+             Estudio (studio_ic_*) y agregar uno para un solo toggle no lo justifica. -->
+        <TextView
+            android:id="@+id/search_case_sensitive_button"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/search_case_sensitive"
+            android:text="@string/search_case_sensitive_label"
+            android:textColor="@color/ide_text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:alpha="0.45" />
+
         <ImageButton
             android:id="@+id/search_prev_button"
             android:layout_width="32dp"

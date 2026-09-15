@@ -2,8 +2,10 @@ package com.termux.app.ui
 
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Typeface
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import com.termux.app.util.kairosThemeColor
@@ -13,7 +15,7 @@ import com.termux.R
 import com.termux.app.data.ModuleRegistry
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.util.TERMUX_BASH_PATH
-import com.termux.app.util.TERMUX_PGREP_PATH
+import com.termux.app.util.ManagerNativeUtils
 import com.termux.app.util.applyTermuxEnv
 import com.termux.app.util.friendlyProcessErrorMessage
 import com.termux.app.util.shellQuote
@@ -44,7 +46,6 @@ class DbFragment : BaseModuleFragment() {
     private var postgresValue: TextView? = null
     private var sqliteValue: TextView? = null
     private var redisValue: TextView? = null
-    private var dbList: JSONObject? = null
     // Switches reales (2026-08-22, ver docs/humano/humano193.md) — reemplazan los 3 pares de
     // botones Iniciar/Detener (MySQL/PostgreSQL/Redis, motores independientes que corren en
     // paralelo, no son variantes excluyentes — mismo criterio que Remote SSH/túnel).
@@ -124,16 +125,27 @@ class DbFragment : BaseModuleFragment() {
         }
     }
 
+    // Rediseño 2026-09-08 (pedido explícito del usuario — módulo Base de Datos: "toca ajustar
+    // como busca los db no poner nombre si no usar lo que tenemos para abrir proyectos en los
+    // cli, tambien tener algo asi como el administrador de archivos para buscarlos por
+    // termux/home o el almacenamiento interno"). Antes cada acción (abrir, ver tablas,
+    // exportar, backup, query) pedía la RUTA de la BD tipeada a mano en un EditText — ahora se
+    // elige un archivo real con el mismo patrón de navegador de carpetas que ya usan los CLIs
+    // para "Abrir en proyecto" (ver ProjectActions.kt/pickStorageFolder: AlertDialog con
+    // subcarpetas + ".. (subir)", origen Termux (~) o almacenamiento interno), adaptado acá
+    // para listar TAMBIÉN archivos .db/.sqlite (no solo carpetas) y devolver el archivo
+    // elegido en vez de solo una carpeta. Además "Listar BDs en ~" y "BD de n8n" antes solo
+    // mostraban un Snackbar "OK" sin mostrar ningún resultado real (bug real: el JSON con los
+    // nombres/tablas se armaba en buildListDbsJson()/buildN8nDbJson() pero runSqliteAction()
+    // nunca se lo mostraba al usuario, solo un Snackbar genérico) — ahora abren un diálogo real
+    // con los resultados; tocar cualquier BD encontrada abre el mismo menú de acciones que el
+    // navegador manual (ver openDbFileMenu()).
     private fun buildSqliteTab(parent: LinearLayout) {
         addCard(getString(R.string.db_card_sqlite), parent) {
-            addView(createActionButton(getString(R.string.db_btn_list_dbs), GHOST) { runSqliteAction("list-dbs") })
-            addView(createActionButton(getString(R.string.db_btn_open_db), GHOST) { promptAndRun("open") })
-            addView(createActionButton(getString(R.string.db_btn_view_tables), GHOST) { promptAndRun("tables") })
-            addView(createActionButton(getString(R.string.db_btn_n8n_db), GHOST) { runSqliteAction("n8n-db") })
-            addView(createActionButton(getString(R.string.db_btn_export_csv), GHOST) { promptAndRun("export-csv") })
-            addView(createActionButton(getString(R.string.db_btn_create_db_empty), GHOST) { promptAndRun("create-db") })
-            addView(createActionButton(getString(R.string.db_btn_backup_db), GHOST) { promptAndRun("backup") })
-            addView(createActionButton(getString(R.string.db_btn_query_sql), GHOST) { promptAndRun("query") })
+            addView(createActionButton(getString(R.string.db_btn_list_dbs), GHOST) { showFoundDatabases() })
+            addView(createActionButton(getString(R.string.db_btn_browse_db), GHOST) { browseForDatabase() })
+            addView(createActionButton(getString(R.string.db_btn_n8n_db), GHOST) { openN8nDb() })
+            addView(createActionButton(getString(R.string.db_btn_create_db_empty), GHOST) { promptCreateDb() })
         }
     }
 
@@ -167,7 +179,14 @@ class DbFragment : BaseModuleFragment() {
 
     private fun refreshServerStatus() {
         Thread {
-            val mysqlRunning = isAlive("mysqld")
+            // Bug real confirmado por ADB (auditoría 2026-09-08): el binario real de
+            // MariaDB en Termux es "mariadbd", no "mysqld" — el mismo bug ya encontrado y
+            // corregido 3 veces dentro de modulos/db.sh (bugs #15/#31, ver comentarios de
+            // ese archivo) nunca se propagó a este chequeo del lado Kotlin. Confirmado en
+            // vivo: "mysql_start.sh" arranca "mariadbd" con éxito real (exit 0), pero
+            // "pgrep mysqld" nunca lo encuentra (mysqld no existe como proceso), así que
+            // este switch mostraba "○ inactivo" con el motor corriendo de verdad.
+            val mysqlRunning = isAlive("mariadbd")
             val postgresRunning = isAlive("postgres")
             val redisRunning = isAlive("redis-server")
             val registry = try {
@@ -205,22 +224,27 @@ class DbFragment : BaseModuleFragment() {
         requireContext().kairosThemeColor(if (running) R.attr.kairosGreen else R.attr.kairosText3)
 
     private fun isAlive(process: String): Boolean {
-        // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): "pgrep -x postgres"
-        // y "pgrep -x redis-server" devuelven exit 1 (no match) pese a que ambos procesos
-        // corren de verdad y /proc/<pid>/comm confirma el nombre exacto — el switch de la app
-        // quedaba mostrando "inactivo" con el servidor real corriendo. "pgrep -x mariadbd" SÍ
-        // funciona (no es que -x esté roto en general), pero "pgrep postgres"/"pgrep
-        // redis-server" (sin -x) confirmados funcionando para los 3 en pruebas reales en
-        // dispositivo — se saca -x acá, aceptando el riesgo teórico de un falso positivo por
-        // substring (sin conflicto real conocido entre mysqld/postgres/redis-server y otro
-        // proceso del sistema).
-        val pb = ProcessBuilder(TERMUX_PGREP_PATH, process)
-        return try {
-            pb.applyTermuxEnv()
-            pb.start().waitFor() == 0
-        } catch (_: Exception) {
-            false
+        // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver docs/humano326.md — ronda
+        // de consolidación de los 7 agentes de módulos): no es un tema de flags de pgrep ("-x",
+        // sin flag, o "-f" — se probaron los tres). Es una restricción de Android/Linux: el
+        // proceso pgrep que lanza la app (dominio SELinux "untrusted_app_27", confirmado con
+        // `ps -Z`) NO es ancestro del proceso mariadbd/redis-server (que vive en el árbol de la
+        // sesión de terminal de TermuxService, un árbol de procesos hermano, no descendiente) —
+        // con Yama ptrace_scope=1 (default en Android), un proceso solo puede ver vía /proc a
+        // sus propios descendientes, sin importar que compartan el mismo UID. Por eso
+        // `adb shell run-as com.termux pgrep -f mariadbd` SÍ encontraba el proceso (ese shell
+        // corre en el dominio "runas_app", con permisos de depuración más amplios) mientras el
+        // pgrep lanzado por la app en su propio proceso, no. No hay flag de pgrep que arregle
+        // esto — es una restricción de kernel/SELinux, no del comando. Fix real: chequear el
+        // puerto TCP real del motor (igual que ya hace "pg_isready" del lado shell en
+        // postgres_start.sh, ver modulos/db.sh bug #31) en vez de mirar el árbol de procesos.
+        val port = when (process) {
+            "mariadbd" -> 3306
+            "postgres" -> 5432
+            "redis-server" -> 6379
+            else -> return false
         }
+        return ManagerNativeUtils.checkPort(port)
     }
 
     private fun startServer(which: String) {
@@ -426,30 +450,332 @@ class DbFragment : BaseModuleFragment() {
         return String.format("%.1fTB", b)
     }
 
-    private fun runSqliteAction(action: String, vararg extraArgs: String) {
-        Thread {
-            val json = try {
-                when (action) {
-                    "list-dbs" -> buildListDbsJson()
-                    "tables" -> buildTablesJson(extraArgs.getOrNull(0))
-                    "export-csv" -> buildExportCsvJson(extraArgs.getOrNull(0), extraArgs.getOrNull(1))
-                    "create-db" -> buildCreateDbJson(extraArgs.getOrNull(0))
-                    "backup" -> buildBackupJson(extraArgs.getOrNull(0))
-                    "query" -> buildQueryJson(extraArgs.getOrNull(0), extraArgs.drop(1))
-                    "n8n-db" -> buildN8nDbJson()
-                    else -> JSONObject().put("ok", false).put("error", getString(R.string.db_err_unknown_action, action))
-                }
-            } catch (e: Exception) {
-                JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_unknown))
+    // ────────────────────────────────────────────────────────────
+    // Navegador de carpetas/archivos — mismo patrón visual que ProjectActions.kt
+    // (pickStorageFolder: AlertDialog con ".. (subir)" + subcarpetas, origen Termux (~) o
+    // almacenamiento interno), extendido acá para listar TAMBIÉN archivos .db/.sqlite y
+    // devolver el archivo elegido (no solo una carpeta) — ver comentario largo en
+    // buildSqliteTab() arriba. Autocontenido en este archivo (no se tocó ProjectActions.kt):
+    // esa función es folder-only (la usan Symlink/Copiar de todos los CLIs), y este picker
+    // necesita seleccionar un ARCHIVO puntual con filtro de extensión, algo que esa función
+    // compartida no cubre todavía.
+    // ────────────────────────────────────────────────────────────
+
+    private fun isDbFile(name: String): Boolean {
+        val lower = name.lowercase()
+        return lower.endsWith(".db") || lower.endsWith(".sqlite") || lower.endsWith(".sqlite3") || lower.endsWith(".db3")
+    }
+
+    private fun browseForDatabase() {
+        val options = arrayOf(getString(R.string.db_browse_origin_home), getString(R.string.db_browse_origin_storage))
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.db_browse_origin_title))
+            .setItems(options) { _, which ->
+                val root = if (which == 0) TermuxConstants.TERMUX_HOME_DIR_PATH else com.termux.app.util.ProjectsManager.EXTERNAL_STORAGE_ROOT
+                browseDbPath(root, root)
             }
-            val ok = json.optBoolean("ok", false)
-            if (ok && action == "list-dbs") dbList = json
+            .setNegativeButton(getString(R.string.db_cancel), null)
+            .show()
+    }
+
+    private fun browseDbPath(root: String, path: String) {
+        Thread {
+            val dir = File(path)
+            val children = try { dir.listFiles()?.toList() ?: emptyList() } catch (_: SecurityException) { emptyList() }
+            val dirs = children.filter { it.isDirectory && it.name !in skipDirs && !it.name.startsWith(".") }.sortedBy { it.name }
+            val files = children.filter { it.isFile && isDbFile(it.name) }.sortedBy { it.name }
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
-                val msg = if (ok) getString(R.string.db_ok) else getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown)))
-                Snackbar.make(requireView(), msg, Snackbar.LENGTH_SHORT).show()
+                if (!isAdded) return@runOnUiThread
+                showDbBrowseDialog(root, path, dirs, files)
             }
         }.start()
+    }
+
+    private fun showDbBrowseDialog(root: String, path: String, dirs: List<File>, files: List<File>) {
+        val canGoUp = path != root && File(path).parent != null
+        val items = mutableListOf<String>()
+        if (canGoUp) items.add(getString(R.string.db_browse_up))
+        items.addAll(dirs.map { getString(R.string.db_browse_folder_item, it.name) })
+        items.addAll(files.map { getString(R.string.db_browse_file_item, it.name) })
+        AlertDialog.Builder(requireContext())
+            .setTitle("${getString(R.string.db_browse_title)}\n$path")
+            .setItems(items.toTypedArray()) { _, which ->
+                var idx = which
+                if (canGoUp) {
+                    if (idx == 0) {
+                        browseDbPath(root, File(path).parent ?: root)
+                        return@setItems
+                    }
+                    idx -= 1
+                }
+                if (idx < dirs.size) {
+                    browseDbPath(root, dirs[idx].absolutePath)
+                } else {
+                    openDbFileMenu(files[idx - dirs.size].absolutePath)
+                }
+            }
+            .setNegativeButton(getString(R.string.db_cancel), null)
+            .show()
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Búsqueda automática (escaneo ~ + BD de n8n) — ahora muestra los resultados en un
+    // diálogo real en vez de solo un Snackbar "OK" (bug real corregido, ver comentario en
+    // buildSqliteTab()). Tocar una BD encontrada abre el mismo menú de acciones que el
+    // navegador manual.
+    // ────────────────────────────────────────────────────────────
+
+    private fun showFoundDatabases() {
+        Thread {
+            val json = try { buildListDbsJson() } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            val ok = json.optBoolean("ok", false)
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (!ok) {
+                    toast(getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown))))
+                    return@runOnUiThread
+                }
+                val dbs = json.optJSONArray("databases") ?: JSONArray()
+                if (dbs.length() == 0) {
+                    toast(getString(R.string.db_no_dbs_found_home))
+                    return@runOnUiThread
+                }
+                val names = (0 until dbs.length()).map { i ->
+                    val o = dbs.getJSONObject(i)
+                    "${o.optString("name")}  ·  ${o.optString("size_human")}"
+                }
+                val paths = (0 until dbs.length()).map { dbs.getJSONObject(it).optString("path") }
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.db_found_dbs_title, dbs.length()))
+                    .setItems(names.toTypedArray()) { _, which -> openDbFileMenu(paths[which]) }
+                    .setNegativeButton(getString(R.string.db_cancel), null)
+                    .show()
+            }
+        }.start()
+    }
+
+    private fun openN8nDb() {
+        Thread {
+            val json = try { buildN8nDbJson() } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (!json.optBoolean("ok", false)) {
+                    toast(getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown))))
+                    return@runOnUiThread
+                }
+                openDbFileMenu(json.optString("path"))
+            }
+        }.start()
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Menú de acciones sobre UN archivo .db/.sqlite ya elegido (por el navegador manual, el
+    // escaneo automático, o "BD de n8n") — reemplaza los diálogos separados de
+    // promptAndRun()/promptMultiAndRun() que existían antes de este rediseño, cada uno pidiendo
+    // la ruta tipeada a mano.
+    // ────────────────────────────────────────────────────────────
+
+    private fun openDbFileMenu(path: String) {
+        val options = arrayOf(
+            getString(R.string.db_action_view_tables),
+            getString(R.string.db_action_open_terminal),
+            getString(R.string.db_action_export_csv),
+            getString(R.string.db_action_backup),
+            getString(R.string.db_action_query)
+        )
+        AlertDialog.Builder(requireContext())
+            .setTitle(File(path).name)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showTablesDialog(path)
+                    1 -> launchTerminalCommand("sqlite3 ${shellQuote(path)}", getString(R.string.db_tab_sqlite))
+                    2 -> exportCsvFlow(path)
+                    3 -> runBackupAction(path)
+                    4 -> promptQueryFlow(path)
+                }
+            }
+            .setNegativeButton(getString(R.string.db_cancel), null)
+            .show()
+    }
+
+    private fun showTablesDialog(path: String) {
+        Thread {
+            val json = try { buildTablesJson(path) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (!json.optBoolean("ok", false)) {
+                    toast(getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown))))
+                    return@runOnUiThread
+                }
+                val tables = json.optJSONArray("tables") ?: JSONArray()
+                if (tables.length() == 0) {
+                    toast(getString(R.string.db_schema_no_tables))
+                    return@runOnUiThread
+                }
+                val names = (0 until tables.length()).map { tables.getString(it) }
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.db_tables_dialog_title, File(path).name, names.size))
+                    .setItems(names.toTypedArray(), null)
+                    .setPositiveButton(getString(R.string.db_close), null)
+                    .show()
+            }
+        }.start()
+    }
+
+    private fun exportCsvFlow(path: String) {
+        Thread {
+            val json = try { buildTablesJson(path) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (!json.optBoolean("ok", false)) {
+                    toast(getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown))))
+                    return@runOnUiThread
+                }
+                val tables = json.optJSONArray("tables") ?: JSONArray()
+                val names = mutableListOf(getString(R.string.db_export_all_tables))
+                names.addAll((0 until tables.length()).map { tables.getString(it) })
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.db_export_dialog_title))
+                    .setItems(names.toTypedArray()) { _, which ->
+                        val table = if (which == 0) "all" else names[which]
+                        runExportCsvAction(path, table)
+                    }
+                    .setNegativeButton(getString(R.string.db_cancel), null)
+                    .show()
+            }
+        }.start()
+    }
+
+    private fun runExportCsvAction(path: String, table: String) {
+        Thread {
+            val json = try { buildExportCsvJson(path, table) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                val msg = if (json.optBoolean("ok", false)) {
+                    getString(R.string.db_export_done, json.optJSONArray("exported")?.length() ?: 0)
+                } else {
+                    getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown)))
+                }
+                Snackbar.make(requireView(), msg, Snackbar.LENGTH_LONG).show()
+            }
+        }.start()
+    }
+
+    private fun runBackupAction(path: String) {
+        Thread {
+            val json = try { buildBackupJson(path) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                val msg = if (json.optBoolean("ok", false)) {
+                    getString(R.string.db_backup_created_at, json.optString("path"))
+                } else {
+                    getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown)))
+                }
+                Snackbar.make(requireView(), msg, Snackbar.LENGTH_LONG).show()
+            }
+        }.start()
+    }
+
+    private fun promptQueryFlow(path: String) {
+        val ctx = requireContext()
+        val edit = EditText(ctx).apply { hint = getString(R.string.db_hint_sql_query) }
+        AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.db_query_dialog_title, File(path).name))
+            .setView(edit)
+            .setPositiveButton(getString(R.string.db_ok)) { _, _ ->
+                val sql = edit.text.toString().trim()
+                if (sql.isNotBlank()) runQueryAndShowResult(path, sql)
+            }
+            .setNegativeButton(getString(R.string.db_cancel), null)
+            .show()
+    }
+
+    // Bug real corregido (mismo hallazgo que "Listar BDs en ~"/"BD de n8n", ver comentario en
+    // buildSqliteTab()): antes una consulta SELECT corría de verdad (buildQueryJson() arma
+    // headers+rows) pero runSqliteAction() solo mostraba "OK" — el resultado real de la query
+    // nunca se le mostraba al usuario. Ahora se arma un volcado de texto simple (sin librería
+    // de tablas nueva) en un diálogo con scroll, seleccionable para copiar.
+    private fun runQueryAndShowResult(path: String, sql: String) {
+        Thread {
+            val json = try { buildQueryJson(path, listOf(sql)) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                if (!json.optBoolean("ok", false)) {
+                    toast(getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown))))
+                    return@runOnUiThread
+                }
+                if (json.has("headers")) {
+                    showQueryResultDialog(json)
+                } else {
+                    val affected = json.optInt("affected", -1)
+                    val msg = json.optString("message", getString(R.string.db_msg_executed)) +
+                        if (affected >= 0) " ($affected)" else ""
+                    toast(msg)
+                }
+            }
+        }.start()
+    }
+
+    private fun showQueryResultDialog(json: JSONObject) {
+        val headers = json.optJSONArray("headers") ?: JSONArray()
+        val rows = json.optJSONArray("rows") ?: JSONArray()
+        val headerNames = (0 until headers.length()).map { headers.getString(it) }
+        val sb = StringBuilder()
+        sb.append(headerNames.joinToString(" | ")).append('\n')
+        sb.append("-".repeat(40)).append('\n')
+        for (i in 0 until rows.length()) {
+            val row = rows.getJSONObject(i)
+            sb.append(headerNames.joinToString(" | ") { row.optString(it, "") }).append('\n')
+        }
+        val ctx = requireContext()
+        val textView = TextView(ctx).apply {
+            text = sb.toString()
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            typeface = Typeface.MONOSPACE
+            textSize = 12f
+            setTextIsSelectable(true)
+        }
+        val scroll = ScrollView(ctx).apply { addView(textView) }
+        AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.db_query_result_title, rows.length()))
+            .setView(scroll)
+            .setPositiveButton(getString(R.string.db_close), null)
+            .show()
+    }
+
+    private fun promptCreateDb() {
+        val ctx = requireContext()
+        val edit = EditText(ctx).apply { hint = getString(R.string.db_hint_nombre_db) }
+        AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.db_btn_create_db_empty))
+            .setView(edit)
+            .setPositiveButton(getString(R.string.db_ok)) { _, _ ->
+                val value = edit.text.toString().trim()
+                if (value.isBlank()) return@setPositiveButton
+                Thread {
+                    val json = try { buildCreateDbJson(value) } catch (e: Exception) { JSONObject().put("ok", false).put("error", e.message ?: getString(R.string.db_err_generic)) }
+                    if (!isAdded) return@Thread
+                    requireActivity().runOnUiThread {
+                        if (!isAdded) return@runOnUiThread
+                        if (json.optBoolean("ok", false)) {
+                            toast(json.optString("message", getString(R.string.db_msg_db_created)))
+                            openDbFileMenu(json.optString("path"))
+                        } else {
+                            toast(getString(R.string.db_action_error, json.optString("error", getString(R.string.db_err_unknown))))
+                        }
+                    }
+                }.start()
+            }
+            .setNegativeButton(getString(R.string.db_cancel), null)
+            .show()
     }
 
     private fun buildListDbsJson(): JSONObject {
@@ -664,67 +990,4 @@ class DbFragment : BaseModuleFragment() {
         }
     }
 
-    private fun promptAndRun(action: String) {
-        when (action) {
-            "export-csv" -> promptMultiAndRun(action, listOf(getString(R.string.db_hint_ruta_bd), getString(R.string.db_hint_tabla)))
-            "query" -> promptMultiAndRun(action, listOf(getString(R.string.db_hint_ruta_bd), getString(R.string.db_hint_sql_query)))
-            // "open" abre la BD con el CLI real de sqlite3 en la terminal (lo instala
-            // modulos/db.sh) — antes caía en "Acción desconocida: open" (bug heredado de
-            // SqliteFragment). shellQuote() evita inyección de shell en la ruta (ver
-            // ProcessBuilderExt.kt).
-            "open" -> {
-                val ctx = requireContext()
-                val edit = EditText(ctx)
-                edit.hint = getString(R.string.db_hint_ruta_bd)
-                AlertDialog.Builder(ctx)
-                    .setTitle(getString(R.string.db_dialog_title_open_db))
-                    .setView(edit)
-                    .setPositiveButton(getString(R.string.db_ok)) { _, _ ->
-                        val value = edit.text.toString()
-                        if (value.isNotBlank()) {
-                            launchTerminalCommand("sqlite3 ${shellQuote(value)}", getString(R.string.db_tab_sqlite))
-                        }
-                    }
-                    .setNegativeButton(getString(R.string.db_cancel), null)
-                    .show()
-            }
-            else -> {
-                val ctx = requireContext()
-                val edit = EditText(ctx)
-                edit.hint = when (action) {
-                    "tables" -> getString(R.string.db_hint_ruta_bd)
-                    "create-db" -> getString(R.string.db_hint_nombre_db)
-                    "backup" -> getString(R.string.db_hint_ruta_backup)
-                    else -> getString(R.string.db_hint_valor)
-                }
-                AlertDialog.Builder(ctx)
-                    .setTitle(action)
-                    .setView(edit)
-                    .setPositiveButton(getString(R.string.db_ok)) { _, _ ->
-                        val value = edit.text.toString()
-                        if (value.isNotBlank()) runSqliteAction(action, value)
-                    }
-                    .setNegativeButton(getString(R.string.db_cancel), null)
-                    .show()
-            }
-        }
-    }
-
-    private fun promptMultiAndRun(action: String, hints: List<String>) {
-        val ctx = requireContext()
-        val layout = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-        }
-        val edits = hints.map { h -> EditText(ctx).apply { hint = h }.also { layout.addView(it) } }
-        AlertDialog.Builder(ctx)
-            .setTitle(action)
-            .setView(layout)
-            .setPositiveButton(getString(R.string.db_ok)) { _, _ ->
-                val values = edits.map { it.text.toString() }
-                if (values.all { it.isNotBlank() }) runSqliteAction(action, *values.toTypedArray())
-            }
-            .setNegativeButton(getString(R.string.db_cancel), null)
-            .show()
-    }
 }

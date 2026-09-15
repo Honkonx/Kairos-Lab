@@ -228,11 +228,11 @@ _codebuff_download_native_fork() {
   local _deb="$_tmp/$(basename "$_asset_url")"
   mkdir -p "$_tmp"
   info "Descargando Codebuff nativo del fork ($(basename "$_asset_url"), repo $CODEBUFF_FORK_SOURCE_REPO)..."
-  curl -fsSL "$_asset_url" -o "$_deb" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+  curl -fsSL "$_asset_url" -o "$_deb" || { rm -rf "$_tmp"; return 1; }
 
   local _extract="$_tmp/extract"
   mkdir -p "$_extract"
-  dpkg-deb -x "$_deb" "$_extract" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+  dpkg-deb -x "$_deb" "$_extract" || { rm -rf "$_tmp"; return 1; }
 
   # Mismo bug/fix real ya confirmado en freebuff.sh (docs/humano281.md): dpkg-deb -x
   # deja el árbol bajo la RUTA ABSOLUTA COMPLETA "$_extract/data/data/com.termux/
@@ -311,10 +311,18 @@ if $_NATIVE; then
     if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
       info "Instalando: ${_MISSING_DEPS[*]}"
       pkg_update_with_fallback
+      # Fix real (auditoría QA 2026-09-14, docs/humano338.md): este era el único módulo del
+      # grupo (kilo/mimocode/freebuff/ohmypi/cursor/antigravity, todos con el mismo bloque
+      # glibc copy-pasted) que usaba "|| warn" en vez de "|| error" y nunca verificaba que
+      # ld-linux-aarch64.so.1 quedó de verdad en disco tras el install — un fallo de red/mirror
+      # a mitad de la instalación dejaba "glibc" marcado como hecho (mark_done incondicional
+      # más abajo) para siempre, sin reintento posible salvo --force. Mismo patrón exacto que
+      # el bug ya arreglado en kilo.sh/mimocode.sh/etc.
       pkg install -y "${_MISSING_DEPS[@]}" \
         -o Dpkg::Options::="--force-confdef" \
-        -o Dpkg::Options::="--force-confold" 2>/dev/null || \
-        warn "No se pudieron instalar las dependencias glibc — los métodos nativos pueden no funcionar"
+        -o Dpkg::Options::="--force-confold" || \
+        error "No se pudieron instalar las dependencias glibc"
+      [ -f "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" ] || error "glibc ld.so no encontrado tras la instalación"
     fi
     mark_done "glibc"
     log "Capa glibc verificada"
@@ -345,7 +353,7 @@ else
   else
     info "Instalando nodejs-lts..."
     pkg_update_with_fallback
-    pkg install nodejs-lts -y 2>/dev/null || error "No se pudo instalar Node.js"
+    pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
     command -v node &>/dev/null || error "Node.js no disponible tras instalación"
     log "Node.js instalado: $(node --version)"
     mark_done "node"
@@ -360,7 +368,7 @@ if check_done "npm_install"; then
   log "Codebuff (launcher) ya instalado [checkpoint]"
 else
   info "Ejecutando: npm install -g ${CODEBUFF_PKG}"
-  npm install -g "$CODEBUFF_PKG" --force 2>&1 | tail -5; [ ${PIPESTATUS[0]} -eq 0 ] || error "npm install falló"
+  npm install -g "$CODEBUFF_PKG" --force || error "npm install falló"
   # Bug real encontrado 2026-08-24 (ver docs/humano212.md): faltaba este
   # wrapper — el symlink que deja "npm install -g" tiene shebang
   # "#!/usr/bin/env node", que no existe en Termux (no hay /usr en la raíz
@@ -414,7 +422,7 @@ if $_NATIVE; then
         chmod +x "$CODEBUFF_NATIVE_BIN"
         info "Aplicando patchelf al binario nativo..."
         "$_patchelf_bin" --set-interpreter "$TERMUX_PREFIX/glibc/lib/ld-linux-aarch64.so.1" \
-          "$CODEBUFF_NATIVE_BIN" 2>/dev/null || \
+          "$CODEBUFF_NATIVE_BIN" || \
           warn "patchelf falló — el binario puede requerir ajuste manual"
         mark_done "native_patch"
       else

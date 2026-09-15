@@ -72,7 +72,11 @@ class ExpoFragment : BaseModuleFragment() {
         actionButton(getString(R.string.expo_btn_logout), GHOST) { launchTerminalCommand("eas logout") }
         actionButton(getString(R.string.expo_btn_info), GHOST) { runExpoAction("info") }
         actionButton(getString(R.string.expo_btn_select_project), GHOST) { selectProject() }
-        actionButton(getString(R.string.expo_btn_git_push), GHOST) { promptAndRun("git-push") }
+        // "git push" se sacó de acá a su propio módulo de propósito general (ver
+        // GitFragment.kt/modulos/git.sh, pedido explícito del usuario: "sobre expo creo que
+        // podemos sacar git y github a un modulo independiente") — Expo sigue instalando git
+        // como dependencia propia (PASO 2 de modulos/expo.sh, lo necesita para sus propios
+        // flujos EAS), pero la acción de commitear/pushear un proyecto ya no vive acá.
         // submenu_expo() de termux-ai-stack (menu_nativo.sh) tiene la opción [u] "Actualizar
         // EAS CLI", que corre exactamente "npm install -g eas-cli@latest" — cmd_expo no
         // tiene una acción equivalente, pero es un único comando npm sin interacción real,
@@ -113,7 +117,6 @@ class ExpoFragment : BaseModuleFragment() {
                     "build-profiles" -> buildBuildProfilesJson()
                     "doctor" -> buildDoctorJson()
                     "update" -> buildUpdateJson(extra.getOrNull(0), extra.getOrNull(1))
-                    "git-push" -> buildGitPushJson(extra.getOrNull(0))
                     else -> JSONObject().put("ok", false).put("error", getString(R.string.expo_error_unknown_action, action))
                 }
             } catch (e: Exception) {
@@ -351,23 +354,6 @@ class ExpoFragment : BaseModuleFragment() {
             .show()
     }
 
-    private fun buildGitPushJson(msg: String?): JSONObject {
-        if (!easProjectFile.exists()) return JSONObject().put("ok", false).put("error", getString(R.string.expo_error_no_project))
-        val proj = easProjectFile.readText().trim()
-        val real = File(proj).canonicalFile
-        if (!File(real, ".git").isDirectory) return JSONObject().put("ok", false).put("error", getString(R.string.expo_error_not_git_repo))
-        val commitMsg = msg?.takeIf { it.isNotBlank() } ?: getString(R.string.expo_default_commit_message)
-        runCommand(listOf("git", "add", "."), 30, workDir = real)
-        val status = runCommand(listOf("git", "status", "--short"), 10, workDir = real)
-        runCommand(listOf("git", "commit", "-m", commitMsg), 30, workDir = real)
-        val push = runCommand(listOf("git", "push"), 60, workDir = real)
-        return if (push.exitCode == 0) {
-            JSONObject().put("ok", true).put("message", getString(R.string.expo_msg_push_ok)).put("commit_msg", commitMsg).put("status", status.stdout)
-        } else {
-            JSONObject().put("ok", false).put("error", getString(R.string.expo_error_push_failed)).put("detail", push.stderr.ifBlank { push.stdout })
-        }
-    }
-
     private fun openLoginSession() {
         // El intent ACTION_VIEW con extra "command" no funcionaba — TermuxActivity nunca
         // lee ese extra (mismo bug que en PythonFragment.openRepl()).
@@ -419,21 +405,6 @@ class ExpoFragment : BaseModuleFragment() {
                 val branch = branchEdit.text.toString().trim()
                 val message = messageEdit.text.toString().trim()
                 if (branch.isNotBlank()) runExpoAction("update", branch, message)
-            }
-            .setNegativeButton(getString(R.string.expo_btn_cancel), null)
-            .show()
-    }
-
-    private fun promptAndRun(action: String) {
-        val ctx = requireContext()
-        val edit = EditText(ctx)
-        edit.hint = getString(R.string.expo_hint_value)
-        AlertDialog.Builder(ctx)
-            .setTitle(action)
-            .setView(edit)
-            .setPositiveButton(getString(R.string.expo_msg_ok)) { _, _ ->
-                val value = edit.text.toString()
-                if (value.isNotBlank()) runExpoAction(action, value)
             }
             .setNegativeButton(getString(R.string.expo_btn_cancel), null)
             .show()

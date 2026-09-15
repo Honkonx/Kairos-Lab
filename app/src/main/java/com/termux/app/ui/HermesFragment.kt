@@ -26,6 +26,13 @@ class HermesFragment : BaseModuleFragment() {
     private var gatewayValue: TextView? = null
     private var providerValue: TextView? = null
 
+    // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona una
+    // API key propia (keyInput) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
+
     override fun buildContent() {
         // Instalación silenciosa en segundo plano (pedido 2026-08-13, ver humano101): si
         // Hermes no está instalado, se ofrece instalarlo internamente sin bloquear — el
@@ -61,6 +68,12 @@ class HermesFragment : BaseModuleFragment() {
                 addView(terminalStatusPill().also {
                     (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
                         gravity = android.view.Gravity.END
+                    }
+                })
+                addView(terminalCloseButton().also {
+                    (it.layoutParams as? LinearLayout.LayoutParams)?.apply {
+                        gravity = android.view.Gravity.END
+                        marginStart = dp(8)
                     }
                 })
             })

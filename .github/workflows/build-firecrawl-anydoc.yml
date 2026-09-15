@@ -1,0 +1,191 @@
+name: Build firecrawl-anydoc prebuilt wheel (aarch64-linux-android)
+
+# Cross-compila firecrawl-anydoc (github.com/firecrawl/anydoc, subcarpeta python/ del
+# workspace Cargo) para aarch64-linux-android y publica el .whl resultante como asset
+# de una GitHub Release — MISMO mecanismo, MISMA causa raíz y MISMO recipe ya probado y
+# verificado en dispositivo real para hf_xet (ver build-hf-xet.yml y
+# docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md, sección "firecrawl-anydoc
+# (Hermes) — misma causa raíz, mismo mecanismo"): PyPI no publica wheel para
+# Android/Bionic de firecrawl-anydoc (solo manylinux/musllinux/macOS/Windows), es
+# dependencia BASE (no opcional, no extra) de hermes-agent, exact-pinned
+# "firecrawl-anydoc==0.2.4" en su pyproject.toml, y se compila con maturin (PyO3
+# abi3-py310, mismo patrón exacto que hf_xet). modulos/hermes.sh (PASO 3.5) ya busca
+# este wheel en Releases recientes de este repo con el patrón de nombre
+# "firecrawl_anydoc-*aarch64*android*.whl" antes de dejar que el PASO 4 (pip install -e
+# .[termux-all]) intente compilar Rust en el dispositivo — este workflow es lo que
+# produce ese asset.
+#
+# A DIFERENCIA de build-hf-xet.yml, este workflow NO fue disparado/verificado
+# todavía (ver .claude/rules/empirical-verification-before-fix.md — no se corrió CI
+# real para esto en la ronda que lo creó, siguiendo la regla dura de no consumir
+# minutos de Actions sin necesidad; el usuario decide cuándo dispararlo). La
+# confianza en que el mismo recipe funciona acá es alta (mismo target
+# aarch64-linux-android, mismo NDK r29, mismo maturin+PyO3 abi3, mismo tipo de crate
+# cdylib sin más dependencias nativas que libc) pero NO está confirmada
+# empíricamente — no asumir que "debería funcionar" es lo mismo que "funciona".
+#
+# Disparo manual únicamente (workflow_dispatch) — mismo criterio que build-hf-xet.yml:
+# cross-compila Rust desde fuente con el NDK, consume minutos reales de CI, y
+# firecrawl-anydoc no cambia de versión seguido.
+#
+# NOTA sobre el repo de destino de la Release (2026-09-11): igual que
+# build-hf-xet.yml, este job publica en el repo donde corre (hoy el privado
+# kairos-dev) usando el GITHUB_TOKEN por defecto. Honkonx/kairos-lab (destino real
+# planeado, ver modulos/hermes.sh HERMES_FIRECRAWL_PREBUILT_REPO) YA EXISTE como repo
+# público desde 2026-08-29, pero publicar ahí (o simplemente copiar el asset una vez
+# compilado) requiere el pedido explícito del dueño del proyecto nombrando
+# "Kairos-Lab" — ver .claude/rules/kairos-lab-batching.md y
+# .claude/rules/kairos-public-repo.md. No se agrega unilateralmente un
+# `repository: Honkonx/kairos-lab` + secret nuevo acá sin esa confirmación.
+
+on:
+  workflow_dispatch:
+    inputs:
+      anydoc_ref:
+        description: 'Rama/tag de firecrawl/anydoc a clonar (vacío = rama default del repo)'
+        required: false
+        default: ''
+      release_tag:
+        description: 'Tag de la Release a crear/actualizar (ej. firecrawl-anydoc-aarch64-android-0.2.4)'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # publicar una Release + subir el wheel requiere este scope
+
+jobs:
+  build-firecrawl-anydoc-wheel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar Rust (rustup) + target Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Instalar maturin
+        run: pip install maturin
+
+      # Mismo bug/fix real que build-hf-xet.yml (2026-08-29): "${{ env.ANDROID_HOME }}"
+      # (contexto de expresiones de Actions) es DISTINTO de "$ANDROID_HOME" (variable
+      # de entorno real del shell del runner) — sin sembrarlo acá, el contexto env.*
+      # evalúa vacío en el step de cross-compile de más abajo.
+      - name: Exportar ANDROID_HOME real al contexto de Actions
+        run: echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+
+      # Misma versión de NDK que usa terminal-emulator y build-hf-xet.yml (ver
+      # CLAUDE.md — "NDK r29 (29.0.14206865)").
+      - name: Instalar NDK 29.0.14206865
+        run: $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;29.0.14206865"
+
+      - name: Clonar firecrawl/anydoc (fuente real de firecrawl-anydoc)
+        run: |
+          set -e
+          if [ -n "${{ inputs.anydoc_ref }}" ]; then
+            git clone --depth 1 --branch "${{ inputs.anydoc_ref }}" https://github.com/firecrawl/anydoc.git
+          else
+            git clone --depth 1 https://github.com/firecrawl/anydoc.git
+          fi
+
+      # Mismo mecanismo que build-hf-xet.yml — ver el comentario completo ahí para la
+      # causa raíz (Android no tiene ningún libpython3.so de sistema para que el
+      # linker resuelva "-lpython3" en tiempo de build, pese a que PYO3_NO_PYTHON=1
+      # esté seteado). python/Cargo.toml de anydoc usa "pyo3 = { features =
+      # [\"abi3-py310\", \"extension-module\"] }" — MISMA familia de PyO3/abi3 que
+      # hf_xet, mismo fix aplica sin cambios.
+      - name: Descargar libpython3.so real de Termux (aarch64) para el linker
+        run: |
+          set -e
+          mkdir -p /tmp/termux-python-deb /tmp/termux-python-raw /tmp/pylib
+          curl -sSL -o /tmp/termux-python-deb/python.deb \
+            "https://packages.termux.dev/apt/termux-main/pool/main/p/python/python_3.14.6-1_aarch64.deb"
+          cd /tmp/termux-python-deb
+          ar x python.deb
+          # Mismo bug/fix real que build-hf-xet.yml: --wildcards + --strip-components
+          # combinados en la misma invocación de tar rompía el matching (0 archivos
+          # extraídos) — se extrae con la estructura completa y se localiza con `find`.
+          tar --wildcards -xf data.tar.* -C /tmp/termux-python-raw "./data/data/com.termux/files/usr/lib/libpython3*.so"
+          find /tmp/termux-python-raw -name "libpython3.*.so" ! -name "libpython3.so" -exec cp {} /tmp/pylib/ \;
+          cd /tmp/pylib
+          REAL_SO=$(ls libpython3.*.so | head -1)
+          [ -n "$REAL_SO" ] || { echo "No se encontró ninguna libpython3.*.so en el .deb de Termux"; exit 1; }
+          ln -sf "$REAL_SO" libpython3.so
+          ls -la
+
+      # working-directory: anydoc/python — es el crate "anydoc-python" (miembro del
+      # workspace Cargo raíz, ver anydoc/Cargo.toml "[workspace] members = [...,
+      # \"python\", ...]"), el único con pyproject.toml/build-backend=maturin. El
+      # crate Rust base "anydoc" (anydoc/src/) no tiene bindings Python directos —
+      # compilar en anydoc/ a secas no produce ningún wheel.
+      - name: Cross-compilar firecrawl-anydoc (aarch64-linux-android, NDK clang)
+        working-directory: anydoc/python
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+          CC_aarch64_linux_android: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          AR_aarch64_linux_android: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android26-clang
+          CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: "-L /tmp/pylib"
+          PYO3_NO_PYTHON: "1"
+        run: |
+          set -e
+          maturin build --release --target aarch64-linux-android --out dist/
+          ls -lh dist/
+
+      # Mismo truco que build-hf-xet.yml — ver ese comentario completo para el porqué
+      # (PEP 427 "build tag" opcional insertado entre versión y pyver, no toca los
+      # tags reales de compatibilidad que pip valida). hf.sh/hermes.sh buscan el
+      # literal "aarch64" en el nombre del asset, y el platform tag real que produce
+      # maturin para este target usa "arm64_v8a" (no "aarch64") — sin este paso el
+      # asset no sería encontrable por el patrón de búsqueda de hermes.sh.
+      - name: Renombrar el wheel para que coincida con el patrón que espera hermes.sh
+        working-directory: anydoc/python
+        run: |
+          set -e
+          WHL=$(ls dist/firecrawl_anydoc-*.whl | head -1)
+          [ -n "$WHL" ] || { echo "No se generó ningún wheel firecrawl_anydoc-*.whl en dist/"; exit 1; }
+          BASE=$(basename "$WHL" .whl)
+          IFS='-' read -r -a PARTS <<< "$BASE"
+          N=${#PARTS[@]}
+          if [ "$N" -lt 4 ]; then
+            echo "Nombre de wheel inesperado (menos de 4 campos): $BASE"; exit 1
+          fi
+          PLATFORM_TAG="${PARTS[$((N-1))]}"
+          ABI_TAG="${PARTS[$((N-2))]}"
+          PY_TAG="${PARTS[$((N-3))]}"
+          NAME_VER=""
+          for ((i=0; i<N-3; i++)); do
+            NAME_VER="${NAME_VER}${PARTS[$i]}-"
+          done
+          NAME_VER="${NAME_VER%-}"
+          NEW_NAME="${NAME_VER}-0aarch64android-${PY_TAG}-${ABI_TAG}-${PLATFORM_TAG}.whl"
+          cp "dist/$BASE.whl" "dist/$NEW_NAME"
+          echo "Wheel original: $BASE.whl"
+          echo "Wheel renombrado para hermes.sh: $NEW_NAME"
+          ls -lh dist/
+
+      - name: Publicar el wheel como Release asset
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: "firecrawl-anydoc prebuilt (aarch64-linux-android) — ${{ inputs.release_tag }}"
+          body: |
+            Wheel de `firecrawl-anydoc` (firecrawl/anydoc, bindings Python del crate
+            Rust `anydoc`) cross-compilado para aarch64-linux-android con el NDK —
+            evita compilar Rust en el dispositivo al instalar el módulo `hermes`
+            (Hermes Agent, `firecrawl-anydoc==0.2.4` es dependencia BASE de
+            hermes-agent) en Kairos.
+
+            Ver `docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md` (sección
+            firecrawl-anydoc) para la causa raíz y `modulos/hermes.sh` (PASO 3.5)
+            para el mecanismo que consume este asset.
+
+            ⚠️ A diferencia del wheel de hf_xet, este NO fue verificado todavía en un
+            dispositivo real (importa `anydoc` de verdad en el Python de Termux) —
+            confirmarlo por ADB antes de considerar cerrado el límite conocido de
+            Hermes (ver .claude/rules/empirical-verification-before-fix.md).
+          files: |
+            anydoc/python/dist/firecrawl_anydoc-*.whl
+          draft: false
+          prerelease: true

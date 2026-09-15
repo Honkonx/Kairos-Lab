@@ -23,14 +23,35 @@
     <string name="db_card_estructura">"ESTRUCTURA"</string>
     <string name="db_btn_estructura">"🗺 Estructura de la BD"</string>
     <string name="db_card_sqlite">"SQLITE"</string>
-    <string name="db_btn_list_dbs">"📋 Listar BDs en ~"</string>
-    <string name="db_btn_open_db">"📂 Abrir BD (interactivo)"</string>
-    <string name="db_btn_view_tables">"📊 Ver tablas de una BD"</string>
+    <string name="db_btn_list_dbs">"📋 Bases encontradas en ~"</string>
+    <string name="db_btn_browse_db">"🗂 Explorar y elegir archivo .db"</string>
     <string name="db_btn_n8n_db">"⚡ BD de n8n (acceso rápido)"</string>
-    <string name="db_btn_export_csv">"📤 Exportar BD a CSV"</string>
     <string name="db_btn_create_db_empty">"＋ Crear nueva BD vacía"</string>
-    <string name="db_btn_backup_db">"💾 Backup de una BD"</string>
-    <string name="db_btn_query_sql">"⚠ Query SQL"</string>
+    <!-- Navegador de carpetas/archivos (rediseño 2026-09-08) — mismo patrón que
+         ProjectActions.kt (pickStorageFolder), extendido para elegir un archivo .db/.sqlite. -->
+    <string name="db_browse_origin_title">"¿Buscar dónde?"</string>
+    <string name="db_browse_origin_home">"Termux (~)"</string>
+    <string name="db_browse_origin_storage">"Almacenamiento interno"</string>
+    <string name="db_browse_title">"Elegí una base de datos"</string>
+    <string name="db_browse_up">".. (subir)"</string>
+    <string name="db_browse_folder_item">"📁 %1$s"</string>
+    <string name="db_browse_file_item">"🗄 %1$s"</string>
+    <string name="db_no_dbs_found_home">"No se encontraron bases de datos en ~ — probá \"Explorar y elegir archivo .db\" para buscar en otra carpeta o en el almacenamiento interno"</string>
+    <string name="db_found_dbs_title">"Bases de datos encontradas (%1$d)"</string>
+    <!-- Menú de acciones sobre un archivo .db/.sqlite ya elegido -->
+    <string name="db_action_view_tables">"📊 Ver tablas"</string>
+    <string name="db_action_open_terminal">"📂 Abrir en terminal (sqlite3)"</string>
+    <string name="db_action_export_csv">"📤 Exportar a CSV"</string>
+    <string name="db_action_backup">"💾 Backup"</string>
+    <string name="db_action_query">"⚠ Consulta SQL"</string>
+    <string name="db_close">"Cerrar"</string>
+    <string name="db_tables_dialog_title">"%1$s — %2$d tablas"</string>
+    <string name="db_export_all_tables">"Todas las tablas"</string>
+    <string name="db_export_dialog_title">"Exportar a CSV — elegí tabla"</string>
+    <string name="db_export_done">"Exportado — %1$d archivo(s) CSV creados junto a la BD"</string>
+    <string name="db_backup_created_at">"Backup creado: %1$s"</string>
+    <string name="db_query_dialog_title">"Consulta SQL — %1$s"</string>
+    <string name="db_query_result_title">"Resultado (%1$d filas)"</string>
     <string name="db_card_mysql_dbs">"MYSQL/MARIADB — BASES DE DATOS"</string>
     <string name="db_card_postgres_dbs">"POSTGRESQL — BASES DE DATOS"</string>
     <string name="db_btn_create_db">"＋ Crear BD"</string>
@@ -72,14 +93,8 @@
     <string name="db_dialog_title_restore_engine">"Restaurar backup de %1$s"</string>
     <string name="db_suggested_name">"Sugerido por el nombre del backup: %1$s"</string>
     <string name="db_dialog_title_restore_target">"Restaurar en BD (se crea si no existe)"</string>
-    <string name="db_hint_ruta_bd">"Ruta BD"</string>
-    <string name="db_hint_tabla">"Tabla (o \'all\')"</string>
     <string name="db_hint_sql_query">"Consulta SQL"</string>
     <string name="db_hint_nombre_db">"Nombre DB"</string>
-    <string name="db_hint_ruta_backup">"Ruta BD a respaldar"</string>
-    <string name="db_hint_valor">"Valor"</string>
-    <string name="db_dialog_title_open_db">"Abrir BD (interactivo)"</string>
-    <string name="db_err_unknown_action">"Acción desconocida: %1$s"</string>
     <string name="db_err_unknown">"error desconocido"</string>
     <string name="db_err_generic">"error"</string>
     <string name="db_err_db_not_found">"BD no encontrada"</string>

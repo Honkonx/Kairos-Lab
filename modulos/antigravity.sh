@@ -163,10 +163,10 @@ else
     pkg_update_with_fallback
     pkg install -y glibc-repo \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+      -o Dpkg::Options::="--force-confold" || \
       error "No se pudo instalar glibc-repo"
     info "Actualizando índices de paquetes (repo glibc recién agregado)..."
-    pkg update -y 2>/dev/null || error "pkg update falló tras agregar glibc-repo"
+    pkg update -y || error "pkg update falló tras agregar glibc-repo"
   fi
 
   _MISSING_DEPS=()
@@ -181,7 +181,7 @@ else
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
-      -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+      -o Dpkg::Options::="--force-confold" || \
       error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
 
@@ -214,7 +214,7 @@ else
 
   if ! curl -fL --progress-bar \
     "https://github.com/${_FORK}/releases/latest/download/antigravity-termux-standalone.tar.gz" \
-    -o "$_TAR" 2>/dev/null; then
+    -o "$_TAR"; then
     rm -rf "$AGY_WORKDIR"
     error "Descarga fallida — verifica conexión"
   fi
@@ -223,7 +223,7 @@ else
   log "Descargado: $(du -sh "$_TAR" | cut -f1)"
 
   info "Extrayendo binarios..."
-  tar -xzf "$_TAR" -C "$_EXTRACT" agy agy.va39 2>/dev/null || \
+  tar -xzf "$_TAR" -C "$_EXTRACT" agy agy.va39 || \
     error "Fallo al extraer — archivo corrupto"
 
   [ -f "$_EXTRACT/agy" ] && [ -f "$_EXTRACT/agy.va39" ] || \

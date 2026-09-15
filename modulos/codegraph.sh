@@ -179,11 +179,11 @@ _codegraph_download_native_fork() {
   local _deb="$_tmp/$(basename "$_asset_url")"
   mkdir -p "$_tmp"
   info "Descargando CodeGraph nativo del fork ($(basename "$_asset_url"), repo $CODEGRAPH_FORK_SOURCE_REPO)..."
-  curl -fsSL "$_asset_url" -o "$_deb" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+  curl -fsSL "$_asset_url" -o "$_deb" || { rm -rf "$_tmp"; return 1; }
 
   local _extract="$_tmp/extract"
   mkdir -p "$_extract"
-  dpkg-deb -x "$_deb" "$_extract" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+  dpkg-deb -x "$_deb" "$_extract" || { rm -rf "$_tmp"; return 1; }
 
   # Mismo bug/fix real ya confirmado en freebuff.sh/codebuff.sh (docs/humano281.md):
   # dpkg-deb -x deja el árbol bajo la RUTA ABSOLUTA COMPLETA "$_extract/data/data/
@@ -269,7 +269,7 @@ if $_NATIVE; then
       pkg_update_with_fallback
       pkg install -y "${_MISSING_DEPS[@]}" \
         -o Dpkg::Options::="--force-confdef" \
-        -o Dpkg::Options::="--force-confold" 2>/dev/null || \
+        -o Dpkg::Options::="--force-confold" || \
         warn "No se pudieron instalar las dependencias glibc — el fork de respaldo puede no funcionar"
     fi
     mark_done "glibc"
@@ -297,7 +297,7 @@ else
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
     pkg_update_with_fallback
-    pkg install -y "${_MISSING_DEPS[@]}" 2>/dev/null || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
+    pkg install -y "${_MISSING_DEPS[@]}" || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
   command -v node &>/dev/null || error "Node.js no disponible tras instalación"
   mark_done "deps"
@@ -317,7 +317,7 @@ else
   rm -f "$_TAR"
   if ! curl -fL --progress-bar \
     "https://github.com/${CODEGRAPH_REPO}/releases/download/${_LATEST_VERSION}/codegraph-linux-arm64.tar.gz" \
-    -o "$_TAR" 2>/dev/null; then
+    -o "$_TAR"; then
     error "Descarga fallida — verificá conexión"
   fi
   [ -s "$_TAR" ] || error "Archivo descargado vacío"

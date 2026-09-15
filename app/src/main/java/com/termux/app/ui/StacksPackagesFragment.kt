@@ -81,11 +81,27 @@ class StacksPackagesFragment : BaseModuleFragment() {
             Preset(
                 "dotnet", getString(R.string.stacks_packages_preset_dotnet_title),
                 getString(R.string.stacks_packages_preset_dotnet_summary), emptyList()
+            ),
+            // Gap real confirmado por auditoría QA (2026-09-14, docs/humano338.md):
+            // modulos/stacks.sh ya soporta "--preset linux-completo [--flavor debian|ubuntu]"
+            // desde hace tiempo (VALID_PRESETS lo incluye), pero esta pantalla nunca lo
+            // ofrecía — es un caso distinto de los demás presets (SIEMPRE proot-distro
+            // instalando una distro Linux real de cero, nunca nativo, nunca "--distro" sobre
+            // una ya instalada) — ver FULL_DISTRO_PRESET más abajo para el manejo especial.
+            Preset(
+                "linux-completo", getString(R.string.stacks_packages_preset_linux_completo_title),
+                getString(R.string.stacks_packages_preset_linux_completo_summary), emptyList()
             )
         )
     }
 
     private val DOTNET_ALWAYS_DISTRO = setOf("dotnet")
+
+    // "linux-completo" no encaja en el modelo nativo/--distro del resto de presets — instala
+    // su PROPIA distro de cero (Debian u Ubuntu, vía --flavor), no requiere ninguna ya
+    // instalada. Se maneja aparte en buildPresetRow()/promptFlavorAndRun() en vez de forzarlo
+    // dentro del flujo de DOTNET_ALWAYS_DISTRO (que sí asume una distro EXISTENTE).
+    private val FULL_DISTRO_PRESET = "linux-completo"
 
     private val distroRows = mutableListOf<android.view.View>()
 
@@ -115,6 +131,7 @@ class StacksPackagesFragment : BaseModuleFragment() {
         "rust" -> "🦀"
         "java" -> "☕"
         "dotnet" -> "🔷"
+        "linux-completo" -> "🐧"
         else -> "🌐"
     }
 
@@ -131,6 +148,7 @@ class StacksPackagesFragment : BaseModuleFragment() {
 
     private fun buildPresetRow(preset: Preset, isRecommended: Boolean): android.view.View {
         val requiresDistro = preset.id in DOTNET_ALWAYS_DISTRO
+        val isFullDistro = preset.id == FULL_DISTRO_PRESET
         return modelRow(
             icon = iconFor(preset),
             name = preset.title,
@@ -152,28 +170,42 @@ class StacksPackagesFragment : BaseModuleFragment() {
                 }
                 // dotnet no tiene instalación nativa — la fila entera abre el selector de
                 // distro (mismo flujo que el botón 📦 de los demás presets), no hace falta un
-                // botón aparte redundante.
-                if (!requiresDistro) {
-                    val distroBtn = TextView(context).apply {
-                        text = "📦"
-                        textSize = 15f
+                // botón aparte redundante. linux-completo tampoco necesita este botón — instala
+                // su propia distro de cero, no depende de que ya haya una instalada.
+                when {
+                    isFullDistro -> addView(TextView(context).apply {
+                        text = getString(R.string.stacks_packages_installs_own_distro)
+                        textSize = 10f
+                        setTextColor(context.kairosThemeColor(R.attr.kairosText3))
                         setPadding(dp(8), dp(4), dp(8), dp(4))
-                        isEnabled = false
-                        alpha = 0.4f
-                        setOnClickListener { promptDistroAndRun(preset) }
-                    }
-                    distroRows.add(distroBtn)
-                    addView(distroBtn)
-                } else {
-                    addView(TextView(context).apply {
+                    })
+                    requiresDistro -> addView(TextView(context).apply {
                         text = getString(R.string.stacks_packages_needs_distro)
                         textSize = 10f
                         setTextColor(context.kairosThemeColor(R.attr.kairosText3))
                         setPadding(dp(8), dp(4), dp(8), dp(4))
                     })
+                    else -> {
+                        val distroBtn = TextView(context).apply {
+                            text = "📦"
+                            textSize = 15f
+                            setPadding(dp(8), dp(4), dp(8), dp(4))
+                            isEnabled = false
+                            alpha = 0.4f
+                            setOnClickListener { promptDistroAndRun(preset) }
+                        }
+                        distroRows.add(distroBtn)
+                        addView(distroBtn)
+                    }
                 }
             },
-            onClick = { if (requiresDistro) promptDistroAndRun(preset) else confirmAndRun(preset, distro = null) },
+            onClick = {
+                when {
+                    isFullDistro -> promptFlavorAndRun(preset)
+                    requiresDistro -> promptDistroAndRun(preset)
+                    else -> confirmAndRun(preset, distro = null)
+                }
+            },
         )
     }
 
@@ -243,26 +275,44 @@ class StacksPackagesFragment : BaseModuleFragment() {
         }.start()
     }
 
-    private fun confirmAndRun(preset: Preset, distro: String?) {
-        val target = if (distro != null) getString(R.string.stacks_packages_target_distro, distro) else getString(R.string.stacks_packages_target_native)
+    /** Selector debian/ubuntu para "linux-completo" — a diferencia de promptDistroAndRun()
+     *  (que elige entre distros YA instaladas), este preset instala una distro DE CERO, así
+     *  que el flavor es fijo (2 opciones válidas per modulos/stacks.sh: debian/ubuntu), no
+     *  depende de EntornoNative.distroList(). */
+    private fun promptFlavorAndRun(preset: Preset) {
+        val flavors = arrayOf("debian", "ubuntu")
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.stacks_packages_choose_flavor_title))
+            .setItems(flavors) { _, which -> confirmAndRun(preset, distro = null, flavor = flavors[which]) }
+            .setNegativeButton(getString(R.string.stacks_packages_button_cancel), null)
+            .show()
+    }
+
+    private fun confirmAndRun(preset: Preset, distro: String?, flavor: String? = null) {
+        val target = when {
+            flavor != null -> getString(R.string.stacks_packages_target_flavor, flavor)
+            distro != null -> getString(R.string.stacks_packages_target_distro, distro)
+            else -> getString(R.string.stacks_packages_target_native)
+        }
         val extras = selectedExtras[preset.id].orEmpty()
         val extrasNote = if (extras.isNotEmpty()) getString(R.string.stacks_packages_extras_note, extras.joinToString(", ")) else ""
         AlertDialog.Builder(requireContext())
             .setTitle(preset.title)
             .setMessage(getString(R.string.stacks_packages_install_confirm_message, preset.title, target, extrasNote))
-            .setPositiveButton(getString(R.string.stacks_packages_button_install)) { _, _ -> runPreset(preset, distro) }
+            .setPositiveButton(getString(R.string.stacks_packages_button_install)) { _, _ -> runPreset(preset, distro, flavor) }
             .setNegativeButton(getString(R.string.stacks_packages_button_cancel), null)
             .show()
     }
 
     // Timeout generoso (15 min) — sin cambios respecto a la versión anterior de esta pantalla.
-    private fun runPreset(preset: Preset, distro: String?) {
+    private fun runPreset(preset: Preset, distro: String?, flavor: String? = null) {
         val progress = ProgressDialogController(requireContext())
         progress.show(preset.title, getString(R.string.stacks_packages_installing_message, preset.title))
         Thread {
             val script = File(TermuxConstants.TERMUX_HOME_DIR_PATH, "scripts/install/stacks.sh").absolutePath
             val args = mutableListOf(TERMUX_BASH_PATH, script, "--preset", preset.id, "--silent")
             if (distro != null) args.addAll(listOf("--distro", distro))
+            if (flavor != null) args.addAll(listOf("--flavor", flavor))
             val extras = selectedExtras[preset.id].orEmpty()
             if (extras.isNotEmpty()) args.addAll(listOf("--extra", extras.joinToString(",")))
             val (exitCode, out, err) = ManagerNativeUtils.runExec(args, timeoutSeconds = 900)

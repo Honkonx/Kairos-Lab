@@ -805,8 +805,12 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         if (!session.isRunning()) return;
 
         String text = ShareUtils.getTextStringFromClipboardIfSet(mActivity, true);
-        if (text != null)
-            session.getEmulator().paste(text);
+        if (text == null) return;
+
+        // Revisión de seguridad de paste multilínea (patrones sudo/rm -rf/curl|bash, etc.) antes
+        // de inyectar el texto a la sesión — ver docs/referencias/terminal/REFERENCIA_TTYX.md.
+        // Un paste de una sola línea corre directo sin diálogo (mismo criterio que ttyx_).
+        com.termux.app.util.PasteSafetyUtils.reviewAndPaste(mActivity, text, () -> session.getEmulator().paste(text));
     }
 
 }

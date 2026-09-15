@@ -54,6 +54,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import android.graphics.Color;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
@@ -64,6 +65,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -78,6 +80,8 @@ import com.termux.app.api.file.FileReceiverActivity;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
+import com.termux.app.util.TerminalCustomCommandsManager;
+import com.termux.app.util.TerminalCommandHistoryManager;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.activity.ActivityUtils;
 import com.termux.shared.activity.media.AppCompatActivityUtils;
@@ -183,6 +187,22 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * The client for the {@link #mExtraKeysView}.
      */
     TermuxTerminalExtraKeys mTermuxTerminalExtraKeys;
+
+    /**
+     * Comandos personalizados del sidebar de terminal normal (nombre corto + comando real,
+     * escritos en la sesión activa al tocar el botón) — ver TerminalCustomCommandsManager.kt y
+     * refreshCustomCommandsDrawer()/setCustomCommandsDrawerView() más abajo. Lazy: se crea recién
+     * cuando el sidebar normal se infla, no hace falta antes.
+     */
+    private TerminalCustomCommandsManager mCustomCommandsManager;
+
+    /**
+     * Historial buscable de comandos reales enviados por la app a cada sesión (hallazgo 1,
+     * docs/estructura/INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md) — ver
+     * TerminalCommandHistoryManager.kt, recordCommand() y addMatchingHistoryRows() más abajo.
+     * Lazy por el mismo motivo que mCustomCommandsManager.
+     */
+    private TerminalCommandHistoryManager mCommandHistoryManager;
 
     /**
      * The termux sessions list controller.
@@ -298,7 +318,29 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * el usuario sigue sin volver y el proceso sigue tirando output esporádico).
      */
     private static final long SESSION_IDLE_NOTIFY_DELAY_MS = 2500;
-    private static final String EXTRA_FOCUS_SESSION_NAME = "com.termux.app.FOCUS_SESSION_NAME";
+    // Sin "private" (visibilidad de paquete) — FloatingWidgetService.kt (mismo paquete
+    // com.termux.app) reusa esta misma constante/mecanismo para reabrir la sesión de un
+    // módulo desde el widget flotante en vez de reinventar un extra propio (ver
+    // FloatingWidgetService.openModuleSession() y el fix del bug "tap en módulo corriendo
+    // decía instalando en vez de abrir su terminal").
+    static final String EXTRA_FOCUS_SESSION_NAME = "com.termux.app.FOCUS_SESSION_NAME";
+
+    // Referencia débil a la instancia viva de esta Activity — sola forma de que un Service
+    // sin UI (FloatingWidgetService, el widget flotante) pueda leer isSessionActive()/
+    // getActiveModuleSessionNames() sin bindear a TermuxService por separado. Se setea en
+    // onCreate() y se limpia en onDestroy() (no en onPause(): el patrón hide()/show() del
+    // overlay de terminal mantiene la Activity resumed la mayor parte del tiempo, pero puede
+    // pausarse sin destruirse cuando otra app pasa a primer plano — que es exactamente cuando
+    // el widget flotante necesita seguir pudiendo consultar el estado real).
+    private static java.lang.ref.WeakReference<TermuxActivity> sInstance;
+
+    /** Instancia viva actual, o null si la Activity nunca arrancó en este proceso o ya se
+     *  destruyó — usado por FloatingWidgetService para decidir si un módulo ya tiene una
+     *  sesión de terminal activa antes de decidir instalar/iniciar. */
+    public static TermuxActivity getInstance() {
+        return sInstance != null ? sInstance.get() : null;
+    }
+
     private final Map<String, Runnable> mSessionIdleCheckRunnables = new HashMap<>();
     private final Set<String> mSessionAlreadyNotifiedForBurst = new HashSet<>();
 
@@ -314,6 +356,16 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     "✓ Notificaciones activadas",
                     com.google.android.material.snackbar.Snackbar.LENGTH_SHORT).show();
             }
+        });
+
+    // Selector de imagen de fondo de terminal (ver TermuxTerminalSessionActivityClient
+    // #applyTerminalBackgroundImageOrColor() para el mecanismo de render completo). Uri
+    // devuelto por ACTION_OPEN_DOCUMENT — se persiste el permiso de lectura con
+    // takePersistableUriPermission() en applyTerminalBackgroundImageUri() para poder
+    // seguir leyendo el archivo después de que la app se reinicie.
+    private final ActivityResultLauncher<String[]> mTerminalBgImagePickerLauncher =
+        registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+            if (uri != null) applyTerminalBackgroundImageUri(uri);
         });
 
     private float mTerminalToolbarDefaultHeight;
@@ -341,6 +393,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     public void onCreate(Bundle savedInstanceState) {
         Logger.logDebug(LOG_TAG, "onCreate");
         mIsOnResumeAfterOnCreate = true;
+        sInstance = new java.lang.ref.WeakReference<>(this);
 
         if (savedInstanceState != null)
             mIsActivityRecreated = savedInstanceState.getBoolean(ARG_ACTIVITY_RECREATED, false);
@@ -520,11 +573,24 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         FloatingActionButton fab = findViewById(R.id.fab_terminal);
         fab.setOnClickListener(v -> {
-            // El FAB solo es visible cuando el overlay está oculto (ver toggleTerminalOverlay()),
-            // así que este click siempre es una apertura, nunca un minimizado — es el punto
-            // correcto para forzar el modo "terminal normal" (sin barra adaptada, con toolbar
-            // de teclas extra y drawer de sesiones), sin importar qué modo haya quedado activo
-            // la última vez que se usó el overlay para un CLI de módulo.
+            // Bug real reproducido por ADB (2026-09-03, ver docs/humano* de esta ronda —
+            // "el widget de acceso rápido a las terminales abiertas... no las abre"): esto
+            // forzaba mTerminalAdaptedSessionName = null incondicionalmente ANTES de que
+            // existiera el badge de contexto persistente (updateFabContextBadge(),
+            // hallazgo 2 de INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md) — el
+            // badge ya venía anunciando "Claude Code" (u otra sesión nombrada) sobre el
+            // propio FAB, pero el click ignoraba esa promesa y abría una terminal clásica
+            // genérica nueva en vez de reabrir la sesión anunciada. Ahora reusa la MISMA
+            // resolución que ya calcula el badge (resolveFabBadgeSessionName()) — si esa
+            // sesión sigue viva de verdad, la reabre con openTerminalWithCommand() (mismo
+            // mecanismo de "buscar y reusar por nombre" que ya usan los botones "Abrir
+            // TUI" de cada módulo); si no hay ninguna sesión nombrada activa, cae al modo
+            // clásico genérico de siempre.
+            String badgeSessionName = resolveFabBadgeSessionName();
+            if (badgeSessionName != null && !badgeSessionName.isEmpty() && findSessionByName(badgeSessionName) != null) {
+                openTerminalWithCommand(null, badgeSessionName);
+                return;
+            }
             mTerminalAdaptedMode = false;
             mTerminalAdaptedSessionName = null;
             toggleTerminalOverlay();
@@ -651,6 +717,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         Logger.logDebug(LOG_TAG, "onDestroy");
 
+        if (sInstance != null && sInstance.get() == this) sInstance = null;
+
         if (mIsInvalidState) return;
 
         if (mTermuxService != null) {
@@ -675,6 +743,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     @Override
     public void onBackPressed() {
+        // Pedido explícito del usuario (2026-09-08, docs/humano324.md — falta administrador de
+        // archivos/navegador embebidos "sin salir de la terminal adaptada"): si el panel
+        // embebido (ver showAdaptedPanel()) está abierto, atrás lo CIERRA a él (mismo criterio
+        // que cerrar una pestaña de navegador con atrás), no minimiza toda la terminal — chequeo
+        // ANTES del de mTerminalOverlay de abajo a propósito. TerminalBrowserFragment intercepta
+        // este mismo evento ANTES si el WebView todavía tiene historial (ver su
+        // OnBackPressedCallback) — este bloque solo se alcanza cuando no hay historial que
+        // consumir, o para FileManagerFragment (sin callback propio).
+        if (isAdaptedPanelVisible() && mAdaptedActivePanelTag != null) {
+            closeAdaptedPanel(mAdaptedActivePanelTag);
+            return;
+        }
         if (mTerminalOverlay != null && mTerminalOverlay.getVisibility() == View.VISIBLE) {
             toggleTerminalOverlay();
             return;
@@ -754,6 +834,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             if (mTerminalOverlay != null && mTerminalView != null) {
                 setTermuxTerminalViewAndClients();
             }
+            // Refleja de entrada si el servicio ya traía sesiones nombradas vivas (ej. la
+            // Activity se recreó con Claude Code/OpenCode ya corriendo de antes) — sin esto
+            // el badge quedaba oculto hasta el próximo toggle del overlay.
+            updateFabContextBadge();
         } catch (Exception e) {
             Logger.logError(LOG_TAG, "onServiceConnected error: " + e.getMessage());
         }
@@ -985,6 +1069,121 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         });
     }
 
+    /**
+     * Comandos personalizados del sidebar normal (custom_commands_container en
+     * activity_termux.xml) — wire del botón "+ Agregar" y primer render de las filas ya
+     * guardadas. Ver TerminalCustomCommandsManager.kt y REFERENCIA_NEWTERMUX.md para el origen
+     * de la idea (custom command buttons del left drawer).
+     */
+    private void setCustomCommandsDrawerView() {
+        if (mCustomCommandsManager == null) mCustomCommandsManager = new TerminalCustomCommandsManager(this);
+        View addButton = findViewById(R.id.add_custom_command_button);
+        if (addButton != null) {
+            addButton.setOnClickListener(v -> showAddOrEditCustomCommandDialog(null));
+        }
+        refreshCustomCommandsDrawer();
+    }
+
+    /** Reconstruye custom_commands_container con la lista actual guardada — se llama tras
+     *  agregar/editar/borrar un comando, además de en el setup inicial. */
+    private void refreshCustomCommandsDrawer() {
+        android.widget.LinearLayout container = findViewById(R.id.custom_commands_container);
+        if (container == null || mCustomCommandsManager == null) return;
+        container.removeAllViews();
+        for (TerminalCustomCommandsManager.CustomCommand entry : mCustomCommandsManager.getAll()) {
+            addCustomCommandRow(container, entry);
+        }
+    }
+
+    private void addCustomCommandRow(android.widget.LinearLayout container, TerminalCustomCommandsManager.CustomCommand entry) {
+        TextView row = new TextView(this);
+        row.setText("▸ " + entry.getLabel());
+        row.setTextSize(14f);
+        row.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text));
+        int padH = (int) (16 * getResources().getDisplayMetrics().density);
+        int padV = (int) (12 * getResources().getDisplayMetrics().density);
+        row.setPadding(padH, padV, padH, padV);
+        row.setClickable(true);
+        row.setFocusable(true);
+        android.util.TypedValue outValue = new android.util.TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
+        row.setBackgroundResource(outValue.resourceId != 0 ? outValue.resourceId : 0);
+        // Tap: ejecuta el comando en la sesión activa (mismo mecanismo que el resto de la
+        // Activity, ver session.write() en openTerminalWithCommand()/showKillSessionDialog()).
+        // Long-press: abre el mismo diálogo en modo edición, con opción de borrar.
+        row.setOnClickListener(v -> runCustomCommand(entry.getCommand()));
+        row.setOnLongClickListener(v -> {
+            showAddOrEditCustomCommandDialog(entry);
+            return true;
+        });
+        container.addView(row);
+    }
+
+    private void runCustomCommand(String command) {
+        DrawerLayout drawer = getDrawer();
+        if (drawer != null) drawer.closeDrawers();
+        TerminalSession session = getCurrentSession();
+        if (session == null) {
+            showToast(getResources().getString(R.string.msg_custom_command_no_active_session), true);
+            return;
+        }
+        session.write(command + "\n");
+        recordCommand(session, command);
+    }
+
+    /** Diálogo compartido para agregar (existing == null) o editar/borrar un comando existente. */
+    private void showAddOrEditCustomCommandDialog(final TerminalCustomCommandsManager.CustomCommand existing) {
+        if (mCustomCommandsManager == null) return;
+        boolean isEdit = existing != null;
+        if (!isEdit && mCustomCommandsManager.getAll().size() >= TerminalCustomCommandsManager.MAX_CUSTOM_COMMANDS) {
+            showToast(getResources().getString(R.string.msg_custom_command_limit_reached,
+                TerminalCustomCommandsManager.MAX_CUSTOM_COMMANDS), true);
+            return;
+        }
+
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad, pad, pad, 0);
+
+        final android.widget.EditText labelInput = new android.widget.EditText(this);
+        labelInput.setHint(R.string.hint_custom_command_label);
+        labelInput.setSingleLine(true);
+        if (isEdit) labelInput.setText(existing.getLabel());
+        layout.addView(labelInput);
+
+        final android.widget.EditText commandInput = new android.widget.EditText(this);
+        commandInput.setHint(R.string.hint_custom_command_value);
+        if (isEdit) commandInput.setText(existing.getCommand());
+        layout.addView(commandInput);
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this)
+            .setTitle(isEdit ? R.string.title_edit_custom_command : R.string.title_add_custom_command)
+            .setView(layout)
+            .setPositiveButton(R.string.action_save_custom_command, (dialog, which) -> {
+                String label = labelInput.getText().toString().trim();
+                String command = commandInput.getText().toString().trim();
+                if (label.isEmpty() || command.isEmpty()) {
+                    showToast(getResources().getString(R.string.msg_custom_command_fields_required), true);
+                    return;
+                }
+                if (isEdit) {
+                    mCustomCommandsManager.update(existing.getId(), label, command);
+                } else {
+                    mCustomCommandsManager.add(label, command);
+                }
+                refreshCustomCommandsDrawer();
+            })
+            .setNegativeButton(android.R.string.cancel, null);
+        if (isEdit) {
+            builder.setNeutralButton(R.string.action_delete_custom_command, (dialog, which) -> {
+                mCustomCommandsManager.remove(existing.getId());
+                refreshCustomCommandsDrawer();
+            });
+        }
+        builder.show();
+    }
+
     // Nombres de los temas curados de showTerminalThemePickerDialog() — separado
     // en su propio arreglo para poder mostrar la lista y resolver el nombre
     // elegido a sus colores reales (ver getTerminalThemeColorsProperties()) sin
@@ -1060,6 +1259,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         themeButton.setOnClickListener(v -> showTerminalThemePickerDialog(themeLabel));
         container.addView(themeButton);
 
+        // Fondo de imagen — botón separado del selector de tema de color (son 2 mecanismos
+        // distintos: un tema cambia colors.properties, la imagen agrega un ImageView detrás de
+        // TerminalView, ver applyTerminalBackgroundImageOrColor()). Pedido explícito del
+        // usuario: "cambiar el fondo por una imagen, el color por otro etc".
+        TextView bgImageButton = new TextView(this);
+        bgImageButton.setText(R.string.action_terminal_background_image);
+        bgImageButton.setPadding(0, 16 * density, 0, 0);
+        bgImageButton.setTextColor(ContextCompat.getColor(this, android.R.color.holo_blue_light));
+        bgImageButton.setOnClickListener(v -> showTerminalBackgroundImageDialog());
+        container.addView(bgImageButton);
+
         new AlertDialog.Builder(this)
             .setTitle(R.string.title_terminal_quick_settings)
             .setView(container)
@@ -1067,11 +1277,62 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             .show();
     }
 
-    /** Muestra la lista de temas curados — al elegir uno, lo aplica y actualiza themeLabel. */
+    /**
+     * Muestra la lista de temas curados con preview real (nombre + línea de muestra
+     * pintada con background/foreground + tira de 6 colores ANSI) — al elegir uno, lo
+     * aplica y actualiza themeLabel. Patrón adoptado de `termux-styling` (fork
+     * kedimuzafer, `preview_row.xml`, ver `docs/referencias/terminal/REFERENCIA_TERMUX_STYLING.md`):
+     * antes solo se veía el nombre del tema en texto plano, había que aplicarlo y volver
+     * a la terminal para ver cómo quedaba.
+     */
     private void showTerminalThemePickerDialog(final TextView themeLabel) {
+        int density = (int) getResources().getDisplayMetrics().density;
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, 0, TERMINAL_THEME_NAMES) {
+            @Override
+            public android.view.View getView(int position, android.view.View convertView, ViewGroup parent) {
+                String themeName = TERMINAL_THEME_NAMES[position];
+                int[] colors = getTerminalThemePreviewColors(themeName);
+
+                LinearLayout row = new LinearLayout(getContext());
+                row.setOrientation(LinearLayout.VERTICAL);
+                row.setPadding(16 * density, 10 * density, 16 * density, 10 * density);
+
+                TextView nameView = new TextView(getContext());
+                nameView.setText(themeName);
+                nameView.setTextColor(ContextCompat.getColor(getContext(), android.R.color.primary_text_dark));
+                row.addView(nameView);
+
+                TextView sampleView = new TextView(getContext());
+                sampleView.setText("abc ABC 123");
+                sampleView.setTypeface(android.graphics.Typeface.MONOSPACE);
+                sampleView.setBackgroundColor(colors[0]);
+                sampleView.setTextColor(colors[1]);
+                sampleView.setPadding(8 * density, 4 * density, 8 * density, 4 * density);
+                LinearLayout.LayoutParams sampleParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                sampleParams.topMargin = 4 * density;
+                row.addView(sampleView, sampleParams);
+
+                LinearLayout strip = new LinearLayout(getContext());
+                strip.setOrientation(LinearLayout.HORIZONTAL);
+                LinearLayout.LayoutParams stripParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 10 * density);
+                stripParams.topMargin = 4 * density;
+                for (int i = 2; i < colors.length; i++) {
+                    android.view.View swatch = new android.view.View(getContext());
+                    swatch.setBackgroundColor(colors[i]);
+                    LinearLayout.LayoutParams swatchParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+                    strip.addView(swatch, swatchParams);
+                }
+                row.addView(strip, stripParams);
+
+                return row;
+            }
+        };
+
         new AlertDialog.Builder(this)
             .setTitle(R.string.title_terminal_theme_picker)
-            .setItems(TERMINAL_THEME_NAMES, (dialog, which) -> {
+            .setAdapter(adapter, (dialog, which) -> {
                 String themeName = TERMINAL_THEME_NAMES[which];
                 applyTerminalTheme(themeName);
                 if (themeLabel != null) {
@@ -1080,6 +1341,50 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             })
             .setNegativeButton(android.R.string.cancel, null)
             .show();
+    }
+
+    /**
+     * Colores reales de preview de un tema curado: {background, foreground, color1..color6}
+     * — mismos valores hex que {@link #getTerminalThemeColorsProperties(String)} escribe a
+     * colors.properties, para que el preview sea 1:1 con lo que se aplica de verdad.
+     */
+    private static int[] getTerminalThemePreviewColors(String themeName) {
+        switch (themeName) {
+            case "Dracula":
+                return new int[]{Color.parseColor("#282a36"), Color.parseColor("#f8f8f2"),
+                    Color.parseColor("#ff5555"), Color.parseColor("#50fa7b"), Color.parseColor("#f1fa8c"),
+                    Color.parseColor("#bd93f9"), Color.parseColor("#ff79c6"), Color.parseColor("#8be9fd")};
+            case "Nord":
+                return new int[]{Color.parseColor("#2e3440"), Color.parseColor("#d8dee9"),
+                    Color.parseColor("#bf616a"), Color.parseColor("#a3be8c"), Color.parseColor("#ebcb8b"),
+                    Color.parseColor("#81a1c1"), Color.parseColor("#b48ead"), Color.parseColor("#88c0d0")};
+            case "Gruvbox Dark":
+                return new int[]{Color.parseColor("#282828"), Color.parseColor("#ebdbb2"),
+                    Color.parseColor("#cc241d"), Color.parseColor("#98971a"), Color.parseColor("#d79921"),
+                    Color.parseColor("#458588"), Color.parseColor("#b16286"), Color.parseColor("#689d6a")};
+            case "Solarized Dark":
+                return new int[]{Color.parseColor("#002b36"), Color.parseColor("#839496"),
+                    Color.parseColor("#dc322f"), Color.parseColor("#859900"), Color.parseColor("#b58900"),
+                    Color.parseColor("#268bd2"), Color.parseColor("#d33682"), Color.parseColor("#2aa198")};
+            case "One Dark":
+                return new int[]{Color.parseColor("#282c34"), Color.parseColor("#abb2bf"),
+                    Color.parseColor("#e06c75"), Color.parseColor("#98c379"), Color.parseColor("#e5c07b"),
+                    Color.parseColor("#61afef"), Color.parseColor("#c678dd"), Color.parseColor("#56b6c2")};
+            case "Monokai":
+                return new int[]{Color.parseColor("#272822"), Color.parseColor("#f8f8f2"),
+                    Color.parseColor("#f92672"), Color.parseColor("#a6e22e"), Color.parseColor("#f4bf75"),
+                    Color.parseColor("#66d9ef"), Color.parseColor("#ae81ff"), Color.parseColor("#a1efe4")};
+            case "Tokyo Night":
+                return new int[]{Color.parseColor("#1a1b26"), Color.parseColor("#c0caf5"),
+                    Color.parseColor("#f7768e"), Color.parseColor("#9ece6a"), Color.parseColor("#e0af68"),
+                    Color.parseColor("#7aa2f7"), Color.parseColor("#bb9af7"), Color.parseColor("#7dcfff")};
+            case "Catppuccin Mocha":
+                return new int[]{Color.parseColor("#1e1e2e"), Color.parseColor("#cdd6f4"),
+                    Color.parseColor("#f38ba8"), Color.parseColor("#a6e3a1"), Color.parseColor("#f9e2af"),
+                    Color.parseColor("#89b4fa"), Color.parseColor("#f5c2e7"), Color.parseColor("#94e2d5")};
+            default:
+                return new int[]{Color.BLACK, Color.WHITE, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY};
+        }
     }
 
     /**
@@ -1106,6 +1411,57 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             .putString("terminal_theme", themeName)
             .apply();
         TermuxActivity.updateTermuxActivityStyling(this, false);
+    }
+
+    /**
+     * Fondo de imagen de terminal — pedido explícito del usuario ("cambiar el fondo por una
+     * imagen"). Solo abre el picker; el trabajo real (persistir permiso + guardar en
+     * kairos_prefs + repintar) queda en applyTerminalBackgroundImageUri(), el resultado
+     * asincrónico de mTerminalBgImagePickerLauncher.
+     */
+    private void pickTerminalBackgroundImage() {
+        mTerminalBgImagePickerLauncher.launch(new String[]{"image/*"});
+    }
+
+    private void applyTerminalBackgroundImageUri(Uri uri) {
+        try {
+            getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException e) {
+            // Algunos proveedores de documentos no soportan permisos persistibles — la imagen
+            // igual se guarda y se usa en esta sesión, solo no sobrevive a un reinicio de la app.
+            Logger.logStackTraceWithMessage(LOG_TAG, "No se pudo persistir el permiso de la imagen de fondo elegida", e);
+        }
+        getSharedPreferences("kairos_prefs", MODE_PRIVATE).edit()
+            .putString("terminal_bg_image_uri", uri.toString())
+            .apply();
+        // Mismo mecanismo de recarga que applyTerminalTheme(): dispara el broadcast que termina
+        // en TermuxTerminalSessionActivityClient#checkForFontAndColors(), que ahora también
+        // sincroniza el ImageView de fondo (ver applyTerminalBackgroundImageOrColor() ahí).
+        TermuxActivity.updateTermuxActivityStyling(this, false);
+    }
+
+    private void clearTerminalBackgroundImage() {
+        getSharedPreferences("kairos_prefs", MODE_PRIVATE).edit()
+            .remove("terminal_bg_image_uri")
+            .apply();
+        TermuxActivity.updateTermuxActivityStyling(this, false);
+        Logger.showToast(this, getString(R.string.msg_terminal_background_image_removed), true);
+    }
+
+    /** Diálogo simple con las 2 acciones reales sobre el fondo de imagen: elegir o quitar. */
+    private void showTerminalBackgroundImageDialog() {
+        String[] options = {
+            getString(R.string.action_choose_background_image),
+            getString(R.string.action_remove_background_image)
+        };
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.title_terminal_background_image)
+            .setItems(options, (dialog, which) -> {
+                if (which == 0) pickTerminalBackgroundImage();
+                else clearTerminalBackgroundImage();
+            })
+            .setNegativeButton(android.R.string.cancel, null)
+            .show();
     }
 
     /** Valores reales (background/foreground/cursor/color0-15) de cada tema curado. */
@@ -1475,6 +1831,22 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     public void termuxSessionListNotifyUpdated() {
         mTermuxSessionListViewController.notifyDataSetChanged();
+        // Bug real reproducido por ADB (2026-09-03 — "el widget... no se quitan cuando se
+        // cierran"): TermuxService.onTermuxSessionExited() (engine, protegido) ya llama a este
+        // método cada vez que una sesión termina (sea por "exit" del usuario, un crash, o el
+        // botón de cerrar) — pero antes de este fix nada volvía a llamar updateFabContextBadge()
+        // en respuesta, así que el badge sobre el FAB (ver [updateFabContextBadge]) seguía
+        // mostrando el nombre de una sesión ya muerta hasta el próximo toggle manual del
+        // overlay. Este método ya es el punto único real de "la lista de sesiones cambió" —
+        // agregar el refresco acá cubre el cierre de CUALQUIER sesión sin depender de que el
+        // usuario vuelva a abrir/cerrar la terminal para que se note.
+        updateFabContextBadge();
+        // Mismo mecanismo real para la fila de pestañas (Fase 1 del roadmap de terminal, ver
+        // refreshAdaptedSessionTabs()) — este método ya es el punto único de "la lista de
+        // sesiones cambió" (sesión nueva vía TermuxService#createTermuxSession(), sesión
+        // terminada vía onTermuxSessionExited(), o renombrada vía renameSession()), así que las
+        // pestañas se mantienen sincronizadas sin polling propio.
+        refreshAdaptedSessionTabs();
     }
 
     public boolean isVisible() {
@@ -1738,6 +2110,24 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 mTermuxActivityBottomSpaceView = mTerminalOverlay.findViewById(R.id.activity_termux_bottom_space_view);
                 if (mTermuxActivityRootView != null) {
                     mTermuxActivityRootView.setActivity(this);
+                    // Bug real confirmado 2026-09-08 (docs/humano324.md, "sigue el error de
+                    // superposición de la barra de notificaciones... toca bajar todas las
+                    // opciones del apk de arriba un poquito"): el WindowInsetsListener de abajo
+                    // depende de que el sistema realmente dispare onApplyWindowInsets() sobre
+                    // esta vista — para ESTE overlay (agregado con addContentView() y alternado
+                    // GONE/VISIBLE en vez de seguir el ciclo de vida normal de setContentView())
+                    // ese callback puede no llegar nunca en la práctica: confirmado con
+                    // uiautomator que terminal_adapted_bar seguía en y=0 pese al
+                    // requestApplyInsets() de más abajo. Se aplica acá, de forma síncrona e
+                    // incondicional, el mismo valor de respaldo que usa el listener (recurso de
+                    // sistema "status_bar_height") — así el padding es correcto desde el primer
+                    // frame sin depender de que el callback llegue; si SÍ llega después, el
+                    // listener lo actualiza con el valor real (más preciso en pantallas con
+                    // recorte/cámara bajo pantalla).
+                    int fallbackStatusBarId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+                    if (fallbackStatusBarId > 0) {
+                        mTermuxActivityRootView.setPadding(0, getResources().getDimensionPixelSize(fallbackStatusBarId), 0, 0);
+                    }
                     mTermuxActivityRootView.setOnApplyWindowInsetsListener(new TermuxActivityRootView.WindowInsetsListener());
                     // El overlay se agrega con addContentView() cuando el despacho de insets del
                     // DecorView ya ocurrió, así que sin este requestApplyInsets() el listener de
@@ -1757,6 +2147,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 setToggleKeyboardView();
                 setNewSessionButtonView();
                 setTerminalQuickSettingsButtonView();
+                setCustomCommandsDrawerView();
                 setMargins();
                 // Bug real confirmado (2026-08-01, ver docs/humano/humano* de esa ronda):
                 // "mTermuxActivityRootView" llegó a estar sin asignar en una ronda intermedia de
@@ -1774,6 +2165,16 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             if (show) {
                 mTerminalOverlay.bringToFront();
                 mTerminalView.requestFocus();
+                // Bug real confirmado 2026-09-08 (ver docs/humano324.md): la barra de estado
+                // (notificaciones/batería/red) tapaba visual Y TÁCTILMENTE terminal_adapted_bar
+                // (el botón ☰ recibía el gesto "abrir panel de notificaciones" del sistema en
+                // vez del tap, confirmado con QuickPanelLog/SHADE en logcat). Causa raíz real:
+                // el primer requestApplyInsets() (ver arriba, creación del overlay) se dispara
+                // mientras mTerminalOverlay todavía está GONE — WindowInsets no siempre se
+                // despachan a vistas GONE, así que TermuxActivityRootView.WindowInsetsListener
+                // nunca corría y el padding-top (mStatusBarHeight) quedaba en 0. Repetir el
+                // pedido acá, ya con la vista VISIBLE, fuerza el despacho real.
+                if (mTermuxActivityRootView != null) mTermuxActivityRootView.requestApplyInsets();
                 applyTerminalModeUi();
 
                 // Attach first session after layout pass to avoid black screen
@@ -1821,9 +2222,80 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 findViewById(R.id.bottom_navigation).setVisibility(View.VISIBLE);
                 findViewById(R.id.fab_terminal).setVisibility(View.VISIBLE);
             }
+            updateFabContextBadge();
         } catch (Exception e) {
             Logger.logError(LOG_TAG, "toggleTerminalOverlay error: " + e.getMessage());
         }
+    }
+
+    /**
+     * Badge de contexto persistente (hallazgo 2, docs/estructura/
+     * INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md): muestra sobre el FAB de terminal
+     * qué sesión quedó activa en segundo plano mientras el overlay está minimizado — sin esto
+     * el usuario no tenía forma de saber (sin abrir la terminal) si "Claude Code" seguía
+     * corriendo o si el FAB iba a abrir una terminal clásica vacía. Reusa
+     * mTerminalAdaptedSessionName cuando existe (la última sesión nombrada abierta vía
+     * openTerminalWithCommand()); si no, busca la primera sesión con nombre real entre las
+     * activas de mTermuxService — cubre el caso de reabrir la app con un módulo ya corriendo
+     * de una sesión anterior. GONE si el overlay está visible (el badge taparía el propio FAB,
+     * que además ya está oculto en ese momento) o si no hay ninguna sesión nombrada.
+     */
+    private void updateFabContextBadge() {
+        TextView badge = findViewById(R.id.fab_terminal_badge);
+        if (badge == null) return;
+        boolean overlayVisible = mTerminalOverlay != null && mTerminalOverlay.getVisibility() == View.VISIBLE;
+        if (overlayVisible) {
+            badge.setVisibility(View.GONE);
+            return;
+        }
+        String label = resolveFabBadgeSessionName();
+        if (label == null || label.isEmpty()) {
+            badge.setVisibility(View.GONE);
+        } else {
+            badge.setText(label);
+            badge.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /**
+     * Nombre de la sesión que el badge del FAB muestra (ver [updateFabContextBadge]) — extraído
+     * a método propio (2026-09-03, bug real reproducido por ADB con captura de pantalla) porque
+     * el click del FAB necesitaba la MISMA resolución, no solo mostrarla como texto. Antes de
+     * este fix, tocar el FAB con el badge mostrando "Claude Code" abría una terminal clásica
+     * genérica nueva ("Welcome to Termux!") en vez de reabrir esa sesión — el
+     * onClickListener forzaba `mTerminalAdaptedSessionName = null` incondicionalmente antes de
+     * llamar a `toggleTerminalOverlay()`, que solo re-adjunta `getTermuxSessions().get(0)`
+     * (la primera sesión de la lista, no necesariamente la que el badge estaba anunciando) —
+     * el bug real que el usuario reportó como "el widget de acceso rápido a las terminales
+     * abiertas... no las abre".
+     */
+    private String resolveFabBadgeSessionName() {
+        // Bug real reproducido por ADB (2026-09-03, ver docs/humano* de esta ronda — "al cerrar
+        // sigue el ícono"): esto confiaba en mTerminalAdaptedSessionName a ciegas — el campo se
+        // setea en openTerminalWithCommand() (la última sesión nombrada abierta) pero NUNCA se
+        // limpiaba cuando esa sesión terminaba, así que seguía "anunciando" un nombre de sesión
+        // muerta indefinidamente (confirmado en dispositivo real: `ps -A` sin ningún proceso de
+        // Claude Code vivo, y el badge/FAB seguían mostrando "Claude Code" igual). El refresco
+        // que ya dispara termuxSessionListNotifyUpdated() llamaba a este método en el momento
+        // correcto, pero la resolución en sí nunca verificaba que la sesión siguiera existiendo
+        // de verdad. Ahora se valida con findSessionByName() antes de confiar en el campo — si
+        // ya no existe, se limpia (para no seguir mintiendo en cada llamada futura) y se cae al
+        // mismo fallback de siempre (primera sesión nombrada real entre las activas).
+        if (mTerminalAdaptedSessionName != null && !mTerminalAdaptedSessionName.isEmpty()) {
+            if (findSessionByName(mTerminalAdaptedSessionName) != null) {
+                return mTerminalAdaptedSessionName;
+            }
+            mTerminalAdaptedSessionName = null;
+        }
+        if (mTermuxService != null) {
+            for (TermuxSession termuxSession : mTermuxService.getTermuxSessions()) {
+                TerminalSession session = termuxSession.getTerminalSession();
+                if (session != null && session.mSessionName != null && !session.mSessionName.isEmpty()) {
+                    return session.mSessionName;
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -1842,7 +2314,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // desde humano42, pero solo se podía abrir con un swipe desde el borde — sin ningún
         // botón visible, poco descubrible. Este botón hace exactamente lo que ya hacía el swipe.
         if (menuButton != null) {
+            // Estilo A (default) abre el sidebar de siempre; Estilo B abre las mismas acciones
+            // en una hoja deslizable (ver isAdaptedStyleB()/showAdaptedActionsBottomSheet(),
+            // pedido explícito del usuario en la ronda de mockups A/B, 2026-09-08).
             menuButton.setOnClickListener(v -> {
+                if (isAdaptedStyleB()) {
+                    showAdaptedActionsBottomSheet();
+                    return;
+                }
                 DrawerLayout drawer = getDrawer();
                 if (drawer != null) drawer.openDrawer(androidx.core.view.GravityCompat.START);
             });
@@ -1854,6 +2333,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
         if (closeButton != null) {
             closeButton.setOnClickListener(v -> {
+                // Con un panel utilitario activo (Archivos/Navegador, ver showAdaptedPanel()),
+                // "Cerrar" cierra SOLO el panel — la sesión de terminal real sigue viva de
+                // fondo, no tiene sentido detenerla por cerrar una pestaña que no es ella (fix
+                // 2026-09-08, docs/humano325.md).
+                if (mAdaptedActivePanelTag != null) {
+                    closeAdaptedPanel(mAdaptedActivePanelTag);
+                    return;
+                }
                 if (mTerminalAdaptedSessionName != null) {
                     stopSessionByName(mTerminalAdaptedSessionName);
                 }
@@ -1862,6 +2349,444 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 }
             });
         }
+    }
+
+    /**
+     * Estilo A ("Estación de trabajo", default) vs Estilo B ("Pila de paneles") de la terminal
+     * adaptada — pedido explícito del usuario (ronda de mockups A/B, ver artifact
+     * https://claude.ai/code/artifact/16b499ee-0d6d-41a7-890f-65fe18de4746, 2026-09-08): "si
+     * ponen adaptada sale un switch para tener opción A que debe ser la por defecto [...] y si
+     * ponen el switch usar la opción B". Solo relevante en modo adaptado — este pref no se
+     * consulta en ningún lado del camino de terminal clásica. Selector visible solo cuando el
+     * modo de terminal es "Adaptada" (ver ConfigFragment.kt).
+     */
+    private boolean isAdaptedStyleB() {
+        return "B".equals(getSharedPreferences("kairos_prefs", MODE_PRIVATE)
+            .getString("pref_terminal_adapted_style", "A"));
+    }
+
+    /**
+     * Estilo B: mismas acciones rápidas que left_drawer_adapted_content (Estilo A), pero como
+     * hoja deslizable desde abajo — mismo lenguaje de interacción que ya usa
+     * showMoreNavMenu()/MoreBottomSheetFragment para el resto de la app ("Pila de paneles",
+     * mockup B del artifact citado arriba). Comparte el motor de contenido completo con el
+     * Estilo A vía populateAdaptedDrawerContent(root, closeSurface) — ver ese método para la
+     * lista real de acciones; acá solo se decide DÓNDE se renderiza.
+     */
+    private void showAdaptedActionsBottomSheet() {
+        if (mTerminalAdaptedSessionName == null) return;
+        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
+            new com.google.android.material.bottomsheet.BottomSheetDialog(this);
+        View sheetView = getLayoutInflater().inflate(R.layout.terminal_adapted_bottom_sheet, null, false);
+        dialog.setContentView(sheetView);
+        populateAdaptedDrawerContent(sheetView, dialog::dismiss);
+        dialog.show();
+    }
+
+    /** Tags de los 2 paneles utilitarios embebidos — ver showAdaptedPanel()/
+     *  refreshAdaptedSessionTabs(). Ambos pueden estar abiertos (agregados, no destruidos) a la
+     *  vez, cada uno con su propio estado (directorio actual / historial del WebView) — cambiar
+     *  entre ellos usa show()/hide(), no destruye el que queda en segundo plano. */
+    private static final String ADAPTED_PANEL_TAG_FILES = "adapted_panel_files";
+    private static final String ADAPTED_PANEL_TAG_BROWSER = "adapted_panel_browser";
+    private static final java.util.List<String> ADAPTED_PANEL_TAGS =
+        java.util.Arrays.asList(ADAPTED_PANEL_TAG_FILES, ADAPTED_PANEL_TAG_BROWSER);
+    /** Tag actualmente visible dentro de terminal_adapted_panel_container, o null si se está
+     *  mostrando la terminal (panel oculto). */
+    private String mAdaptedActivePanelTag = null;
+
+    /**
+     * "Ventanas" (Roadmap de terminal Fase 1, último ítem de ingeniería pendiente — ver
+     * MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases") — split view real: sesión de
+     * terminal (mitad superior) + panel utilitario activo Archivos/Navegador (mitad inferior)
+     * visibles a la vez, en vez de alternar con pestañas. Campo en memoria, NO SharedPreferences
+     * a propósito — mismo criterio que mAdaptedActivePanelTag (tampoco persiste): "Ventanas"
+     * depende de que haya un panel abierto, así que reiniciar ese estado junto con el resto de
+     * la sesión adaptada al recrearse la Activity es más consistente que resucitar un split a
+     * medias sin panel. Ver setAdaptedSplitMode()/applySplitLayout().
+     */
+    private boolean mAdaptedSplitModeEnabled = false;
+
+    /**
+     * Administrador de archivos SIN salir de la terminal adaptada, como pestaña propia — pedido
+     * explícito del usuario (2026-09-08, docs/humano324.md: "falta el administrador de
+     * archivos... debe ser [...] en una pestaña nueva"). Reusa `FileManagerFragment` tal cual
+     * (misma pantalla que la pestaña Archivos del BottomNav) dentro del panel embebido.
+     */
+    private void showAdaptedFilesPanel() {
+        showAdaptedPanel(ADAPTED_PANEL_TAG_FILES,
+            () -> com.termux.app.ui.FileManagerFragment.Companion.newInstance(TermuxConstants.TERMUX_HOME_DIR_PATH),
+            getString(R.string.terminal_adapted_panel_files_title));
+    }
+
+    /**
+     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito del usuario (2026-09-08,
+     * docs/humano325.md: "agregar una opción de accesibilidad al panel/sidebar... para ajustar
+     * si se desea navegador y administrador de archivos en pantalla o pestaña"). Un solo switch
+     * compartido entre Archivos y Navegador (el usuario lo describió como un único ajuste, sin
+     * distinguir entre los dos): con "pestaña" (default, ON) ambos aparecen en
+     * terminal_adapted_tabs_row y se puede cambiar entre ellos sin cerrar (ver
+     * refreshAdaptedSessionTabs()); con "pantalla" (OFF) no aparecen ahí — siguen abriendo el
+     * mismo panel embebido, pero cerrar (botón "Cerrar" o atrás) es la única forma de volver a
+     * la terminal, sin afordance de pestaña.
+     */
+    private void showAdaptedAccessibilityDialog() {
+        android.content.SharedPreferences prefs = getSharedPreferences("kairos_prefs", MODE_PRIVATE);
+        boolean tabModeEnabled = prefs.getBoolean("pref_terminal_panel_tab_mode", true);
+        float density = getResources().getDisplayMetrics().density;
+        int pad = (int) (20 * density);
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(pad, pad / 2, pad, pad / 2);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        TextView label = new TextView(this);
+        label.setText(getString(R.string.terminal_adapted_accessibility_tab_mode_label));
+        label.setTextSize(14f);
+        row.addView(label, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        androidx.appcompat.widget.SwitchCompat toggle = new androidx.appcompat.widget.SwitchCompat(this);
+        toggle.setChecked(tabModeEnabled);
+        toggle.setOnCheckedChangeListener((btn, checked) -> {
+            prefs.edit().putBoolean("pref_terminal_panel_tab_mode", checked).apply();
+            refreshAdaptedSessionTabs();
+        });
+        row.addView(toggle);
+        container.addView(row);
+
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.title_terminal_adapted_accessibility)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok, null)
+            .show();
+    }
+
+    /**
+     * Navegador de propósito general SIN salir de la terminal adaptada, como pestaña propia —
+     * pedido explícito del usuario (2026-09-08, docs/humano324.md: "el navegador no es poner
+     * puertos, debe ser un navegador completo como tal en una pestaña nueva"). Usa
+     * `TerminalBrowserFragment` (navegación libre real, barra de dirección editable — NO
+     * `ModuleWebViewFragment`, que sandboxea a propósito por seguridad, ver su KDoc), precargado
+     * con la URL conocida del módulo activo si `adaptedModuleIdToPort()` la reconoce (ollama/
+     * n8n/openclaw/opencode/remote), o la página de inicio por defecto en cualquier otro caso —
+     * sin diálogo previo, el usuario navega libremente desde ahí.
+     */
+    private void showAdaptedBrowserPanel() {
+        String moduleId = adaptedSessionNameToModuleId(mTerminalAdaptedSessionName);
+        Integer port = adaptedModuleIdToPort(moduleId);
+        String startUrl = port != null ? "http://127.0.0.1:" + port : null;
+        showAdaptedPanel(ADAPTED_PANEL_TAG_BROWSER,
+            () -> com.termux.app.ui.TerminalBrowserFragment.Companion.newInstance(startUrl),
+            getString(R.string.terminal_adapted_panel_browser_title));
+    }
+
+    /**
+     * Muestra el panel con tag [tag] (creándolo con [factory] si es la primera vez, o
+     * reapareciendo con show() si ya existía en segundo plano) dentro de
+     * `terminal_adapted_panel_container` (activity_termux.xml) — cubre SOLO el área de
+     * contenido (mismo `layout_below`/`layout_above` que `drawer_layout`), dejando
+     * `terminal_adapted_bar` (título/☰/Minimizar/Cerrar/pestañas) siempre visible y funcional
+     * — corrección real 2026-09-08 (docs/humano325.md: "falta la opción de que sean pestañas"):
+     * la primera versión cubría TODO el overlay, tapando la fila de pestañas mientras el panel
+     * estaba activo. El título y el botón "Cerrar" de la barra existente se reusan acá (ver
+     * setTerminalAdaptedBarView()) en vez de una franja propia duplicada. A diferencia del
+     * diseño anterior (reemplazar+back-stack), Archivos y Navegador pueden estar AMBOS
+     * agregados a la vez (uno oculto, uno visible) — cambiar entre ellos preserva el estado de
+     * cada uno (directorio actual, historial del WebView). Refresca la fila de pestañas al
+     * final — ver refreshAdaptedSessionTabs().
+     */
+    private void showAdaptedPanel(String tag, java.util.function.Supplier<androidx.fragment.app.Fragment> factory, String title) {
+        if (mTerminalOverlay == null) return;
+        View container = mTerminalOverlay.findViewById(R.id.terminal_adapted_panel_container);
+        TextView titleView = mTerminalOverlay.findViewById(R.id.terminal_adapted_title);
+        if (container == null) return;
+
+        androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
+        androidx.fragment.app.FragmentTransaction tx = fm.beginTransaction();
+        for (String otherTag : ADAPTED_PANEL_TAGS) {
+            if (otherTag.equals(tag)) continue;
+            androidx.fragment.app.Fragment other = fm.findFragmentByTag(otherTag);
+            if (other != null && !other.isHidden()) tx.hide(other);
+        }
+        androidx.fragment.app.Fragment target = fm.findFragmentByTag(tag);
+        if (target == null) {
+            tx.add(R.id.terminal_adapted_panel_container, factory.get(), tag);
+        } else if (target.isHidden()) {
+            tx.show(target);
+        }
+        tx.commitNowAllowingStateLoss();
+
+        mAdaptedActivePanelTag = tag;
+        if (titleView != null) {
+            // En modo "Ventanas" (split, ver applySplitLayout()) la terminal sigue visible
+            // arriba a la vez que el panel abajo — un título que solo dijera "Archivos" haría
+            // perder de vista qué sesión sigue corriendo arriba. Fuera de split, mismo título de
+            // siempre (el panel cubre toda la terminal, no hace falta repetir el nombre).
+            titleView.setText(mAdaptedSplitModeEnabled && mTerminalAdaptedSessionName != null
+                ? mTerminalAdaptedSessionName + " · " + title
+                : title);
+        }
+        container.setVisibility(View.VISIBLE);
+        container.bringToFront();
+        refreshAdaptedSessionTabs();
+    }
+
+    /** Oculta el panel embebido (revela la terminal) SIN destruir ningún fragment agregado —
+     *  usado para "cambiar a la pestaña de terminal" mientras Archivos/Navegador siguen vivos en
+     *  segundo plano. Ver closeAdaptedPanel() para destruir uno en particular. Restaura el
+     *  título de terminal_adapted_bar al nombre real de la sesión (showAdaptedPanel() lo pisa
+     *  con el título del panel mientras está activo). */
+    private void hideAdaptedPanel() {
+        if (mTerminalOverlay == null) return;
+        View container = mTerminalOverlay.findViewById(R.id.terminal_adapted_panel_container);
+        if (container != null) container.setVisibility(View.GONE);
+        mAdaptedActivePanelTag = null;
+        TextView titleView = mTerminalOverlay.findViewById(R.id.terminal_adapted_title);
+        if (titleView != null) titleView.setText(mTerminalAdaptedSessionName);
+        refreshAdaptedSessionTabs();
+    }
+
+    /** Cierra (destruye) el panel [tag] — ✕ de su pestaña, o el botón ✕ del propio panel cuando
+     *  es el activo. Si era el panel visible, revela la terminal; si quedaba otro panel activo
+     *  en segundo plano no se toca. */
+    private void closeAdaptedPanel(String tag) {
+        androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
+        androidx.fragment.app.Fragment fragment = fm.findFragmentByTag(tag);
+        if (fragment != null) {
+            fm.beginTransaction().remove(fragment).commitNowAllowingStateLoss();
+        }
+        if (tag.equals(mAdaptedActivePanelTag)) {
+            // En modo "Ventanas" (split), la mitad inferior necesita SIEMPRE algo que mostrar —
+            // si queda el otro panel utilitario abierto en segundo plano, pasarlo a esa mitad en
+            // vez de dejarla vacía; si no queda ninguno, no tiene sentido seguir en split (no hay
+            // 2da superficie), apagarlo antes de revelar la terminal a pantalla completa.
+            if (mAdaptedSplitModeEnabled) {
+                String other = ADAPTED_PANEL_TAG_FILES.equals(tag) ? ADAPTED_PANEL_TAG_BROWSER : ADAPTED_PANEL_TAG_FILES;
+                if (fm.findFragmentByTag(other) != null) {
+                    if (ADAPTED_PANEL_TAG_FILES.equals(other)) showAdaptedFilesPanel();
+                    else showAdaptedBrowserPanel();
+                    return;
+                }
+                setAdaptedSplitMode(false);
+            }
+            hideAdaptedPanel();
+        } else {
+            refreshAdaptedSessionTabs();
+        }
+    }
+
+    private boolean isAdaptedPanelVisible() {
+        if (mTerminalOverlay == null) return false;
+        View container = mTerminalOverlay.findViewById(R.id.terminal_adapted_panel_container);
+        return container != null && container.getVisibility() == View.VISIBLE;
+    }
+
+    /**
+     * "Ventanas" — diálogo con un switch para activar/desactivar el split view (mismo patrón
+     * exacto que showAdaptedAccessibilityDialog()). Único ítem de ingeniería pendiente de la
+     * Fase 1 del roadmap de terminal (ver MEJORAS_PENDIENTES.md "Roadmap de terminal — 2
+     * fases"): a diferencia de las pestañas (que ya existen — Sesión/Archivos/Navegador, pero
+     * UNA superficie visible por vez), esto muestra 2 A LA VEZ, divididas en pantalla.
+     */
+    private void showAdaptedSplitModeDialog() {
+        float density = getResources().getDisplayMetrics().density;
+        int pad = (int) (20 * density);
+
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(pad, pad / 2, pad, pad / 2);
+
+        TextView explain = new TextView(this);
+        explain.setText(R.string.terminal_adapted_split_mode_explain);
+        explain.setTextSize(12.5f);
+        explain.setPadding(0, 0, 0, pad / 2);
+        container.addView(explain);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+        TextView label = new TextView(this);
+        label.setText(getString(R.string.terminal_adapted_split_mode_label));
+        label.setTextSize(14f);
+        row.addView(label, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        androidx.appcompat.widget.SwitchCompat toggle = new androidx.appcompat.widget.SwitchCompat(this);
+        toggle.setChecked(mAdaptedSplitModeEnabled);
+        toggle.setOnCheckedChangeListener((btn, checked) -> setAdaptedSplitMode(checked));
+        row.addView(toggle);
+        container.addView(row);
+
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.title_terminal_adapted_split_mode)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok, null)
+            .show();
+    }
+
+    /**
+     * Activa/desactiva "Ventanas". Al activar, si no hay ningún panel utilitario abierto
+     * todavía (mAdaptedActivePanelTag == null) se abre Archivos por defecto — sin eso, la mitad
+     * inferior del split quedaría vacía y la función no demostraría nada útil de entrada. Al
+     * desactivar, applySplitLayout(false) ya deja el panel activo (si sigue habiendo uno) visible
+     * a pantalla completa como antes de entrar a "Ventanas" — mismo comportamiento de siempre.
+     */
+    private void setAdaptedSplitMode(boolean enabled) {
+        if (enabled == mAdaptedSplitModeEnabled) return;
+        if (enabled && mAdaptedActivePanelTag == null) {
+            showAdaptedFilesPanel();
+        }
+        mAdaptedSplitModeEnabled = enabled;
+        applySplitLayout(enabled);
+        refreshAdaptedSessionTabs();
+    }
+
+    /**
+     * Mecanismo real de "Ventanas": en vez de duplicar TerminalView (hay una única instancia
+     * por proceso, atada 1:1 a la sesión activa — ver TerminalBridge.java/mTerminalView) o
+     * reparentar las Views internas de los Fragments de Archivos/Navegador (rompería el
+     * contrato normal de FragmentManager con su contenedor), se reparentan los 2 CONTENEDORES ya
+     * existentes tal cual: `drawer_layout` (que contiene terminal_view completo, con sus
+     * gestos/DrawerLayout intactos) y `terminal_adapted_panel_container` (que contiene el
+     * Fragment Archivos o Navegador activo). Ambos ya ocupan exactamente la misma área en modo
+     * normal (layout_below/layout_above de terminal_adapted_bar/bottom_bar_container,
+     * superpuestos, alternando visibility) — acá se sacan de `activity_termux_root_relative_layout`
+     * y se agregan a `terminal_split_container` (LinearLayout vertical, mismos anchors, vacío en
+     * el XML) con layout_weight=1 cada uno, separados por un divisor arrastrable, en vez de
+     * superpuestos. Mover un ViewGroup completo de padre (sin tocar sus hijos) es una operación
+     * estándar de Android — ni TerminalView ni los Fragments se recrean, no se pierde sesión ni
+     * estado de navegación.
+     *
+     * Terminal SIEMPRE ocupa la mitad superior (no hay forma de mostrar 2 sesiones de terminal a
+     * la vez sin una 2da instancia de TerminalView, fuera de alcance de esta ronda — ver reporte
+     * final); la mitad inferior es el panel utilitario activo (Archivos o Navegador, elegible con
+     * las pestañas normales de terminal_adapted_tabs_row, ver createAdaptedUtilityTabView()) —
+     * por eso NO se ofrece la combinación Archivos+Navegador sin terminal en esta primera
+     * versión: es la pestaña "Ventanas" la que decide split sí/no, las pestañas de siempre
+     * deciden CUÁL panel ocupa la mitad de abajo.
+     */
+    private void applySplitLayout(boolean enabled) {
+        if (mTerminalOverlay == null) return;
+        RelativeLayout root = mTerminalOverlay.findViewById(R.id.activity_termux_root_relative_layout);
+        LinearLayout splitContainer = mTerminalOverlay.findViewById(R.id.terminal_split_container);
+        View drawerLayout = mTerminalOverlay.findViewById(R.id.drawer_layout);
+        View panelContainer = mTerminalOverlay.findViewById(R.id.terminal_adapted_panel_container);
+        if (root == null || splitContainer == null || drawerLayout == null || panelContainer == null) return;
+
+        if (enabled) {
+            ViewGroup drawerParent = (ViewGroup) drawerLayout.getParent();
+            if (drawerParent != null) drawerParent.removeView(drawerLayout);
+            ViewGroup panelParent = (ViewGroup) panelContainer.getParent();
+            if (panelParent != null) panelParent.removeView(panelContainer);
+            splitContainer.removeAllViews();
+
+            LinearLayout.LayoutParams topParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+            drawerLayout.setLayoutParams(topParams);
+            splitContainer.addView(drawerLayout);
+
+            splitContainer.addView(createAdaptedSplitDivider(splitContainer, drawerLayout, panelContainer));
+
+            LinearLayout.LayoutParams bottomParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f);
+            panelContainer.setLayoutParams(bottomParams);
+            splitContainer.addView(panelContainer);
+
+            panelContainer.setVisibility(View.VISIBLE);
+            splitContainer.setVisibility(View.VISIBLE);
+            // Título combinado "Sesión · Panel" — cubre tanto el caso de activar "Ventanas" con
+            // un panel YA abierto de antes (showAdaptedPanel() no vuelve a correr, así que su
+            // propio guard de título combinado no se dispara) como el de abrir Archivos por
+            // defecto acá arriba en setAdaptedSplitMode() (ese sí pasa por showAdaptedPanel(),
+            // pero esto no está de más — mismo resultado, sin duplicar la derivación por tag).
+            TextView titleView = mTerminalOverlay.findViewById(R.id.terminal_adapted_title);
+            if (titleView != null && mAdaptedActivePanelTag != null) {
+                String panelTitle = ADAPTED_PANEL_TAG_FILES.equals(mAdaptedActivePanelTag)
+                    ? getString(R.string.terminal_adapted_panel_files_title)
+                    : getString(R.string.terminal_adapted_panel_browser_title);
+                titleView.setText(mTerminalAdaptedSessionName != null
+                    ? mTerminalAdaptedSessionName + " · " + panelTitle
+                    : panelTitle);
+            }
+        } else {
+            splitContainer.removeAllViews();
+            splitContainer.setVisibility(View.GONE);
+
+            RelativeLayout.LayoutParams drawerParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+            drawerParams.addRule(RelativeLayout.BELOW, R.id.terminal_adapted_bar);
+            drawerParams.addRule(RelativeLayout.ABOVE, R.id.bottom_bar_container);
+            drawerLayout.setLayoutParams(drawerParams);
+            root.addView(drawerLayout);
+
+            RelativeLayout.LayoutParams panelParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.MATCH_PARENT, RelativeLayout.LayoutParams.MATCH_PARENT);
+            panelParams.addRule(RelativeLayout.BELOW, R.id.terminal_adapted_bar);
+            panelParams.addRule(RelativeLayout.ABOVE, R.id.bottom_bar_container);
+            panelContainer.setLayoutParams(panelParams);
+            root.addView(panelContainer);
+
+            panelContainer.setVisibility(mAdaptedActivePanelTag != null ? View.VISIBLE : View.GONE);
+            panelContainer.bringToFront();
+            // Restaura el título simple (showAdaptedPanel() combina "Sesión · Panel" solo
+            // mientras mAdaptedSplitModeEnabled es true, ya en false para acá).
+            TextView titleView = mTerminalOverlay.findViewById(R.id.terminal_adapted_title);
+            if (titleView != null) {
+                titleView.setText(mAdaptedActivePanelTag != null
+                    ? (ADAPTED_PANEL_TAG_FILES.equals(mAdaptedActivePanelTag)
+                        ? getString(R.string.terminal_adapted_panel_files_title)
+                        : getString(R.string.terminal_adapted_panel_browser_title))
+                    : mTerminalAdaptedSessionName);
+            }
+        }
+    }
+
+    /**
+     * Divisor arrastrable entre las 2 mitades de "Ventanas" — mejora sobre el split fijo 50/50
+     * (pedido opcional del brief: "un split ajustable con un divisor arrastrable si el tiempo
+     * alcanza"). Ajusta el `weight` de [top]/[bottom] en vivo según la posición Y del dedo dentro
+     * de [parent], clamped entre 15% y 85% para que ninguna mitad quede inutilizable.
+     */
+    private View createAdaptedSplitDivider(LinearLayout parent, View top, View bottom) {
+        float density = getResources().getDisplayMetrics().density;
+        View divider = new View(this);
+        divider.setBackgroundColor(kairosThemeColorCompat(R.attr.kairosBorder));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, (int) (6 * density));
+        divider.setLayoutParams(params);
+        divider.setContentDescription(getString(R.string.terminal_adapted_split_divider_content_description));
+        divider.setOnTouchListener((v, event) -> {
+            if (event.getAction() != android.view.MotionEvent.ACTION_MOVE) return true;
+            int totalHeight = parent.getHeight();
+            if (totalHeight <= 0) return true;
+            int[] loc = new int[2];
+            parent.getLocationOnScreen(loc);
+            float ratio = (event.getRawY() - loc[1]) / (float) totalHeight;
+            ratio = Math.max(0.15f, Math.min(0.85f, ratio));
+            LinearLayout.LayoutParams topParams = (LinearLayout.LayoutParams) top.getLayoutParams();
+            LinearLayout.LayoutParams bottomParams = (LinearLayout.LayoutParams) bottom.getLayoutParams();
+            topParams.weight = ratio;
+            bottomParams.weight = 1f - ratio;
+            top.setLayoutParams(topParams);
+            bottom.setLayoutParams(bottomParams);
+            return true;
+        });
+        return divider;
+    }
+
+    /**
+     * `?attr/kairosBorder` resuelto desde Java (no hay extensión Kotlin usable en este archivo
+     * .java sin el import cross-language — ver kairos-theme-system skill) — Context.theme
+     * .resolveAttribute() es exactamente lo que hace kairosThemeColor() internamente.
+     */
+    private int kairosThemeColorCompat(int attrRes) {
+        android.util.TypedValue value = new android.util.TypedValue();
+        getTheme().resolveAttribute(attrRes, value, true);
+        return value.data;
     }
 
     /**
@@ -1901,6 +2826,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             startAdaptedMetricsLoop();
         } else {
             stopAdaptedMetricsLoop();
+            // Guard defensivo: "Ventanas" (split, ver applySplitLayout()) reparenta drawer_layout/
+            // terminal_adapted_panel_container fuera de sus anchors normales — hay que
+            // restaurarlos ANTES del guard de abajo, o terminal clásica heredaría el layout
+            // partido a medias de la terminal adaptada.
+            if (mAdaptedSplitModeEnabled) setAdaptedSplitMode(false);
+            // Guard defensivo: los paneles utilitarios (Archivos/Navegador, ver
+            // showAdaptedPanel()) solo tienen sentido en modo adaptado — si el usuario cambia a
+            // terminal clásica con uno abierto, revelarlo evita que quede tapando la terminal
+            // clásica sin ningún camino visible para cerrarlo (el botón ☰/pestañas que lo
+            // abrieron ya no están, ver la rama de arriba).
+            if (isAdaptedPanelVisible()) hideAdaptedPanel();
             if (adaptedBar != null) adaptedBar.setVisibility(View.GONE);
             if (bottomBar != null) bottomBar.setVisibility(View.GONE);
             if (toolbarViewPager != null) {
@@ -1912,6 +2848,13 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             if (drawer != null) drawer.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
         }
 
+        // Cubre ambas ramas: entra en modo adaptado (pinta/oculta según cuántas sesiones
+        // nombradas hay) y sale de modo adaptado (oculta la fila entera) — refreshAdaptedSessionTabs()
+        // ya lee mTerminalAdaptedMode internamente, no hace falta duplicar la rama acá. También
+        // cubre el caso de cambiar de pestaña con el overlay ya visible (openTerminalWithCommand()
+        // llama a applyTerminalModeUi() directo en ese caso, sin pasar por el show/hide de arriba)
+        // para que la pestaña recién tocada quede resaltada.
+        refreshAdaptedSessionTabs();
     }
 
     /**
@@ -2195,6 +3138,248 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /**
+     * Pestañas reales para múltiples sesiones simultáneas visibles a la vez — Fase 1 del
+     * roadmap de terminal (pedido explícito del usuario, ver MEJORAS_PENDIENTES.md "Roadmap de
+     * terminal — 2 fases" y docs/humano318.md). Antes de esto, con 2+ CLIs de módulo corriendo
+     * a la vez (ej. "Claude Code" y "OpenCode" abiertos juntos), cambiar de una a otra requería
+     * el drawer lateral o el menú popup de ModulesFragment#showTerminalSessionsMenu() — ninguno
+     * deja ver TODAS las sesiones activas de un vistazo mientras se usa la terminal.
+     *
+     * GONE con 0 o 1 sesión nombrada activa a propósito: con una sola sesión, el nombre ya está
+     * en terminal_adapted_title (ver applyTerminalModeUi()) — una fila de pestañas de un solo
+     * elemento sería ruido visual repitiendo la misma información. Se llama desde el mismo punto
+     * real donde ya se refresca el badge del FAB (termuxSessionListNotifyUpdated(), disparado
+     * por el motor en TermuxService#createTermuxSession()/onTermuxSessionExited() y por
+     * renameSession()) y desde applyTerminalModeUi() (entra/sale de modo adaptado, o cambia la
+     * sesión resaltada al tocar una pestaña) — sin loop ni polling propio.
+     */
+    private void refreshAdaptedSessionTabs() {
+        if (mTerminalOverlay == null) return;
+        View tabsScroll = mTerminalOverlay.findViewById(R.id.terminal_adapted_tabs_scroll);
+        LinearLayout tabsRow = mTerminalOverlay.findViewById(R.id.terminal_adapted_tabs_row);
+        if (tabsScroll == null || tabsRow == null) return;
+
+        if (!mTerminalAdaptedMode) {
+            tabsScroll.setVisibility(View.GONE);
+            tabsRow.removeAllViews();
+            return;
+        }
+
+        java.util.List<String> sessionNames = getActiveModuleSessionNames();
+        // Pedido explícito del usuario (2026-09-08, docs/humano324.md: "administrador de
+        // archivos, navegador... en una pestaña nueva") — Archivos/Navegador cuentan como
+        // pestañas más, junto a las sesiones de terminal reales (ver showAdaptedPanel()).
+        androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
+        // "Accesibilidad" del usuario (ver showAdaptedAccessibilityDialog()): con "pantalla"
+        // (pref OFF) los paneles siguen abriendo igual, pero no aparecen acá como pestaña.
+        boolean panelTabModeEnabled = getSharedPreferences("kairos_prefs", MODE_PRIVATE)
+            .getBoolean("pref_terminal_panel_tab_mode", true);
+        boolean hasFilesPanel = panelTabModeEnabled && fm.findFragmentByTag(ADAPTED_PANEL_TAG_FILES) != null;
+        boolean hasBrowserPanel = panelTabModeEnabled && fm.findFragmentByTag(ADAPTED_PANEL_TAG_BROWSER) != null;
+        int totalTabs = sessionNames.size() + (hasFilesPanel ? 1 : 0) + (hasBrowserPanel ? 1 : 0);
+        if (totalTabs < 2) {
+            tabsScroll.setVisibility(View.GONE);
+            tabsRow.removeAllViews();
+            return;
+        }
+
+        // mTerminalAdaptedSessionName (no getCurrentSession()) es la fuente de verdad para cuál
+        // pestaña resaltar: es el mismo campo que ya pinta terminal_adapted_title más arriba, y
+        // se setea de forma SÍNCRONA en openTerminalWithCommand() antes de que el cambio real de
+        // sesión visible (mTermuxTerminalSessionActivityClient.setCurrentSession()) corra en el
+        // mTerminalView.post() de esa función — usar getCurrentSession() acá pintaría la pestaña
+        // vieja resaltada por un frame hasta que el post() corriera. Fallback a getCurrentSession()
+        // solo para el caso borde de que este método corra sin que mTerminalAdaptedSessionName
+        // esté seteado todavía.
+        String currentName = mTerminalAdaptedSessionName;
+        if (currentName == null || currentName.isEmpty()) {
+            TerminalSession current = getCurrentSession();
+            currentName = current != null ? current.mSessionName : null;
+        }
+        // Con un panel utilitario visible, NINGUNA pestaña de sesión debe quedar resaltada — el
+        // resaltado le corresponde a la pestaña de Archivos/Navegador activa (ver más abajo).
+        boolean panelActive = isAdaptedPanelVisible();
+
+        tabsRow.removeAllViews();
+        for (String name : sessionNames) {
+            tabsRow.addView(createAdaptedSessionTabView(name, !panelActive && name.equals(currentName)));
+        }
+        if (hasFilesPanel) {
+            tabsRow.addView(createAdaptedUtilityTabView(ADAPTED_PANEL_TAG_FILES,
+                getString(R.string.terminal_adapted_tab_files),
+                ADAPTED_PANEL_TAG_FILES.equals(mAdaptedActivePanelTag)));
+        }
+        if (hasBrowserPanel) {
+            tabsRow.addView(createAdaptedUtilityTabView(ADAPTED_PANEL_TAG_BROWSER,
+                getString(R.string.terminal_adapted_tab_browser),
+                ADAPTED_PANEL_TAG_BROWSER.equals(mAdaptedActivePanelTag)));
+        }
+        tabsScroll.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * Pestaña de un panel utilitario (Archivos/Navegador — ver showAdaptedPanel()) dentro de la
+     * misma fila que las pestañas de sesión real (createAdaptedSessionTabView()) — mismo look,
+     * pero tocar el cuerpo reabre ese panel (show(), no recrea el fragment) en vez de cambiar de
+     * sesión, y la "✕" lo destruye (closeAdaptedPanel()) en vez de cerrar una sesión de CLI.
+     */
+    private View createAdaptedUtilityTabView(String tag, String label, boolean isCurrent) {
+        float density = getResources().getDisplayMetrics().density;
+
+        LinearLayout tab = new LinearLayout(this);
+        tab.setOrientation(LinearLayout.HORIZONTAL);
+        tab.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        int padH = (int) (10 * density);
+        int padV = (int) (6 * density);
+        tab.setPadding(padH, padV, padH, padV);
+        tab.setBackgroundColor(isCurrent
+            ? androidx.core.content.ContextCompat.getColor(this, R.color.kairos_bg3)
+            : android.graphics.Color.TRANSPARENT);
+        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tabParams.rightMargin = (int) (4 * density);
+        tab.setLayoutParams(tabParams);
+        tab.setClickable(true);
+        tab.setFocusable(true);
+        tab.setOnClickListener(v -> {
+            if (ADAPTED_PANEL_TAG_FILES.equals(tag)) showAdaptedFilesPanel();
+            else if (ADAPTED_PANEL_TAG_BROWSER.equals(tag)) showAdaptedBrowserPanel();
+        });
+
+        TextView label2 = new TextView(this);
+        label2.setText(label);
+        label2.setTextSize(12.5f);
+        label2.setSingleLine(true);
+        label2.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        label2.setMaxWidth((int) (120 * density));
+        label2.setTextColor(isCurrent
+            ? androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text)
+            : androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text2));
+        if (isCurrent) label2.setTypeface(label2.getTypeface(), android.graphics.Typeface.BOLD);
+        tab.addView(label2);
+
+        TextView closeButton = new TextView(this);
+        closeButton.setText("✕");
+        closeButton.setTextSize(12f);
+        closeButton.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text3));
+        int closePad = (int) (10 * density);
+        closeButton.setPadding(closePad, 0, 0, 0);
+        closeButton.setContentDescription(getString(R.string.terminal_tab_close_content_description, label));
+        closeButton.setClickable(true);
+        closeButton.setFocusable(true);
+        closeButton.setOnClickListener(v -> closeAdaptedPanel(tag));
+        tab.addView(closeButton);
+
+        return tab;
+    }
+
+    /**
+     * Una pestaña individual de la fila (ver refreshAdaptedSessionTabs()) — nombre corto de la
+     * sesión + "✕" chica para cerrarla, mismo patrón de View creada en código que ya usa
+     * createAdaptedDependencyChip() (sin declarar cada pestaña en el XML, la cantidad es
+     * dinámica hasta MAX_SESSIONS=8). Tocar el cuerpo de la pestaña cambia a esa sesión
+     * (openTerminalWithCommand(null, sessionName), mismo mecanismo ya usado por el badge del
+     * FAB y por ModulesFragment#showTerminalSessionsMenu() — reusa la sesión existente, no crea
+     * una nueva). Tocar la "✕" cierra esa sesión (ver handleAdaptedTabCloseClick()).
+     */
+    private View createAdaptedSessionTabView(String sessionName, boolean isCurrent) {
+        float density = getResources().getDisplayMetrics().density;
+
+        LinearLayout tab = new LinearLayout(this);
+        tab.setOrientation(LinearLayout.HORIZONTAL);
+        tab.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        int padH = (int) (10 * density);
+        int padV = (int) (6 * density);
+        tab.setPadding(padH, padV, padH, padV);
+        tab.setBackgroundColor(isCurrent
+            ? androidx.core.content.ContextCompat.getColor(this, R.color.kairos_bg3)
+            : android.graphics.Color.TRANSPARENT);
+        LinearLayout.LayoutParams tabParams = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        tabParams.rightMargin = (int) (4 * density);
+        tab.setLayoutParams(tabParams);
+        tab.setClickable(true);
+        tab.setFocusable(true);
+        tab.setOnClickListener(v -> {
+            // Si un panel utilitario (Archivos/Navegador) estaba visible, tocar una pestaña de
+            // sesión real vuelve a mostrar la terminal — sin esto, la sesión cambiaba "detrás"
+            // del panel sin que el usuario viera el cambio (pedido explícito del usuario,
+            // 2026-09-08, docs/humano324.md — pestañas de terminal y paneles conviven en la
+            // misma fila).
+            if (isAdaptedPanelVisible()) hideAdaptedPanel();
+            openTerminalWithCommand(null, sessionName);
+        });
+
+        TextView label = new TextView(this);
+        label.setText(sessionName);
+        // 12.5sp, mismo tamaño "chico legible" ya usado por createAdaptedDependencyChip()/
+        // terminal_adapted_bottom_bar en esta misma barra (pedido explícito del usuario).
+        label.setTextSize(12.5f);
+        label.setSingleLine(true);
+        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        label.setMaxWidth((int) (120 * density));
+        label.setTextColor(isCurrent
+            ? androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text)
+            : androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text2));
+        if (isCurrent) label.setTypeface(label.getTypeface(), android.graphics.Typeface.BOLD);
+        tab.addView(label);
+
+        TextView closeButton = new TextView(this);
+        closeButton.setText("✕");
+        closeButton.setTextSize(12f);
+        closeButton.setTextColor(androidx.core.content.ContextCompat.getColor(this, R.color.kairos_text3));
+        int closePad = (int) (10 * density);
+        closeButton.setPadding(closePad, 0, 0, 0);
+        closeButton.setContentDescription(getString(R.string.terminal_tab_close_content_description, sessionName));
+        closeButton.setClickable(true);
+        closeButton.setFocusable(true);
+        closeButton.setOnClickListener(v -> handleAdaptedTabCloseClick(sessionName));
+        tab.addView(closeButton);
+
+        return tab;
+    }
+
+    /**
+     * Click en la "✕" de una pestaña (ver createAdaptedSessionTabView()) — con confirmación
+     * SOLO si esta es la única sesión de terminal viva en TODA la app (no solo entre las
+     * nombradas mostradas como pestañas, que siempre son 2+ mientras la fila está visible —
+     * ver refreshAdaptedSessionTabs()), para no cerrar accidentalmente la última terminal
+     * activa sin querer. Mismo criterio de diálogo de confirmación que showKillSessionDialog()
+     * ya usa para otra acción destructiva de terminal.
+     */
+    private void handleAdaptedTabCloseClick(String sessionName) {
+        boolean isOnlySessionAlive = mTermuxService != null && mTermuxService.getTermuxSessionsSize() <= 1;
+        if (isOnlySessionAlive) {
+            confirmCloseOnlySessionTab(sessionName);
+        } else {
+            closeAdaptedSessionTab(sessionName);
+        }
+    }
+
+    private void confirmCloseOnlySessionTab(String sessionName) {
+        new AlertDialog.Builder(this)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .setMessage(getString(R.string.terminal_tab_close_last_session_confirm, sessionName))
+            .setPositiveButton(android.R.string.yes, (dialog, which) -> {
+                dialog.dismiss();
+                closeAdaptedSessionTab(sessionName);
+            })
+            .setNegativeButton(android.R.string.no, null)
+            .show();
+    }
+
+    private void closeAdaptedSessionTab(String sessionName) {
+        stopSessionByName(sessionName);
+        // stopSessionByName() solo dispara termuxSessionListNotifyUpdated() (que refrescaría
+        // esta fila solo) más tarde, cuando el kill real del grupo de procesos llega a
+        // TermuxService#onTermuxSessionExited() (hasta 1500ms después, ver
+        // killSessionProcessGroup()) — se refresca también acá para que la pestaña desaparezca
+        // de inmediato en vez de esperar ese callback async.
+        refreshAdaptedSessionTabs();
+        updateFabContextBadge();
+    }
+
+    /**
      * Panel de estado con métricas en vivo (CPU/RAM del dispositivo) — pedido 2026-08-25.
      * Loop self-rescheduling propio en vez de reusar refreshAdaptedBarInfo(): esa función hace
      * isRunning()/versión/deps/conexión de socket por dependencia en cada llamada (varias
@@ -2261,30 +3446,50 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * barra) — barato dado que son pocas filas de texto.
      */
     private void populateAdaptedDrawerContent() {
-        if (mTerminalOverlay == null || mTerminalAdaptedSessionName == null) return;
-        TextView title = mTerminalOverlay.findViewById(R.id.adapted_drawer_title);
-        android.widget.LinearLayout actions = mTerminalOverlay.findViewById(R.id.adapted_drawer_actions);
+        populateAdaptedDrawerContent(mTerminalOverlay, this::closeAdaptedActionsDrawer);
+    }
+
+    private void closeAdaptedActionsDrawer() {
+        DrawerLayout drawer = getDrawer();
+        if (drawer != null) drawer.closeDrawers();
+    }
+
+    /**
+     * Igual que {@link #populateAdaptedDrawerContent()} pero parametrizado por [root] (dónde
+     * buscar adapted_drawer_title/usage/search/actions) y [closeSurface] (qué hacer para "cerrar
+     * este panel" tras una acción que no cierra la terminal por sí misma) — así el Estilo B
+     * ("Pila de paneles", ver showAdaptedActionsBottomSheet()) reusa exactamente esta misma
+     * lista de acciones dentro de un BottomSheetDialog en vez de duplicarla, solo cambiando la
+     * superficie donde se renderiza (pedido explícito del usuario, ronda de mockups A/B del
+     * artifact de terminal adaptada, 2026-09-08 — "no significa duplicar la lógica de fondo").
+     */
+    private void populateAdaptedDrawerContent(View root, Runnable closeSurface) {
+        if (root == null || mTerminalAdaptedSessionName == null) return;
+        TextView title = root.findViewById(R.id.adapted_drawer_title);
+        android.widget.LinearLayout actions = root.findViewById(R.id.adapted_drawer_actions);
         if (actions == null) return;
         if (title != null) title.setText(mTerminalAdaptedSessionName.toUpperCase(java.util.Locale.getDefault()));
         actions.removeAllViews();
 
         // Filtro de búsqueda no debe sobrevivir a un cambio de módulo (ej. filtrar "log" en
-        // OpenCode y después abrir Ollama no debería seguir ocultando sus acciones).
+        // OpenCode y después abrir Ollama no debería seguir ocultando sus acciones). Campo
+        // compartido entre Estilo A y B a propósito: solo una superficie está abierta a la vez.
         if (!mTerminalAdaptedSessionName.equals(mAdaptedDrawerLastSession)) {
             mAdaptedDrawerLastSession = mTerminalAdaptedSessionName;
             mAdaptedDrawerFilterText = "";
-            android.widget.EditText search = mTerminalOverlay.findViewById(R.id.adapted_drawer_search);
+            android.widget.EditText search = root.findViewById(R.id.adapted_drawer_search);
             if (search != null && search.getText().length() > 0) search.setText("");
         }
 
         String moduleId = adaptedSessionNameToModuleId(mTerminalAdaptedSessionName);
+        refreshAdaptedDrawerUsage(moduleId, root);
 
         addAdaptedDrawerAction(actions, "▾ Minimizar", v -> {
-            if (getDrawer() != null) getDrawer().closeDrawers();
+            closeSurface.run();
             toggleTerminalOverlay();
         });
         addAdaptedDrawerAction(actions, "✕ Cerrar sesión", v -> {
-            if (getDrawer() != null) getDrawer().closeDrawers();
+            closeSurface.run();
             if (mTerminalAdaptedSessionName != null) stopSessionByName(mTerminalAdaptedSessionName);
             if (mTerminalOverlay != null && mTerminalOverlay.getVisibility() == View.VISIBLE) {
                 toggleTerminalOverlay();
@@ -2292,11 +3497,11 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         });
         if (moduleId != null) {
             addAdaptedDrawerAction(actions, "↻ Reiniciar módulo", v -> {
-                if (getDrawer() != null) getDrawer().closeDrawers();
+                closeSurface.run();
                 restartModuleFromDrawer(moduleId);
             });
             addAdaptedDrawerAction(actions, "▤ Ver logs", v -> {
-                if (getDrawer() != null) getDrawer().closeDrawers();
+                closeSurface.run();
                 showModuleLogDialog(moduleId);
             });
             // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito,
@@ -2307,11 +3512,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             String mcpCommand = adaptedModuleMcpCommand(moduleId);
             if (mcpCommand != null) {
                 addAdaptedDrawerAction(actions, "🔌 Servidores MCP", v -> {
-                    if (getDrawer() != null) getDrawer().closeDrawers();
+                    closeSurface.run();
                     openTerminalWithCommand(mcpCommand, mTerminalAdaptedSessionName);
                 });
             }
         }
+        // Nueva opción de sidebar (2026-09-08, docs/humano325.md: "ve qué más opciones podemos
+        // meter en el sidebar/menu/panel de la terminal adaptable") — copiar todo el
+        // texto+historial visible de la sesión al portapapeles, sin selección manual carácter
+        // por carácter (útil para pegar la salida de un CLI en otra app/chat).
+        addAdaptedDrawerAction(actions, "📋 Copiar transcript", v -> {
+            closeSurface.run();
+            copyAdaptedSessionTranscript();
+        });
         // Pedido explícito del usuario (2026-08-13, ver docs/humano/humano116.md): "poder
         // monitorear... ver las extenciones" desde la terminal adaptada. "Extensiones" son las
         // ExtraKeys (teclas extra) — el toolbar real (terminal_toolbar_view_pager) ya existe,
@@ -2319,17 +3532,118 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // opt-in en vez de mostrarlo siempre, para no arriesgar el layout de la barra inferior
         // de info (mismo riesgo que ya se había identificado antes de tocar esto).
         addAdaptedDrawerAction(actions, "⌨ Teclas extra", v -> {
-            if (getDrawer() != null) getDrawer().closeDrawers();
+            closeSurface.run();
             toggleAdaptedExtraKeys();
         });
+        // Bug real reportado por el usuario: "vi una opción en la terminal normal
+        // pero no funciona" (el botón de tema ya existía, ver
+        // showTerminalThemePickerDialog()) + "en la terminal adaptada no veo
+        // ninguna opción" — el botón vivía únicamente dentro de
+        // left_drawer_normal_content (showTerminalQuickSettingsDialog(), llamado
+        // desde terminal_quick_settings_button), invisible en modo adaptado porque
+        // ese contenedor queda GONE ahí (ver applyTerminalModeUi()). Se agrega el
+        // mismo picker acá, sin themeLabel persistente (no hay un TextView de
+        // "tema actual" en este drawer) — el picker ya tolera null.
+        addAdaptedDrawerAction(actions, "🎨 Tema de terminal", v -> {
+            closeSurface.run();
+            showTerminalThemePickerDialog(null);
+        });
+        addAdaptedDrawerAction(actions, "🖼 Imagen de fondo", v -> {
+            closeSurface.run();
+            showTerminalBackgroundImageDialog();
+        });
         addAdaptedDrawerAction(actions, "📊 Monitor", v -> {
-            if (getDrawer() != null) getDrawer().closeDrawers();
+            closeSurface.run();
             toggleTerminalOverlay();
             switchFragment(R.id.nav_monitor);
         });
+        // Pedido explícito del usuario (2026-09-08, docs/humano324.md: "falta el administrador
+        // de archivos, navegador... sin salir de la terminal adaptada") — a diferencia de
+        // "Monitor" de arriba, estas 2 acciones NO minimizan el overlay ni navegan a otro tab:
+        // abren un panel embebido (showAdaptedPanel()) que cubre solo el área de contenido, sin
+        // salir de la terminal — el título/"Cerrar" de terminal_adapted_bar pasan a controlar el
+        // panel mientras está activo (ver setTerminalAdaptedBarView()).
+        addAdaptedDrawerAction(actions, "📁 Administrador de archivos", v -> {
+            closeSurface.run();
+            showAdaptedFilesPanel();
+        });
+        addAdaptedDrawerAction(actions, "🌐 Navegador", v -> {
+            closeSurface.run();
+            showAdaptedBrowserPanel();
+        });
+        // "Ventanas" — único ítem de ingeniería pendiente de la Fase 1 del roadmap de terminal
+        // (ver MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases"): a diferencia de las
+        // pestañas de arriba (Archivos/Navegador — 1 superficie visible por vez), esto muestra
+        // sesión + panel utilitario A LA VEZ, divididos en pantalla (ver showAdaptedSplitModeDialog()).
+        addAdaptedDrawerAction(actions, "🪟 Ventanas", v -> {
+            closeSurface.run();
+            showAdaptedSplitModeDialog();
+        });
+        // Pedido explícito del usuario (2026-09-08, docs/humano325.md): "agregar una opción de
+        // accesibilidad al panel/sidebar... para ajustar si se desea navegador y administrador
+        // de archivos en pantalla o pestaña".
+        addAdaptedDrawerAction(actions, "♿ Accesibilidad", v -> {
+            closeSurface.run();
+            showAdaptedAccessibilityDialog();
+        });
 
-        setupAdaptedDrawerSearchIfNeeded();
-        applyAdaptedDrawerFilter(); // reaplica el filtro activo a las filas recién reconstruidas
+        if (root == mTerminalOverlay) {
+            // El drawer persiste entre llamadas (mismo EditText reusado) — necesita el guard de
+            // idempotencia. El bottom sheet (Estilo B) se infla de cero en cada apertura (ver
+            // showAdaptedActionsBottomSheet()), así que se cablea directo, sin guard.
+            setupAdaptedDrawerSearchIfNeeded();
+        } else {
+            wireAdaptedActionsSearch(root, closeSurface);
+        }
+        applyAdaptedDrawerFilter(root, closeSurface); // reaplica el filtro activo a las filas recién reconstruidas
+    }
+
+    /**
+     * Línea de uso/token/costo/plan para los CLIs de agentes IA (Claude Code/Codex/OpenCode) —
+     * pedido explícito del usuario: "una línea para ver el uso, token, costo, plan, modelos".
+     * Solo se muestra para esos 3 módulos (ver UsageStatsFetcher.kt — best-effort real: Claude
+     * usa el endpoint OAuth de Anthropic + JSONL de sesión, Codex lee su JSONL de sesión y
+     * estima costo con una tabla de precios estática, OpenCode consulta `opencode serve`/`web`
+     * en vivo si el usuario lo activó — no hay línea si el servidor no está corriendo, ver
+     * comentario de cabecera de UsageStatsFetcher.kt). Se refresca junto con el
+     * resto del drawer adaptado (populateAdaptedDrawerContent()), sin loop propio — mismo
+     * criterio que refreshAdaptedBarInfo() (trabajo de red/disco en background, solo toca la UI
+     * en runOnUiThread con el guard de overlay visible).
+     */
+    private void refreshAdaptedDrawerUsage(String moduleId, View root) {
+        if (root == null) return;
+        TextView usageView = root.findViewById(R.id.adapted_drawer_usage);
+        if (usageView == null) return;
+        boolean supported = "claude".equals(moduleId) || "codex".equals(moduleId) || "opencode".equals(moduleId);
+        if (!supported) {
+            usageView.setVisibility(View.GONE);
+            return;
+        }
+        final String finalModuleId = moduleId;
+        new Thread(() -> {
+            String summary;
+            try {
+                summary = com.termux.app.util.UsageStatsFetcher.INSTANCE.getUsageSummary(finalModuleId);
+            } catch (Exception e) {
+                summary = null;
+            }
+            final String finalSummary = summary;
+            runOnUiThread(() -> {
+                // root.getWindowToken() cubre ambas superficies: el drawer (adjunto mientras el
+                // overlay está visible, ver isVisible()) y el BottomSheetDialog del Estilo B
+                // (adjunto solo mientras el diálogo sigue mostrado — se desadjunta al cerrarlo,
+                // a diferencia del drawer que sigue vivo dentro de mTerminalOverlay).
+                if (!isVisible() || root.getWindowToken() == null) return;
+                TextView view = root.findViewById(R.id.adapted_drawer_usage);
+                if (view == null) return;
+                if (finalSummary != null && !finalSummary.isEmpty()) {
+                    view.setText(finalSummary);
+                    view.setVisibility(View.VISIBLE);
+                } else {
+                    view.setVisibility(View.GONE);
+                }
+            });
+        }).start();
     }
 
     /**
@@ -2351,7 +3665,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 mAdaptedDrawerFilterText = s.toString();
-                applyAdaptedDrawerFilter();
+                applyAdaptedDrawerFilter(mTerminalOverlay, TermuxActivity.this::closeAdaptedActionsDrawer);
             }
 
             @Override
@@ -2360,20 +3674,105 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mAdaptedDrawerSearchWired = true;
     }
 
-    /** Muestra/oculta cada fila de adapted_drawer_actions según si su texto contiene
+    /** Equivalente de {@link #setupAdaptedDrawerSearchIfNeeded()} para el Estilo B — sin guard
+     *  de idempotencia porque [root] es un BottomSheetDialog inflado de cero en cada apertura
+     *  (ver showAdaptedActionsBottomSheet()), así que no hay riesgo de cablear el mismo
+     *  EditText dos veces. */
+    private void wireAdaptedActionsSearch(View root, Runnable closeSurface) {
+        android.widget.EditText search = root.findViewById(R.id.adapted_drawer_search);
+        if (search == null) return;
+        search.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                mAdaptedDrawerFilterText = s.toString();
+                applyAdaptedDrawerFilter(root, closeSurface);
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) { }
+        });
+    }
+
+    /** Tag de las filas de historial agregadas dinámicamente por addMatchingHistoryRows() —
+     *  a diferencia de las filas estáticas (Minimizar, Cerrar sesión, ...), estas se agregan y
+     *  quitan en cada tecleo del filtro, así que hace falta poder distinguirlas para
+     *  removerlas sin tocar el resto (ver applyAdaptedDrawerFilter()). */
+    private static final String HISTORY_ROW_TAG = "adapted_drawer_history_row";
+
+    /** Muestra/oculta cada fila estática de adapted_drawer_actions según si su texto contiene
      *  mAdaptedDrawerFilterText (sin distinguir mayúsculas/acentos no se normaliza, alcance
-     *  simple a propósito — son ~7 acciones, no una lista larga que necesite fuzzy-match). */
-    private void applyAdaptedDrawerFilter() {
-        if (mTerminalOverlay == null) return;
-        android.widget.LinearLayout actions = mTerminalOverlay.findViewById(R.id.adapted_drawer_actions);
+     *  simple a propósito — son ~7 acciones, no una lista larga que necesite fuzzy-match), y
+     *  agrega/quita filas de HISTORIAL de comandos que matcheen el mismo query (hallazgo 1,
+     *  docs/estructura/INVESTIGACION_TERMINAL_PERSONALIZACION_2026-09-01.md) — tocar una
+     *  reenvía ese comando a la sesión activa (ver sendCommandToActiveSession()). [root]/
+     *  [closeSurface] siguen el mismo criterio que populateAdaptedDrawerContent() — comparte
+     *  esta lógica entre el drawer del Estilo A y el bottom sheet del Estilo B. */
+    private void applyAdaptedDrawerFilter(View root, Runnable closeSurface) {
+        if (root == null) return;
+        android.widget.LinearLayout actions = root.findViewById(R.id.adapted_drawer_actions);
         if (actions == null) return;
         String query = mAdaptedDrawerFilterText.trim().toLowerCase(java.util.Locale.getDefault());
+
+        for (int i = actions.getChildCount() - 1; i >= 0; i--) {
+            View child = actions.getChildAt(i);
+            if (HISTORY_ROW_TAG.equals(child.getTag())) actions.removeViewAt(i);
+        }
+
         for (int i = 0; i < actions.getChildCount(); i++) {
             View child = actions.getChildAt(i);
             if (!(child instanceof TextView)) continue;
             String label = ((TextView) child).getText().toString().toLowerCase(java.util.Locale.getDefault());
             child.setVisibility(query.isEmpty() || label.contains(query) ? View.VISIBLE : View.GONE);
         }
+
+        if (!query.isEmpty()) addMatchingHistoryRows(actions, query, closeSurface);
+    }
+
+    /** Agrega hasta 6 filas de historial de la sesión adaptada activa que matcheen [query] —
+     *  ver TerminalCommandHistoryManager.search(). */
+    private void addMatchingHistoryRows(android.widget.LinearLayout actions, String query, Runnable closeSurface) {
+        if (mTerminalAdaptedSessionName == null) return;
+        java.util.List<String> matches = getCommandHistoryManager().search(mTerminalAdaptedSessionName, query, 6);
+        for (String cmd : matches) {
+            addAdaptedDrawerAction(actions, "🕘 " + cmd, v -> {
+                closeSurface.run();
+                sendCommandToActiveSession(cmd);
+            }, HISTORY_ROW_TAG);
+        }
+    }
+
+    /** Reenvía [command] a la sesión adaptada activa (o a la sesión actual si no hay ninguna
+     *  nombrada) — mismo mecanismo que runCustomCommand()/openTerminalWithCommand(). */
+    private void sendCommandToActiveSession(String command) {
+        TerminalSession session = findSessionByName(mTerminalAdaptedSessionName);
+        if (session == null) session = getCurrentSession();
+        if (session == null) {
+            showToast(getResources().getString(R.string.msg_custom_command_no_active_session), true);
+            return;
+        }
+        session.write(command + "\n");
+        recordCommand(session, command);
+    }
+
+    /** Copia el texto+historial visible de la sesión adaptada activa al portapapeles — ver
+     *  populateAdaptedDrawerContent(), acción "📋 Copiar transcript". */
+    private void copyAdaptedSessionTranscript() {
+        TerminalSession session = findSessionByName(mTerminalAdaptedSessionName);
+        if (session == null) session = getCurrentSession();
+        if (session == null || session.getEmulator() == null) {
+            showToast(getResources().getString(R.string.msg_custom_command_no_active_session), true);
+            return;
+        }
+        String text = session.getEmulator().getScreen().getTranscriptText();
+        android.content.ClipboardManager clipboard =
+            (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (clipboard != null) {
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("terminal", text));
+        }
+        showToast(getString(R.string.msg_terminal_transcript_copied), true);
     }
 
     /** Muestra/oculta el toolbar real de ExtraKeys (terminal_toolbar_view_pager) sobre el modo
@@ -2387,6 +3786,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     private void addAdaptedDrawerAction(android.widget.LinearLayout container, String label, View.OnClickListener onClick) {
+        addAdaptedDrawerAction(container, label, onClick, null);
+    }
+
+    private void addAdaptedDrawerAction(android.widget.LinearLayout container, String label, View.OnClickListener onClick, Object tag) {
         TextView row = new TextView(this);
         row.setText(label);
         row.setTextSize(14f);
@@ -2400,6 +3803,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
         row.setBackgroundResource(outValue.resourceId != 0 ? outValue.resourceId : 0);
         row.setOnClickListener(onClick);
+        if (tag != null) row.setTag(tag);
         container.addView(row);
     }
 
@@ -2561,6 +3965,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void writeCommandOnceSessionReady(TerminalSession session, String command) {
         if (session.getEmulator() != null) {
             session.write(command + "\n");
+            recordCommand(session, command);
             return;
         }
         mTerminalView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
@@ -2578,9 +3983,25 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 }
                 if (session.getEmulator() != null) {
                     session.write(command + "\n");
+                    recordCommand(session, command);
                 }
             }
         });
+    }
+
+    /** Registra [command] en el historial buscable de la sesión (hallazgo 1, ver
+     *  TerminalCommandHistoryManager.kt) — clave "default" para sesiones sin nombre (terminal
+     *  clásica vía FAB), mSessionName para el resto. */
+    private void recordCommand(TerminalSession session, String command) {
+        if (session == null || command == null || command.trim().isEmpty()) return;
+        String key = (session.mSessionName != null && !session.mSessionName.isEmpty())
+            ? session.mSessionName : "default";
+        getCommandHistoryManager().record(key, command.trim());
+    }
+
+    private TerminalCommandHistoryManager getCommandHistoryManager() {
+        if (mCommandHistoryManager == null) mCommandHistoryManager = new TerminalCommandHistoryManager(this);
+        return mCommandHistoryManager;
     }
 
     /** Busca una sesión ya abierta por nombre (ver openTerminalWithCommand) — null si sessionName es null/vacío o no hay match. */
@@ -2733,6 +4154,45 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     public boolean isSessionActive(String sessionName) {
         return findSessionByName(sessionName) != null;
+    }
+
+    /**
+     * Nombres de todas las sesiones de terminal NOMBRADAS abiertas ahora mismo (TUI de módulo,
+     * ej. "Claude Code"/"Codex"/"OpenCode" — ver openTerminalWithCommand()) — la sesión genérica
+     * de Termux (abierta vía el FAB, sin nombre) queda afuera a propósito, mismo criterio que
+     * onBackgroundSessionOutput() más abajo. Fuente real para el indicador de "sesiones activas"
+     * de ModulesFragment (ver docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md)
+     * — solo lee el estado ya en memoria de TermuxService, sin ProcessBuilder ni costo real.
+     */
+    public java.util.List<String> getActiveModuleSessionNames() {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        if (mTermuxService == null) return names;
+        for (TermuxSession termuxSession : mTermuxService.getTermuxSessions()) {
+            TerminalSession session = termuxSession.getTerminalSession();
+            if (session != null && session.mSessionName != null && !session.mSessionName.isEmpty()) {
+                names.add(session.mSessionName);
+            }
+        }
+        return names;
+    }
+
+    /**
+     * moduleId real (claude/codex/opencode, ver modules.json) del CLI de IA corriendo en primer
+     * plano AHORA MISMO dentro de la sesión adaptada nombrada sessionName — null si no hay
+     * sesión con ese nombre, no se pudo determinar, o el proceso en primer plano no es un CLI de
+     * IA conocido (ej. el usuario está en el prompt de bash, o corriendo otro comando). Mecanismo
+     * real: lee /proc/<pid>/stat del shell líder de la sesión (TerminalSession.getPid()) — ver
+     * ForegroundProcessDetector.kt (mecanismo confirmado por 3 proyectos de referencia
+     * independientes, docs/referencias/terminal/AUDITORIA_CATEGORIA_TERMINAL.md), sin lanzar
+     * ningún proceso nuevo y sin depender de parsear texto de la terminal. Usado por
+     * ModulesFragment para el indicador de "CLI de IA activo" del chip de sesiones (ver
+     * docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md).
+     */
+    public String getForegroundAiModuleForSession(String sessionName) {
+        TerminalSession session = findSessionByName(sessionName);
+        if (session == null) return null;
+        int pid = session.getPid();
+        return com.termux.app.util.ForegroundProcessDetector.INSTANCE.detectForegroundAiModule(pid);
     }
 
     /**

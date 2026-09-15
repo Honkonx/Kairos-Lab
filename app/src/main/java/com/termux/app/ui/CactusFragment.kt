@@ -2,6 +2,7 @@ package com.termux.app.ui
 
 import android.net.Uri
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.EditText
@@ -12,6 +13,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.tabs.TabLayout
 import com.termux.R
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.PRIMARY
@@ -40,11 +42,76 @@ import com.termux.app.util.kairosThemeColor
  * ChatFragment.llamaServerAvailable()/dispatchCactusRun(), acá vía
  * ManagerNativeUtils.checkPort() (equivalente, ya existente, evita reimplementar el socket
  * check).
+ *
+ * **Reorganización por pestañas (2026-09-08, pedido explícito del usuario — "podemos agregar
+ * ventanas como en mini pc"):** mismo patrón que `QemuFragment.kt`/`RemoteFragment.kt`
+ * (`TabLayout` programático + `section()`, no una jerarquía de clases de pestaña separadas) —
+ * este Fragment ya construía las 7 secciones con `addCard()`/`actionButton()` de
+ * `BaseModuleFragment` (que agregan directo a `container`), exactamente la misma situación que
+ * `QemuFragment` resolvió: en vez de reescribir toda la lógica real (checks de puerto, threads,
+ * diálogos, export/import) para que reciba un `parent` explícito, cada card se sigue
+ * construyendo igual que antes y `section()` registra qué vistas nuevas de `container`
+ * pertenecen a cada pestaña para mostrar/ocultar por índice después. 4 pestañas: Estado (estado
+ * de los motores IA), Ejecutar (sin IA + con IA + extraer — las 3 formas reales de "correr
+ * algo"), Tareas, Avanzado (catálogo de tools + servidor HTTP + scripts + terminal). Ninguna
+ * lógica de negocio de las 7 funciones originales cambió, solo el contenedor visual.
  */
 class CactusFragment : BaseModuleFragment() {
 
     override fun getModuleId() = "cactus"
     override fun getModuleName() = getString(R.string.cactus_module_name)
+
+    // Mismo mecanismo que QemuFragment.sectionViews/section()/buildTabLayout()/renderActiveTab()
+    // — no se duplica el KDoc de esos 4 métodos acá, ver ese archivo para el detalle.
+    private val sectionViews: Array<MutableList<View>> = Array(4) { mutableListOf() }
+    private var activeTabIndex = TAB_ESTADO
+
+    private fun section(tabIndex: Int, block: () -> Unit) {
+        val before = container.childCount
+        block()
+        val after = container.childCount
+        for (i in before until after) sectionViews[tabIndex].add(container.getChildAt(i))
+    }
+
+    private fun buildTabLayout() {
+        val ctx = requireContext()
+        val tabLayout = TabLayout(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, dp(8), 0, dp(4))
+            }
+            tabMode = TabLayout.MODE_SCROLLABLE
+            setSelectedTabIndicatorColor(ctx.kairosThemeColor(R.attr.kairosGreen))
+            setTabTextColors(ctx.kairosThemeColor(R.attr.kairosText3), ctx.kairosThemeColor(R.attr.kairosText))
+            setBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg2))
+        }
+        listOf(
+            getString(R.string.cactus_tab_estado),
+            getString(R.string.cactus_tab_ejecutar),
+            getString(R.string.cactus_tab_tareas),
+            getString(R.string.cactus_tab_avanzado),
+        ).forEach { tabLayout.addTab(tabLayout.newTab().setText(it)) }
+        container.addView(tabLayout)
+        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) { renderActiveTab(tab.position) }
+            override fun onTabUnselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) {}
+        })
+    }
+
+    private fun renderActiveTab(index: Int) {
+        activeTabIndex = index
+        sectionViews.forEachIndexed { tabIndex, views ->
+            val visibility = if (tabIndex == index) View.VISIBLE else View.GONE
+            views.forEach { it.visibility = visibility }
+        }
+    }
+
+    // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el token
+    // HTTP del servidor (showServerTokenDialog()) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
 
     private val home get() = TermuxConstants.TERMUX_HOME_DIR_PATH
     private val tasksFile get() = File(home, TASKS_FILE_NAME)
@@ -74,18 +141,29 @@ class CactusFragment : BaseModuleFragment() {
             return
         }
 
-        buildEstadoCard()
-        buildSinIaCard()
-        buildConIaCard()
-        buildExtractCard()
-        buildTareasCard()
-        buildToolsCard()
-        buildServerCard()
-        buildScriptsCard()
+        buildTabLayout()
 
-        actionButton(getString(R.string.cactus_btn_terminal), GHOST) {
-            launchTerminalCommand("cactus status")
+        section(TAB_ESTADO) {
+            buildEstadoCard()
         }
+        section(TAB_EJECUTAR) {
+            buildSinIaCard()
+            buildConIaCard()
+            buildExtractCard()
+        }
+        section(TAB_TAREAS) {
+            buildTareasCard()
+        }
+        section(TAB_AVANZADO) {
+            buildToolsCard()
+            buildServerCard()
+            buildScriptsCard()
+            actionButton(getString(R.string.cactus_btn_terminal), GHOST) {
+                launchTerminalCommand("cactus status")
+            }
+        }
+
+        renderActiveTab(activeTabIndex)
     }
 
     // ────────────────────────────────────────────────────────────
@@ -975,5 +1053,11 @@ class CactusFragment : BaseModuleFragment() {
         // Debe coincidir con el puerto default de `cactus serve` (modulos/cactus.sh,
         // cmd_serve()/main()) y con ModuleController.getModulePort("cactus").
         private const val CACTUS_SERVE_PORT = 8977
+
+        // Pestañas — mismo patrón de índices que QemuFragment.TAB_BINARIO/etc.
+        private const val TAB_ESTADO = 0
+        private const val TAB_EJECUTAR = 1
+        private const val TAB_TAREAS = 2
+        private const val TAB_AVANZADO = 3
     }
 }

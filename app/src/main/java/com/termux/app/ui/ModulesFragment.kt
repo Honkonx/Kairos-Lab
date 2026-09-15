@@ -41,6 +41,19 @@ import java.io.FileReader
 
 class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
 
+    companion object {
+        // Colores simples y coherentes por CLI de IA, para el punto de "ambient CLI awareness"
+        // del chip de sesiones (ver refreshTerminalSessionsForegroundDots() abajo) — no son
+        // colores de marca oficiales verificados de cada empresa, solo una paleta distinguible
+        // entre sí y estable en los 3 temas de Kairos (Oscuro/Señal/Claro), a propósito NO
+        // ligada a ?attr/kairos* (esos tokens son de estado de módulo, no de identidad de CLI).
+        private val AI_CLI_DOT_COLORS = mapOf(
+            "claude" to android.graphics.Color.parseColor("#D97757"),
+            "codex" to android.graphics.Color.parseColor("#10A37F"),
+            "opencode" to android.graphics.Color.parseColor("#6366F1")
+        )
+    }
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var adapter: ModuleListAdapter
@@ -52,12 +65,17 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
     private lateinit var sectionLabel: TextView
     private lateinit var emptyState: View
     private lateinit var emptyGoPlugins: View
+    private lateinit var terminalSessionsCard: View
+    private lateinit var terminalSessionsRow: View
+    private lateinit var terminalSessionsLabel: TextView
+    private lateinit var terminalSessionsDots: android.widget.LinearLayout
 
     private val moduleDefinitions = mutableListOf<ModuleInfo>()
     private val handler = Handler(Looper.getMainLooper())
     private val pollRunnable = object : Runnable {
         override fun run() {
             pollStatus()
+            refreshTerminalSessionsIndicator()
             handler.removeCallbacks(this)
             handler.postDelayed(this, 5000)
         }
@@ -124,6 +142,17 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
         view.findViewById<View>(R.id.btn_voice_to_agent).setOnClickListener {
             VoiceToAgentDialog().show(childFragmentManager, "voice_to_agent")
         }
+
+        // Selector de sesiones de terminal activas (2026-09-01, ver
+        // docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md) — chip que solo
+        // aparece cuando hay ≥1 sesión TUI de módulo abierta (minimizada o visible), para
+        // "entrar rápido" a una terminal sin recordar en qué módulo se dejó.
+        terminalSessionsCard = view.findViewById(R.id.terminal_sessions_card)
+        terminalSessionsRow = view.findViewById(R.id.terminal_sessions_row)
+        terminalSessionsLabel = view.findViewById(R.id.terminal_sessions_label)
+        terminalSessionsDots = view.findViewById(R.id.terminal_sessions_dots)
+        terminalSessionsRow.setOnClickListener { showTerminalSessionsMenu() }
+        refreshTerminalSessionsIndicator()
 
         // Bug real (2026-08-06, ver docs/humano/humano77.md): fragment_modules.xml
         // define este SwipeRefreshLayout pero nunca se conectaba desde Kotlin — el
@@ -196,7 +225,114 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
         // vuelve a mostrarse, sin esperar al primer tick del poll periódico.
         handler.removeCallbacks(pollRunnable)
         pollStatus()
+        refreshTerminalSessionsIndicator()
         handler.postDelayed(pollRunnable, 5000)
+    }
+
+    /**
+     * Actualiza el chip "sesiones de terminal activas" (ver docs/arquitectura/
+     * DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md) — solo lee el estado ya en memoria de
+     * TermuxActivity.getActiveModuleSessionNames() (sin ProcessBuilder ni costo real), a
+     * diferencia de pollStatus() (que sí corre un Thread de fondo con chequeos de tmux/registry
+     * por módulo). Guard `isAdded` porque puede llegar desde pollRunnable después de que la
+     * vista se haya destruido.
+     */
+    private fun refreshTerminalSessionsIndicator() {
+        if (!isAdded || !::terminalSessionsCard.isInitialized) return
+        // Switch separado de ConfigFragment (2026-09-01, ver "pref_terminal_sessions_indicator"
+        // en ConfigFragment.kt) — distinto de "pref_floating_widget" (la burbuja de
+        // FloatingWidgetService, que se ve fuera de la app). Default true: no cambia el
+        // comportamiento visible de nadie que ya tuviera la app instalada antes de este switch.
+        // Mismo archivo "kairos_prefs" que usa ConfigFragment.PREFS_NAME (no
+        // androidx.preference.PreferenceManager — ese es un SharedPreferences distinto).
+        val prefs = requireContext().getSharedPreferences("kairos_prefs", 0)
+        if (!prefs.getBoolean("pref_terminal_sessions_indicator", true)) {
+            terminalSessionsCard.visibility = View.GONE
+            return
+        }
+        val names = (activity as? TermuxActivity)?.getActiveModuleSessionNames() ?: emptyList()
+        if (names.isEmpty()) {
+            terminalSessionsCard.visibility = View.GONE
+            return
+        }
+        terminalSessionsCard.visibility = View.VISIBLE
+        terminalSessionsLabel.text = if (names.size == 1) {
+            getString(R.string.modules_terminal_sessions_one)
+        } else {
+            getString(R.string.modules_terminal_sessions_many, names.size)
+        }
+        refreshTerminalSessionsForegroundDots(names)
+    }
+
+    /**
+     * "Ambient CLI awareness" (2026-09-01, ver docs/referencias/terminal/
+     * AUDITORIA_CATEGORIA_TERMINAL.md, hallazgo de `stdusk`) — un punto de color por sesión
+     * activa cuyo comando en primer plano AHORA MISMO resultó ser un CLI de IA conocido
+     * (claude/codex/opencode), sin que el usuario tenga que entrar a esa terminal para saberlo.
+     * Corre en un Thread propio (NO en el Thread de pollStatus()) porque lee /proc por cada
+     * sesión activa (ForegroundProcessDetector, potencialmente varias decenas de /proc/<pid>/stat
+     * si el dispositivo tiene muchos procesos vivos) — mismo criterio de "trabajo de I/O fuera
+     * del hilo principal" que el resto del Fragment, guard `isAdded` antes y después del salto
+     * de hilo (.claude/rules/kotlin-kairos-android-patterns.md).
+     */
+    private fun refreshTerminalSessionsForegroundDots(names: List<String>) {
+        val act = activity as? TermuxActivity ?: return
+        Thread {
+            val colors = names.mapNotNull { name ->
+                val moduleId = try {
+                    act.getForegroundAiModuleForSession(name)
+                } catch (_: Exception) {
+                    null // best-effort — /proc puede desaparecer entre la lectura de tpgid y el escaneo
+                }
+                moduleId?.let { AI_CLI_DOT_COLORS[it] }
+            }
+            if (!isAdded) return@Thread
+            handler.post {
+                if (!isAdded || !::terminalSessionsDots.isInitialized) return@post
+                renderForegroundDots(colors)
+            }
+        }.start()
+    }
+
+    /** Repuebla terminalSessionsDots con un círculo sólido de dpFloat(6)dp por color — mismo
+     *  patrón GradientDrawable(OVAL) que ModuleRowRenderer.kt ya usa para el badge de estado de
+     *  módulo, reusado acá vía las funciones top-level de ese archivo (mismo paquete). */
+    private fun renderForegroundDots(colors: List<Int>) {
+        terminalSessionsDots.removeAllViews()
+        if (colors.isEmpty()) {
+            terminalSessionsDots.visibility = View.GONE
+            return
+        }
+        terminalSessionsDots.visibility = View.VISIBLE
+        val size = dpFloat(7).toInt()
+        val margin = dpFloat(4).toInt()
+        for (color in colors) {
+            val dot = View(requireContext())
+            val params = android.widget.LinearLayout.LayoutParams(size, size)
+            params.marginEnd = margin
+            dot.layoutParams = params
+            dot.background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(color)
+            }
+            terminalSessionsDots.addView(dot)
+        }
+    }
+
+    /** PopupMenu con cada sesión activa — elegir una reabre esa terminal exacta (mismo mecanismo
+     *  de reuso-por-nombre que TermuxActivity.openTerminalWithCommand ya usa para los botones
+     *  "TUI en terminal" de cada módulo, no crea una sesión nueva). */
+    private fun showTerminalSessionsMenu() {
+        val act = activity as? TermuxActivity ?: return
+        val names = act.getActiveModuleSessionNames()
+        if (names.isEmpty()) return
+        val popup = android.widget.PopupMenu(requireContext(), terminalSessionsRow)
+        names.forEachIndexed { i, name -> popup.menu.add(0, i, i, name) }
+        popup.setOnMenuItemClickListener { item ->
+            act.openTerminalWithCommand(null, names[item.itemId])
+            true
+        }
+        popup.show()
     }
 
     override fun onPause() {

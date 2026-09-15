@@ -71,7 +71,18 @@ enum class KeyboardShortcutAction {
      * Preexistente de otra ronda paralela ([com.termux.app.ui.studio.MainActivity.onKeyShortcut]) —
      * absorbido acá para que haya un único punto de resolución de atajos Ctrl+<tecla>, en vez de
      * dos `when` separados compitiendo por el mismo `onKeyShortcut`. */
-    COMMAND_PALETTE
+    COMMAND_PALETTE,
+
+    /** Ctrl+Z — deshacer en el editor activo (`CodeEditor.undo()`, sora-editor). Gap real
+     * encontrado auditando `referencia/ides/AndroidIDE-Rv2-dev`/`AndroidIDE-Ultra-dev`
+     * (2026-08-31, ver `docs/referencias/ides/`): Estudio nunca cableaba deshacer/rehacer por
+     * teclado físico/Bluetooth pese a que `CodeEditor` ya expone `undo()`/`redo()`/`canUndo()`/
+     * `canRedo()` de fábrica — el único camino era el botón táctil nativo del editor. */
+    UNDO,
+
+    /** Ctrl+Shift+Z (o Ctrl+Y, alias común en editores tipo VS Code) — rehacer
+     * (`CodeEditor.redo()`). Ver comentario de [UNDO]. */
+    REDO
 }
 
 object KeyboardShortcutHandler {
@@ -98,6 +109,10 @@ object KeyboardShortcutHandler {
             KeyEvent.KEYCODE_N -> KeyboardShortcutAction.NEW_FILE
             KeyEvent.KEYCODE_O -> KeyboardShortcutAction.OPEN_FILE
             KeyEvent.KEYCODE_P -> KeyboardShortcutAction.COMMAND_PALETTE
+            KeyEvent.KEYCODE_Z ->
+                if (event.isShiftPressed) KeyboardShortcutAction.REDO
+                else KeyboardShortcutAction.UNDO
+            KeyEvent.KEYCODE_Y -> KeyboardShortcutAction.REDO
             else -> null
         }
     }

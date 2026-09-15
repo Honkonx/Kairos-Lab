@@ -25,6 +25,12 @@ class LogsFragment : Fragment() {
     private var logPath: String = ""
     private var allLines = mutableListOf<String>()
 
+    /** Filtro por severidad activo (chips TODO/INFO/WARN/ERROR) — se combina con el texto
+     * de búsqueda en refreshAdapter(). Reusa exactamente las mismas cadenas que ya detecta
+     * colorizeLine() más abajo, no una detección paralela. */
+    private enum class SeverityFilter { TODO, INFO, WARN, ERROR }
+    private var severityFilter: SeverityFilter = SeverityFilter.TODO
+
     override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, b: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_logs, c, false)
     }
@@ -40,6 +46,17 @@ class LogsFragment : Fragment() {
             allLines.clear()
             refreshAdapter("")
         }
+        // Copiar/Compartir (auditoría referencia/ia/*, 2026-08-31 — coherente con
+        // .claude/rules/kairos-product-philosophy.md: pegar un log en Telegram/GitHub Issues
+        // sin salir de la app ni depender de terminal/adb). Comparte el log FILTRADO
+        // actualmente visible (severidad + búsqueda), no el archivo completo — lo que el
+        // usuario ve en pantalla es lo que se copia/comparte.
+        view.findViewById<View>(R.id.btn_share_logs).setOnClickListener { shareVisibleLog() }
+
+        view.findViewById<TextView>(R.id.filter_todo).setOnClickListener { setSeverityFilter(SeverityFilter.TODO) }
+        view.findViewById<TextView>(R.id.filter_info).setOnClickListener { setSeverityFilter(SeverityFilter.INFO) }
+        view.findViewById<TextView>(R.id.filter_warn).setOnClickListener { setSeverityFilter(SeverityFilter.WARN) }
+        view.findViewById<TextView>(R.id.filter_error).setOnClickListener { setSeverityFilter(SeverityFilter.ERROR) }
 
         searchInput = view.findViewById(R.id.search_logs)
         recycler = view.findViewById(R.id.logs_recycler)
@@ -88,9 +105,24 @@ class LogsFragment : Fragment() {
         }.start()
     }
 
+    private fun setSeverityFilter(filter: SeverityFilter) {
+        severityFilter = filter
+        refreshAdapter(searchInput.text?.toString() ?: "")
+    }
+
+    /** true si [line] pertenece a la severidad [severityFilter] — mismas cadenas que
+     * colorizeLine() detecta para colorear, reusadas acá en vez de duplicar la detección. */
+    private fun matchesSeverityFilter(line: String): Boolean = when (severityFilter) {
+        SeverityFilter.TODO -> true
+        SeverityFilter.INFO -> line.contains("[OK]") || line.contains("[INFO]")
+        SeverityFilter.WARN -> line.contains("[WARN]")
+        SeverityFilter.ERROR -> line.contains("[ERROR]")
+    }
+
     private fun refreshAdapter(filter: String) {
-        val filtered = if (filter.isEmpty()) allLines
-        else allLines.filter { it.contains(filter, ignoreCase = true) }
+        val bySeverity = allLines.filter { matchesSeverityFilter(it) }
+        val filtered = if (filter.isEmpty()) bySeverity
+        else bySeverity.filter { it.contains(filter, ignoreCase = true) }
 
         recycler.adapter = object : RecyclerView.Adapter<LogsFragment.VH>() {
             override fun onCreateViewHolder(p: ViewGroup, t: Int) = VH(
@@ -104,6 +136,37 @@ class LogsFragment : Fragment() {
                 h.tv.setPadding(dp(4), dp(3), dp(4), dp(3))
             }
             override fun getItemCount() = filtered.size
+        }
+    }
+
+    /** Copia al portapapeles Y dispara ACTION_SEND (texto plano) con el log actualmente
+     * visible (severidad + búsqueda aplicados) — el usuario elige después a dónde mandarlo
+     * (Telegram, GitHub Issues, etc.) desde el chooser del sistema. */
+    private fun shareVisibleLog() {
+        val ctx = context ?: return
+        val bySeverity = allLines.filter { matchesSeverityFilter(it) }
+        val searchText = searchInput.text?.toString() ?: ""
+        val visible = if (searchText.isEmpty()) bySeverity
+        else bySeverity.filter { it.contains(searchText, ignoreCase = true) }
+        if (visible.isEmpty()) {
+            android.widget.Toast.makeText(ctx, getString(R.string.logs_share_empty), android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val text = visible.joinToString("\n")
+
+        val clipboard = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Kairos log", text))
+        android.widget.Toast.makeText(ctx, getString(R.string.logs_share_copied), android.widget.Toast.LENGTH_SHORT).show()
+
+        val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(android.content.Intent.EXTRA_TEXT, text)
+        }
+        try {
+            startActivity(android.content.Intent.createChooser(sendIntent, getString(R.string.logs_share_title)))
+        } catch (_: Exception) {
+            // Copiado al portapapeles ya cumplió el objetivo aunque no haya ninguna app que
+            // resuelva ACTION_SEND en este dispositivo — no es un error fatal, no lo relogueamos.
         }
     }
 

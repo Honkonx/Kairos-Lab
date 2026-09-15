@@ -529,8 +529,8 @@ _repo_build_deb() {
 
   if command -v dpkg-deb &>/dev/null; then
     info "Empaquetando con dpkg-deb -b ..."
-    dpkg-deb -b "$_staging" "$_out" 2>&1 | tail -2
-    [ "${PIPESTATUS[0]}" -eq 0 ] || error "dpkg-deb -b falló"
+    dpkg-deb -b "$_staging" "$_out"
+    [ "$?" -eq 0 ] || error "dpkg-deb -b falló"
     [ -f "$_out" ] || error "dpkg-deb no generó el .deb"
     return 0
   fi

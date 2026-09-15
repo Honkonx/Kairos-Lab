@@ -14,7 +14,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.termux.R
+import com.termux.app.util.MemoryMonitor
 import com.termux.app.util.kairosThemeColor
+import kotlin.math.roundToInt
 
 /** Pantalla 0 del wizard — bienvenida + resumen. Ver WizardActivity.kt (host) para el
  * ViewPager2 que aloja las 4 pantallas y docs/bootstrap/ROOTFS_EMBEBIDO.md para el diseño general. */
@@ -51,7 +53,22 @@ class WizardWelcomeFragment : Fragment() {
             gravity = Gravity.CENTER
             setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also {
-                it.topMargin = dp(20); it.bottomMargin = dp(40)
+                it.topMargin = dp(20); it.bottomMargin = dp(12)
+            }
+        })
+
+        // Repropósito del mecanismo de RAM total ya usado en ModelsFragment/QemuFragment/
+        // MemoryMonitor (auditoría 2026-09-01) — el wizard de primer arranque nunca informaba
+        // qué podía esperar el usuario de SU dispositivo puntual (mismos 4 pasos para un
+        // teléfono de 2GB que uno de 16GB). Solo informativo, no bloquea nada — el instalador
+        // sigue igual sin importar la RAM detectada.
+        root.addView(TextView(ctx).apply {
+            text = deviceRamHint(ctx)
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also {
+                it.bottomMargin = dp(28)
             }
         })
 
@@ -105,6 +122,20 @@ class WizardWelcomeFragment : Fragment() {
         root.addView(startButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         return scroll
+    }
+
+    /** Mismos rangos que ya usa ModelsFragment.estimatedRamGb()/exceedsRam (informal, no un
+     *  umbral científico) — solo para dar una expectativa realista de entrada, nunca bloquea
+     *  el wizard ni cambia el flujo de instalación. */
+    private fun deviceRamHint(ctx: android.content.Context): String {
+        val ramGb = MemoryMonitor.totalGb(ctx)
+        val ramRounded = (ramGb * 10).roundToInt() / 10.0
+        val nivel = when {
+            ramGb < 4.0 -> "modelos livianos (hasta ~3B) van a andar mejor — los grandes pueden ir lentos o no entrar en memoria"
+            ramGb < 8.0 -> "buen margen para modelos medianos (7B-8B cuantizados)"
+            else -> "margen amplio, incluso para modelos grandes (13B+)"
+        }
+        return "Tu dispositivo tiene ~${ramRounded}GB de RAM — $nivel. Esto es solo orientativo, se puede ajustar todo después."
     }
 
     private fun showTermsDialog() {

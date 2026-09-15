@@ -629,9 +629,22 @@ class BottomSheetInstalacion : DialogFragment() {
                 getString(R.string.install_sheet_variant_claude_native_title) to "",
                 getString(R.string.install_sheet_variant_claude_legacy_title) to getString(R.string.install_sheet_variant_claude_legacy_desc)
             )
-            // openclaw y opencode: la variante proot se removió 2026-07-24
-            // (glibc-repo de Termux alcanza, no hace falta proot completo —
-            // ver docs/viejo/PROPUESTA_SCRIPTS_MODULOS.md). Sin selector — un solo camino.
+            // opencode: rediseño 2026-09-09 (ver docs/referencias/modulos/
+            // AUDITORIA_OPENCODE_TERMUX_2026-09-09.md) — 2 vías reales, con fallback
+            // automático a un binario Bionic universal (wallentx/opencode-termux) si
+            // CUALQUIERA de las 2 falla en tiempo de instalación (ver opencode.sh). glibc
+            // sigue siendo la de siempre (RECOMENDADA, sin cambios de comportamiento —
+            // Honkonx/opencode-termux rama pure-android); bionic es nueva — ELF nativo
+            // Android sin depender de glibc-repo (Honkonx/opencode-termux rama
+            // native-android, que a esta fecha todavía no publicó ningún release propio,
+            // así que en la práctica hoy cae directo al fallback wallentx).
+            "opencode" -> listOf(
+                getString(R.string.install_sheet_variant_opencode_glibc_title) to getString(R.string.install_sheet_variant_opencode_glibc_desc),
+                getString(R.string.install_sheet_variant_opencode_bionic_title) to getString(R.string.install_sheet_variant_opencode_bionic_desc)
+            )
+            // openclaw: la variante proot se removió 2026-07-24 (glibc-repo de Termux
+            // alcanza, no hace falta proot completo — ver
+            // docs/viejo/PROPUESTA_SCRIPTS_MODULOS.md). Sin selector — un solo camino.
             "n8n" -> listOf(
                 // Orden invertido 2026-08-06 (ver docs/humano/humano77.md, pedido explícito
                 // del usuario): udocker pasa a ser la recomendada — vive en $HOME (Termux
@@ -641,16 +654,16 @@ class BottomSheetInstalacion : DialogFragment() {
                 getString(R.string.install_sheet_variant_n8n_udocker_title) to getString(R.string.install_sheet_variant_n8n_udocker_desc),
                 getString(R.string.install_sheet_variant_n8n_proot_title) to getString(R.string.install_sheet_variant_n8n_proot_desc)
             )
-            // codex: canal "native" agregado 2026-07-28 (binario ARM64 prebuilt de
-            // codex_android, sin Node.js) pero nunca se wireó acá — modules.json no
-            // tenía hasVariants:true y este when no tenía el caso "codex", así que la
-            // hoja de instalación nunca mostraba el selector y --variant nunca se
-            // pasaba: SIEMPRE se instalaba por npm (~50MB, requiere Node.js), aunque
-            // el usuario pidiera lo contrario. Nativa primero (RECOMENDADA) porque es
-            // más liviana y no depende de npm/registry.
+            // codex: rediseño 2026-09-09 (docs/humano328.md) — la vieja variante "native"
+            // (binario prebuilt de WangChengYeh/codex_android) se retiró por completo, repo
+            // abandonado hace más de un año. Reemplazada por 2 variantes npm reales: "Normal"
+            // (DioNanos/codex-termux, con respaldo automático a wallentx/codex-termux si la
+            // instalación vía npm falla) y "VL" (DioNanos/codex-vl, con code-mode). Normal
+            // primero (RECOMENDADA) — es la que ya se usaba por default y tiene respaldo; VL es
+            // opt-in del usuario, sin respaldo (pedido explícito).
             "codex" -> listOf(
-                getString(R.string.install_sheet_variant_codex_native_title) to getString(R.string.install_sheet_variant_codex_native_desc),
-                getString(R.string.install_sheet_variant_codex_termux_title) to getString(R.string.install_sheet_variant_codex_termux_desc)
+                getString(R.string.install_sheet_variant_codex_normal_title) to getString(R.string.install_sheet_variant_codex_normal_desc),
+                getString(R.string.install_sheet_variant_codex_vl_title) to getString(R.string.install_sheet_variant_codex_vl_desc)
             )
             // ciberseguridad: básico (nativo bionic, igual que siempre) vs pro (+ contenedor
             // Kali Linux completo vía proot-distro, con o sin interfaz gráfica). RECOMENDADA
@@ -671,8 +684,9 @@ class BottomSheetInstalacion : DialogFragment() {
         val ids = when (moduleId) {
             "ollama" -> listOf("gpu", "standard")
             "claude" -> listOf("native", "legacy")
+            "opencode" -> listOf("glibc", "bionic")
             "n8n" -> listOf("udocker", "proot")
-            "codex" -> listOf("native", "termux")
+            "codex" -> listOf("termux", "vl")
             "ciberseguridad" -> listOf("basico", "pro-headless", "pro-gui")
             else -> emptyList()
         }

@@ -44,6 +44,11 @@
     <string name="models_detail_error">No se pudo obtener info: %1$s</string>
     <string name="models_action_close">Cerrar</string>
     <string name="models_action_delete">Eliminar</string>
+    <!-- "Descargar de memoria" (unload, keep_alive=0) — separado de "Eliminar" (borra el .gguf
+         del disco): auditoría referencia/ia/*, 2026-08-31. OllamaApiClient.unloadModel() ya
+         existía (POST /api/generate keep_alive:0) pero no estaba expuesto en esta pantalla. -->
+    <string name="models_action_unload">Descargar de memoria</string>
+    <string name="models_unloaded">Modelo descargado de memoria (sigue en disco)</string>
     <string name="models_delete_title">Eliminar modelo</string>
     <string name="models_delete_message">¿Eliminar \"%1$s\"? Esta acción no se puede deshacer.</string>
     <string name="models_action_cancel">Cancelar</string>

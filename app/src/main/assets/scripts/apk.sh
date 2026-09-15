@@ -74,8 +74,26 @@
 #  - decode = extracción del APK + AndroidManifest legible (aapt2 xmltree);
 #             smali/decompile completo necesita pkg install apktool
 #
+#  INSTRUMENTACIÓN SIN ROOT (2026-09-12, ver docs/humano331.md — fuente
+#  VictorH028/no-root-logger, https://github.com/VictorH028/no-root-logger,
+#  clonado a ver/no-root-logger para la auditoría): subcomandos
+#  instrument-decode/instrument-search/instrument-methods/instrument-apply +
+#  logstart/logstop/logstatus/logtail. Decompila CUALQUIER APK con apktool
+#  (instalado en el primer uso, no es dependencia dura del módulo), inyecta
+#  llamadas a un logger remoto (RemoteLogger.hookEnter/hookExit/d) en el
+#  método elegido vía smali_hook.py (parser Smali real, portado tal cual —
+#  ver modulos/smali_hook.py), recompila con apktool, agrega RemoteLogger +
+#  liblogger.so como dex/lib ADICIONALES al APK ya recompilado (evita traducir
+#  RemoteLogger a mano a .smali) y vuelve a firmar. El binario nativo
+#  (native_logger.c → liblogger.so) compila con el clang de Termux sin NDK —
+#  su target por defecto YA es aarch64-unknown-linux-android (Bionic real,
+#  confirmado en dispositivo). El log llega por HTTP a 127.0.0.1:9999
+#  (log_server.py, en una sesión tmux — mismo patrón que los módulos con
+#  servidor propio). UI real en ApkFragment.kt, card "INSTRUMENTACIÓN".
+#
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 2.1.0 | Agosto 2026 (pedido 2026-08-13: "el compilador apk
+#  VERSIÓN: 2.2.0 | Septiembre 2026 (instrumentación sin root, ver arriba)
+#  VERSIÓN previa: 2.1.0 | Agosto 2026 (pedido 2026-08-13: "el compilador apk
 #  de i-haklab... compilar apk dentro de download o en sus sub carpetas
 #  o en la carpeta home/proyectos" — ver humano102; nivel 2 = C5 humano123)
 # ============================================================
@@ -238,7 +256,7 @@ if check_done "androidjar" && [ -f "$ANDROID_JAR" ]; then
 else
   mkdir -p "$(dirname "$ANDROID_JAR")"
   info "Descargando android.jar desde Sable/android-platforms (mirror usado por BuildAPKs)..."
-  timeout 30 wget -q -O "$ANDROID_JAR" \
+  timeout 30 wget -O "$ANDROID_JAR" \
     "https://raw.githubusercontent.com/Sable/android-platforms/master/android-30/android.jar" \
     || error "No se pudo descargar android.jar (¿red?)"
   [ -s "$ANDROID_JAR" ] || { rm -f "$ANDROID_JAR"; error "android.jar vacío — descarga fallida"; }
@@ -300,6 +318,12 @@ usage() {
   echo "  compil-apk-termux info <apk>                    ver info del APK"
   echo "  compil-apk-termux merge <base.apk> <partes...>  fusionar split APKs"
   echo "  compil-apk-termux decode <apk> <dir>            extraer + manifest legible"
+  echo "  compil-apk-termux instrument-decode <apk>                              decompilar con apktool (smali/decompile completo)"
+  echo "  compil-apk-termux instrument-search <workdir> <query>                  buscar clases .smali por nombre"
+  echo "  compil-apk-termux instrument-methods <workdir> <clase.smali>           listar métodos de una clase (JSON)"
+  echo "  compil-apk-termux instrument-apply <workdir> <clase.smali> <metodo> <accion> [tag] [msg]"
+  echo "                                                                         inyectar hook + recompilar + firmar"
+  echo "  compil-apk-termux logstart|logstop|logstatus|logtail [n]               servidor de logs de la instrumentación"
   exit 1
 }
 
@@ -343,6 +367,18 @@ KEYSTORE="${APK_KEYSTORE:-$HOME/.local/share/kairos-apk/key.keystore}"
 KEY_ALIAS="${APK_ALIAS:-kairos}"
 KEY_PASS="${APK_PASS:-password}"
 
+# ── Instrumentación "sin root" (fuente VictorH028/no-root-logger, ver
+#    docs/humano331.md) — decompila con apktool, inyecta llamadas a un logger
+#    remoto vía smali_hook.py, recompila, agrega RemoteLogger+liblogger.so
+#    como un dex/lib adicionales (sin tocar el .smali del logger a mano) y
+#    vuelve a firmar. LOGGER_DIR trae el payload fuente (extraído por
+#    KairosBootstrap desde app/src/main/assets/scripts/); LOGGER_CACHE guarda
+#    lo que se compila una sola vez (liblogger.so + classes-logger.dex) para
+#    no repetirlo en cada instrumentación. ──
+LOGGER_DIR="$HOME/.kairos_apk_logger"
+LOGGER_CACHE="$HOME/.local/share/kairos-apk/logger"
+LOGGER_SESSION="kairos-apk-logger"
+
 # ── info <apk> ───────────────────────────────────────────────
 cmd_info() {
   local apk="$1"
@@ -375,7 +411,10 @@ cmd_merge() {
   # Los splits traen AndroidManifest.xml duplicado (idéntico entre partes) — se conserva
   # el de la base; des-dupear entries duplicadas no es posible sin un merge semántico.
   echo "── empaquetando"
-  ( cd "$work" && zip -q -r "$out" . -x "*.idsig" )
+  # -n .arsc:.so (2026-09-12, ver docs/humano331.md — mismo bug confirmado y arreglado en
+  # cmd_instrument_apply): sin esto, resources.arsc queda comprimido y Android 30+ rechaza el
+  # install ("Targeting R+ ... requires the resources.arsc ... stored uncompressed").
+  ( cd "$work" && zip -q -r -n .arsc:.so "$out" . -x "*.idsig" )
   zipalign -f -p 4 "$out" "${out}.aligned"
   mv -f "${out}.aligned" "$out"
   if [ ! -f "$KEYSTORE" ]; then
@@ -543,6 +582,199 @@ cmd_build() {
   echo "   (o desde el explorador de archivos de Android)"
 }
 
+# ── instrument-decode <apk> ────────────────────────────────────
+# apktool NO viene con el resto de la cadena (aapt2/d8/zipalign/apksigner ya
+# se instalan en PASO 1 de apk.sh) — se instala acá, en el primer uso real,
+# mismo criterio que "kotlin" (módulo aparte, detectado en tiempo de build,
+# no dependencia dura de apk.sh). Emite "WORKDIR:<ruta>" como última línea —
+# la UI la parsea para saber dónde quedó la decompilación.
+_ensure_apktool() {
+  command -v apktool &>/dev/null && return 0
+  echo "Instalando apktool (decompilador Smali, ~6MB + openjdk-21)..."
+  pkg install -y apktool || return 1
+  command -v apktool &>/dev/null
+}
+
+cmd_instrument_decode() {
+  local apk="$1"
+  [ -f "$apk" ] || { echo "[ERROR] No existe: $apk"; exit 1; }
+  _ensure_apktool || { echo "[ERROR] No se pudo instalar apktool"; exit 1; }
+  local work="$HOME/.local/share/kairos-apk/instrument/$(basename "${apk%.apk}")_$(date +%s)"
+  mkdir -p "$(dirname "$work")"
+  echo "=== [1/1] apktool d (decompilando — puede tardar con apps grandes) ==="
+  apktool d -f -o "$work" "$apk" 2>&1 || { echo "[ERROR] apktool d falló"; exit 1; }
+  echo "WORKDIR:$work"
+}
+
+# ── instrument-search <workdir> <query> ───────────────────────
+# Búsqueda de clases por nombre de archivo .smali (case-insensitive, substring)
+# — alcanza para que la UI ofrezca una lista tocable en vez de pedirle al
+# usuario que navegue el árbol completo a mano (una app real puede tener
+# miles de .smali).
+cmd_instrument_search() {
+  local work="$1" query="$2"
+  [ -d "$work" ] || { echo "[ERROR] No existe: $work"; exit 1; }
+  find "$work" -iname "*${query}*.smali" -type f 2>/dev/null | while read -r f; do
+    echo "${f#"$work"/}"
+  done
+}
+
+# ── instrument-methods <workdir> <clase.smali> ────────────────
+# Delega en smali_hook.py --list --json — ver ese script para el parser real
+# de .method/.registers/.locals.
+cmd_instrument_methods() {
+  local work="$1" relpath="$2"
+  local full="$work/$relpath"
+  [ -f "$full" ] || { echo "[ERROR] No existe: $full"; exit 1; }
+  [ -f "$LOGGER_DIR/smali_hook.py" ] || { echo "[ERROR] smali_hook.py no encontrado en $LOGGER_DIR (¿bootstrap incompleto? reinstalá la app)"; exit 1; }
+  python3 "$LOGGER_DIR/smali_hook.py" "$full" --list --json
+}
+
+# ── liblogger.so + classes-logger.dex (compilados UNA vez, reusados en cada
+#    instrumentación) — ver docs/humano331.md para el porqué de este diseño
+#    (RemoteLogger se agrega como dex/lib adicionales al APK ya recompilado
+#    en vez de traducirlo a mano a .smali para inyectarlo junto al resto). ──
+_ensure_logger_lib() {
+  mkdir -p "$LOGGER_CACHE/lib/arm64-v8a"
+  if [ ! -s "$LOGGER_CACHE/lib/arm64-v8a/liblogger.so" ]; then
+    [ -f "$LOGGER_DIR/native_logger.c" ] || { echo "[ERROR] native_logger.c no encontrado en $LOGGER_DIR"; return 1; }
+    echo "  -> compilando liblogger.so (clang, una sola vez)..."
+    clang -shared -fPIC -O2 -fno-exceptions -fno-rtti \
+      -o "$LOGGER_CACHE/lib/arm64-v8a/liblogger.so" \
+      "$LOGGER_DIR/native_logger.c" || return 1
+  fi
+  if [ ! -s "$LOGGER_CACHE/classes-logger.dex" ]; then
+    [ -f "$LOGGER_DIR/RemoteLogger.java" ] || { echo "[ERROR] RemoteLogger.java no encontrado en $LOGGER_DIR"; return 1; }
+    echo "  -> compilando RemoteLogger.class -> classes-logger.dex (una sola vez)..."
+    local _tmp; _tmp="$(mktemp -d)"
+    javac -source 11 -target 11 -classpath "$ANDROID_JAR" -d "$_tmp" "$LOGGER_DIR/RemoteLogger.java" || { rm -rf "$_tmp"; return 1; }
+    mkdir -p "$_tmp/dex"
+    d8 --release --lib "$ANDROID_JAR" --output "$_tmp/dex" "$_tmp/com/kairos/logger/RemoteLogger.class" || { rm -rf "$_tmp"; return 1; }
+    cp "$_tmp/dex/classes.dex" "$LOGGER_CACHE/classes-logger.dex"
+    rm -rf "$_tmp"
+  fi
+  [ -s "$LOGGER_CACHE/lib/arm64-v8a/liblogger.so" ] && [ -s "$LOGGER_CACHE/classes-logger.dex" ]
+}
+
+# ── instrument-apply <workdir> <clase.smali> <metodo> <accion> [tag] [msg] ──
+# accion: enter | exit | both | d
+cmd_instrument_apply() {
+  local work="$1" relpath="$2" method="$3" action="$4" tag="${5:-LOG}" message="${6:-Mensaje de log}"
+  local full="$work/$relpath"
+  [ -f "$full" ] || { echo "[ERROR] No existe: $full"; exit 1; }
+  [ -f "$LOGGER_DIR/smali_hook.py" ] || { echo "[ERROR] smali_hook.py no encontrado en $LOGGER_DIR"; exit 1; }
+
+  echo "=== [1/5] Inyectando hook (smali_hook.py) ==="
+  local _args=(--method "$method" --action "$action" --auto-registers --no-backup)
+  [ "$action" = "d" ] && _args+=(--tag "$tag" --message "$message")
+  python3 "$LOGGER_DIR/smali_hook.py" "$full" "${_args[@]}" || { echo "[ERROR] Falló la inyección"; exit 1; }
+
+  echo "=== [2/5] Preparando RemoteLogger (compilación en caché) ==="
+  _ensure_logger_lib || { echo "[ERROR] No se pudo preparar liblogger.so/RemoteLogger.class"; exit 1; }
+
+  echo "=== [3/5] Verificando permiso INTERNET en el manifest ==="
+  local _manifest="$work/AndroidManifest.xml"
+  if [ -f "$_manifest" ] && ! grep -q 'android.permission.INTERNET' "$_manifest"; then
+    # apktool decodifica el manifest a XML legible con indentación real — insertar
+    # el permiso justo antes del cierre "</manifest>" es seguro y simple, sin
+    # necesitar un parser XML completo para un cambio de una sola línea.
+    sed -i 's#</manifest>#    <uses-permission android:name="android.permission.INTERNET"/>\n</manifest>#' "$_manifest"
+    echo "  -> permiso INTERNET agregado (necesario para que el hook llegue al log_server)"
+  else
+    echo "  -> ya lo tenía"
+  fi
+
+  echo "=== [4/5] apktool b (recompilando) ==="
+  apktool b "$work" -o "$work/rebuilt.apk" 2>&1 || { echo "[ERROR] apktool b falló"; exit 1; }
+
+  echo "=== [5/5] Agregando RemoteLogger + liblogger.so, alineando y firmando ==="
+  local _merge; _merge="$(mktemp -d)"
+  ( cd "$_merge" && unzip -q -o "$work/rebuilt.apk" )
+  # META-INF de la firma que apktool haya dejado — se re-firma de cero abajo,
+  # dejar los certificados/manifest viejos rompería la verificación.
+  rm -rf "$_merge/META-INF"
+  local _n=2
+  while [ -f "$_merge/classes${_n}.dex" ]; do _n=$((_n+1)); done
+  cp "$LOGGER_CACHE/classes-logger.dex" "$_merge/classes${_n}.dex"
+  mkdir -p "$_merge/lib/arm64-v8a"
+  cp "$LOGGER_CACHE/lib/arm64-v8a/liblogger.so" "$_merge/lib/arm64-v8a/liblogger.so"
+  # Salida final bajo ~/proyectos/instrumented/ (no en el workdir de
+  # ~/.local/share/kairos-apk/instrument/) — es la única ruta que el
+  # FileProvider "apkbuilder" expone (ver res/xml/apk_builder_paths.xml),
+  # mismo criterio que <proyecto>/build/apk/final.apk para compilaciones
+  # normales. shareOrInstallApk() en ApkFragment.kt necesita esta ruta para
+  # poder ofrecer compartir/instalar sin ampliar el alcance del provider a
+  # todo ~/.local/share/kairos-apk/ (ahí vive también el keystore de firma).
+  mkdir -p "$HOME/proyectos/instrumented"
+  local _out="$HOME/proyectos/instrumented/$(basename "$work").apk"
+  rm -f "$_out"
+  # -n .arsc:.so (2026-09-12, confirmado en dispositivo real, ver docs/humano331.md): "zip"
+  # comprime TODO por default, incluido resources.arsc — Android 30+ exige resources.arsc
+  # SIN comprimir y alineado a 4 bytes ("pm install" real: "Failed parse during
+  # installPackageLI: Targeting R+ (version 30 and above) requires the resources.arsc of
+  # installed APKs to be stored uncompressed and aligned"). apktool ya deja rebuilt.apk bien,
+  # pero re-zipear todo el contenido (para agregar classes-logger.dex + liblogger.so) lo
+  # rompía. .so también sin comprimir — requisito real para que el linker lo mapee directo
+  # (mmap) en vez de necesitar extraerlo primero.
+  ( cd "$_merge" && zip -q -r -n .arsc:.so "$_out" . )
+  rm -rf "$_merge"
+  zipalign -f -p 4 "$_out" "${_out}.aligned" 2>&1 || { echo "[ERROR] zipalign falló"; exit 1; }
+  mv -f "${_out}.aligned" "$_out"
+  if [ ! -f "$KEYSTORE" ]; then
+    mkdir -p "$(dirname "$KEYSTORE")"
+    keytool -genkey -v -keystore "$KEYSTORE" -alias "$KEY_ALIAS" \
+      -storepass "$KEY_PASS" -keypass "$KEY_PASS" \
+      -keyalg RSA -keysize 2048 -validity 10000 \
+      -dname "CN=Kairos, O=Local, OU=Local, L=Local, S=Local, C=US" >/dev/null 2>&1 || true
+  fi
+  apksigner sign --ks "$KEYSTORE" --ks-pass "pass:$KEY_PASS" \
+    --ks-key-alias "$KEY_ALIAS" --key-pass "pass:$KEY_PASS" \
+    --out "${_out}.signed" "$_out" 2>&1 || { echo "[ERROR] apksigner falló"; exit 1; }
+  mv -f "${_out}.signed" "$_out"
+  echo ""
+  echo "✅ APK instrumentado: $_out"
+}
+
+# ── logstart / logstop / logstatus / logtail [n] ──────────────
+# Servidor de logs (log_server.py, 127.0.0.1:9999) en una sesión tmux
+# detached — mismo patrón que los módulos con servidor propio (n8n, ollama).
+cmd_logstart() {
+  command -v tmux &>/dev/null || { echo "[ERROR] tmux no está instalado"; exit 1; }
+  if tmux has-session -t "$LOGGER_SESSION" 2>/dev/null; then
+    echo "ALREADY_RUNNING"
+    return 0
+  fi
+  mkdir -p "$LOGGER_CACHE"
+  [ -f "$LOGGER_DIR/log_server.py" ] || { echo "[ERROR] log_server.py no encontrado en $LOGGER_DIR"; exit 1; }
+  cp -f "$LOGGER_DIR/log_server.py" "$LOGGER_CACHE/log_server.py"
+  tmux new-session -d -s "$LOGGER_SESSION" -n logger "python3 '$LOGGER_CACHE/log_server.py'"
+  sleep 1
+  if tmux has-session -t "$LOGGER_SESSION" 2>/dev/null; then
+    echo "STARTED"
+  else
+    echo "[ERROR] No se pudo iniciar (¿puerto 9999 ocupado?)"
+    exit 1
+  fi
+}
+
+cmd_logstop() {
+  tmux kill-session -t "$LOGGER_SESSION" 2>/dev/null || true
+  echo "STOPPED"
+}
+
+cmd_logstatus() {
+  if tmux has-session -t "$LOGGER_SESSION" 2>/dev/null; then
+    echo "RUNNING"
+  else
+    echo "STOPPED"
+  fi
+}
+
+cmd_logtail() {
+  local n="${1:-100}"
+  [ -f "$LOGGER_CACHE/app_logs.txt" ] && tail -n "$n" "$LOGGER_CACHE/app_logs.txt" || true
+}
+
 # ── dispatch ─────────────────────────────────────────────────
 [ $# -lt 1 ] && usage
 case "$1" in
@@ -550,6 +782,14 @@ case "$1" in
   info)   [ $# -lt 2 ] && usage; cmd_info "$2" ;;
   merge)  [ $# -lt 3 ] && usage; shift; cmd_merge "$@" ;;
   decode) [ $# -lt 3 ] && usage; cmd_decode "$2" "$3" ;;
+  instrument-decode)  [ $# -lt 2 ] && usage; cmd_instrument_decode "$2" ;;
+  instrument-search)  [ $# -lt 3 ] && usage; cmd_instrument_search "$2" "$3" ;;
+  instrument-methods) [ $# -lt 3 ] && usage; cmd_instrument_methods "$2" "$3" ;;
+  instrument-apply)   [ $# -lt 5 ] && usage; shift; cmd_instrument_apply "$@" ;;
+  logstart)  cmd_logstart ;;
+  logstop)   cmd_logstop ;;
+  logstatus) cmd_logstatus ;;
+  logtail)   cmd_logtail "$2" ;;
   -h|--help|help) usage ;;
   *) # Default = build con el proyecto pasado directo (compatibilidad v1).
      cmd_build "$1" ;;

@@ -113,7 +113,7 @@ if command -v lt &>/dev/null && [ "${FORCE:-false}" != "true" ]; then
   registry_write localtunnel "installed=true"
 else
   ensure_node_installed
-  if ! npm install -g localtunnel &>/dev/null; then
+  if ! npm install -g localtunnel; then
     error "No se pudo instalar localtunnel (npm install -g localtunnel falló)"
   fi
   command -v lt &>/dev/null || error "localtunnel no disponible tras la instalación (npm)"

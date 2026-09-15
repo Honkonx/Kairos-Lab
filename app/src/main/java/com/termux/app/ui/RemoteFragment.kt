@@ -1,5 +1,6 @@
 package com.termux.app.ui
 
+import android.content.Context
 import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -23,6 +24,18 @@ class RemoteFragment : BaseModuleFragment() {
     override fun getModuleId() = "remote"
     override fun getModuleName() = getString(R.string.remote_module_name)
 
+    // Anti-tapjacking (hallazgo de auditoría referencia/ia/*, 2026-08-31): esta pantalla
+    // gestiona/importa claves SSH (RemoteManager.kt — ver .claude/rules/kairos-secrets-never-revealed.md)
+    // — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
+    // (Reemplazar/Borrar clave) sin que el usuario lo note. Se setea de forma PROGRAMÁTICA (no
+    // hay <layout> propio de este Fragment, comparte fragment_module_detail.xml con el resto de
+    // BaseModuleFragment) porque Android no soporta este atributo a nivel de Fragment, solo de
+    // View/Activity.
+    override fun onViewCreated(view: View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        view.filterTouchesWhenObscured = true
+    }
+
     // Holds the latest remote info — antes venía del JSON de kairos_manager.py, ahora de
     // RemoteManager.info() (migrado 2026-07-31, ver comentario de runRemoteAction()).
     private var remoteInfo: RemoteManager.RemoteInfo? = null
@@ -39,6 +52,10 @@ class RemoteFragment : BaseModuleFragment() {
     private var userRow: View? = null
     private var connRow: View? = null
     private var tunnelRow: View? = null
+    // Fila dinámica "Conectate con" de la card USB (ADB) — depende de info.user, así que se
+    // actualiza en updateInfoRows() igual que el resto de filas de INFO (nunca se arma a mano
+    // en otro lado, para no tener 2 fuentes de la misma respuesta).
+    private var usbConnectRow: View? = null
     // Switches reales (2026-08-22, ver docs/humano/humano193.md) — reemplazan los pares de botones
     // Iniciar/Detener de SSH y del túnel Cloudflare. El comentario viejo de línea ~77
     // ("BaseModuleFragment provides only buttons") ya no aplica — ver
@@ -99,6 +116,12 @@ class RemoteFragment : BaseModuleFragment() {
     private val TAB_RECEPTOR = 4
     private val sectionViews: Array<MutableList<View>> = Array(5) { mutableListOf() }
     private var activeTabIndex = TAB_EMISOR
+
+    private companion object {
+        // Comando fijo (no depende de remoteInfo) — mismo puerto 8022 que el resto de la
+        // pantalla (RemoteManager.SSH_PORT es privado, ver connectCmd en RemoteManager.info()).
+        const val USB_ADB_FORWARD_CMD = "adb forward tcp:8022 tcp:8022"
+    }
 
     /** Corre [block] (que agrega vistas a `container` vía addCard/actionButton/switchRow/etc.)
      *  y registra las vistas nuevas como pertenecientes a la pestaña [tabIndex]. */
@@ -219,6 +242,32 @@ class RemoteFragment : BaseModuleFragment() {
         // forma de verificarla, el usuario solo puede aceptarla a ciegas. Las claves ya las
         // genera `ssh-keygen -A` en el PASO 3 de ssh.sh; esto solo las lee, no genera nada.
         actionButton(getString(R.string.remote_btn_fingerprint), GHOST) { showHostKeyFingerprints() }
+        // ── Método de conexión "USB (ADB)" — tercer modo de transporte hacia el sshd nativo de
+        // este dispositivo, junto a red local (card INFO de arriba) y túnel (pestaña Cloudflare).
+        // Hallazgo real de auditoría de referencia (2026-09-11, ver
+        // docs/referencias/herramientas/REFERENCIA_ANDROID_TERMUX_SSH_BOOTSTRAP_SKILL.md, seguido
+        // en MEJORAS_PENDIENTES.md): sshd ya escucha en :8022 sin importar el transporte elegido —
+        // con el cable USB + depuración habilitada, `adb forward tcp:8022 tcp:8022` corrido EN LA
+        // PC (Kairos corre EN el teléfono, no puede invocar adb contra sí mismo — eso corre del
+        // lado de la PC) redirige el puerto sin necesitar WiFi compartida ni túnel cloud. Es
+        // puramente informativo, sin lógica nueva del lado del script/servidor — no hay nada que
+        // Kairos pueda detectar/activar desde el teléfono para este método (el cable/la
+        // autorización ADB los maneja la PC), a diferencia de los switches de SSH/Cloudflare.
+        addCard(getString(R.string.remote_card_usb_adb)) {
+            infoRow(getString(R.string.remote_label_comando_pc), USB_ADB_FORWARD_CMD).also { addView(it) }
+            usbConnectRow = infoRow(getString(R.string.remote_label_conectar_usb), "—").also { addView(it) }
+            addView(android.widget.TextView(requireContext()).apply {
+                text = getString(R.string.remote_note_usb_adb)
+                textSize = 11f
+                setTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
+                setPadding(dp(14), 0, dp(14), dp(10))
+            })
+        }
+        actionButton(getString(R.string.remote_btn_copiar_comando_adb_forward), GHOST) {
+            copyToClipboard(USB_ADB_FORWARD_CMD)
+            toast(getString(R.string.remote_msg_comando_copiado, USB_ADB_FORWARD_CMD))
+        }
+        actionButton(getString(R.string.remote_btn_copiar_comando_ssh_usb), GHOST) { copyUsbConnectCommand() }
         // Bug real (auditoria 2026-08-05, ver docs/humano65.md/humano66.md): ningun modulo sin
         // CLI dedicada (Python/Ollama/n8n/Expo/Remote) tenia forma de actualizar desde la app.
         // Consolidado 2026-08-19 (auditoría de consistencia de menús) en la card MANTENIMIENTO
@@ -353,6 +402,9 @@ class RemoteFragment : BaseModuleFragment() {
         // La pestaña Receptor muestra la misma IP local (info.ip ya viene del mismo poll de
         // RemoteManager.info(), no se vuelve a resolver).
         setRowValue(receptorIpRow, info.ip)
+        // Card USB (ADB): siempre 127.0.0.1 (el forward corre en la PC, redirige su propio
+        // localhost al :8022 del teléfono) — mismo usuario que ya muestra la card INFO.
+        setRowValue(usbConnectRow, "ssh -p 8022 ${info.user}@127.0.0.1")
     }
 
     private fun setRowValue(row: View?, value: String) {
@@ -371,9 +423,14 @@ class RemoteFragment : BaseModuleFragment() {
     // contrato de datos hacia la UI (updateInfoRows/showSshConnections) no cambió.
     // ---------------------------------------------------------------------
     private fun runRemoteAction(action: String, vararg extraArgs: String, silent: Boolean = true) {
+        // applicationContext resuelto ANTES de entrar al Thread (mismo patrón que
+        // nativeLibraryDir en TunnelManager, ver .claude/rules/kotlin-kairos-android-patterns.md)
+        // — el Fragment puede desadjuntarse mientras el hilo corre, pero un Context de
+        // aplicación sigue siendo válido igual, a diferencia de requireContext() llamado tarde.
+        val appContext = context?.applicationContext
         Thread {
             try {
-                val (ok, error) = dispatchRemoteAction(action, extraArgs)
+                val (ok, error) = dispatchRemoteAction(action, extraArgs, appContext)
                 if (!isAdded) return@Thread
                 requireActivity().runOnUiThread {
                     if (action == "info" && ok) updateInfoRows()
@@ -394,11 +451,11 @@ class RemoteFragment : BaseModuleFragment() {
     // Traduce cada acción del contrato viejo (nombre de acción + args de texto libre) a
     // la llamada tipada correspondiente de RemoteManager. Devuelve (ok, error) — igual
     // de genérico que el (ok, error) que ya leía runRemoteAction() del JSON de Python.
-    private fun dispatchRemoteAction(action: String, extraArgs: Array<out String>): Pair<Boolean, String> {
+    private fun dispatchRemoteAction(action: String, extraArgs: Array<out String>, appContext: Context? = null): Pair<Boolean, String> {
         val value = extraArgs.firstOrNull().orEmpty()
         return when (action) {
             "info" -> {
-                remoteInfo = RemoteManager.info()
+                remoteInfo = RemoteManager.info(appContext)
                 remoteRunning = try {
                     ModuleController.isRunning("remote")
                 } catch (_: Exception) {
@@ -458,6 +515,19 @@ class RemoteFragment : BaseModuleFragment() {
         }
         copyToClipboard(info.connectCmd)
         toast(getString(R.string.remote_msg_comando_copiado, info.connectCmd))
+    }
+
+    // Mismo guard que copyConnectCommand() (esperar el primer poll) — comando análogo pero con
+    // 127.0.0.1 en vez de la IP LAN, para la card "USB (ADB)".
+    private fun copyUsbConnectCommand() {
+        val info = remoteInfo
+        if (info == null) {
+            toast(getString(R.string.remote_msg_esperando_datos))
+            return
+        }
+        val cmd = "ssh -p 8022 ${info.user}@127.0.0.1"
+        copyToClipboard(cmd)
+        toast(getString(R.string.remote_msg_comando_copiado, cmd))
     }
 
     // Lee (sin generar) la huella de cada clave de host SSH ya creada por la instalación,

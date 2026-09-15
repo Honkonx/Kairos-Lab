@@ -19,6 +19,7 @@
     <string name="remote_card_este_dispositivo">THIS DEVICE</string>
     <string name="remote_card_servidores_guardados">SAVED SERVERS</string>
     <string name="remote_card_claves_importadas">IMPORTED PRIVATE KEYS</string>
+    <string name="remote_card_usb_adb">USB (ADB)</string>
 
     <!-- infoRow labels -->
     <string name="remote_label_ssh">SSH</string>
@@ -32,6 +33,8 @@
     <string name="remote_label_mi_ip_local">My local IP</string>
     <string name="remote_label_mi_clave_propia">My own key</string>
     <string name="remote_label_tunnel">Tunnel</string>
+    <string name="remote_label_comando_pc">Command on your PC</string>
+    <string name="remote_label_conectar_usb">Connect with</string>
 
     <!-- Switch -->
     <string name="remote_switch_tunnel_cloudflare">Cloudflare tunnel</string>
@@ -43,6 +46,8 @@
     <string name="remote_btn_cambiar_contrasena">🔒 Change password</string>
     <string name="remote_btn_conexiones_activas">🔌 Active SSH connections</string>
     <string name="remote_btn_copiar_comando_ssh">📋 Copy SSH command</string>
+    <string name="remote_btn_copiar_comando_adb_forward">📋 Copy adb forward command</string>
+    <string name="remote_btn_copiar_comando_ssh_usb">📋 Copy SSH command (USB)</string>
     <string name="remote_btn_fingerprint">🔐 Server fingerprint</string>
     <string name="remote_btn_cambiar_puerto">🔌 Change SSH port</string>
     <string name="remote_btn_alternar_login_root">⛔ Toggle root login</string>
@@ -114,6 +119,7 @@
 
     <!-- Dialog messages -->
     <string name="remote_dialog_msg_password_vps_note">Just like a real VPS: while this is enabled, no one gets in with just the password — not even you, from another device without the matching key.</string>
+    <string name="remote_note_usb_adb">Requires: USB debugging enabled on this device, cable connected to the PC, and the device authorized on the PC (accept the \"Allow USB debugging?\" dialog). The command above runs ON THE PC, not here.</string>
     <string name="remote_dialog_msg_cambiar_puerto">sshd runs without root permissions — only ports 1024-65535 are allowed.</string>
     <string name="remote_dialog_msg_requerir_clave">The device will act as a real server (VPS): no one will be able to log in over SSH with just the password — not even you, from another device without the matching key. Make sure you already added your key under \"Add public key\".</string>
     <string name="remote_dialog_msg_permitir_login_root">This allows logging in over SSH directly as root, a real risk if the device is exposed to the internet (tunnel/VPS). Only enable it if you know what you\'re doing.</string>

@@ -94,6 +94,31 @@
 
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- Buscar en el historial del chat (todos los mensajes/versiones, ver
+                     ChatFragment.toggleSearchBar()/applySearchQuery()) — hallazgo real de
+                     auditoría de referencia/ia/oalla-main (external/ollama/web/index.html). -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btn_search"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="?attr/kairosBg3"
+                    app:strokeWidth="1dp"
+                    app:cardElevation="0dp"
+                    app:cardCornerRadius="6dp"
+                    app:contentPadding="0dp"
+                    android:layout_marginEnd="8dp"
+                    android:paddingLeft="10dp" android:paddingRight="10dp"
+                    android:paddingTop="6dp" android:paddingBottom="6dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔍"
+                        android:textSize="14sp"
+                        android:textColor="?attr/kairosText2" />
+
+                </com.google.android.material.card.MaterialCardView>
+
                 <!-- Atajo a memoria/contexto (temperature + context_size, mismas
                      SharedPreferences "kairos_llm_prefs" que IA Local) — pedido
                      explícito del usuario: no quiere salir del chat para tocar
@@ -178,6 +203,57 @@
                 android:textSize="11sp"
                 android:textColor="?attr/kairosText3"
                 android:layout_marginStart="12dp" />
+
+        </LinearLayout>
+
+        <!-- Barra de búsqueda (ver ChatFragment.toggleSearchBar()) — oculta hasta que se
+             toca btn_search. Filtra/resalta mensajes que contengan el término en cualquier
+             versión guardada (ChatMessage.versions), ver ChatFragment.applySearchQuery(). -->
+        <LinearLayout
+            android:id="@+id/search_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/kairosBgSurface"
+            android:paddingLeft="12dp" android:paddingRight="12dp"
+            android:paddingTop="6dp" android:paddingBottom="6dp"
+            android:visibility="gone">
+
+            <EditText
+                android:id="@+id/search_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:minHeight="36dp"
+                android:background="@drawable/input_bg"
+                android:paddingLeft="12dp" android:paddingRight="12dp"
+                android:textSize="13sp"
+                android:textColor="?attr/kairosText"
+                android:hint="@string/chat_search_hint"
+                android:textColorHint="?attr/kairosText3"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:singleLine="true" />
+
+            <TextView
+                android:id="@+id/search_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="?attr/kairosText3"
+                android:layout_marginStart="8dp" />
+
+            <TextView
+                android:id="@+id/search_close"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✕"
+                android:textSize="16sp"
+                android:textColor="?attr/kairosText2"
+                android:paddingLeft="8dp" android:paddingRight="4dp"
+                android:clickable="true"
+                android:focusable="true" />
 
         </LinearLayout>
 
@@ -354,6 +430,51 @@
 
             </LinearLayout>
 
+            <!-- Vista previa del documento adjunto (.txt/.md, ver
+                 ChatFragment.showDocumentPreview/clearAttachedDocument, hallazgo real de
+                 docs/referencias/ia/AUDITORIA_LOCAL_BROWSER_AI_2026-09-09.md) — oculta hasta
+                 que el usuario elige un documento con btn_attach. Funciona con cualquier
+                 motor, a diferencia de image_preview_row de arriba. -->
+            <LinearLayout
+                android:id="@+id/document_preview_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingLeft="14dp" android:paddingRight="14dp"
+                android:paddingTop="6dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📄"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/document_preview_name"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="Documento adjunto"
+                    android:textSize="11sp"
+                    android:textColor="?attr/kairosText3" />
+
+                <TextView
+                    android:id="@+id/document_preview_remove"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="✕ Quitar"
+                    android:textSize="11sp"
+                    android:textColor="?attr/kairosRed"
+                    android:paddingLeft="8dp" android:paddingRight="8dp"
+                    android:paddingTop="4dp" android:paddingBottom="4dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
             <!-- Input row -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -364,10 +485,11 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="4dp">
 
-                <!-- Adjuntar imagen — solo Ollama remoto (ver
-                     ChatFragment.onAttachClicked/updateAttachButtonState). Queda atenuado
-                     (no oculto: el usuario ve que la opción existe) y muestra un aviso en
-                     vez de abrir el picker cuando el modelo activo es local (.gguf). -->
+                <!-- Adjuntar imagen o documento (ver ChatFragment.onAttachClicked) — siempre
+                     habilitado: DOCUMENTO (.txt/.md) funciona con cualquier motor, IMAGEN solo
+                     con Ollama remoto y un modelo con soporte de visión confirmado (ver
+                     mImageAttachAllowed/updateAttachButtonState) — con imagen no disponible,
+                     el tap abre directo el picker de documentos sin mostrar el chooser. -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/btn_attach"
                     android:layout_width="44dp"
