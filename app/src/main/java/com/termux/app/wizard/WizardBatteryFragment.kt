@@ -19,7 +19,7 @@ import com.termux.app.util.kairosThemeColor
  * Pantalla 3 del wizard — optimización de batería, con pantalla propia (antes se disparaba
  * sola en medio de la instalación, sin botón para saltarla — bug real reportado por el
  * usuario: "no me deja continuar sin quitar la optimización de batería, y aunque la quite
- * sigue saliendo esa ventana", ver docs/humano53.md/humano54.md). La causa real era que
+ * sigue saliendo esa ventana"). La causa real era que
  * BatteryRestrictionHelper.requestDisableBatteryRestrictions() dispara 2 intents de sistema
  * seguidos (excepción estándar de Android + pantalla propia del fabricante) sin ningún gate
  * — acá se avisa eso de entrada y "Siguiente" queda SIEMPRE habilitado, se resuelva o no.

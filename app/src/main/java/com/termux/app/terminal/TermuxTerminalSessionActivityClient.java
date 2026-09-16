@@ -143,7 +143,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     @Override
     public void onSessionFinished(@NonNull TerminalSession finishedSession) {
-        // Log interno de Kairos, nivel FULL — actividad de terminal (ver docs/humano231.md,
+        // Log interno de Kairos, nivel FULL — actividad de terminal (ver
         // ConfigFragment "Log Kairos"). Solo observa, no cambia el comportamiento real de cierre.
         com.termux.app.util.KairosLogger.log(
             mActivity, "Terminal",
@@ -190,7 +190,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // Once we have a separate launcher icon for the failsafe session, it
             // should be safe to auto-close session on exit code '0' or '130'.
             //
-            // Bug real confirmado por log de dispositivo (2026-08-27, ver docs/humano256.md):
+            // Bug real confirmado por log de dispositivo (2026-08-27):
             // "las terminales siguen sin cerrarse por completo... sale 'Process completed
             // (signal 9) - press enter'". kairos_app.log mostraba, para TODAS las sesiones
             // cerradas con el botón "Cerrar sesión"/"Salir" (killSessionProcessGroup(), agregado
@@ -342,7 +342,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         checkAndScrollToSession(session);
         updateBackgroundColor();
 
-        // Fix real (auditoría QA 2026-09-14, docs/humano338.md): esta función nunca llamaba
+        // Fix real (auditoría QA 2026-09-14): esta función nunca llamaba
         // checkForFontAndColors() — el reset real de paleta (session.getEmulator().mColors
         // .reset()) solo corría en las 2 transiciones de modo (ver los otros 2 call-sites de
         // checkForFontAndColors() en este archivo), no acá. Si openTerminalWithCommand()
@@ -435,7 +435,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             TerminalSession newTerminalSession = newTermuxSession.getTerminalSession();
             setCurrentSession(newTerminalSession);
 
-            // Log interno de Kairos, nivel FULL — actividad de terminal (ver docs/humano231.md,
+            // Log interno de Kairos, nivel FULL — actividad de terminal (ver
             // ConfigFragment "Log Kairos"). Solo observa, no cambia ningún comportamiento real
             // de la sesión.
             com.termux.app.util.KairosLogger.log(
@@ -582,7 +582,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // invalidate() el cambio de tema quedaba "aplicado" pero invisible hasta
             // que otro evento (tipear, blink del cursor, scroll) disparara un redraw
             // por su cuenta — el usuario lo reportó como "vi la opción pero no
-            // funciona" (ver docs/humano* de esta ronda).
+            // funciona".
             mActivity.getTerminalView().invalidate();
 
             applyTerminalBackgroundImageOrColor(props);

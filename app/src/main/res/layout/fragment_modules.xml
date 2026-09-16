@@ -152,8 +152,8 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Voz → Agente (2026-08-13, ver docs/humano correspondiente): dicta un pedido
-                 y lo manda como prompt inicial a cualquiera de los CLIs de IA que Kairos ya
+            <!-- Voz → Agente (2026-08-13): dicta un pedido y lo manda como prompt inicial a
+                 cualquiera de los CLIs de IA que Kairos ya
                  soporta. Mismo estilo de card que stats_card, un nivel abajo. -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/voice_agent_card"

@@ -1,6 +1,5 @@
 package com.termux.app.ui
 
-import android.graphics.Color
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +11,7 @@ import com.termux.R
 import com.termux.app.model.ModuleInfo
 import com.termux.app.model.ModuleInfo.Status
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.kairosThemeColorAlpha
 
 class ModuleListAdapter(
     private val onItemClick: (ModuleInfo) -> Unit,
@@ -21,14 +21,14 @@ class ModuleListAdapter(
     private val moduleStatuses = mutableMapOf<String, Status>()
     private val moduleVersion = mutableMapOf<String, String>()
 
-    // Gap real reportado en auditoría 2026-08-27 (docs/humano273.md): bind() recalcula
+    // Gap real reportado en auditoría 2026-08-27: bind() recalcula
     // toggle.isEnabled desde `status` en CADA rebind (incluye el poll automático cada 5s de
     // ModulesFragment) — el "toggle.isEnabled = false" que el propio listener de abajo setea al
     // tocar el switch es puramente local a esa invocación, no sobrevive a un rebind. Si un
     // start/stop tarda más de 5s (común: n8n, ollama con modelos grandes, etc.), el poll
     // periódico recalcula Status desde cero (sin ningún concepto de "operación en curso" — ver
     // ModulesFragment.pollStatus()), reactivando el switch mientras la operación sigue en
-    // vuelo — reabre la ventana de doble-tap que el fix de humano/humano57.md ya había cerrado
+    // vuelo — reabre la ventana de doble-tap que un fix anterior ya había cerrado
     // para el caso simple de un solo tap rápido. `pendingToggles` persiste ese estado a nivel
     // adapter (no de View, que Recycler reutiliza) para que sobreviva a cualquier rebind.
     private val pendingToggles = mutableSetOf<String>()
@@ -46,7 +46,7 @@ class ModuleListAdapter(
         currentList.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.let { notifyItemChanged(it) }
     }
 
-    // Bug real (2026-08-07, ver docs/humano/humano90.md): "la app pareciera como si se
+    // Bug real (2026-08-07): "la app pareciera como si se
     // refrescara a cada rato" — ModulesFragment.pollStatus() llama esto cada 5s, y antes
     // llamaba notifyDataSetChanged() SIEMPRE, sin importar si algo cambió de verdad. Eso
     // fuerza un rebind completo de TODAS las filas visibles en cada poll (recrea el
@@ -54,7 +54,7 @@ class ModuleListAdapter(
     // siente como un parpadeo/refresco constante aunque nada haya cambiado. Ahora solo
     // notifica las filas cuyo status/versión realmente cambiaron.
     //
-    // Bug real #2 (2026-08-07, ver docs/humano/humano91.md): ese mismo fix rompió el caso de
+    // Bug real #2 (2026-08-07): ese mismo fix rompió el caso de
     // "Ollama queda atascado en Iniciando…" — el toggle listener de abajo (ver bind()) muta
     // el subtitle a mano ("↓ Iniciando…") ANTES de que exista ningún Status.INSTALLING real;
     // si el arranque falla y el módulo vuelve al MISMO Status en que ya estaba
@@ -155,7 +155,9 @@ class ModuleListAdapter(
                     progressBar.visibility = View.GONE
                 }
                 Status.RUNNING -> {
-                    card.strokeColor = Color.parseColor("#4022C55E")
+                    // Auditoría de temas 2026-09-15: era Color.parseColor("#4022C55E") fijo
+                    // (hex del tema Oscuro) — roto en Señal/Claro, ver kairosThemeColorAlpha().
+                    card.strokeColor = ctx.kairosThemeColorAlpha(R.attr.kairosGreen, 64)
                     card.strokeWidth = ctx.resources.getDimensionPixelSize(R.dimen.kairos_stroke_active)
                     val port = if (module.port.isNotEmpty()) ctx.getString(R.string.module_adapter_port_suffix, module.port) else ""
                     val ver = if (version.isNotEmpty()) ctx.getString(R.string.module_adapter_version_suffix, version) else ""
@@ -222,8 +224,8 @@ class ModuleListAdapter(
                             // Antes esto volvía el switch a "false" sin ningún indicio visual
                             // de que algo estaba pasando — módulos lentos en arrancar (n8n en
                             // proot, puede tardar bien más de lo que dura el Snackbar) daban la
-                            // sensación de "el switch no hace nada" (bug real reportado, ver
-                            // docs/humano/humano57.md). Ahora deshabilita el switch y muestra el
+                            // sensación de "el switch no hace nada" (bug real reportado por el
+                            // usuario). Ahora deshabilita el switch y muestra el
                             // spinner mientras onToggle() está en vuelo — vuelve al estado real
                             // (encendido/apagado/error) solo cuando pollStatus() re-bindea esta
                             // fila con el resultado definitivo.
@@ -237,7 +239,7 @@ class ModuleListAdapter(
                             // n8n (sobre todo en udocker) puede demorar ~40s en quedar realmente
                             // listo tras el arranque (pull/extract de la imagen + boot de n8n) —
                             // sin este texto el spinner solo no aclaraba si el switch "no hacía
-                            // nada" o si de verdad seguía trabajando (ver docs/humano/humano88.md).
+                            // nada" o si de verdad seguía trabajando.
                             subtitle.text = if (module.id == "n8n") ctx.getString(R.string.module_adapter_starting_n8n) else ctx.getString(R.string.module_adapter_starting)
                             subtitle.setTextColor(ctx.kairosThemeColor(R.attr.kairosAmber))
                             onToggle(module, true)

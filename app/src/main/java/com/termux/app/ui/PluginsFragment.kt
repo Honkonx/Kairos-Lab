@@ -77,9 +77,9 @@ class PluginsFragment : Fragment() {
     private var savedLayoutState: Parcelable? = null
 
     /**
-     * Selector de paquete local (.deb o .tar.gz) vía Storage Access Framework — 2026-08-13
-     * (ver LocalPluginManager). El archivo elegido se copia a $HOME y se instala según su
-     * formato.
+     * Selector de paquete local (.deb o .tar.gz) vía Storage Access Framework — 2026-08-13,
+     * pedido del usuario (ver LocalPluginManager). El archivo
+     * elegido se copia a $HOME y se instala según su formato.
      */
     private val localPackagePicker =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -351,7 +351,7 @@ class PluginsFragment : Fragment() {
                     reg["$mid.version"]?.let { if (it.isNotEmpty()) versions[mid] = it }
                     if (reg["$mid.hidden"] == "true") hidden.add(mid)
                 }
-                // 2026-08-14 (humano123): plugins locales (.tar.gz) — leídos en background
+                // 2026-08-14: plugins locales (.tar.gz) — leídos en background
                 // con el resto del estado, para que "🗑 Quitar de la Tienda (local)" aparezca
                 // solo en los que corresponde.
                 val localIds = LocalPluginManager.localIds()
@@ -392,12 +392,12 @@ class PluginsFragment : Fragment() {
             showInstallSheet(module)
             return
         }
-        // Bug real (2026-08-11, humano97): "Cambiar método" se mostraba para TODO módulo
+        // Bug real (2026-08-11): "Cambiar método" se mostraba para TODO módulo
         // instalado. Solo 4 módulos tienen variantes reales (ollama, n8n, claude, codex —
         // hasVariants=true y >1 installMethods en modules.json); opencode/hermes/python/...
         // aceptan --variant como no-op pero no ofrecen opción que elegir.
         val hasVariants = module.hasVariants && module.installMethods.size > 1
-        // 2026-08-11 (humano97 punto 4): Desactivar = ocultar del home sin desinstalar;
+        // 2026-08-11 (pedido explícito del usuario): Desactivar = ocultar del home sin desinstalar;
         // Activar = restaurarlo. Se muestra "Activar"/"Desactivar" en vez de solo
         // "Desinstalar" para que quitar un módulo del inicio sea reversible.
         val isHidden = adapter.isHidden(module.id)
@@ -413,7 +413,7 @@ class PluginsFragment : Fragment() {
         // (deepUninstallModule) y recién ahí reinstala desde cero — para módulos que quedaron
         // en un estado roto que la reinstalación normal no soluciona.
         actions.add(getString(R.string.plugins_menu_clean_reinstall) to { confirmCleanReinstall(module) })
-        // 2026-08-14 (humano123): quitar de la Tienda los plugins locales (.tar.gz) que se
+        // 2026-08-14: quitar de la Tienda los plugins locales (.tar.gz) que se
         // instalaron desde "📦 Paquete local" — antes quedaban permanentemente en la lista
         // sin forma de sacarlos desde la UI (había que borrar ~/kairos_local/catalog.json a
         // mano). El check de local se hace en background porque lee ~/kairos_local/catalog.json.
@@ -473,7 +473,7 @@ class PluginsFragment : Fragment() {
     }
 
     /**
-     * 2026-08-11 (humano97 punto 4): oculta/restaura un módulo en la pantalla Módulos SIN
+     * 2026-08-11 (pedido explícito del usuario): oculta/restaura un módulo en la pantalla Módulos SIN
      * desinstalarlo. Escribe la clave `<id>.hidden` en el registry real (~/.android_server_registry)
      * con el mismo lock que el resto de escrituras (ProjectsManager.setModuleHidden). El módulo
      * sigue instalado (registry <id>.installed intacto) y se reactiva desde acá sin reinstalar.
@@ -554,7 +554,7 @@ class PluginsFragment : Fragment() {
     }
 
     /**
-     * "Quitar de la Tienda (local)" — 2026-08-14 (humano123). Borra el plugin del catálogo
+     * "Quitar de la Tienda (local)" — 2026-08-14. Borra el plugin del catálogo
      * local persistente y su script (~/scripts/install/<id>.sh), para que desaparezca de la
      * Tienda. NO desinstala el paquete real si el plugin ya estaba instalado — eso sigue
      * siendo trabajo de "Desinstalar". Se avisa en el diálogo para que el usuario decida.

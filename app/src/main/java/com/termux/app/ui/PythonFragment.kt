@@ -28,7 +28,7 @@ class PythonFragment : BaseModuleFragment() {
 
     // El registry (~/.android_server_registry) puede decir "python.installed=true" con un
     // dispositivo real donde python3 no se puede ejecutar — evidencia real confirmada
-    // (capturas + logs, docs/humano*.md 2026-07-31: "Cannot run program python3" repetido
+    // (capturas + logs, 2026-07-31: "Cannot run program python3" repetido
     // en 6+ pantallas). Python es el módulo con más evidencia de estar en ese estado, así
     // que acá se verifica el binario de verdad en vez de confiar ciegamente en el registry
     // (ver isTermuxBinaryAvailable en ProcessBuilderExt.kt).
@@ -39,7 +39,7 @@ class PythonFragment : BaseModuleFragment() {
     override fun buildContent() {
         if (!isModuleInstalled()) { showNotInstalled(getModuleName()); return }
         // Info card
-        // Bug real (2026-08-07, ver docs/humano/humano91.md): "Versión"/"pip"
+        // Bug real (2026-08-07): "Versión"/"pip"
         // quedaban en "—" para siempre — buildInfoJson() SÍ trae los datos reales (y
         // "Ver versión e info" SÍ los pide), pero runPythonAction() nunca los volvía a
         // pintar en la card, solo guardaba pythonInfo sin usarlo. Ahora se cargan solos al
@@ -52,7 +52,7 @@ class PythonFragment : BaseModuleFragment() {
         actionButton(getString(R.string.python_btn_info), GHOST) { runPythonAction("info") }
         actionButton(getString(R.string.python_btn_repl), GHOST) { openRepl() }
         actionButton(getString(R.string.python_btn_pip_install), GHOST) { promptAndRun("pip-install") }
-        // 2026-08-11 (humano97 R2 — pedido usuario): submenú de paquetes por categoría
+        // 2026-08-11 (pedido explícito del usuario): submenú de paquetes por categoría
         // (algoritmos / IA / datos / web / ciencia / herramientas). Recopila paquetes Python
         // normal (PyPI) Y los que tienen binarios para Termux. Ver showPackageCategories().
         actionButton(getString(R.string.python_btn_categories), GHOST) { showPackageCategories() }
@@ -61,7 +61,7 @@ class PythonFragment : BaseModuleFragment() {
         // de pip sin ningún equivalente en la app hasta ahora. Antes "pip-list" ya traía el
         // JSON completo de paquetes instalados (buildPipListJson()) pero runPythonAction()
         // lo descartaba en un Snackbar "OK" genérico sin mostrar el contenido — mismo patrón
-        // de bug que "info" tenía en humano91 (JSON armado, nunca pintado). Ahora ambos
+        // de bug que "info" ya tenía (JSON armado, nunca pintado). Ahora ambos
         // ("pip-list" y "pip-outdated") se renderizan en un diálogo nativo con la lista real.
         actionButton(getString(R.string.python_btn_pip_outdated), GHOST) { runPythonAction("pip-outdated") }
         actionButton(getString(R.string.python_btn_run_script), GHOST) { pickAndRunScript() }
@@ -74,7 +74,7 @@ class PythonFragment : BaseModuleFragment() {
         // para varios de ellos), así que el venv hereda esos paquetes del sistema y solo
         // aísla lo que el proyecto instale con pip.
         actionButton(getString(R.string.python_btn_venv), GHOST) { pickProjectForVenv() }
-        // Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): ningún módulo sin
+        // Bug real (auditoría 2026-08-05): ningún módulo sin
         // CLI dedicada (Python/Ollama/n8n/Expo/Remote) tenía forma de actualizar desde la app.
         actionButton(getString(R.string.python_btn_update), GHOST) {
             toast(getString(R.string.python_toast_updating))
@@ -364,7 +364,7 @@ class PythonFragment : BaseModuleFragment() {
             .show()
     }
 
-    // 2026-08-11 (humano97 R2 — pedido usuario): "los demás paquetes que se instalaban como
+    // 2026-08-11 (pedido explícito del usuario): "los demás paquetes que se instalaban como
     // pandas etc debe estar en su propia pantalla u opción dentro del submenú de python, ejemplo
     // poner paquetes de algoritmos, paquetes de IA, de datos etc, así el usuario elige.
     // Recopilar bastantes paquetes Python normales y para termux, además de los que tenemos."
@@ -584,7 +584,7 @@ class PythonFragment : BaseModuleFragment() {
     // de uno mientras el proceso sigue escribiendo en el otro (ej. pip install con mucho
     // output) puede colgar el proceso hijo esperando que alguien vacíe ese pipe.
     // Resuelve el primer elemento (python3/bash) a su ruta absoluta bajo $PREFIX/bin — bug
-    // real confirmado esta sesión (ver docs/humano/humano63.md); el usuario ya había
+    // real confirmado esta sesión; el usuario ya había
     // reportado que Python "funciona a medias". Si el elemento YA es una ruta absoluta (ej.
     // el pip de un venv de proyecto, "<proyecto>/.venv/bin/pip") se deja tal cual — anteponer
     // $PREFIX/bin rompería esa ruta (bug real detectado al agregar la gestión de venv: sin
@@ -600,7 +600,7 @@ class PythonFragment : BaseModuleFragment() {
             val process = pb.start()
             val stdout = StringBuilder()
             val stderr = StringBuilder()
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): sin try/catch
+            // Bug real confirmado por ADB (2026-08-24): sin try/catch
             // acá, destroyForcibly() de abajo cierra los streams mientras este Thread está
             // bloqueado en readText() — la excepción sin capturar mata TODO el proceso de la
             // app (mismo patrón real confirmado en ModuleController.startModule()).

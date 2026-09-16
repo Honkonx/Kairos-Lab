@@ -16,8 +16,8 @@
         android:orientation="vertical"
         android:background="?attr/studioBg">
 
-        <!-- ?attr/studio* en vez de @color/ide_* fijo (2026-08-22, ver docs/humano/humano202.md,
-             StudioThemePrefs.kt) — solo estos 3 (fondo raíz + esta toolbar) siguen el tema
+        <!-- ?attr/studio* en vez de @color/ide_* fijo (2026-08-22, ver StudioThemePrefs.kt) —
+             solo estos 3 (fondo raíz + esta toolbar) siguen el tema
              propio de Estudio por ahora, fase mínima del rediseño; sidebar/tabs/sintaxis del
              editor siguen en @color/ide_* fijo (migración pendiente de una ronda futura). -->
         <com.google.android.material.appbar.MaterialToolbar

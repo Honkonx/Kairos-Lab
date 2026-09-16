@@ -54,15 +54,15 @@ import java.io.FileReader
 
 /**
  * Tab de Monitor/Diagnóstico — dashboard único de la app tras la fusión con el ex-tab
- * "Sistema" (2026-08-26, pedido explícito del usuario: "que sea solo Monitor" — ver
- * docs/humano/humano225.md y siguientes). Muestra: RAM/almacenamiento/info de dispositivo
+ * "Sistema" (2026-08-26, pedido explícito del usuario: "que sea solo Monitor").
+ * Muestra: RAM/almacenamiento/info de dispositivo
  * (sección DISPOSITIVO, ex-SystemFragment.kt, eliminado — su lista estática de "servicios" con
  * puertos hardcodeados y sus botones backup/terminal NO se portaron por ser redundantes con
  * MÓDULOS EN EJECUCIÓN de abajo y con Ajustes/el FAB de terminal respectivamente), ¿módulos con
  * proceso corriendo?, procesos pm2, conectividad de red, paquetes de Termux instalados,
- * paquetes de Python instalados. Ver docs/humano/humano.md / INVESTIGACION_FASE4.md.
+ * paquetes de Python instalados.
  *
- * Fusionado también con la ex-pantalla "Procesos" (2026-08-12, ver docs/humano/humano98.md) — el
+ * Fusionado también con la ex-pantalla "Procesos" (2026-08-12) — el
  * usuario las veía redundantes ("parecidas... ahorramos espacio"), ambas mostraban "qué está
  * corriendo" (módulos vía tmux acá, servicios pm2 en la otra). La sección "PROCESOS (pm2)"
  * de abajo es el contenido de `ProcesosFragment.kt` (ya eliminado) portado tal cual, solo
@@ -524,7 +524,7 @@ class MonitorFragment : Fragment() {
     // Pedido explícito de esta ronda: estado real de los motores de BD que soporta
     // Kairos (modulos/db.sh) y del último stack instalado (modulos/stacks.sh). MySQL y
     // PostgreSQL corren como daemons propios (mariadbd/postgres).
-    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver docs/humano326.md): no era
+    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08): no era
     // un tema de flag de pgrep ("-x" ni "-f") ni de nombre de binario — es una restricción de
     // Android (Yama ptrace_scope=1 + dominio SELinux "untrusted_app_27" del proceso de la app,
     // confirmado con `ps -Z`) que impide ver vía /proc procesos que no son descendientes
@@ -628,7 +628,7 @@ class MonitorFragment : Fragment() {
         }.start()
     }
 
-    // ── Procesos (pm2) — ex-ProcesosFragment.kt, fusionado acá (ver docs/humano/humano98.md) ──
+    // ── Procesos (pm2) — ex-ProcesosFragment.kt, fusionado acá (2026-08-12) ──
     // pm2 ya se instala como parte del wizard (kairos.sh PASO 8, npm globales). Corre
     // `pm2 jlist` directo por ProcessBuilder (sin python3/kairos_manager.py de por medio).
 
@@ -926,7 +926,7 @@ class MonitorFragment : Fragment() {
     // ── Paquetes de Termux ──────────────────────────────────────────────
 
     /** name/version de una línea de `pkg list-installed` — mismo criterio de parseo
-     * que tenía cmd_pkg en kairos_manager.py (ver docs/humano*.md, migración a Kotlin). */
+     * que tenía cmd_pkg en kairos_manager.py (migración a Kotlin). */
     private data class TermuxPackageInfo(val name: String, val version: String)
 
     private fun refreshPkgList() {
@@ -988,7 +988,7 @@ class MonitorFragment : Fragment() {
     }
 
     /** Corre `python3 -m pip list` directo (sin pasar por kairos_manager.py, migrado la
-     * ronda 2026-07-31 junto al resto del archivo — ver docs/humano/humano27.md) — mismo criterio
+     * ronda 2026-07-31 junto al resto del archivo) — mismo criterio
      * de fallback que tenía cmd_python's pip-list: intenta `--format=json` primero (más
      * confiable de parsear), y si pip no soporta ese flag o no devuelve JSON válido, cae al
      * formato de texto plano de `pip list` (2 líneas de cabecera, luego "nombre  versión"). */
@@ -1077,7 +1077,7 @@ class MonitorFragment : Fragment() {
     // El fix real (`settings put global settings_enable_monitor_phantom_procs false`)
     // requiere el permiso WRITE_SECURE_SETTINGS, que ninguna app normal tiene por
     // defecto. Primer intento, silencioso: `su` (solo funciona si el dispositivo está
-    // rooteado). Si eso falla, ronda 51 (ver docs/humano/humano43.md/humano44.md) agregó una
+    // rooteado). Si eso falla, ronda 51 agregó una
     // segunda vía real sin PC: emparejar ADB por "Depuración inalámbrica" desde el propio
     // dispositivo (PhantomProcessKillerHelper.kt) — y como último recurso, el tutorial
     // manual con los comandos para que el usuario los corra él mismo. Nunca un fix
@@ -1092,7 +1092,7 @@ class MonitorFragment : Fragment() {
     // nota de referencia/emuladores/XoDos2-main/phantom.md en PhantomProcessKillerHelper.kt).
     private var phantomKillerFixedThisSession = false
 
-    // Estado REAL detectado (pedido 2026-08-13, ver humano101): no asumir el valor del
+    // Estado REAL detectado (pedido explícito del usuario, 2026-08-13): no asumir el valor del
     // setting, leerlo de verdad al abrir la pantalla y avisar al usuario qué le conviene
     // desactivar para evitar errores (phantom killer ON / optimización de batería activa).
     private var phantomKillerActive = true
@@ -1386,7 +1386,7 @@ class MonitorFragment : Fragment() {
 
     // Compartido por la vía guiada (b) y la vía beta (b2) — delega en
     // PhantomProcessKillerHelper.ensureDeveloperOptionsThen(), promovido ahí cuando
-    // WizardPhantomProcessFragment pasó a necesitar el mismo gate (ver docs/humano53.md).
+    // WizardPhantomProcessFragment pasó a necesitar el mismo gate.
     private fun ensureDeveloperOptionsThen(onReady: () -> Unit) {
         PhantomProcessKillerHelper.ensureDeveloperOptionsThen(requireActivity(), onReady)
     }
@@ -1610,7 +1610,7 @@ class MonitorFragment : Fragment() {
     }
 
     // (c) Tutorial manual — delega en PhantomProcessKillerHelper.showManualTutorialDialog(),
-    // compartido con WizardPhantomProcessFragment (antes duplicado acá, ver docs/humano/humano56.md
+    // compartido con WizardPhantomProcessFragment (antes duplicado acá
     // — el tutorial ahora prioriza el toggle nativo "Desactivar restricciones de procesos
     // secundarios" sobre los comandos ADB).
     private fun showManualTutorialDialog() {
@@ -1618,7 +1618,7 @@ class MonitorFragment : Fragment() {
     }
 
     // ── Dispositivo: RAM / almacenamiento / info (ex-SystemFragment.kt, fusionado acá
-    // 2026-08-26 — ver docs/humano/humano225.md y siguientes, "que sea solo Monitor") ──
+    // 2026-08-26 — "que sea solo Monitor" ──
 
     /** Vistas de una card de anillo (RAM o almacenamiento) — misma estructura visual para
      * ambas, factorizada en `buildMetricCard()` para no duplicar el layout dos veces. */
@@ -1854,7 +1854,7 @@ class MonitorFragment : Fragment() {
         }
     }
 
-    // Bug real confirmado (ver docs/humano/humano63.md, auditoría de ProcessBuilder): esta
+    // Bug real confirmado (auditoría de ProcessBuilder): esta
     // función nunca llamaba a applyTermuxEnv() — a diferencia del resto de la app, ni siquiera
     // intentaba setear PATH/PREFIX, así que "bash" (nombre relativo) fallaba SIEMPRE, no de
     // forma intermitente. Corregido para usar la ruta absoluta + el helper compartido, mismo
@@ -2209,7 +2209,7 @@ class MonitorFragment : Fragment() {
                 setTypeface(android.graphics.Typeface.MONOSPACE)
                 setTextColor(ctx.kairosThemeColor(valueColorRes))
             })
-            // Bug real encontrado por ADB (2026-08-25, ver docs/humano225.md y siguientes):
+            // Bug real encontrado por ADB (2026-08-25):
             // ninguna fila de esta lista era clickeable — "Remote (SSH)" en particular no tenía
             // NINGÚN camino real en toda la app hacia RemoteFragment.kt (ni la Tienda, que solo
             // abre el diálogo genérico Desactivar/Reinstalar/Desinstalar). Se agrega navegación

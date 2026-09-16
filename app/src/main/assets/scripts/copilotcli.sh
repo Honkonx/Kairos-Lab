@@ -25,8 +25,8 @@
 #    [OK]/[WARN]/[ERROR] mensaje
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato de i-Haklab, ver
-#  docs/humano/humano99.md — producto oficial de GitHub, github.com/github/copilot-cli)
+#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato de i-Haklab —
+#  producto oficial de GitHub, github.com/github/copilot-cli)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -156,16 +156,16 @@ if check_done "npm_install"; then
 else
   info "Ejecutando: npm install -g ${COPILOT_PKG}"
   npm install -g "$COPILOT_PKG" || error "npm install falló"
-  # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
+  # Bug real confirmado (auditoría ADB 2026-08-21): el symlink npm no
   # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "copilot" "${COPILOT_PKG%@latest}"
-  # Bug real confirmado (auditoría ADB 2026-08-22, ver docs/humano/humano193.md, bug #29): el
+  # Bug real confirmado (auditoría ADB 2026-08-22, bug #29): el
   # wrapper puede existir en PATH sin ejecutar de verdad — npm salta
   # @github/copilot-linux-arm64 (el optionalDependency de plataforma) porque Android reporta
   # process.platform="android", no "linux". "copilot --version" imprime "no platform package
   # found" en ese caso.
   #
-  # CORRECCIÓN 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por ADB — una nota
+  # CORRECCIÓN 2026-08-24 (pruebas funcionales reales por ADB — una nota
   # anterior acá decía "@github/copilot no publica un paquete nativo para esta plataforma",
   # FALSO: confirmado leyendo el package.json real instalado, "@github/copilot-linux-arm64" SÍ
   # existe y SÍ se publica en npm. 3 capas de bug encontradas y arregladas en cadena (misma

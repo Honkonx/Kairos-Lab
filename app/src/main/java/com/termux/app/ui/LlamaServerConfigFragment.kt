@@ -22,18 +22,20 @@ import com.termux.shared.termux.TermuxConstants
 import java.io.File
 import com.termux.app.util.kairosThemeColor
 import com.termux.app.util.applyTermuxEnv
+import com.termux.app.util.setScreenSecure
 
 /**
- * Pantalla "⚙ Configuración" de IA Local — llama.cpp (2026-08-23): agrupa contexto, tokens,
- * threads y demás opciones que antes quedaban sueltas en la pantalla principal. Recibe TODA la
- * card "PARÁMETROS" que antes vivía en `LlamaServerFragment.buildParamsCard()` — mismo archivo
- * de config (`~/.llamaserver_user_config`), mismas claves, mismo comportamiento, solo cambia la
- * pantalla.
+ * Pantalla "⚙ Configuración" de IA Local — llama.cpp (2026-08-23,
+ * pedido explícito del usuario: "contexto, token, threads entre otras opciones que estan en la
+ * pantalla principal no pasaron a configuracion"). Recibe TODA la card "PARÁMETROS" que antes
+ * vivía en `LlamaServerFragment.buildParamsCard()` — mismo archivo de config
+ * (`~/.llamaserver_user_config`), mismas claves, mismo comportamiento, solo cambia la pantalla.
  *
- * 2026-08-24 — unifica en una sola "tuerca" de configuración lo que antes estaba repartido entre
- * la pantalla principal y el catálogo: absorbe también las cards MOTOR/PARÁMETROS que antes
- * vivían en `LocalAIConfigFragment` (ahora eliminado), reachable desde el "⚙" propio del catálogo
- * GGUF (`LocalAIFragment`). Mismas `SharedPreferences kairos_llm_prefs`, mismas claves, mismo
+ * 2026-08-24 (corrección explícita del usuario: "en ia local ahi dos tuercas una en
+ * la pantalla principal y otra dentro de catalogo, deja todo dentro de la tuerca en la pantalla
+ * principal") — absorbe también las cards MOTOR/PARÁMETROS que antes vivían en
+ * `LocalAIConfigFragment` (ahora eliminado), reachable desde el "⚙" propio del catálogo GGUF
+ * (`LocalAIFragment`). Mismas `SharedPreferences kairos_llm_prefs`, mismas claves, mismo
  * comportamiento — el motor embebido que usa `ChatFragment` es un subsistema DISTINTO del
  * servidor HTTP `llama-server` de arriba (uno corre dentro del proceso de la app, el otro es un
  * binario aparte con su propio puerto), pero para el usuario ambos son "la configuración de IA
@@ -42,11 +44,26 @@ import com.termux.app.util.applyTermuxEnv
 class LlamaServerConfigFragment : BaseModuleFragment() {
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-    // LLAMA_SERVER_API_KEY (apiKeyInput) — un secreto guardado nunca se vuelve a mostrar,
-    // y esto evita que un overlay malicioso capture toques sobre el campo.
+    // LLAMA_SERVER_API_KEY (apiKeyInput) — una vez guardada no se vuelve a mostrar,
+    // solo reemplazar/borrar.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
+    }
+
+    // FLAG_SECURE (hallazgo de auditoría de referencia, 2026-09-15 — ver
+    // com.termux.app.util.setScreenSecure para el porqué es por-pantalla y no global):
+    // apiKeyInput (LLAMA_SERVER_API_KEY) se tipea directo en esta pantalla, a diferencia de
+    // ChatFragment/HomelabFragment donde la credencial se tipea en un diálogo — bloquea
+    // screenshots/grabación de pantalla mientras esta pantalla está en foreground.
+    override fun onResume() {
+        super.onResume()
+        setScreenSecure(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        setScreenSecure(false)
     }
 
     companion object {
@@ -151,7 +168,9 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
             systemPromptInput = EditText(requireContext()).apply {
                 hint = getString(R.string.ollama_config_hint_system_prompt)
                 setTextColor(requireContext().kairosThemeColor(R.attr.kairosText))
-                setHintTextColor(0xff8888aa.toInt())
+                // Auditoría de temas 2026-09-15: era 0xff8888aa fijo — roto en Señal/Claro
+                // (mismo patrón que textColorHint="?attr/kairosText3" en fragment_chat.xml).
+                setHintTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
                 setPadding(dp(14), dp(12), dp(14), dp(12))
                 minLines = 4
                 gravity = Gravity.TOP
@@ -373,8 +392,7 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
             // Paridad con OllamaConfigFragment's "Reiniciar"/"Detalle del proceso" (auditoría
             // de paridad de opciones, 2026-08-28) — antes solo llama.cpp tenía "Actualizar"/
             // "Desinstalar" acá, sin forma de reiniciar el servicio ni ver su estado real sin
-            // salir a la terminal (Kairos existe para que el usuario no tenga que vivir en la
-            // terminal — cualquier función real de un módulo debería tener un camino de UI).
+            // salir a la terminal (Kairos evita depender de la terminal para funciones reales).
             actionButton(getString(R.string.llamaserver_config_btn_reiniciar), GHOST) { restartService() }
             actionButton(getString(R.string.llamaserver_config_btn_detalle_proceso), GHOST) { showProcessDetail() }
             // Paridad con OllamaConfigFragment's "Info GPU" (auditoría de paridad de opciones,

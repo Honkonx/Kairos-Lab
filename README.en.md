@@ -101,6 +101,12 @@ allowlist and two-step confirmation for risky actions.
 free key), the local chat has a `/buscar` command that needs no account or key to pull real
 results from the web.
 
+⏰ **Automations.** Start or stop a module on its own, without touching the app — on a fixed
+daily schedule or when the phone boots up.
+
+📌 **Quick access.** Mark your favorite modules as a launcher shortcut, or control one with a
+tile in Android's Quick Settings panel — no need to open the app.
+
 🍷 **Coming: Windows on your phone.** Plans to add Wine with FEXCore and DXVK to run Windows
 programs directly on Android.
 

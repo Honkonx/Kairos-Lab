@@ -118,7 +118,7 @@ object HermesNative {
         return JSONObject().put("ok", true).put("message", "Modelo: $model")
     }
 
-    // Bug real (2026-08-07, ver docs/humano/humano91.md): "en hermes no sale las opciones
+    // Bug real (2026-08-07): "en hermes no sale las opciones
     // bien de ia local" — configSetProvider()/configSetModel() de arriba solo escriben
     // ~/.hermes/.env (AI_PROVIDER=X, X_API_KEY=Y) — el formato correcto para un provider
     // CLOUD (OpenRouter/Anthropic/etc, confirmado en docs/modulos/HERMES.md § Variables de

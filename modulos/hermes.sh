@@ -40,8 +40,8 @@
 #  Python (maturin, PyO3 abi3-py310) del crate Rust "anydoc", sin wheel
 #  publicado para Android/Bionic (solo manylinux/musllinux/macOS/Windows),
 #  así que pip siempre cae a compilar el sdist en el dispositivo — confirmado
-#  fallando en vivo con el mismo patrón de error exacto que hf_xet
-#  (docs/humano330.md, sección 5.3). PASO 3.5 (nuevo) busca un wheel ya
+#  fallando en vivo con el mismo patrón de error exacto que hf_xet.
+#  PASO 3.5 (nuevo) busca un wheel ya
 #  cross-compilado en Releases de kairos-lab (mismo mecanismo/convención de
 #  nombre que hf.sh PASO 1.5, ".github/workflows/build-firecrawl-anydoc.yml"
 #  es el workflow que lo produce) ANTES de que PASO 4 (pip install -e
@@ -251,7 +251,7 @@ else
     ripgrep ffmpeg nodejs-lts
   )
   info "Instalando: ${TERMUX_PKGS[*]}"
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+  # Bug real, mismo patrón que bug #21 (VNC).
   pkg_update_with_fallback
   pkg update -y \
     -o Dpkg::Options::="--force-confdef" \
@@ -363,7 +363,7 @@ else
 
   info "Actualizando pip, setuptools, wheel..."
   # pip_install() (lib.sh) en vez de "$PIP_PYTHON" -m pip directo en los 4 call-sites de este
-  # archivo — bug real de instalación concurrente confirmado por ADB (docs/humano281.md): los
+  # archivo — bug real de instalación concurrente confirmado por ADB: los
   # wrappers bash python3()/pip() de lib.sh solo interceptan el nombre pelado, nunca una ruta
   # absoluta resuelta como $PIP_PYTHON, así que hermes.sh quedaba sin el lock compartido de pip
   # entre módulos pese a que ciberseguridad.sh/mistralvibe.sh ya lo tenían.
@@ -371,7 +371,7 @@ else
   # de nuevo duplicaba el argumento ("pip install install --upgrade ...") y pip lo interpretaba
   # como un requirement literal llamado "install", fallando siempre con "ERROR: Could not find
   # a version that satisfies the requirement install". Bug real confirmado por ejecución en
-  # dispositivo (ronda 2026-08-29) — introducido en el mismo cambio 2026-08-28 (docs/humano281.md)
+  # dispositivo (ronda 2026-08-29) — introducido en el mismo cambio 2026-08-28
   # que migró estos 4 call-sites a pip_install(); mismo bug confirmado también en hf.sh.
   pip_install "$PIP_PYTHON" --upgrade pip setuptools wheel
 
@@ -384,7 +384,7 @@ else
   python -c "import psutil" &>/dev/null || _HERMES_PKG_DEPS+=("python-psutil")
   python -c "import cryptography" &>/dev/null || _HERMES_PKG_DEPS+=("python-cryptography")
   if [ "${#_HERMES_PKG_DEPS[@]}" -gt 0 ]; then
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC).
     pkg_update_with_fallback
     pkg install -y "${_HERMES_PKG_DEPS[@]}" || \
       warn "No se pudieron instalar algunos paquetes del sistema: ${_HERMES_PKG_DEPS[*]}"
@@ -394,7 +394,7 @@ else
   # site-packages del sistema por defecto, así que sin esto pip lo reconstruiría
   # ahí de todas formas. Solo cryptography: no hay mecanismo oficial de hermes-agent
   # que la reinstale, así que el symlink es la solución final para ese paquete.
-  # Bug real confirmado (ver docs/humano/humano63.md): asignación bare bajo "set -e"
+  # Bug real confirmado: asignación bare bajo "set -e"
   # (vigente en todo el archivo) — si "$PIP_PYTHON -c ..." fallaba por cualquier motivo,
   # esta línea abortaba TODO el script en silencio (el 2>/dev/null esconde el motivo),
   # pese a que el chequeo "if [ -n ... ]" de abajo la trata como best-effort, no
@@ -460,7 +460,7 @@ else
   #     --version` no responde tras el install, en vez de solo advertir — así
   #     el registry no reporta "instalado" cuando el binario está roto.
   #
-  #     CONFIRMADO EN VIVO 2026-08-31 (ver docs/humano291.md, comentario de
+  #     CONFIRMADO EN VIVO 2026-08-31 (ver comentario de
   #     PASO 5 más abajo): el escenario (b) — crash real en runtime por
   #     incompatibilidad de Python 3.14 — NO ocurre en la práctica. Una
   #     instalación completa (sin interrumpir, con tiempo real para que
@@ -505,7 +505,7 @@ SHIM
 chmod +x "$LINK_DIR/hermes"
 log "Shim instalado → $LINK_DIR/hermes"
 
-# Bug #12 arreglado (auditoría ADB, ver docs/humano/humano193.md) — el script usaba "hermes version"
+# Bug #12 arreglado (auditoría ADB) — el script usaba "hermes version"
 # (sintaxis inválida, sin "--") en las 7 ocurrencias de este archivo. Confirmado en vivo:
 # "hermes --version" funciona perfecto, "hermes version" siempre falla.
 if hermes --version &>/dev/null; then
@@ -519,7 +519,7 @@ else
   # `hermes --version`. Ahora se trata como fallo duro para que el registry
   # nunca quede desincronizado del estado real.
   #
-  # CORRECCIÓN 2026-08-31 (ver docs/humano291.md): el comentario de esta sección
+  # CORRECCIÓN 2026-08-31: el comentario de esta sección
   # asumía que `hermes --version` fallando era "probable incompatibilidad
   # hermes-agent/Python 3.14" — investigado a fondo (repo real de hermes-agent,
   # issue abierto NousResearch/hermes-agent#59877 sin resolución, docs oficiales

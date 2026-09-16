@@ -19,7 +19,7 @@ import java.net.URL
  * 1. **Remote cache** (`context.filesDir/modules_catalog.json`) — resultado del último
  *    refresco remoto exitoso. Sobrevive reinicios sin red.
  * 2. **Remote live** — `https://raw.githubusercontent.com/Honkonx/kairos-lab/<branch>/app/src/main/assets/modules.json`
- *    (apunta al futuro repo PÚBLICO kairos-lab a propósito, ver docs/humano267.md — ningún
+ *    (apunta al futuro repo PÚBLICO kairos-lab a propósito — ningún
  *    link de descarga debe quedar apuntando al privado kairos-dev, ni siquiera antes de que
  *    kairos-lab exista de verdad)
  *    cuando el usuario toca "Buscar actualizaciones" en la Tienda.
@@ -77,9 +77,10 @@ object ModuleCatalog {
     /**
      * Carga el catálogo con precedencia: cache remoto → bundled, y después mergea los
      * plugins locales (paquetes .tar.gz/.deb instalados por LocalPluginManager desde la
-     * Tienda, ronda 2026-08-13 — ver docs/humano/humano100.md). El local gana por id.
+     * Tienda, ronda 2026-08-13). El local gana por id.
      * Corre en el hilo que lo llame (los callers usan background thread).
      */
+    @JvmStatic
     fun load(context: Context): List<ModuleInfo> {
         val base = baseCache ?: run {
             val cached = loadCache(context)
@@ -218,7 +219,7 @@ object ModuleCatalog {
     /**
      * Un solo objeto JSON → ModuleInfo. La versión para catálogo local (LocalPluginManager
      * lee manifest.json de un .tar.gz con este mismo schema) reusa este parseo en vez de
-     * duplicarlo — ver deduplicación en docs/humano/humano123.md.
+     * duplicarlo.
      */
     @JvmStatic
     @JvmOverloads

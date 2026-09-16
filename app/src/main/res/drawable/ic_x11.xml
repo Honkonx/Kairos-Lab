@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ícono X11/X.Org (2026-08-26, rediseño grid/pestañas de Mini PC; pulido 2026-08-27, ver
-     docs/humano259.md — antes era una "X" dentro de un recuadro, más parecido a un ícono
+<!-- Ícono X11/X.Org (2026-08-26, rediseño grid/pestañas de Mini PC; pulido 2026-08-27 —
+     antes era una "X" dentro de un recuadro, más parecido a un ícono
      genérico de "cerrar/ventana" que al logo real de X.Org, que ES literalmente una X grande
      de trazos gruesos sin marco). Distinto de ic_desktop.xml (el escritorio/DE que corre
      encima). Usado en tiles "Entrar en X11", "Configuración de X11", "Detener servidor X11" —

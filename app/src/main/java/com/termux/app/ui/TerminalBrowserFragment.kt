@@ -28,7 +28,7 @@ import com.termux.app.util.kairosThemeColor
 
 /**
  * Navegador de propósito general embebido en la terminal adaptada — pedido explícito del
- * usuario (2026-09-08, docs/humano324.md: "el navegador no es poner puertos, debe ser un
+ * usuario (2026-09-08: "el navegador no es poner puertos, debe ser un
  * navegador completo como tal"). Deliberadamente un fragment NUEVO y separado de
  * `ModuleWebViewFragment` en vez de reusarlo/flexibilizarlo: ese fragment tiene un sandboxing de
  * origen a propósito (`shouldOverrideUrlLoading` en `ModuleWebViewFragment.kt` — cualquier link a

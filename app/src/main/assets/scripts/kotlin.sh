@@ -75,7 +75,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 # bajo sh/dash, diferencia real de shell confirmada probando ambos), así que
 # install_single_pkg reportaba "kotlin no disponible tras la instalación" pese a que el
 # paquete y el binario funcionaban perfectamente. Mismo patrón ya usado por
-# localtunnel.sh/typescript.sh para este caso (ver .claude/rules/empirical-verification-before-fix.md).
+# localtunnel.sh/typescript.sh para este caso: cuando el flag de verificación no es "--version",
+# el módulo llama a verify_binary_installed directo con su propio flag en vez de pasar por el helper genérico.
 if ! command -v kotlinc &>/dev/null || $FORCE; then
   pkg_update_with_fallback
   pkg install -y kotlin || error "No se pudo instalar kotlin (pkg install kotlin falló)"

@@ -13,7 +13,7 @@ import kotlin.math.sin
 import com.termux.app.util.kairosThemeColor
 
 /** Una tabla real del esquema — nombre + cantidad de columnas (no hace falta listarlas
- * todas para esta primera versión del mapa mental, ver docs/humano/humano115.md). */
+ * todas para esta primera versión del mapa mental). */
 data class SchemaTable(val name: String, val columnCount: Int)
 
 /** Una relación FK real (tabla origen → tabla referenciada). */
@@ -24,7 +24,7 @@ data class SchemaResult(val tables: List<SchemaTable>, val relations: List<Schem
 /**
  * Mapa mental del esquema de una BD: un nodo rectangular por tabla, una línea por cada
  * relación FK real. Layout circular simple (Math.cos/sin) — sin drag/zoom/pan propios,
- * pedido explícito como MVP (ver humano115.md): "no hace falta drag/zoom/pan para esta
+ * pedido explícito del usuario como MVP: "no hace falta drag/zoom/pan para esta
  * primera versión". El Fragment que la usa (DbSchemaFragment) le da un tamaño de View fijo
  * en píxeles (según cantidad de tablas) y la envuelve en HorizontalScrollView+ScrollView
  * anidados para poder ver todo el diagrama en BDs con muchas tablas, sin necesitar gestos

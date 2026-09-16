@@ -74,10 +74,9 @@ object KairosBootstrap {
                     name == "smali_hook.py" || name == "RemoteLogger.java" ||
                     name == "native_logger.c" || name == "log_server.py" -> {
                         // Payload de la instrumentación "sin root" de compil-apk-termux (ver
-                        // modulos/apk.sh, cmd_instrument) — fuente VictorH028/no-root-logger,
-                        // ver docs/humano331.md. loggerDir se crea una sola vez más abajo (no
-                        // existe todavía en este punto del extractor, a diferencia de
-                        // installDir).
+                        // modulos/apk.sh, cmd_instrument) — fuente VictorH028/no-root-logger.
+                        // loggerDir se crea una sola vez más abajo (no existe todavía en este
+                        // punto del extractor, a diferencia de installDir).
                         extractAsset(context, "scripts/$name", File(loggerDir, name))
                     }
                     name == "rootfs_package_list.txt" -> {
@@ -87,15 +86,15 @@ object KairosBootstrap {
                     }
                     name.endsWith(".sh") -> {
                         // Scripts de módulo (ollama.sh, opencode.sh, etc. — sin prefijo
-                        // install_, ver .claude/rules/scripts-rule.md). Antes este filtro
-                        // pedía startsWith("install_") pero ningún asset real tiene ese
-                        // prefijo — el instalador nunca encontraba el script (fix 2026-07-24).
+                        // install_). Antes este filtro pedía startsWith("install_") pero
+                        // ningún asset real tiene ese prefijo — el instalador nunca encontraba
+                        // el script (fix 2026-07-24).
                         extractAsset(context, "scripts/$name", File(installDir, name))
                     }
                     name == "llama-server" -> {
                         // Binario real de llama.cpp (servidor HTTP), no un script — generado
                         // por CMake (ver llama-engine/build.gradle, rama
-                        // "llama-server-and-terminal-ux", 2026-08-05, docs/humano/humano71.md).
+                        // "llama-server-and-terminal-ux", 2026-08-05).
                         // extractAsset() ya marca +x en cualquier archivo que extrae, sirve
                         // igual para un binario que para un .sh. llamaserver.sh (modulos/) lo
                         // copia desde acá a $PREFIX/bin/ al "instalar" el módulo.
@@ -105,8 +104,8 @@ object KairosBootstrap {
                         // Bibliotecas dinámicas de las que llama-server depende en runtime
                         // (libggml-base.so, libllama.so, libllama-common.so, libmtmd.so,
                         // libllama-server-impl.so — ver CMakeLists.txt, BUILD_SHARED_LIBS=ON,
-                        // bug real 2026-08-06, docs/humano/humano83.md: "CANNOT LINK EXECUTABLE"
-                        // por faltar estos .so). Se extraen al mismo directorio que llama-server
+                        // bug real 2026-08-06: "CANNOT LINK EXECUTABLE" por faltar estos .so).
+                        // Se extraen al mismo directorio que llama-server
                         // — modulos/llamaserver.sh los copia de ahí a $PREFIX/lib/ al instalar.
                         extractAsset(context, "scripts/$name", File(installDir, name))
                     }

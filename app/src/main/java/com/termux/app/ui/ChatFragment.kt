@@ -40,6 +40,7 @@ import com.termux.app.util.ManagerNativeUtils
 import com.termux.app.util.SecureChatPrefs
 import com.termux.app.util.SystemPrompts
 import com.termux.app.util.TERMUX_CACTUS_PATH
+import com.termux.app.util.setScreenSecure
 import com.termux.llm.GpuBackend
 import com.termux.llm.LlamaEngine
 import org.json.JSONArray
@@ -133,7 +134,7 @@ class ChatFragment : Fragment() {
         private const val WEB_SEARCH_MAX_RESULTS = 5
         private const val WEB_SEARCH_TIMEOUT_MS = 10000
         // Fallback SOLO para el primer render, antes de que checkOllamaStatus() termine de
-        // consultar los modelos reales — bug real confirmado (reporte de usuario, 2026-07-31):
+        // consultar los modelos reales — bug real confirmado (reporte del usuario, 2026-07-31):
         // esta lista se usaba como si fueran los modelos disponibles
         // de verdad, pero son solo nombres de ejemplo — si el usuario nunca hizo `ollama pull`
         // de ninguno de estos, CADA mensaje fallaba con el error real de Ollama (404 "model
@@ -257,7 +258,7 @@ class ChatFragment : Fragment() {
         // de IA — el usuario pide la ejecución explícitamente con este prefijo, la IA no decide
         // sola cuándo correr comandos (eso es tool-calling completo, fuera de alcance acá).
         private const val RUN_COMMAND_PREFIX = "/run"
-        // Pedido explícito: "cactus debe ser con
+        // Pedido explícito del usuario: "cactus debe ser con
         // y sin ia" — /run corregido de vuelta a needle SIN IA (comportamiento original),
         // /ai es el nuevo prefijo que sí pasa por el razonador (Ollama/llama-server).
         private const val AI_RUN_COMMAND_PREFIX = "/ai"
@@ -449,12 +450,26 @@ class ChatFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_chat, container, false)
     }
 
+    // FLAG_SECURE (hallazgo de auditoría de referencia, 2026-09-15 — ver
+    // com.termux.app.util.setScreenSecure para el porqué es por-pantalla y no global): esta
+    // pantalla tiene diálogos que tipean API keys BYO de proveedores cloud
+    // (requestCloudApiKey()/OLLAMA_WEB_API_KEY_KEY más abajo) — bloquea screenshots/grabación
+    // de pantalla mientras Chat está en foreground.
+    override fun onResume() {
+        super.onResume()
+        setScreenSecure(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        setScreenSecure(false)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-        // API keys BYO de proveedores cloud (cloudApiKeyKey() arriba) — un secreto guardado
-        // nunca se vuelve a mostrar, y esta protección evita que un overlay malicioso capture
-        // toques sobre los campos de configuración de esas keys.
+        // API keys BYO de proveedores cloud (cloudApiKeyKey() arriba) — una vez guardadas
+        // nunca se vuelven a mostrar en la UI, solo reemplazar/borrar.
         view.filterTouchesWhenObscured = true
 
         mRecycler = view.findViewById(R.id.recycler_chat)
@@ -845,7 +860,7 @@ class ChatFragment : Fragment() {
         root.addView(engineOptionCard(ctx, getString(R.string.chat_engine_local_title), mEngineLocalSubtitle) { onEngineCardClicked(ENGINE_LOCAL) })
         root.addView(engineOptionCard(ctx, getString(R.string.chat_engine_cloud_title), mEngineCloudSubtitle) { onEngineCardClicked(ENGINE_CLOUD) })
 
-        // 2026-08-11 (decisión de diseño): switch para llamar a llama.cpp SIN puerto
+        // 2026-08-11 (decisión usuario): switch para llamar a llama.cpp SIN puerto
         // (motor embebido JNI, mismo proceso) o CON puerto (servidor llama-server HTTP 8085 via
         // la macbook). Se persistede en kairos_llm_prefs (same prefs que LocalAIFragment).
         root.addView(TextView(ctx).apply {
@@ -1707,7 +1722,7 @@ class ChatFragment : Fragment() {
      * y Ollama remoto depende de si el modelo activo confirma soporte de "vision" (ver
      * refreshVisionCapability). Si el usuario tenía una imagen adjunta y deja de calificar,
      * se descarta en vez de mandarla en silencio a un motor que la ignoraría — pedido
-     * explícito: "si no soporta imagen no debe
+     * explícito del usuario: "si no soporta imagen no debe
      * salir para subir imagen".
      */
     private fun updateAttachButtonState() {
@@ -2078,7 +2093,7 @@ class ChatFragment : Fragment() {
             // embebido vía LlamaEngine.streamResponseWithImage() (ver ese método/
             // LLMInference::startCompletionWithImage). El documento adjunto SÍ llega acá igual
             // (ver engineText arriba) — el motor local no tiene ninguna limitación real para texto.
-            // 2026-08-11 (decisión de diseño): transporte de llama.cpp elegible
+            // 2026-08-11 (decisión usuario): transporte de llama.cpp elegible
             // en el selector de motor — "embedded" = motor embebido JNI (sin puerto);
             // "http" = servidor llama-server 8085 (con puerto). Persistido en kairos_llm_prefs.
             val transport = requireContext().getSharedPreferences("kairos_llm_prefs", 0)
@@ -2125,7 +2140,7 @@ class ChatFragment : Fragment() {
      *  o, si `useAi` es true, `cactus ai --model <mSelectedModel> --json-only <query>` (el
      *  razonador — mismo motor/modelo que ya usa el chat, vía Ollama 11434 o llama-server 8085
      *  — interpreta el pedido en lenguaje natural ANTES de que needle decida qué tool ejecutar).
-     *  Pedido explícito: "cactus debe ser con y sin
+     *  Pedido explícito del usuario: "cactus debe ser con y sin
      *  ia" — deben convivir ambos modos, `/run` sin IA y `/ai` con IA (una ronda anterior había
      *  forzado siempre el modo con IA — corregido acá). Ya corre
      *  en el Thread de fondo armado por dispatchMessage(). */
@@ -2725,7 +2740,7 @@ class ChatFragment : Fragment() {
                 body = body,
                 sse = false,
                 onHttpError = { code, errorBody ->
-                    // Bug real confirmado (reporte de usuario, 2026-07-31):
+                    // Bug real confirmado (reporte del usuario, 2026-07-31):
                     // antes esto mostraba "HTTP 404"/"HTTP 400" a secas, sin leer el cuerpo real
                     // del error de Ollama (`{"error": "model \"x\" not found, try pulling it
                     // first"}`) ni explicar qué hacer. Ver LlmErrorMapper.mapOllamaHttp.

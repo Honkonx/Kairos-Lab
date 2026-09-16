@@ -39,8 +39,8 @@ import java.io.File
  * groovy/jsx/tsx, temas Kairos `kairos-ink`/`kairos-paper`/`kairos-contrast`) — dos
  * implementaciones de la misma pieza, una estrictamente más completa que la otra. Migrado a
  * llamar `SyntaxHighlighter.apply()` directo: mismo resultado visual para los 12 lenguajes que
- * ya cubría, más soporte real para el resto sin duplicar código (DRY,
- * `.claude/rules/clean-code-principles.md`).
+ * ya cubría, más soporte real para el resto sin duplicar código (principio DRY: no mantener dos
+ * implementaciones de la misma pieza).
  *
  * Vista previa Markdown (hallazgo real 2026-08-31, ver
  * docs/referencias/interfaz/REFERENCIA_FLET.md seccion "Profundizacion 2026-08-24" -
@@ -111,7 +111,7 @@ class EditorFragment : Fragment() {
     /**
      * Alterna entre editar el Markdown y ver su render (Markwon). Guard `isAdded` porque
      * `Markwon.create(requireContext())` puede correr después de que el usuario ya salió
-     * del Fragment si el archivo es grande (ver `.claude/rules/kotlin-kairos-android-patterns.md`).
+     * del Fragment si el archivo es grande.
      */
     private fun togglePreview() {
         if (!isAdded) return

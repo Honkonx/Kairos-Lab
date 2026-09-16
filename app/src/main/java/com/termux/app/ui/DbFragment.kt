@@ -46,7 +46,7 @@ class DbFragment : BaseModuleFragment() {
     private var postgresValue: TextView? = null
     private var sqliteValue: TextView? = null
     private var redisValue: TextView? = null
-    // Switches reales (2026-08-22, ver docs/humano/humano193.md) — reemplazan los 3 pares de
+    // Switches reales (2026-08-22) — reemplazan los 3 pares de
     // botones Iniciar/Detener (MySQL/PostgreSQL/Redis, motores independientes que corren en
     // paralelo, no son variantes excluyentes — mismo criterio que Remote SSH/túnel).
     private lateinit var mysqlSwitch: SwitchRow
@@ -117,7 +117,7 @@ class DbFragment : BaseModuleFragment() {
             addView(redisSwitch.root)
         }
 
-        // Pedido explícito del usuario (ver docs/humano/humano115.md): vista del esquema real
+        // Pedido explícito del usuario: vista del esquema real
         // (tablas por categoría + mapa mental con relaciones FK) para los 3 motores, en
         // DbSchemaFragment.kt.
         addCard(getString(R.string.db_card_estructura), parent) {
@@ -224,8 +224,8 @@ class DbFragment : BaseModuleFragment() {
         requireContext().kairosThemeColor(if (running) R.attr.kairosGreen else R.attr.kairosText3)
 
     private fun isAlive(process: String): Boolean {
-        // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver docs/humano326.md — ronda
-        // de consolidación de los 7 agentes de módulos): no es un tema de flags de pgrep ("-x",
+        // Causa raíz REAL confirmada por ADB en vivo (2026-09-08 — ronda de consolidación de
+        // los 7 agentes de módulos): no es un tema de flags de pgrep ("-x",
         // sin flag, o "-f" — se probaron los tres). Es una restricción de Android/Linux: el
         // proceso pgrep que lanza la app (dominio SELinux "untrusted_app_27", confirmado con
         // `ps -Z`) NO es ancestro del proceso mariadbd/redis-server (que vive en el árbol de la

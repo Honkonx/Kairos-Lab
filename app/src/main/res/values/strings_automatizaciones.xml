@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- AutomationsFragment.kt — strings visibles al usuario (español) -->
+
+    <string name="automations_title">Automatizaciones</string>
+    <string name="automations_subtitle">Que algo se dispare solo — sin abrir la app</string>
+    <string name="more_sheet_automations">Automatizaciones</string>
+
+    <string name="automations_empty">Todavía no creaste ninguna automatización. Tocá \"Agregar\" para que un módulo se inicie o detenga solo al arrancar el dispositivo o a una hora fija.</string>
+    <string name="automations_btn_agregar">+ Agregar</string>
+    <string name="automations_btn_guardar">Guardar</string>
+    <string name="automations_btn_eliminar">Eliminar</string>
+    <string name="automations_btn_cancelar">Cancelar</string>
+
+    <!-- Triggers -->
+    <string name="automations_trigger_boot">Al arrancar el dispositivo</string>
+    <string name="automations_trigger_schedule">A una hora fija</string>
+    <string name="automations_trigger_schedule_fmt">Todos los días a las %1$s</string>
+
+    <!-- Acciones -->
+    <string name="automations_action_start">Iniciar</string>
+    <string name="automations_action_stop">Detener</string>
+
+    <string name="automations_never_run">Nunca se ejecutó</string>
+    <string name="automations_last_run_fmt">Última ejecución: %1$s</string>
+
+    <!-- Diálogo agregar/editar -->
+    <string name="automations_dialog_title_agregar">Nueva automatización</string>
+    <string name="automations_dialog_title_editar">Editar automatización</string>
+    <string name="automations_hint_nombre">Nombre (opcional)</string>
+    <string name="automations_hint_horario">Elegir horario</string>
+    <string name="automations_hint_horario_elegido_fmt">Horario: %1$s</string>
+    <string name="automations_msg_horario_invalido">Elegí un horario válido</string>
+    <string name="automations_msg_sin_modulos">No hay módulos disponibles todavía para automatizar</string>
+    <string name="automations_msg_guardada">Automatización guardada</string>
+    <string name="automations_msg_eliminada">Automatización eliminada</string>
+
+    <!-- Menú (long-press) -->
+    <string name="automations_menu_editar">Editar</string>
+    <string name="automations_menu_eliminar">Eliminar</string>
+    <string name="automations_dialog_title_eliminar">Eliminar automatización</string>
+    <string name="automations_dialog_msg_eliminar">¿Eliminar \"%1$s\"? Esta acción no se puede deshacer.</string>
+</resources>

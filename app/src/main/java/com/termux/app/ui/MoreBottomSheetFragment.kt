@@ -42,6 +42,10 @@ import com.termux.app.util.kairosThemeColor
  * "Homelab" agregado 2026-09-15 (pedido explícito del usuario, ver `docs/modulos/HOMELAB.md`) —
  * pantalla de panel/dashboard con servicios self-hosted externos + accesos rápidos a lo que
  * Kairos ya expone (Remote/SSH, módulos con servicio HTTP corriendo).
+ *
+ * "Automatizaciones" agregado 2026-09-15 (pedido explícito del usuario, ver
+ * `docs/modulos/AUTOMATIZACIONES.md`) — triggers registrables (arranque del dispositivo,
+ * horario) que disparan iniciar/detener un módulo sin que el usuario abra la app.
  */
 class MoreBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -64,6 +68,7 @@ class MoreBottomSheetFragment : BottomSheetDialogFragment() {
             MoreItem(R.id.nav_nube, R.drawable.ic_cloud, ctx.getString(R.string.more_sheet_nube)),
             MoreItem(R.id.nav_plugins, R.drawable.ic_store, ctx.getString(R.string.more_sheet_plugins)),
             MoreItem(R.id.nav_homelab, R.drawable.ic_homelab, ctx.getString(R.string.more_sheet_homelab)),
+            MoreItem(R.id.nav_automations, R.drawable.ic_automation, ctx.getString(R.string.more_sheet_automations)),
             MoreItem(R.id.nav_settings, R.drawable.ic_settings, ctx.getString(R.string.more_sheet_config))
         )
     }

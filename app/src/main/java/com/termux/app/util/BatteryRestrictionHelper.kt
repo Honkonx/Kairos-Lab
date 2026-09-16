@@ -13,7 +13,7 @@ import android.provider.Settings
  * Ayuda al usuario a desactivar las restricciones agresivas de batería/autostart que varios
  * fabricantes Android (Samsung, Xiaomi/MIUI, Huawei, OPPO, Vivo, OnePlus, ...) aplican encima
  * del comportamiento estándar de Android — pedido explícito del usuario 2026-08-01 ("descubri
- * que en samsung y otras marcas android mata los procesos"), ver docs/humano/humano42.md.
+ * que en samsung y otras marcas android mata los procesos").
  *
  * Investigación previa (misma ronda): se revisó `referencia/termux/core-termux-main/` (última versión
  * clonada directo de `DevCoreXOfficial/core-termux`, confirmado que la copia local ya estaba al

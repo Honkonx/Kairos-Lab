@@ -28,8 +28,7 @@ data class BuildDiagnostic(
  * asume formato GNU (`path:line:col: error: msg`) + bloques `ecj`, pensado para aapt2/javac/ecj
  * invocados directo. El build real de Kairos pasa por Gradle, y el compilador de Kotlin (la
  * mayoría del código de la app) NO usa ese formato — usa el suyo propio, confirmado en este mismo
- * proyecto por la salida real de `tools/build-local.ps1` (ver `docs/humano206.md`/`docs/humano207.md`
- * para ejemplos reales vistos en esta sesión):
+ * proyecto por la salida real de `tools/build-local.ps1` (ejemplos reales vistos en esta sesión):
  *
  *   e: file:///C:/Users/.../EntornoNative.kt:996:27 Unresolved reference 'home'.
  *   w: file:///C:/Users/.../Foo.kt:12:5 'x' is never used.

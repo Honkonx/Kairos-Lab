@@ -167,7 +167,7 @@ update_registry() {
 # ── Verificar si ya está instalado ────────────────────────────
 if ! $FORCE; then
   if [ -f "$NPM_BIN/openclaw" ] || command -v openclaw &>/dev/null 2>&1; then
-    # Bug real (2026-08-06, ver docs/humano/humano82.md): mismo patrón de "|| true" faltante
+    # Bug real (2026-08-06): mismo patrón de "|| true" faltante
     # ya cazado 5 veces en este archivo — grep sin match devuelve 1, y bajo pipefail eso
     # aborta el script silenciosamente incluso con cut() exitoso después.
     _LOC=$(grep "^openclaw\.location=" "$REGISTRY" 2>/dev/null | cut -d'=' -f2) || true
@@ -262,7 +262,8 @@ _ensure_glibc_node() {
   info "Instalando glibc-runner + Node v${NODE_VERSION_TARGET}..."
 
   if [ ! -f "$GLIBC_LD" ]; then
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
+    # "pkg install" no lo tiene disponible.
     pkg_update_with_fallback
     pkg install -y glibc-repo || true
     # `|| true`: bajo `set -euo pipefail`, si `pkg update` falla (mirror caído,
@@ -273,7 +274,8 @@ _ensure_glibc_node() {
     # claro). Este `pkg update` es best-effort — la instalación real la valida
     # el `[ -f "$GLIBC_LD" ] || error ...` de más abajo.
     pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || true
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
+    # "pkg install" no lo tiene disponible.
     pkg_update_with_fallback
     pkg install -y glibc-runner patchelf-glibc \
       -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || \
@@ -433,7 +435,7 @@ fi
 if check_done "n_openclaw_install"; then
   log "OpenClaw ya instalado [checkpoint]"
 else
-  # Bug real confirmado (auditoría 2026-08-05, ver docs/humano65.md/humano66.md):
+  # Bug real confirmado (auditoría 2026-08-05):
   # "--allow-scripts=<paquete>" NO es una flag real de npm CLI (es un concepto de
   # pnpm, ver "pnpm approve-builds"/"pnpm install --allow-build") — el comentario
   # original de esta sección citaba mal el comportamiento. npm no bloquea lifecycle
@@ -460,7 +462,7 @@ else
     \( -iname "postinstall*.mjs" -o -iname "postinstall*.js" \) 2>/dev/null | head -1)
   if [ -n "$_OC_POSTINSTALL" ]; then
     info "Aplicando postinstall real de openclaw ($_OC_POSTINSTALL)..."
-    # Riesgo real detectado (auditoría de referencia/, 2026-08-05, ver docs/humano70.md y
+    # Riesgo real detectado (auditoría de referencia/, 2026-08-05, ver
     # openclaw-android-main/post-setup.sh): el postinstall real de openclaw puede a su vez
     # instalar/tocar dependencias nativas propias (ej. sharp) que disparen SUS postinstall —
     # mismo patrón de node-gyp-build que ya rompió el paso anterior. npm_config_ignore_scripts
@@ -473,7 +475,7 @@ else
   mark_done "n_openclaw_install"
 fi
 
-# Bug real (2026-08-06, ver docs/humano/humano77.md): sin "|| true", bajo
+# Bug real (2026-08-06): sin "|| true", bajo
 # set -euo pipefail el exit status de esta pipeline es el de "npm list"
 # (que devuelve != 0 cuando detecta deps extraneous/missing en el árbol —
 # rutinario justo después de instalar con --ignore-scripts), abortando el
@@ -485,8 +487,8 @@ OC_BASE=$(npm list -g openclaw --depth=0 2>/dev/null | grep -oE "/.+/openclaw" |
 [ -z "$OC_BASE" ] && OC_BASE="$NPM_GLOBAL/lib/node_modules/openclaw"
 [ ! -d "$OC_BASE" ] && error "Directorio openclaw no encontrado: $OC_BASE"
 
-# Bug real confirmado en dispositivo (auditoría ADB 2026-08-21, ver docs/humano/humano183.md y
-# docs/humano/humano184.md): el symlink que "npm install -g" genera en "$NPM_BIN/openclaw" (shebang
+# Bug real confirmado en dispositivo (auditoría ADB 2026-08-21): el symlink
+# que "npm install -g" genera en "$NPM_BIN/openclaw" (shebang
 # "#!/usr/bin/env node") no se puede ejecutar directamente en este dispositivo/Android —
 # probable restricción W^X sobre archivos escritos en runtime fuera del $PREFIX normal de
 # Termux ("timeout: failed to run command '.../openclaw': No such file or directory" pese a
@@ -519,7 +521,7 @@ fi
 # pisa un config ya existente que no tenga ese campo), para que el gateway arranque
 # solo después de instalar, sin bloquear al usuario a completar el wizard primero.
 #
-# Bug real #2 confirmado por ADB en dispositivo real (2026-08-28, docs/humano278.md/279.md):
+# Bug real #2 confirmado por ADB en dispositivo real (2026-08-28):
 # "gateway.mode=local" solo no alcanza para tener un token estable — sin
 # "gateway.auth.mode=token" explícito, el gateway genera un token EFÍMERO en cada
 # arranque (confirmado en runtime.log real: "auth token was missing. Generated a
@@ -609,7 +611,7 @@ EOF
   log "Patches /tmp aplicados"
 
   # Patch /bin/npm
-  # Bug real (2026-08-06, ver docs/humano/humano82.md): 5ta instancia del mismo patrón —
+  # Bug real (2026-08-06): 5ta instancia del mismo patrón —
   # grep -l sin matches en ningún archivo devuelve 1 (find -exec ... + propaga ese código),
   # y bajo pipefail eso aborta el script silenciosamente ACÁ, antes de llegar a PASO 5 —
   # confirmado en log real de dispositivo (el log se cortaba justo después de "Patches /tmp
@@ -660,7 +662,7 @@ for arg in "\$@"; do [ "\$arg" = "--no-wait" ] && NOWAIT=1; done
 curl -sf http://127.0.0.1:\$PORT &>/dev/null && {
   echo "[OK] Gateway ya corriendo :\$PORT"; exit 0; }
 
-# Bug real confirmado por ADB en dispositivo (2026-08-23, ver docs/humano219.md/humano220.md):
+# Bug real confirmado por ADB en dispositivo (2026-08-23):
 # "pkill -9 -f 'openclaw'" mataba con SIGKILL (exit 137) al propio proceso que corre ESTE
 # script, en ~0.3s, siempre — no era el phantom process killer de Android (descartado por el
 # usuario, confirmado desactivado). "pkill -f" matchea contra la línea de comando COMPLETA de
@@ -684,7 +686,7 @@ if [ "\$NOWAIT" = "1" ]; then
 fi
 
 # Health-check HTTP real — no solo "existe la sesión tmux" (eso no confirma que
-# el gateway realmente responda). Bug real (2026-08-06, ver docs/humano/humano86.md):
+# el gateway realmente responda). Bug real (2026-08-06):
 # la ventana original de ~12s (6x2s) resultó insuficiente en dispositivo real — el
 # primer arranque de "openclaw gateway" (Node cargando el bundle completo, mismo
 # patrón lento ya visto en el heap-sizing de PASO 5) puede tardar bastante más que
@@ -698,7 +700,7 @@ for i in \$(seq 1 22); do
   tmux has-session -t \$SESSION 2>/dev/null || break
 done
 
-# Bug real (2026-08-07, ver docs/humano/humano90.md): confirmado contra la documentación
+# Bug real (2026-08-07): confirmado contra la documentación
 # oficial real (docs.openclaw.ai/cli/gateway) que "openclaw gateway" puede rechazar arrancar
 # por un config REPARABLE (ej. falta "gateway.mode") — en una terminal interactiva el propio
 # CLI ofrece correr "openclaw doctor --fix" y reintentar una vez (confirmado también con
@@ -743,8 +745,8 @@ PORT=$PORT
 # un "pkill -9" directo sin gracia, que puede matar a node/openclaw en medio de una
 # escritura (ej. onboard/config) y dejar procesos hijos huérfanos si proot está de
 # por medio (auditoría referencia/ia externa, 2026-08-19).
-# Mismo bug real que arriba (ver comentario en openclaw_start.sh de este mismo generador,
-# docs/humano219.md/humano220.md): "-f \"openclaw\"" a secas matchea la ruta del propio wrapper
+# Mismo bug real que arriba (ver comentario en openclaw_start.sh de este mismo generador):
+# "-f \"openclaw\"" a secas matchea la ruta del propio wrapper
 # ("openclaw_stop.sh" vive en "\$HOME/scripts/openclaw/") y se automata con SIGTERM/SIGKILL
 # antes de terminar de detener el gateway real. Patrón de 2 palabras = mismo fix.
 pkill -TERM -f "openclaw gateway" 2>/dev/null || true

@@ -289,8 +289,9 @@ object RemoteManager {
         }
     }
 
-    // ── Panel de seguridad SSH (2026-08-19) — la exposición de SSH como si fuera un VPS no
-    //    debe quedar sin clave/usuario controlado, de ahí este panel dedicado. ──────────────
+    // ── Panel de seguridad SSH (pedido explícito del usuario 2026-08-19:
+    //    la exposición SSH como VPS no debe quedar sin endurecer clave/usuario —
+    //    crear un panel dedicado para eso) ──────────────────────────────
     //
     // Confirmado contra sshd_config real (ver PASO 3 de modulos/ssh.sh): sshd de Termux usa
     // PAM/la contraseña real del usuario del sistema (la que setea `passwd`), NO un mecanismo
@@ -686,7 +687,7 @@ object RemoteManager {
 
     // ── Cliente SSH (pestaña "Receptor" — Kairos conectándose a OTROS servidores) ──────────
     // Terminología corregida 2026-08-27 (bug real confirmado: la app
-    // tenía Receptor/Emisor exactamente invertidos respecto al modelo esperado) — "Emisor"
+    // tenía Receptor/Emisor exactamente invertidos respecto al modelo del usuario) — "Emisor"
     // es Kairos EMITIENDO acceso (servidor, alguien más lo controla); "Receptor" es Kairos
     // RECIBIENDO control de otros (cliente, nosotros controlamos otro dispositivo/VPS).
     // Pedido explícito del usuario (ronda 2026-08-26): "ssh es para controlar y ser

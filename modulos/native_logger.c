@@ -4,7 +4,7 @@
  * VictorH028/no-root-logger (https://github.com/VictorH028/no-root-logger),
  * portado tal cual salvo el paquete Java (com.deadnote -> com.kairos.logger,
  * para no colisionar con el proyecto original si ambos terminan alguna vez
- * en el mismo dispositivo). Ver docs/humano331.md.
+ * en el mismo dispositivo).
  *
  * Abre un socket TCP crudo a 127.0.0.1:9999 y arma un POST /log a mano (sin
  * libcurl ni ninguna dependencia más allá de libc/pthread) — corre en un

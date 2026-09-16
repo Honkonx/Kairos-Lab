@@ -334,7 +334,7 @@
     <string name="entorno_depth_24bit">24 bit (color completo)</string>
     <string name="entorno_depth_16bit">16 bit (más liviano)</string>
     <string name="entorno_toast_iniciando_vnc">Iniciando VNC…</string>
-    <!-- Orientación (faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig(), no un toggle cosmético. -->
+    <!-- Orientación (pedido explícito: faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig(), no un toggle cosmético. -->
     <string name="entorno_label_orientacion">Orientación</string>
     <string name="entorno_orientacion_horizontal">Horizontal</string>
     <string name="entorno_orientacion_vertical">Vertical (invierte ancho/alto)</string>

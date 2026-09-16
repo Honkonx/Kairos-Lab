@@ -34,7 +34,7 @@ class ExpoFragment : BaseModuleFragment() {
     override fun buildContent() {
         if (!isModuleInstalled()) { showNotInstalled(getModuleName()); return }
         // Info card
-        // Bug real (2026-08-07, ver docs/humano/humano91.md): las 4 filas quedaban en "—"
+        // Bug real (2026-08-07): las 4 filas quedaban en "—"
         // para siempre — buildInfoJson() SÍ trae los datos reales pero runExpoAction()
         // nunca los volvía a pintar acá, solo guardaba expoInfo sin usarlo (mismo bug que
         // PythonFragment). Ahora se cargan solos al abrir la pantalla.
@@ -417,9 +417,8 @@ class ExpoFragment : BaseModuleFragment() {
     // en secuencia mientras el otro se llena — relevante acá porque "eas build" puede
     // producir bastante output en ambos).
     // Resuelve el primer elemento (eas/node/git) a su ruta absoluta bajo $PREFIX/bin en vez
-    // de dejarlo como nombre relativo — bug real confirmado esta sesión (ver
-    // docs/humano/humano63.md); se resuelve una sola vez acá en vez de en cada uno de los 9
-    // call sites de este archivo.
+    // de dejarlo como nombre relativo — bug real confirmado; se resuelve una sola vez acá
+    // en vez de en cada uno de los 9 call sites de este archivo.
     private fun runCommand(
         cmd: List<String>,
         timeoutSec: Long,
@@ -427,7 +426,7 @@ class ExpoFragment : BaseModuleFragment() {
         extraEnv: Map<String, String> = emptyMap()
     ): CmdResult {
         return try {
-            // Bug real confirmado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales
+            // Bug real confirmado 2026-08-24 (pruebas funcionales reales
             // por ADB): "eas" NO es un binario nativo en $TERMUX_PREFIX_PATH/bin/ (ese hardcode
             // nunca resolvía nada ahí) — es un shim npm real instalado en
             // $HOME/.npm-global/bin/eas (mutación global de prefix npm, mismo root cause que el
@@ -449,7 +448,7 @@ class ExpoFragment : BaseModuleFragment() {
             val process = pb.start()
             val stdout = StringBuilder()
             val stderr = StringBuilder()
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): sin try/catch
+            // Bug real confirmado por ADB (2026-08-24): sin try/catch
             // acá, destroyForcibly() de abajo cierra los streams mientras este Thread está
             // bloqueado en readText() — la excepción sin capturar mata TODO el proceso de la
             // app (mismo patrón real confirmado en ModuleController.startModule()).

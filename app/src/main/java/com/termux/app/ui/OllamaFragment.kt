@@ -7,6 +7,7 @@ import com.termux.R
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.util.OllamaApiClient
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.kairosThemeColorAlpha
 
 /**
  * Pantalla principal de Ollama — rediseño visual real (2026-08-23, corrección explícita del
@@ -183,7 +184,9 @@ class OllamaFragment : BaseModuleFragment() {
         }
 
         val runningNames = running?.map { it.name }?.toSet() ?: emptySet()
-        val greenBg = android.graphics.Color.argb(30, 34, 197, 94)
+        // Auditoría de temas 2026-09-15: era Color.argb(30, 34, 197, 94) fijo (hex del tema
+        // Oscuro) — roto en Señal/Claro, ver kairosThemeColorAlpha().
+        val greenBg = requireContext().kairosThemeColorAlpha(R.attr.kairosGreen, 30)
 
         if (running != null) {
             for (m in running) {

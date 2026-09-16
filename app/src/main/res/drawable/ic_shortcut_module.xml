@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Ícono genérico para los App Shortcuts dinámicos de módulos favoritos (v1: un solo
+         ícono para todos los módulos, ver QuickAccessPrefs.syncShortcuts() — modules.json solo
+         trae íconos como emoji de texto, no drawables reales, así que no hay forma barata de
+         usar el ícono propio de cada módulo acá). Mismo estilo "círculo blanco de fondo + glifo
+         negro encima" que ic_new_session.xml/ic_settings.xml (shortcuts.xml estáticos ya
+         existentes de termux-app) — reusado también como ícono del Quick Settings Tile
+         (QuickModuleTileService.kt). -->
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 12 2 C 6.48 2 2 6.48 2 12 s 4.48 10 10 10 10 -4.48 10 -10 S 17.52 2 12 2 z" />
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M 12 6.5 l 1.76 3.57 l 3.94 0.57 l -2.85 2.78 l 0.67 3.92 L 12 15.4 l -3.52 1.85 l 0.67 -3.92 l -2.85 -2.78 l 3.94 -0.57 z" />
+</vector>

@@ -4,8 +4,7 @@
 #  Ngrok — npm install -g ngrok (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/ngrok/install.sh
-#  (mismo comando real: npm install -g ngrok) — ver ronda "paquetes
-#  adicionales core-termux" en docs/humano/.
+#  (mismo comando real: npm install -g ngrok).
 #
 #  USO DESDE APP (KairosApp):
 #    bash ngrok.sh --silent

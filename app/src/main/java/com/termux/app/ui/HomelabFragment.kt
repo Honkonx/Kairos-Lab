@@ -27,6 +27,8 @@ import com.termux.app.util.HomelabManager
 import com.termux.app.util.HomelabManager.HomelabService
 import com.termux.app.util.HomelabManager.ServiceType
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.kairosThemeColorAlpha
+import com.termux.app.util.setScreenSecure
 import org.json.JSONArray
 
 /**
@@ -72,10 +74,25 @@ class HomelabFragment : Fragment() {
         return root
     }
 
+    // FLAG_SECURE (hallazgo de auditoría de referencia, 2026-09-15 — ver
+    // com.termux.app.util.setScreenSecure para el porqué es por-pantalla y no global): esta
+    // pantalla tiene diálogos que tipean tokens de servicios (showReplaceSecretDialog más abajo)
+    // — bloquea screenshots/grabación de pantalla mientras Homelab está en foreground.
+    override fun onResume() {
+        super.onResume()
+        setScreenSecure(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        setScreenSecure(false)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // Anti-tapjacking (mismo criterio que NubeFragment/RemoteFragment): esta pantalla puede
-        // guardar tokens de servicios agregados por el usuario.
+        // Anti-tapjacking (mismo criterio que NubeFragment/RemoteFragment): esta pantalla
+        // puede guardar tokens de servicios agregados por el usuario — una vez guardados
+        // no se vuelven a mostrar en la UI, solo reemplazar/borrar.
         view.filterTouchesWhenObscured = true
 
         container.addView(sectionTitle(getString(R.string.homelab_title)))
@@ -480,7 +497,9 @@ class HomelabFragment : Fragment() {
             setPadding(dp(10), dp(6), dp(10), dp(6))
             alpha = if (enabled) 1f else 0.4f
             isEnabled = enabled
-            setBackgroundColor(Color.argb(28, 0, 122, 255))
+            // Auditoría de temas 2026-09-15: era Color.argb(28, 0, 122, 255) fijo (azul iOS,
+            // no kairosBlue) — roto en Señal/Claro, ver kairosThemeColorAlpha().
+            setBackgroundColor(ctx.kairosThemeColorAlpha(R.attr.kairosBlue, 28))
             setOnClickListener { if (enabled) onClick() }
         }
     }

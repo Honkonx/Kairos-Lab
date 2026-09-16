@@ -80,7 +80,9 @@ class OllamaConfigFragment : BaseModuleFragment() {
             systemPromptInput = EditText(requireContext()).apply {
                 hint = getString(R.string.ollama_config_hint_system_prompt)
                 setTextColor(requireContext().kairosThemeColor(R.attr.kairosText))
-                setHintTextColor(0xff8888aa.toInt())
+                // Auditoría de temas 2026-09-15: era 0xff8888aa fijo — roto en Señal/Claro
+                // (mismo patrón que textColorHint="?attr/kairosText3" en fragment_chat.xml).
+                setHintTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
                 setPadding(dp(14), dp(12), dp(14), dp(12))
                 minLines = 4
                 gravity = Gravity.TOP

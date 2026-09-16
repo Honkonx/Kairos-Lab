@@ -4,12 +4,14 @@
 #  rclone — paquete nativo de Termux (pkg install rclone). "rsync para la nube":
 #  sincroniza/monta 70+ proveedores (Google Drive, Dropbox, S3, WebDAV, SFTP, ...).
 #
-#  Expande la categoría "nube" de Kairos más allá de lo que ya cubre el módulo
+#  Propuesto 2026-09-15 —
+#  expande la categoría "nube" de Kairos más allá de lo que ya cubre el módulo
 #  `remote` (SSH/cloudflared): rclone es la pieza que falta para que el usuario
 #  pueda respaldar/sincronizar datos del propio teléfono contra un proveedor
-#  externo sin salir de la app (la config real de un remote, `rclone config`,
-#  es interactiva por diseño de la herramienta; ese es el único paso que hoy
-#  sigue requiriendo terminal hasta que exista UI propia).
+#  externo sin salir de la app (filosofía "Kairos no vive en la terminal") —
+#  la config real de un remote
+#  (`rclone config`) es interactiva por diseño de la herramienta; ese es el
+#  único paso que hoy sigue requiriendo terminal hasta que exista UI propia).
 #  Verificado ANTES de escribir este script contra el índice real de
 #  termux-packages (github.com/termux/termux-packages/packages/rclone/build.sh,
 #  TERMUX_PKG_VERSION="1.75.1", paquete normal — NO root-packages, no necesita

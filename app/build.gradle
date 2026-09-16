@@ -129,9 +129,9 @@ android {
         // última Release de GitHub, resuelto vía el link "latest/download" (no depende de saber
         // el tag exacto). Apunta a Honkonx/kairos-lab (repo PÚBLICO), NUNCA a kairos-dev
         // (privado) — mismo criterio ya fijado para el rootfs embebido más abajo en este archivo
-        // (ver rootfsRepoName/comentario "Apunta al futuro repo PÚBLICO kairos-lab": "ningún
-        // link de descarga (rootfs, paquetes, update) debe apuntar al
-        // repo privado kairos-dev"). Consecuencia real HOY, aceptada a propósito (mismo trade-off
+        // (ver rootfsRepoName/comentario "Apunta al futuro repo PÚBLICO kairos-lab" —
+        // decisión explícita: ningún link de descarga (rootfs, paquetes, update) debe apuntar al
+        // repo privado kairos-dev). Consecuencia real HOY, aceptada a propósito (mismo trade-off
         // que el rootfs): este chequeo falla (404) hasta que kairos-lab tenga una Release real
         // con este asset publicado — AppUpdater.check() debe tratar ese 404 como "sin
         // actualización disponible todavía", no como un crash.
@@ -379,8 +379,8 @@ task downloadBootstraps() {
 // liviano, el wizard descarga el rootfs en runtime), build-app-rootfs.yml sí
 // (APK con el rootfs ya adentro, el wizard solo lo extrae, sin red).
 def rootfsReleaseTag = System.getenv("KAIROS_ROOTFS_RELEASE_TAG") ?: "rootfs-2026.07.28"
-// Apunta al futuro repo PÚBLICO kairos-lab (todavía no creado) a propósito — criterio
-// explícito: ningún link de descarga (rootfs, paquetes,
+// Apunta al futuro repo PÚBLICO kairos-lab (todavía no creado) a propósito — pedido
+// explícito del usuario: ningún link de descarga (rootfs, paquetes,
 // update) debe apuntar al repo privado kairos-dev, ni siquiera hoy que kairos-lab no
 // existe aún, para que el día que se cree y se suba la Release real esto funcione sin
 // tocar código de nuevo. Consecuencia real HOY: este paso de CI (build-app-rootfs.yml)

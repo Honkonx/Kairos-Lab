@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Hallazgo de auditoría de `referencia/ides/nomacode-main` (`github-auth.js`) -- Device Flow es
  * el flujo real que ese proyecto implementa para conectar GitHub sin pedir usuario/contraseña ni
- * un token pegado a mano. Ver `.claude/rules/kairos-secrets-never-revealed.md`: el token que
+ * un token pegado a mano. Regla dura del proyecto: el token que
  * resulta de este flujo se guarda vía [GitHubAuthPrefs] y nunca se vuelve a mostrar.
  *
  * Todo el trabajo de red corre en background (Thread propio) y los callbacks se entregan

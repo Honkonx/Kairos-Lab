@@ -16,8 +16,8 @@ import com.termux.R
  * `ttyx_` (fork activo de Tilix, `source/gx/ttyx/terminal/clipboard.d:87-120` `isPasteUnsafe()`
  * + `advpaste.d` `AdvancedPasteDialog`), ver `docs/referencias/terminal/REFERENCIA_TTYX.md`.
  *
- * Distinto de `.claude/rules/kairos-secrets-never-revealed.md` (que protege secretos que la
- * APP guarda) — esto protege lo que el usuario pega A MANO desde el portapapeles de Android
+ * Distinto del mecanismo que protege secretos que la
+ * APP guarda (esos nunca se vuelven a mostrar) — esto protege lo que el usuario pega A MANO desde el portapapeles de Android
  * (tokens copiados por error, comandos peligrosos copiados de foros/docs de módulos de IA).
  *
  * Igual que en ttyx_, la revisión solo se dispara para paste MULTILÍNEA — un paste de una sola

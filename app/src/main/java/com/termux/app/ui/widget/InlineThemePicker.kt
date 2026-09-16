@@ -10,8 +10,8 @@ import android.widget.TextView
 
 /**
  * Selector de tema inline reusable — reemplaza el patrón `AlertDialog.setSingleChoiceItems()` +
- * botón "Aplicar" por un `PopupMenu` anclado que aplica al toque (pedido explícito del usuario,
- * ver docs/humano/humano202.md: "el boton de tema [...] deberia ser una casilla al tocar salir las
+ * botón "Aplicar" por un `PopupMenu` anclado que aplica al toque (pedido explícito del usuario:
+ * "el boton de tema [...] deberia ser una casilla al tocar salir las
  * demas opciones y al tocar cambiar asi bonito estetico como las apk modernas"). Mismo patrón de
  * interacción que ya usa `BaseModuleFragment.dropdownRow()`, pero standalone — ni
  * `ConfigFragment` ni `StudioFragment` extienden esa clase base, así que este componente vive

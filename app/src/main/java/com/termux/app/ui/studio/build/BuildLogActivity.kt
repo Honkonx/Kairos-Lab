@@ -75,7 +75,7 @@ class BuildLogActivity : AppCompatActivity() {
     /** Checkbox "No preguntar de nuevo esta sesión" -- solo vive en memoria del proceso. */
     private var skipRunConflictConfirmation = false
 
-    // Diagnósticos estructurados de esta corrida (2026-08-23, ver docs/humano207.md +
+    // Diagnósticos estructurados de esta corrida (2026-08-23, ver
     // docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §4 punto 3) -- CompilerOutputParser
     // clasifica cada línea que llega; acá solo se cuenta para el resumen final, el resaltado de
     // color se aplica línea por línea en appendLogLine().

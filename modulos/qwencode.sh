@@ -25,8 +25,8 @@
 #    [OK]/[WARN]/[ERROR] mensaje
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato de i-Haklab, ver
-#  docs/humano/humano98.md — comando CLI confirmado "qwen", no "qwen-code",
+#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato de i-Haklab —
+#  comando CLI confirmado "qwen", no "qwen-code",
 #  vía docs oficiales de QwenLM/qwen-code)
 # ============================================================
 
@@ -146,10 +146,10 @@ if check_done "npm_install"; then
 else
   info "Ejecutando: npm install -g ${QWENCODE_PKG}"
   npm install -g "$QWENCODE_PKG"; [ $? -eq 0 ] || error "npm install falló"
-  # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
+  # Bug real confirmado (auditoría ADB 2026-08-21): el symlink npm no
   # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "qwen" "${QWENCODE_PKG%@latest}"
-  # Chequeo funcional real, no solo "existe en PATH" — ver docs/humano/humano194.md,
+  # Chequeo funcional real, no solo "existe en PATH" — usa
   # verify_binary_installed() en lib.sh.
   verify_binary_installed qwen || error "qwen no ejecuta tras la instalación (revisá manualmente: qwen --version)"
   log "Qwen Code instalado"

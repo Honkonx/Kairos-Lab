@@ -4,8 +4,7 @@
 #  Node.js LTS — paquete nativo de Termux (pkg install nodejs-lts).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/lang/nodejs/install.sh
-#  (mismo comando real: pkg install nodejs-lts) — ver ronda "paquetes adicionales
-#  core-termux" en docs/humano/.
+#  (mismo comando real: pkg install nodejs-lts).
 #
 #  USO DESDE APP (KairosApp):
 #    bash nodejs.sh --silent

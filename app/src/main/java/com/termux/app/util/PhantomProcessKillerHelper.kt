@@ -9,8 +9,8 @@ import com.termux.shared.termux.TermuxConstants
 
 /**
  * Ruta "sin PC" para desactivar el phantom process killer de Android 12+ cuando el
- * dispositivo no está rooteado — pedido explícito del usuario, ronda 51 (ver docs/humano/humano43.md
- * y docs/humano/humano44.md). Confirmado con 3 fuentes independientes (droidwin.com +
+ * dispositivo no está rooteado — pedido explícito del usuario, ronda 51.
+ * Confirmado con 3 fuentes independientes (droidwin.com +
  * referencia/termux/termux-oracle-main/docs/android/wireless-debugging.md +
  * referencia/interfaz/openclaw-android-main/docs/disable-phantom-process-killer.md) que Android 11+
  * permite emparejar ADB completamente desde el propio dispositivo vía "Depuración
@@ -26,10 +26,10 @@ import com.termux.shared.termux.TermuxConstants
  * correrlo (no se implementa reintento automático, alcanza con que sea fácil de repetir).
  *
  * [runAutoDetectFix] es una tercera vía, BETA, pedida explícitamente por el usuario en la
- * ronda 52 (ver docs/humano/humano44.md): en vez de pedir el puerto de conexión a mano, lo detecta
+ * ronda 52: en vez de pedir el puerto de conexión a mano, lo detecta
  * con `nmap` — pieza adoptada de `referencia/ciberseguridad/i-Haklab-master/phantom-ps`.
  *
- * [BACKGROUND_SURVIVAL_COMMANDS] (ronda 53, ver docs/humano/humano46.md) suma 4 comandos más a la
+ * [BACKGROUND_SURVIVAL_COMMANDS] (ronda 53) suma 4 comandos más a la
  * MISMA sesión ADB que ya abren [runFix]/[runAutoDetectFix] — pieza adoptada de
  * `ver/fix-termux-limits-main/fix-termux-limits.sh` (MIT). Atacan el mismo problema de fondo
  * (Android matando procesos de Termux en segundo plano) por otros 3 mecanismos que el
@@ -72,7 +72,7 @@ object PhantomProcessKillerHelper {
      * seguro (mismo criterio de intent-con-fallback que OverlayPermissionHelper.kt /
      * BatteryRestrictionHelper.kt: verificar con queryIntentActivities() antes de lanzar).
      *
-     * `FLAG_ACTIVITY_NEW_TASK` es obligatorio acá (bug real reportado, ver docs/humano/humano56.md):
+     * `FLAG_ACTIVITY_NEW_TASK` es obligatorio acá (bug real reportado):
      * sin este flag, Ajustes se abre DENTRO de la misma tarea/back-stack de Kairos — para
      * escribir el código de emparejamiento el usuario tiene que "retroceder" varias pantallas
      * de Ajustes, y ese retroceso puede volver a Kairos y perder el diálogo/los campos ya
@@ -122,7 +122,7 @@ object PhantomProcessKillerHelper {
 
     /**
      * Compartido por MonitorFragment (diagnóstico) y WizardPhantomProcessFragment (paso
-     * dedicado del wizard, ronda 2026-08-04 — ver docs/humano53.md/humano54.md): si Opciones de
+     * dedicado del wizard, ronda 2026-08-04): si Opciones de
      * desarrollador todavía no están activas, primero explica cómo activarlas (7 toques en
      * "Número de compilación") antes de dejar seguir a cualquiera de los 2 flujos automáticos
      * (guiado o beta). Antes vivía duplicado como método privado en MonitorFragment —
@@ -150,7 +150,7 @@ object PhantomProcessKillerHelper {
 
     /**
      * Tutorial 100% manual — compartido por MonitorFragment y WizardPhantomProcessFragment
-     * (antes duplicado en los 2 archivos). Reescrito (ver docs/humano/humano56.md, bug real
+     * (antes duplicado en los 2 archivos). Reescrito (bug real
      * reportado con captura de pantalla): el usuario mostró que su dispositivo tiene un toggle
      * NATIVO en Opciones de desarrollador — "Desactivar restricciones de procesos secundarios"
      * — que hace exactamente lo mismo que todo el flujo ADB, con un solo toque, sin puertos ni
@@ -203,11 +203,11 @@ object PhantomProcessKillerHelper {
      * "<puerto_emparejamiento>"/"<código_6_dígitos>"/"<puerto_conexión>" cuando el usuario
      * todavía no completó los campos).
      *
-     * `pkg update -y` primero (bug real reportado, ver docs/humano/humano61.md: "no se pudo
+     * `pkg update -y` primero (bug real reportado: "no se pudo
      * instalar nmap") — en un bootstrap de Termux recién extraído, el índice local de
      * paquetes todavía no está poblado; `pkg install <lo que sea>` sin actualizar antes puede
      * fallar con "Unable to locate package" aunque el paquete exista de verdad en los repos.
-     * Mismo problema (y mismo fix) ya confirmado en `EntornoNative.kt` (ver docs/humano/humano57.md).
+     * Mismo problema (y mismo fix) ya confirmado en `EntornoNative.kt`.
      */
     @JvmStatic
     fun buildFixCommands(pairingPort: String, code: String, connectPort: String): List<String> = listOf(
@@ -336,8 +336,8 @@ object PhantomProcessKillerHelper {
      * "instalando paquete necesario" como su propio paso en vez de que quede escondido dentro
      * del log de ejecución del paso final.
      *
-     * `pkg update -y` primero — bug real reportado ("no se pudo instalar nmap", ver
-     * docs/humano/humano61.md): en un bootstrap recién extraído el índice de paquetes local
+     * `pkg update -y` primero — bug real reportado ("no se pudo instalar nmap"):
+     * en un bootstrap recién extraído el índice de paquetes local
      * todavía no está poblado, así que `pkg install nmap` puede fallar con "Unable to locate
      * package" sin que el paquete tenga nada de malo. `pkg update` no debería fallar nunca en
      * un dispositivo con red — pero si falla igual (mirror caído), no corta el flujo, se

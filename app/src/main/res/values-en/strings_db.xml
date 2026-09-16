@@ -172,6 +172,12 @@
     <string name="n8n_install_dialog_message">"Choose the variant. The installation runs in the background and you can keep using the app."</string>
     <string name="n8n_install_variant_udocker">"udocker (native, recommended)"</string>
     <string name="n8n_install_variant_proot">"proot-distro (Debian)"</string>
+    <string name="n8n_install_source_dialog_title">"Installation source (Debian)"</string>
+    <string name="n8n_install_source_dialog_message">"Only applies to the proot-distro variant — where the Debian rootfs and n8n are downloaded from."</string>
+    <string name="n8n_install_source_clean">"Clean (proot-distro + npm install)"</string>
+    <string name="n8n_install_source_github">"GitHub Releases (rootfs + n8n)"</string>
+    <string name="n8n_install_source_rootfs_github">"Rootfs from GitHub + clean n8n (npm)"</string>
+    <string name="n8n_install_source_rootfs_clean">"Clean rootfs + n8n from GitHub"</string>
     <string name="n8n_toast_installed">"n8n installed"</string>
     <string name="n8n_toast_install_failed">"Failed — check ~/kairos_logs/install_n8n.log"</string>
     <string name="n8n_cf_token_hint">"Token from dash.cloudflare.com → Zero Trust → Tunnels"</string>

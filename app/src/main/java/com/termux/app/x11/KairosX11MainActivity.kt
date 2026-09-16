@@ -16,7 +16,7 @@ import com.termux.x11.MainActivity
  * modifica) para agregar UN botón flotante "Abrir teclado" sin tocar ningún archivo del módulo
  * protegido.
  *
- * Por qué existe (bug real reportado 2026-08-18, ver docs/humano/): al presionar atrás dentro
+ * Por qué existe (bug real reportado 2026-08-18): al presionar atrás dentro
  * del visor, Termux:X11 real intercepta ese evento como parte del teclado extra/host activity
  * (mLorieKeyListener + termuxActivityListener) para abrir el teclado de Android — pero en Kairos
  * ese "host" (termuxActivityListener, un patrón heredado del fork Linbox donde una TermuxActivity

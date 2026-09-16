@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Rama/tag a compilar (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano — quedó en main, desactualizada, en vez de ide).'
+        description: 'Rama/tag a compilar (evita un bug real: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano — quedó en main, desactualizada, en vez de ide).'
         required: false
         default: 'ide'
       release_tag:
@@ -60,8 +60,8 @@ jobs:
           cmake --install SPIRV-Headers/build
 
       # cloudflared nativo embebido (bug #2, DNS) — ver
-      # docs/adb/AUDITORIA_ADB_DISPOSITIVO_REAL_2026-08-21.md Ronda 6 y
-      # docs/humano/humano196.md. El binario oficial de cloudflared (releases de GitHub,
+      # docs/adb/AUDITORIA_ADB_DISPOSITIVO_REAL_2026-08-21.md Ronda 6.
+      # El binario oficial de cloudflared (releases de GitHub,
       # GOOS=linux CGO_ENABLED=0) usa el resolver DNS puro de Go, que en Android busca
       # /etc/resolv.conf real del sistema (no existe, solo lectura sin root) y falla
       # siempre con "connection refused" — confirmado con pruebas reales en dispositivo,
@@ -113,7 +113,7 @@ jobs:
           retention-days: 30
 
       # Publicar como pre-release solo si se pasó release_tag en el dispatch
-      # (pedido usuario 2026-08-11, humano97 R2 — "modificar GitHub workflows para
+      # (pedido explícito del usuario: "modificar GitHub workflows para
       # publicar pre-release (rootfs y APK)"). Sin tag, conserva el comportamiento
       # original de solo subir artifact.
       - name: Publicar como GitHub Release (pre-release)

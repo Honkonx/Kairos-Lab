@@ -46,8 +46,8 @@ class LogsFragment : Fragment() {
             allLines.clear()
             refreshAdapter("")
         }
-        // Copiar/Compartir (auditoría referencia/ia/*, 2026-08-31 — coherente con
-        // .claude/rules/kairos-product-philosophy.md: pegar un log en Telegram/GitHub Issues
+        // Copiar/Compartir (auditoría referencia/ia/*, 2026-08-31 — coherente con la filosofía
+        // de Kairos de no depender de la terminal: pegar un log en Telegram/GitHub Issues
         // sin salir de la app ni depender de terminal/adb). Comparte el log FILTRADO
         // actualmente visible (severidad + búsqueda), no el archivo completo — lo que el
         // usuario ve en pantalla es lo que se copia/comparte.

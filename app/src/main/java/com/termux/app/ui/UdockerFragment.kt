@@ -518,7 +518,7 @@ class UdockerFragment : BaseModuleFragment() {
         val appContext = requireContext().applicationContext
         val progress = ProgressDialogController(requireContext())
         // allowBackground=true: udocker pull descarga la imagen completa, hasta 600s de timeout
-        // — mismo tratamiento que la descarga de imágenes QEMU/modelos GGUF (docs/humano247.md).
+        // — mismo tratamiento que la descarga de imágenes QEMU/modelos GGUF.
         progress.show(getString(R.string.udocker_installing_title, image), getString(R.string.udocker_downloading_image), allowBackground = true)
         Thread {
             val (pullRc, pullOut, pullErr) = ManagerNativeUtils.runExec(listOf(TERMUX_UDOCKER_PATH, "pull", image), 600)

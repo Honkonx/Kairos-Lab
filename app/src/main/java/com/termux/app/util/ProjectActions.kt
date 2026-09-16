@@ -59,7 +59,7 @@ private fun Fragment.pickOpenLocationSource(onChooseFolder: (String) -> Unit) {
  * Semántica semi-universal (ver AGENTS.md): cualquier módulo CLI nuevo del catálogo que caiga
  * en GenericModuleFragment recibe este menú sin escribir una sola línea extra.
  *
- * Symlink vs Copiar (2026-08-14, pedido explícito del usuario — ver docs/humano/): son DOS
+ * Symlink vs Copiar (2026-08-14, pedido explícito del usuario): son DOS
  * caminos distintos y ahora ambos navegan CUALQUIER carpeta del almacenamiento (no solo
  * Download), no solo Download en sí:
  *  - Symlink = puntero (Os.symlink real, sin copiar bytes) — el contenido sigue viviendo en

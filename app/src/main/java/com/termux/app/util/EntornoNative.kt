@@ -21,8 +21,9 @@ import java.io.File
  */
 object EntornoNative {
 
-    // "kali" agregada 2026-08-26 — faltaba del catálogo por completo (Kali nunca aparecía
-    // como distro disponible en Mini PC). A diferencia del resto de esta lista, "kali" NO es un alias
+    // "kali" agregada 2026-08-26 (pedido explícito del usuario: "en Mini PC nunca sale
+    // disponible la distro Kali y debería salir" — faltaba del catálogo por completo).
+    // A diferencia del resto de esta lista, "kali" NO es un alias
     // oficial de proot-distro (confirmado en modulos/ciberseguridad.sh PASO 7: proot-distro
     // v5.6.0+ ya no tiene un alias curado "kali" — hay que instalar la imagen OCI completa
     // "kalilinux/kali-rolling" con "-n kali" para que quede con ese nombre de contenedor). Se
@@ -233,10 +234,10 @@ object EntornoNative {
 
     /**
      * Mismo mapeo que _check_gpu() en menu_entorno.sh/entorno.sh — getprop, no dmesg
-     * (Android 15 pide root para dmesg). Codenames Adreno ampliados (2026-08-06) — 3ra
-     * copia del mismo bug ya arreglado en modulos/ollama.sh y modulos/entorno.sh (bash):
-     * faltaba "cape" (Snapdragon 7+ Gen2, dispositivo real de prueba) y otros codenames
-     * Qualcomm recientes.
+     * (Android 15 pide root para dmesg). Codenames Adreno ampliados (2026-08-06) —
+     * 3ra copia del mismo bug ya arreglado en modulos/ollama.sh
+     * y modulos/entorno.sh (bash): faltaba "cape" (Snapdragon 7+ Gen2, dispositivo real de
+     * prueba de esta sesión) y otros codenames Qualcomm recientes.
      *
      * Bug real confirmado por ADB (2026-08-29, dispositivo Samsung SM-A566E/Galaxy A56,
      * Exynos 1580): "ro.board.platform" solo devuelve "erd8855" en este dispositivo — NO
@@ -427,8 +428,8 @@ object EntornoNative {
         // estaba instalada vía "pm list packages". Desde que X11/Xlorie quedó embebido en
         // el propio APK (X11Service, proceso ":xserver" — ver docs/arquitectura/
         // X11_EMBEBIDO.md), Entorno usa ese servidor embebido en vez de la app externa
-        // (ya que X11/Xlorie viene embebido en el propio APK, debe abrir directo
-        // ahí) — el servidor embebido siempre
+        // (pedido explícito del usuario, "como ya tenemos x11/xlorie en el apk debe abrir
+        // ahi directamente") — el servidor embebido siempre
         // está disponible (ships en el APK), y su estado real es si el proceso ":xserver"
         // está vivo, igual que X11Fragment.isXServerProcessAlive() pero vía pgrep (este
         // object no tiene Context para usar ActivityManager).
@@ -492,8 +493,8 @@ object EntornoNative {
     // URL a una futura Release pública de kairos-lab — TODAVÍA NO PUBLICADA (mismo patrón
     // deliberado que RootfsInstaller.ROOTFS_TAR_URL: apunta al repo PÚBLICO kairos-lab, nunca
     // al privado, para que el día que se publique la Release esto funcione sin tocar código
-    // de nuevo). Evaluado a partir de una pregunta real ("¿un .deb de Kali no es más
-    // rápido?"): la respuesta real es que un
+    // de nuevo). Evaluado a partir de una pregunta
+    // real del usuario ("¿un .deb de Kali no es más rápido?"): la respuesta real es que un
     // .deb no aplica acá (Kali no vive en la base de dpkg de Termux, vive como rootfs de
     // proot-distro), pero el mismo mecanismo que ya usan distroBackup()/distroRestore()
     // (tar.gz de containers/<name>) SÍ sirve — confirmado en dispositivo real: 513MB
@@ -587,8 +588,7 @@ object EntornoNative {
         // de MB puede no alcanzar a bajar en 10 minutos; el timeout mataba el proceso
         // a mitad de descarga y se reportaba como error genérico).
         //
-        // Bug de diagnosticabilidad real (auditoría 2026-08-05): esta operación (y el resto
-        // de EntornoNative) no dejaba NINGÚN
+        // Bug de diagnosticabilidad real (auditoría 2026-08-05): esta operación (y el resto de EntornoNative) no dejaba NINGÚN
         // rastro persistente — a diferencia de ModuleController.installModule(), que
         // escribe a ~/kairos_logs/install_<modulo>.log, un fallo acá solo mostraba un
         // Snackbar genérico ("Instalación de X falló") y el detalle real (json.output)
@@ -656,9 +656,10 @@ object EntornoNative {
     // ═══════════════════════════════════════════════════════════
     //  Storage compartido automático — portado de usb_bind_args()/--shared-home/
     //  --shared-tmp de termux-desktop-main (ver referencia/termux/termux-desktop-main/
-    //  distro-container-setup, funciones usb_bind_args()/usb_mounts()). Objetivo (ver
-    //  PLAN_EXPANSION_HOMELAB_2026-08-13 §2.7): storage compartido SIN que el usuario
-    //  configure nada, en CUALQUIER "proot-distro login" que dispare Kairos.
+    //  distro-container-setup, funciones usb_bind_args()/usb_mounts()). Pedido explícito
+    //  del usuario (PLAN_EXPANSION_HOMELAB_2026-08-13 §2.7):
+    //  storage compartido SIN que el usuario configure nada, en CUALQUIER
+    //  "proot-distro login" que dispare Kairos.
     // ═══════════════════════════════════════════════════════════
 
     /**
@@ -818,8 +819,8 @@ object EntornoNative {
     /**
      * Lanza el DE elegido sobre el servidor X11 EMBEBIDO (Xlorie/X11Service, display fijo
      * ":1" — ver docs/x11/X11_EMBEBIDO.md). Reemplaza el flujo anterior que
-     * arrancaba Termux:X11 (app externa, tx11_start.sh) sobre DISPLAY=:0 — ya que X11/Xlorie
-     * viene embebido en el propio APK, debe abrir directo ahí.
+     * arrancaba Termux:X11 (app externa, tx11_start.sh) sobre DISPLAY=:0 — pedido explícito
+     * del usuario, "como ya tenemos x11/xlorie en el apk debe abrir ahi directamente".
      *
      * El CALLER (EntornoFragment, que sí tiene Context) es responsable de arrancar
      * X11Service ANTES de invocar esta función — este object no puede arrancar un Service
@@ -946,8 +947,8 @@ object EntornoNative {
         // ese script) — 27s = 25s del retry loop + margen para dbus/sesión, mismo criterio que
         // el 12s anterior (10s+2s) pero con el presupuesto real que exige un arranque en frío.
         Thread.sleep(27000)
-        // Bug real confirmado 2026-08-27 (la app decía "error al abrir" pero el entorno
-        // gráfico SÍ abría — falso negativo). Este chequeo
+        // Bug real confirmado 2026-08-27 (reporte de usuario: la app
+        // dice "error al abrir" pero el entorno gráfico SÍ abre — falso negativo). Este chequeo
         // exigía `processRunning("proot-distro login")` — pero `proot-distro login` (paquete
         // Python real, confirmado leyendo commands/login/__init__.py del proot-distro instalado
         // en el dispositivo) termina con `os.execvpe(proot_bin, proot_args, child_env)`: REEMPLAZA
@@ -1049,8 +1050,8 @@ object EntornoNative {
             ?.split(",")?.filter { it.isNotBlank() && it in KNOWN_DESKTOPS_DISTRO } ?: emptyList()
 
     // ═══════════════════════════════════════════════════════════
-    //  Fondo de pantalla — poder cambiar la imagen de fondo del escritorio desde la app.
-    //  Mecanismo real por DE (confirmado
+    //  Fondo de pantalla — pedido explícito del usuario
+    //  ("incluso poder cambiar la imagen de fondo etc"). Mecanismo real por DE (confirmado
     //  contra la documentación oficial de cada proyecto — no verificado en vivo dentro de
     //  una sesión gráfica real del dispositivo, ver nota de "pendiente de confirmación
     //  visual" en docs/arquitectura/DEPURACION_COMPLETA_2026-08-26.md):
@@ -1212,8 +1213,8 @@ object EntornoNative {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Lanzadores gráficos (~/Desktop/*.desktop) — objetivo: poder abrir los CLIs de
-    //  Kairos (Claude Code, n8n,
+    //  Lanzadores gráficos (~/Desktop/*.desktop) — pedido explícito del usuario:
+    //  poder abrir los CLIs de Kairos (Claude Code, n8n,
     //  OpenCode, Codex) DENTRO del escritorio XFCE4 nativo, no solo desde la terminal
     //  adaptada de la app. XFCE4 ya lee ~/Desktop/*.desktop de fábrica (formato
     //  freedesktop.org estándar, Desktop Entry Specification) — no requiere ningún
@@ -1517,7 +1518,7 @@ object EntornoNative {
         // tigervnc" fallaba con "Unable to locate package" en cualquier dispositivo donde el
         // usuario fuera directo a la pestaña VNC sin haber instalado antes el escritorio
         // nativo (que sí lo habilita de forma incidental). No confirmado en dispositivo
-        // todavía (empirical-verification-before-fix.md) — el fix es mecánicamente idéntico al
+        // todavía — el fix es mecánicamente idéntico al
         // ya verificado en installDesktop(), mismo `ensureX11Repo()` reusado.
         ensureX11Repo()
         // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop()).
@@ -1578,7 +1579,7 @@ object EntornoNative {
      *   `VncViewerActivity`/`VncClient.kt` ya se conectan (127.0.0.1:5901).
      */
     /**
-     * Escribe `~/.vnc/passwd` de forma NO interactiva (humano202, 2026-08-22): antes, el
+     * Escribe `~/.vnc/passwd` de forma NO interactiva (2026-08-22): antes, el
      * checkbox "Pedir contraseña" de promptVncConfig() solo omitía `-SecurityTypes None` pero
      * nunca ejecutaba `vncpasswd` de verdad — como `vncserver` corre vía ProcessBuilder sin tty,
      * si el usuario nunca había corrido `vncpasswd` a mano en una sesión de terminal, arrancar
@@ -1616,8 +1617,8 @@ object EntornoNative {
         val stopScript = File(scriptsDir, "vnc_stop.sh")
         if (stopScript.exists()) ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, stopScript.absolutePath), 15)
 
-        // Default 1280x720 (no 1920x1080) — objetivo: por defecto X11 y
-        // VNC deben estar en horizontal con 1280x720p (2026-09-03). Solo
+        // Default 1280x720 (no 1920x1080) — pedido explícito del usuario: "por defecto X11 y
+        // VNC debe estar en horizontal con 1280x720p" (2026-09-03). Solo
         // afecta este fallback (geometry inválido/vacío) y el preseleccionado del Spinner de
         // promptVncConfig() en EntornoFragment.kt — vnc_start.sh (script fijo generado por
         // modulos/entorno.sh, PROTEGIDO, usado por el botón "Iniciar VNC" simple sin diálogo de
@@ -1753,7 +1754,7 @@ object EntornoNative {
      * (VmRSS) es un archivo DISTINTO, sin evidencia de la misma restricción, pero se degrada
      * igual de forma explícita (mismo criterio defensivo que el resto de este archivo) si
      * tampoco resulta legible en algún dispositivo, en vez de asumir que funciona sin evidencia
-     * real (empirical-verification-before-fix.md).
+     * real confirmada en este entorno específico.
      */
     fun sessionResourceUsage(): JSONObject {
         val mode = activeDesktopMode()
@@ -1792,14 +1793,15 @@ object EntornoNative {
     /** Métodos válidos según el tipo de GPU detectado — mismo árbol que el case de submenu_interfaz [0]. */
     fun gpuMethodOptions(): JSONObject {
         val gpuType = detectGpuType()
-        // "wrapper" corregido 2026-08-28 — NO es ANGLE/OpenGL/EGL: es Vulkan puro, una
-        // capa ENCIMA del driver Vulkan real del dispositivo, y SOLO funciona en modo
-        // nativo, nunca dentro de proot-distro — ver gpu_env.sh case "wrapper" en
-        // entorno.sh para el detalle de por qué queda confinado a nativo automáticamente.
-        // Paquete real: vulkan-wrapper-android (referencia/termux/termux-desktop-main/
-        // docs/hw-acceleration.md + enable-hw-acceleration, release real en
-        // github.com/sabamdarif/termux-desktop) — agregado como opción universal en las 3
-        // ramas, cierre real del gap original ("en GPU falta wrapper, zink, turnip o panfrost").
+        // "wrapper" corregido 2026-08-28 (el usuario aclaró que NO es
+        // ANGLE/OpenGL/EGL: es Vulkan puro, una capa ENCIMA del driver Vulkan real del
+        // dispositivo, y SOLO funciona en modo nativo, nunca dentro de proot-distro — ver
+        // gpu_env.sh case "wrapper" en entorno.sh para el detalle de por qué queda confinado
+        // a nativo automáticamente). Paquete real: vulkan-wrapper-android
+        // (referencia/termux/termux-desktop-main/docs/hw-acceleration.md +
+        // enable-hw-acceleration, release real en github.com/sabamdarif/termux-desktop) —
+        // agregado como opción universal en las 3 ramas, cierre real del pedido original
+        // del usuario ("en gpu falta wrapper, zink, turnip o panfrot").
         val (labels, values) = when (gpuType) {
             // "Turnip" marcado como experimental en el label (2026-09-14)
             // — antes era el único método sin la etiqueta "(experimental)" pese a estar en el
@@ -1853,7 +1855,8 @@ object EntornoNative {
             else -> return JSONObject().put("ok", false).put("error", "Método GPU desconocido: $method")
         }
         if (packages.isNotEmpty()) {
-            // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop()).
+            // pkg update -y best-effort + timeout subido (mismo criterio que
+            // installDesktop()).
             pkgUpdateWithFallback()
             ManagerNativeUtils.runExec(listOf(TERMUX_PKG_PATH, "install", "-y") + packages, 600)
         }
@@ -2244,8 +2247,9 @@ object EntornoNative {
         JSONObject().put("ok", true).put("apps", JSONArray(loadDistroApps()))
 
     // ── Contenedores — udocker ──────────────────────────────────
-    // Feature nueva (2026-08-06) — objetivo: usar la terminal adaptada para udocker,
-    // ejecutar más cosas ahí ya que es un contenedor — hasta ahora udocker solo se usaba para arrancar n8n en background
+    // Feature nueva (2026-08-06, pedido explícito del
+    // usuario): "usar la terminal adaptada para udocker, ejecutar más cosas ahí ya que es
+    // un contenedor" — hasta ahora udocker solo se usaba para arrancar n8n en background
     // (modulos/n8n.sh), sin ninguna forma de abrir una sesión interactiva ADENTRO del
     // contenedor (equivalente a "docker exec -it"). El comentario de arriba del archivo
     // ("se dejaron afuera udocker run/list/setup") describía el alcance de la ronda
@@ -2351,7 +2355,7 @@ object EntornoNative {
 
     /**
      * Fuerza el default de orientación horizontal del visor X11 embebido (Xlorie) — bug real
-     * reportado: por defecto X11 y VNC deben estar en horizontal con 1280x720p,
+     * reportado por el usuario: "por defecto X11 y VNC debe estar en horizontal con 1280x720p"
      * pero arrancaba en vertical (2026-09-03).
      *
      * Causa raíz confirmada leyendo `x11-server/src/main/java/com/termux/x11/MainActivity.java`

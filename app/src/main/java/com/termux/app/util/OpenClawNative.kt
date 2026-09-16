@@ -41,7 +41,7 @@ object OpenClawNative {
     // cubriendo el caso de un config que ya existía de antes de este fix o que se recreó
     // sin ese campo.
     //
-    // Bug real #2 confirmado por ADB en dispositivo real (2026-08-28, docs/humano278.md/279.md):
+    // Bug real #2 confirmado por ADB en dispositivo real (2026-08-28):
     // "gateway.mode=local" solo no alcanza — sin "gateway.auth.mode=token" explícito, el propio
     // gateway genera un token EFÍMERO en cada arranque (confirmado en runtime.log real: "auth
     // token was missing. Generated a runtime token for this startup without changing config;
@@ -93,7 +93,7 @@ object OpenClawNative {
         if (!script.exists()) {
             return JSONObject().put("ok", false).put("error", "Script start no encontrado")
         }
-        // Bug real (2026-08-06, ver docs/humano/humano86.md): el health-check propio del
+        // Bug real (2026-08-06): el health-check propio del
         // script (ver openclaw.sh) tenía una ventana insuficiente para el primer arranque
         // real de Node — ya subida a ~45s ahí. Pero acá además había un bug de fiabilidad
         // aparte: se ignoraba el exit code real del script (rc descartado con "_") y se
@@ -123,7 +123,7 @@ object OpenClawNative {
     }
 
     fun gatewayUrl(): JSONObject {
-        // Bug real (2026-08-07, ver docs/humano/humano88.md): el token NUNCA se imprime en
+        // Bug real (2026-08-07): el token NUNCA se imprime en
         // "openclaw gateway run" (runtime.log, lo que este método leía) — se genera y
         // guarda una sola vez durante "openclaw onboard" (una sesión de terminal separada
         // que Kairos no captura a ningún log), y vive en el config real bajo
@@ -161,7 +161,7 @@ object OpenClawNative {
     }
 
     // Ruta real del config de OpenClaw (confirmada leyendo OpenClawPaths.swift del proyecto
-    // real en referencia/interfaz/openclaw-android-assistant-main/, ver docs/humano/humano88.md):
+    // real en referencia/interfaz/openclaw-android-assistant-main/):
     // "~/.openclaw/openclaw.json", NO "config.json" — este bug hacía que la app nunca
     // encontrara el config real aunque el usuario ya hubiera completado el onboarding. Las
     // rutas viejas quedan como fallback por si alguna versión anterior de openclaw las usó.
@@ -207,7 +207,7 @@ object OpenClawNative {
         }
     }
 
-    // ── Proveedores IA (2026-08-07, ver docs/humano/humano91.md) ──────────────────────
+    // ── Proveedores IA (2026-08-07) ──────────────────────
     // Bug real: "Proveedor IA / Modelo" era de solo lectura (showProviders() solo mostraba
     // el JSON) — el TUI real (_submenu_cl_proveedor, termux-ai-stack-dev/scripts/
     // menu_nativo.sh:4431-4739) tiene 3 acciones que escriben el config de verdad

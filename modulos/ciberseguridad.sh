@@ -54,7 +54,7 @@
 #       primero (--silent) para tener el X11 embebido + esos scripts de
 #       gestión, en vez de reimplementar esa lógica acá
 #
-#  ALCANCE (uso responsable, ver docs/humano/humano99.md):
+#  ALCANCE (uso responsable):
 #    Herramientas estándar de red/OSINT/pentesting, pensadas para diagnóstico
 #    de tu propia red y pentesting autorizado. El catálogo más amplio de
 #    i-Haklab (bruteforce, automatización de Metasploit, forense Android,
@@ -69,7 +69,8 @@
 #  REPO: https://github.com/Honkonx/kairos-lab
 #  VERSIÓN: 2.3.0 | Septiembre 2026 (hallazgos de referencia real, ver
 #  docs/referencias/ciberseguridad/AUDITORIA_KALI_GUI_REPOS_2026-09-08.md — permiso explícito del
-#  usuario, sin VNC para Kali/Ciberseguridad esta ronda, ver .claude/rules/kairos-vnc-scope.md):
+#  usuario; VNC queda fuera de alcance para Kali/Ciberseguridad esta ronda, reservado solo
+#  para QEMU y Mini PC):
 #  1) catálogo de 13 metapaquetes Kali por categoría en vez de kali-tools-top10 fijo (PASO 7b,
 #  --variant pro-*:<categoria>, hallazgo de proot-distro-nethunter/BUILD_NH()); 2) workaround
 #  defensivo del hang de udisks2 en proot (PASO 7b, echo vacío en su postinst antes del
@@ -83,8 +84,8 @@
 #  Historial previo — v2.2.0 | Agosto 2026 (agrega nivel "pro": Kali Linux vía proot-distro
 #  con imagen oficial Docker Hub + variante GUI reutilizando entorno.sh — pedido
 #  "ampliar ciberseguridad a 2 niveles, básico y pro con Kali" | v1.2.0 amplió
-#  netcat/dirb/nikto + sqlmap, ver humano101 | fix PASO 4 theHarvester: ver
-#  humano121 | v2.1.0 (2026-08-17): root cause real de "dirb: no · nikto: no" en
+#  netcat/dirb/nikto + sqlmap | fix PASO 4 theHarvester (dependencias reales
+#  de playwright) | v2.1.0 (2026-08-17): root cause real de "dirb: no · nikto: no" en
 #  dispositivo — nikto NUNCA fue un paquete de Termux, y al ir en la misma línea
 #  `pkg install` que dirb, apt fallaba la resolución completa y se llevaba a dirb
 #  con él; se separan y nikto pasa a git clone+perl. theHarvester: playwright no
@@ -480,8 +481,8 @@ PYEOF
       TH_DEPS="aiodns aiofiles aiohttp aiohttp-socks aiomultiprocess aiosqlite beautifulsoup4 censys certifi dnspython fastapi lxml netaddr PyYAML python-dateutil httpx retrying shodan slowapi ujson uvicorn uvloop"
     fi
     info "Instalando dependencias reales de theHarvester: $TH_DEPS"
-    # pip_install() en vez de "$PIP_PYTHON" -m pip install directo (lib.sh, 2026-08-28, ver
-    # docs/humano278.md): serializa con flock contra cualquier OTRO módulo instalando por pip
+    # pip_install() en vez de "$PIP_PYTHON" -m pip install directo (lib.sh, 2026-08-28):
+    # serializa con flock contra cualquier OTRO módulo instalando por pip
     # al mismo tiempo — confirmado en dispositivo que mistralvibe.sh y n8n.sh fallaron
     # mientras este PASO 4 corría en paralelo.
     pip_install "$PIP_PYTHON" $TH_DEPS
@@ -532,7 +533,7 @@ PYEOF
       else
         warn "No se pudo resolver el purelib de $PIP_PYTHON — stub de playwright no escrito, theHarvester puede fallar al arrancar"
       fi
-      # Chequeo funcional real, no solo "existe en PATH" — ver docs/humano/humano194.md,
+      # Chequeo funcional real, no solo "existe en PATH" — ver
       # verify_binary_installed() en lib.sh.
       if verify_binary_installed theHarvester; then
         log "theHarvester instalado (OSINT completo; --screenshot no disponible, ver NOTA 2 arriba)"
@@ -562,7 +563,7 @@ else
   pip_install "$PIP_PYTHON2" sqlmap
   if [ $? -ne 0 ]; then
     warn "pip install sqlmap falló (no crítico)"
-  # Chequeo funcional real, no solo "existe en PATH" — ver docs/humano/humano194.md,
+  # Chequeo funcional real, no solo "existe en PATH" — ver
   # verify_binary_installed() en lib.sh.
   elif verify_binary_installed sqlmap; then
     log "sqlmap instalado: $(sqlmap --version 2>/dev/null)"
@@ -700,7 +701,7 @@ if $PRO; then
     log "Contenedor Kali ya instalado [checkpoint]"
     KALI_CONTAINER_OK=true
   else
-    # BUG REAL confirmado por ADB en dispositivo (2026-08-26, ver docs/humano/humano226.md):
+    # BUG REAL confirmado por ADB en dispositivo (2026-08-26):
     # "proot-distro list-installed" YA NO EXISTE en proot-distro v5.8.0 (la que trae Termux
     # hoy) — devuelve "Error: unknown command 'list-installed'" a stderr, silenciado por el
     # "2>/dev/null" de abajo, así que este chequeo SIEMPRE daba falso (grep sin match sobre
@@ -738,7 +739,7 @@ if $PRO; then
 
   # ── Registry intermedio (contenedor Kali confirmado, sin GUI/tools todavía) ──
   # Mismo motivo que el registry temprano de básico (ver nota más arriba): PASO 7b (instalar
-  # $KALI_METAPACKAGE) YA tenía un bug real documentado (ver comentario debajo, humano226) de
+  # $KALI_METAPACKAGE) YA tenía un bug real documentado (ver comentario debajo) de
   # morir sin llegar al registry_write final pese a que el contenedor SÍ había quedado creado
   # — este write intermedio deja "tier=pro" (headless) registrado apenas el contenedor existe,
   # antes de arriesgar el paso más pesado/lento ($KALI_METAPACKAGE, hasta 900s). El write final
@@ -764,7 +765,7 @@ if $PRO; then
   elif check_done "kali_tools_$KALI_CATEGORY"; then
     log "$KALI_METAPACKAGE ya instalado [checkpoint]"
   else
-    # BUG REAL confirmado por ADB en dispositivo (2026-08-26, ver docs/humano/humano226.md,
+    # BUG REAL confirmado por ADB en dispositivo (2026-08-26,
     # log real: install_ciberseguridad.log cortaba en seco justo después de "Reading package
     # lists..." de este paso, sin [OK]/[WARN]/[SEÑAL] — el proceso hijo murió sin que el script
     # llegara nunca al "registry_write ciberseguridad installed=true" del final, así que
@@ -776,7 +777,7 @@ if $PRO; then
     # sobrevive sin que el hijo sea matado. "timeout" acota el paso a 15 minutos: si se cuelga,
     # cae al "else" de abajo (ya diseñado como "no crítico") en vez de dejar el script colgado
     # indefinidamente sin llegar nunca al registry_write final.
-    # BUG REAL confirmado por ADB en dispositivo 2026-08-27 (ver docs/humano256.md, mismo
+    # BUG REAL confirmado por ADB en dispositivo 2026-08-27 (mismo
     # reporte "error de Ciberseguridad con Kali" — la instalación de kali-tools-top10 fallaba
     # de forma INSTANTÁNEA, sin siquiera intentar bajar nada): un `proot`/`dpkg` de una corrida
     # ANTERIOR (killeada por Android en background, o por el `timeout 900` de abajo sin llegar a
@@ -804,13 +805,13 @@ if $PRO; then
     # AUDITORIA_KALI_GUI_REPOS_2026-09-08.md punto 4): udisks2 puede llegar como dependencia
     # transitiva de cualquiera de los metapaquetes del catálogo — su postinst intenta hablar con
     # polkit/dbus del sistema, que no corre completo dentro de proot, y puede colgar la
-    # instalación. NO CONFIRMADO EMPÍRICAMENTE en este dispositivo esta ronda (ver
-    # .claude/rules/empirical-verification-before-fix.md) — se aplica igual de forma DEFENSIVA
+    # instalación. NO CONFIRMADO EMPÍRICAMENTE en este dispositivo esta ronda —
+    # se aplica igual de forma DEFENSIVA
     # (echo vacío en su postinst antes de que apt-get lo procese): si udisks2 nunca termina
     # siendo dependencia de la categoría elegida, esto es un no-op inofensivo (crea un archivo
     # que nadie lee); si SÍ lo es, evita que su postinst cuelgue el resto de la instalación.
     # Workaround del cuelgue REAL de systemd/cron-daemon-common en proot (2026-09-11,
-    # confirmado por ADB en dispositivo real, ver docs/humano330.md — a diferencia del de
+    # confirmado por ADB en dispositivo real — a diferencia del de
     # udisks2 de arriba, este SÍ se reprodujo y confirmó empíricamente en este dispositivo):
     # "apt-get install kali-tools-top10" arrastra systemd como dependencia transitiva; su
     # postinst falla siempre bajo proot con "Failed to enable units: Protocol driver not

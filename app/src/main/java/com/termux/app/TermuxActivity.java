@@ -253,6 +253,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private StudioFragment mStudioFragment;
     private EntornoFragment mEntornoFragment;
     private com.termux.app.ui.HomelabFragment mHomelabFragment;
+    private com.termux.app.ui.AutomationsFragment mAutomationsFragment;
     private Fragment mCurrentFragment;
     private int mCurrentTabId;
     private View mTerminalOverlay;
@@ -333,6 +334,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     // FloatingWidgetService.openModuleSession() y el fix del bug "tap en módulo corriendo
     // decía instalando en vez de abrir su terminal").
     static final String EXTRA_FOCUS_SESSION_NAME = "com.termux.app.FOCUS_SESSION_NAME";
+
+    // App Shortcut dinámico (long-press del ícono del launcher, ver QuickAccessPrefs.kt,
+    // ronda 2026-09-15) — extra que identifica QUÉ módulo abrir directo en su pantalla de
+    // detalle. "public" (a diferencia de EXTRA_FOCUS_SESSION_NAME de arriba, package-private)
+    // porque QuickAccessPrefs.syncShortcuts() vive en com.termux.app.util, un paquete distinto.
+    public static final String EXTRA_SHORTCUT_MODULE_ID = "com.termux.app.EXTRA_SHORTCUT_MODULE_ID";
 
     // Referencia débil a la instancia viva de esta Activity — sola forma de que un Service
     // sin UI (FloatingWidgetService, el widget flotante) pueda leer isSessionActive()/
@@ -422,7 +429,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         super.onCreate(savedInstanceState);
 
-        // Bug real, 4to intento: revertido del
+        // Bug real, 4to intento (2026-08-07): revertido del
         // edge-to-edge manual (setDecorFitsSystemWindows(false) + 2 listeners de padding vía
         // WindowInsetsCompat, agregados en una ronda anterior) al modelo clásico que usa
         // termux-app real y todos los forks de referencia comparados — ninguno reimplementa
@@ -499,6 +506,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mStudioFragment = new StudioFragment();
             mEntornoFragment = new EntornoFragment();
             mHomelabFragment = new com.termux.app.ui.HomelabFragment();
+            mAutomationsFragment = new com.termux.app.ui.AutomationsFragment();
 
             getSupportFragmentManager().beginTransaction()
                 .add(R.id.fragment_container, mModulesFragment, "modules")
@@ -512,6 +520,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .add(R.id.fragment_container, mStudioFragment, "studio")
                 .add(R.id.fragment_container, mEntornoFragment, "entorno")
                 .add(R.id.fragment_container, mHomelabFragment, "homelab")
+                .add(R.id.fragment_container, mAutomationsFragment, "automations")
                 .hide(mChatFragment)
                 .hide(mMonitorFragment)
                 .hide(mFileManagerFragment)
@@ -522,6 +531,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .hide(mStudioFragment)
                 .hide(mEntornoFragment)
                 .hide(mHomelabFragment)
+                .hide(mAutomationsFragment)
                 .commit();
 
             mCurrentFragment = mModulesFragment;
@@ -538,6 +548,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mStudioFragment = (StudioFragment) getSupportFragmentManager().findFragmentByTag("studio");
             mEntornoFragment = (EntornoFragment) getSupportFragmentManager().findFragmentByTag("entorno");
             mHomelabFragment = (com.termux.app.ui.HomelabFragment) getSupportFragmentManager().findFragmentByTag("homelab");
+            mAutomationsFragment = (com.termux.app.ui.AutomationsFragment) getSupportFragmentManager().findFragmentByTag("automations");
             // Bug real confirmado por ADB (2026-08-22 — freeze al cambiar de tema,
             // reproducido en vivo con uiautomator+logcat): esto ANTES reseteaba mCurrentFragment/
             // mCurrentTabId a Módulos sin condición, incluso cuando el usuario estaba parado en
@@ -555,12 +566,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             Fragment[] restoredFragments = {
                 mModulesFragment, mChatFragment, mMonitorFragment,
                 mFileManagerFragment, mTunnelFragment, mSettingsFragment, mNubeFragment,
-                mPluginsFragment, mStudioFragment, mEntornoFragment, mHomelabFragment
+                mPluginsFragment, mStudioFragment, mEntornoFragment, mHomelabFragment, mAutomationsFragment
             };
             int[] restoredTabIds = {
                 R.id.nav_modules, R.id.nav_chat, R.id.nav_monitor,
                 R.id.nav_files, R.id.nav_tunnel, R.id.nav_settings, R.id.nav_nube,
-                R.id.nav_plugins, R.id.nav_studio, R.id.nav_minipc, R.id.nav_homelab
+                R.id.nav_plugins, R.id.nav_studio, R.id.nav_minipc, R.id.nav_homelab, R.id.nav_automations
             };
             for (int i = 0; i < restoredFragments.length; i++) {
                 Fragment f = restoredFragments[i];
@@ -635,6 +646,15 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // Send the {@link TermuxConstants#BROADCAST_TERMUX_OPENED} broadcast to notify apps that Termux
         // app has been opened.
         TermuxUtils.sendTermuxOpenedBroadcast(this);
+
+        // Re-publica los App Shortcuts dinámicos (favoritos) en cada arranque — cubre el caso de
+        // un módulo desinstalado/removido del catálogo mientras la app estaba cerrada (ver KDoc
+        // de QuickAccessPrefs.syncShortcuts(), ronda 2026-09-15).
+        com.termux.app.util.QuickAccessPrefs.syncShortcuts(this);
+        // Cold-start vía shortcut (long-press del ícono del launcher) — onNewIntent() no se
+        // dispara en este caso (la Activity recién se está creando acá), así que el intent de
+        // arranque también se resuelve acá.
+        handleShortcutIntent(getIntent());
     }
 
     @Override
@@ -756,8 +776,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     @Override
     public void onBackPressed() {
-        // Falta administrador de archivos/navegador embebidos "sin salir de la terminal
-        // adaptada": si el panel
+        // Pedido explícito del usuario (2026-09-08 — falta administrador de
+        // archivos/navegador embebidos "sin salir de la terminal adaptada"): si el panel
         // embebido (ver showAdaptedPanel()) está abierto, atrás lo CIERRA a él (mismo criterio
         // que cerrar una pestaña de navegador con atrás), no minimiza toda la terminal — chequeo
         // ANTES del de mTerminalOverlay de abajo a propósito. TerminalBrowserFragment intercepta
@@ -900,6 +920,44 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (focusSessionName != null && !focusSessionName.isEmpty()) {
             openTerminalWithCommand(null, focusSessionName);
         }
+
+        handleShortcutIntent(intent);
+    }
+
+    /**
+     * Resuelve el extra {@link #EXTRA_SHORTCUT_MODULE_ID} de un App Shortcut dinámico
+     * (long-press del ícono del launcher, ver QuickAccessPrefs.kt, ronda 2026-09-15) — cambia
+     * al tab Módulos y abre directo el detalle del módulo elegido, el MISMO camino real
+     * (ModuleDetailNavigator) que usa ModulesFragment cuando el usuario toca esa fila a mano.
+     * v1: solo navega, no togglea el módulo desde acá — ver KDoc de QuickAccessPrefs para el
+     * alcance completo. `removeExtra()` evita reabrir el mismo detalle si la Activity se
+     * recrea (rotación, cambio de tema) sin que el usuario haya vuelto a tocar el shortcut.
+     */
+    private void handleShortcutIntent(Intent intent) {
+        if (intent == null) return;
+        String moduleId = intent.getStringExtra(EXTRA_SHORTCUT_MODULE_ID);
+        if (moduleId == null || moduleId.isEmpty()) return;
+        intent.removeExtra(EXTRA_SHORTCUT_MODULE_ID);
+
+        com.termux.app.model.ModuleInfo module = null;
+        for (com.termux.app.model.ModuleInfo m : com.termux.app.data.ModuleCatalog.load(this)) {
+            if (m.getId().equals(moduleId)) {
+                module = m;
+                break;
+            }
+        }
+        if (module == null) return;
+
+        // Mismo patrón ya usado en onBackPressed() (más abajo) para dejar contenido Y resaltado
+        // visual del BottomNavigationView sincronizados: solo setSelectedItemId(), dejando que
+        // su propio listener dispare switchFragment().
+        BottomNavigationView bottomNav = findViewById(R.id.bottom_navigation);
+        if (bottomNav != null) {
+            bottomNav.setSelectedItemId(R.id.nav_modules);
+        } else {
+            switchFragment(R.id.nav_modules);
+        }
+        com.termux.app.ui.ModuleDetailNavigator.navigate(getSupportFragmentManager(), module);
     }
 
 
@@ -2047,6 +2105,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         else if (itemId == R.id.nav_studio) target = mStudioFragment;
         else if (itemId == R.id.nav_minipc) target = mEntornoFragment;
         else if (itemId == R.id.nav_homelab) target = mHomelabFragment;
+        else if (itemId == R.id.nav_automations) target = mAutomationsFragment;
         else if (itemId == R.id.nav_settings) target = mSettingsFragment;
         else target = mModulesFragment;
 
@@ -2145,7 +2204,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     mTermuxActivityRootView.setOnApplyWindowInsetsListener(new TermuxActivityRootView.WindowInsetsListener());
                     // El overlay se agrega con addContentView() cuando el despacho de insets del
                     // DecorView ya ocurrió, así que sin este requestApplyInsets() el listener de
-                    // arriba nunca recibía insets y no aplicaba el padding de la barra de estado.
+                    // arriba nunca recibía insets y no aplicaba el padding de la barra de estado
+                    // (ver comentario equivalente en TermuxActivityRootView).
                     mTermuxActivityRootView.requestApplyInsets();
                     if (mPreferences.isTerminalMarginAdjustmentEnabled())
                         addTermuxActivityRootViewGlobalLayoutListener();
@@ -2422,7 +2482,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Administrador de archivos SIN salir de la terminal adaptada, como pestaña propia — pedido
-     * explícito (2026-09-08: "falta el administrador de
+     * explícito del usuario (2026-09-08: "falta el administrador de
      * archivos... debe ser [...] en una pestaña nueva"). Reusa `FileManagerFragment` tal cual
      * (misma pantalla que la pestaña Archivos del BottomNav) dentro del panel embebido.
      */
@@ -2433,7 +2493,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /**
-     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito (2026-09-08:
+     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito del usuario (2026-09-08:
      * "agregar una opción de accesibilidad al panel/sidebar... para ajustar
      * si se desea navegador y administrador de archivos en pantalla o pestaña"). Un solo switch
      * compartido entre Archivos y Navegador (el usuario lo describió como un único ajuste, sin
@@ -2480,7 +2540,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Navegador de propósito general SIN salir de la terminal adaptada, como pestaña propia —
-     * pedido explícito (2026-09-08: "el navegador no es poner
+     * pedido explícito del usuario (2026-09-08: "el navegador no es poner
      * puertos, debe ser un navegador completo como tal en una pestaña nueva"). Usa
      * `TerminalBrowserFragment` (navegación libre real, barra de dirección editable — NO
      * `ModuleWebViewFragment`, que sandboxea a propósito por seguridad, ver su KDoc), precargado
@@ -2828,7 +2888,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             if (toolbarViewPager != null) toolbarViewPager.setVisibility(View.GONE);
             if (normalDrawerContent != null) normalDrawerContent.setVisibility(View.GONE);
             if (adaptedDrawerContent != null) adaptedDrawerContent.setVisibility(View.VISIBLE);
-            // Pedido explícito: "un sidebar oculto que se abra
+            // Pedido explícito del usuario: "un sidebar oculto que se abra
             // cuando deslicen... con otras opciones" — antes se bloqueaba cerrado del todo acá
             // (nunca deslizable), porque el contenido era la lista de sesiones genérica de
             // Termux, sin sentido en modo adaptado. Ahora que left_drawer_adapted_content tiene
@@ -2935,7 +2995,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** Paleta "Tokyo Night" (variante clásica, no Storm/Light) — valores públicos de
      *  https://github.com/enkia/tokyo-night-vscode-theme, ya validados como dirección de color
-     *  (negro + azul + verde neón débil). */
+     *  por el usuario (negro + azul + verde neón débil). */
     private static void writeTokyoNightColorsProperties(File colorsFile) throws IOException {
         try (FileWriter w = new FileWriter(colorsFile)) {
             w.write("background=#1a1b26\n");
@@ -3004,7 +3064,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     // Dependencias de backend IA local por módulo, para los chips de la barra adaptada (ver
-    // refreshAdaptedBarInfo() más abajo). Pedido explícito:
+    // refreshAdaptedBarInfo() más abajo). Pedido explícito del usuario:
     // "si estan en opencode ver si ollama/llama esta corriendo" — mapa chico y EXTENSIBLE a
     // propósito (moduleId -> lista de moduleId de los que depende), no una solución hardcodeada
     // solo para OpenCode: cualquier CLI futuro que dependa de un backend local (Ollama,
@@ -3019,7 +3079,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     // Comando "listar servidores MCP" por módulo, para el atajo del drawer adaptado (ver
-    // populateAdaptedDrawerContent()) — mismo pedido de arriba ("los mcp, añadir
+    // populateAdaptedDrawerContent()) — mismo pedido explícito del usuario ("los mcp, añadir
     // opciones"). Solo se listan acá los CLIs con soporte MCP ya CONFIRMADO por otro código real
     // del proyecto: "claude mcp list" ya es un actionButton existente en ClaudeFragment.kt; para
     // "openclaw mcp ..." OpenClawNative.kt ya confirma (con cita a docs.openclaw.ai/cli/mcp) el
@@ -3162,7 +3222,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Pestañas reales para múltiples sesiones simultáneas visibles a la vez — Fase 1 del
-     * roadmap de terminal (pedido explícito, ver MEJORAS_PENDIENTES.md "Roadmap de
+     * roadmap de terminal (pedido explícito del usuario, ver MEJORAS_PENDIENTES.md "Roadmap de
      * terminal — 2 fases"). Antes de esto, con 2+ CLIs de módulo corriendo
      * a la vez (ej. "Claude Code" y "OpenCode" abiertos juntos), cambiar de una a otra requería
      * el drawer lateral o el menú popup de ModulesFragment#showTerminalSessionsMenu() — ninguno
@@ -3189,7 +3249,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
 
         java.util.List<String> sessionNames = getActiveModuleSessionNames();
-        // Pedido explícito (2026-09-08: "administrador de
+        // Pedido explícito del usuario (2026-09-08: "administrador de
         // archivos, navegador... en una pestaña nueva") — Archivos/Navegador cuentan como
         // pestañas más, junto a las sesiones de terminal reales (ver showAdaptedPanel()).
         androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
@@ -3326,7 +3386,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         tab.setOnClickListener(v -> {
             // Si un panel utilitario (Archivos/Navegador) estaba visible, tocar una pestaña de
             // sesión real vuelve a mostrar la terminal — sin esto, la sesión cambiaba "detrás"
-            // del panel sin que el usuario viera el cambio (pedido explícito,
+            // del panel sin que el usuario viera el cambio (pedido explícito del usuario,
             // 2026-09-08 — pestañas de terminal y paneles conviven en la
             // misma fila).
             if (isAdaptedPanelVisible()) hideAdaptedPanel();
@@ -3527,8 +3587,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 closeSurface.run();
                 showModuleLogDialog(moduleId);
             });
-            // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito:
-            // "los mcp, añadir opciones") — solo aparece para módulos
+            // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito del
+            // usuario: "los mcp, añadir opciones") — solo aparece para módulos
             // con soporte MCP confirmado (ver adaptedModuleMcpCommand()). Escribe el comando en
             // la MISMA sesión activa (mismo mecanismo que "Reiniciar módulo"/writeCommandOnceSessionReady
             // vía openTerminalWithCommand), no abre una sesión nueva.
@@ -3548,7 +3608,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             closeSurface.run();
             copyAdaptedSessionTranscript();
         });
-        // Pedido explícito (2026-08-13): "poder
+        // Pedido explícito del usuario (2026-08-13): "poder
         // monitorear... ver las extenciones" desde la terminal adaptada. "Extensiones" son las
         // ExtraKeys (teclas extra) — el toolbar real (terminal_toolbar_view_pager) ya existe,
         // solo estaba forzado a GONE en modo adaptado (applyTerminalModeUi()); acá se hace
@@ -3580,7 +3640,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             toggleTerminalOverlay();
             switchFragment(R.id.nav_monitor);
         });
-        // Pedido explícito (2026-09-08: "falta el administrador
+        // Pedido explícito del usuario (2026-09-08: "falta el administrador
         // de archivos, navegador... sin salir de la terminal adaptada") — a diferencia de
         // "Monitor" de arriba, estas 2 acciones NO minimizan el overlay ni navegan a otro tab:
         // abren un panel embebido (showAdaptedPanel()) que cubre solo el área de contenido, sin
@@ -3602,7 +3662,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             closeSurface.run();
             showAdaptedSplitModeDialog();
         });
-        // Pedido explícito (2026-09-08): "agregar una opción de
+        // Pedido explícito del usuario (2026-09-08): "agregar una opción de
         // accesibilidad al panel/sidebar... para ajustar si se desea navegador y administrador
         // de archivos en pantalla o pestaña".
         addAdaptedDrawerAction(actions, "♿ Accesibilidad", v -> {
@@ -3898,7 +3958,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * mismo mecanismo genérico sin ninguna diferenciación).
      */
     public void openTerminalWithCommand(String command, String sessionName) {
-        // Pedido explícito (2026-08-13): toggle en
+        // Pedido explícito del usuario (2026-08-13): toggle en
         // Ajustes ("Terminal clásica (sin UI adaptada)", ver ConfigFragment.kt) — mismo
         // SharedPreferences "kairos_prefs" que ya usan los demás toggles de esa pantalla.
         boolean classicTerminalPreferred = getSharedPreferences("kairos_prefs", MODE_PRIVATE)

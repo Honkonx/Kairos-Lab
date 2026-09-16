@@ -22,7 +22,7 @@ class HermesGatewayFragment : BaseModuleFragment() {
         addCard(getString(R.string.hermes_gateway_card_estado)) {
             addView(infoRow(getString(R.string.hermes_gateway_label_estado), getString(R.string.hermes_gateway_dash)).also { estadoValue = it.valueTextView() })
         }
-        // Switch real (2026-08-22, ver docs/humano/humano193.md) — reemplaza los botones separados
+        // Switch real (2026-08-22) — reemplaza los botones separados
         // "Iniciar"/"Detener". HermesNative.gatewayStart() corre
         // `tmux new-session -d -s hermes-gw "hermes gateway"` — confirmado contra la
         // referencia oficial de comandos (NousResearch/hermes-agent,

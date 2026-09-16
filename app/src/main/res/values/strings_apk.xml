@@ -74,7 +74,7 @@
     <string name="apk_notify_info_done">Info de %1$s lista</string>
 
     <!-- Instrumentación sin root (compil-apk-termux instrument-*/log*) — 2026-09-12, fuente
-         VictorH028/no-root-logger, ver docs/humano331.md -->
+         VictorH028/no-root-logger -->
     <string name="apk_card_instrument">INSTRUMENTACIÓN (avanzado)</string>
     <string name="apk_instrument_disclaimer_label">Uso</string>
     <string name="apk_instrument_disclaimer_value">Solo para apps PROPIAS o AUTORIZADAS — depuración y análisis, no para interceptar apps de terceros sin permiso</string>

@@ -6,8 +6,7 @@ import java.io.File
 /**
  * "Usar Ollama/llama-server local" para los 3 CLIs de i-Haklab (freebuff/codebuff/mimocode/
  * mistralvibe/minimaxcli/copilotcli/qwencode) que SÍ confirman soporte real de endpoint
- * OpenAI-compatible custom — investigado contra cada repo real, no asumido (ver
- * docs/humano/humano116.md):
+ * OpenAI-compatible custom — investigado contra cada repo real, no asumido:
  *   - qwencode: soporta OPENAI_BASE_URL/OPENAI_API_KEY/OPENAI_MODEL vía .qwen/.env
  *     (QwenLM/qwen-code docs, "Any third-party provider or local model (Ollama / vLLM)")
  *   - mimocode: soporta un provider "custom" (@ai-sdk/openai-compatible) en

@@ -13,7 +13,7 @@ name: Build Kairos APK (con rootfs embebido)
 # con un mensaje claro, no en silencio.
 #
 # downloadRootfsAsset (app/build.gradle) apunta a Honkonx/kairos-lab (repo público de
-# destino, ver docs/humano267.md — ningún link de descarga apunta al privado kairos-dev,
+# destino — ningún link de descarga apunta al privado kairos-dev,
 # ni siquiera antes de que kairos-lab exista). El step de build igual recibe GITHUB_TOKEN
 # acá abajo por las dudas (no hace daño pasarlo, y GitHub Actions ya lo genera automático
 # en cada corrida) — pero una vez que kairos-lab exista como repo PÚBLICO con la Release
@@ -24,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Rama/tag a compilar (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
+        description: 'Rama/tag a compilar (evita un bug real: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
         required: false
         default: 'ide'
       rootfs_release_tag:
@@ -94,7 +94,7 @@ jobs:
           retention-days: 30
 
       # Publicar como pre-release solo si se pasó release_tag en el dispatch
-      # (pedido usuario 2026-08-11, humano97 R2 — "modificar GitHub workflows para
+      # (pedido explícito del usuario: "modificar GitHub workflows para
       # publicar pre-release (rootfs y APK)"). Sin tag, conserva el comportamiento
       # original de solo subir artifact.
       - name: Publicar como GitHub Release (pre-release)

@@ -40,14 +40,15 @@
 #    source.
 #
 #  CORRECCIÓN 2026-09-08 (causa raíz REAL confirmada empíricamente en
-#  dispositivo real — ver docs/humano/ de esta ronda): cactus-needle 2.x YA
+#  dispositivo real): cactus-needle 2.x YA
 #  NO depende de jax/jaxlib/flax/optax en absoluto (confirmado leyendo el log
 #  real de `pip install cactus-needle` en el dispositivo — solo trae
 #  huggingface_hub/click/pyyaml/etc, ningún paquete jax*). El pip install
 #  nativo en Termux SIEMPRE tiene éxito hoy, y `import needle` SIEMPRE
 #  funciona (needle/__init__.py es puro Python) — por eso el chequeo viejo
 #  "el pip install terminó y el import funciona" daba un falso positivo real
-#  (ver `.claude/rules/empirical-verification-before-fix.md`). El bloqueo real
+#  (documentar/verificar la causa raíz empírica antes de dar un fix por bueno,
+#  en vez de confiar en un chequeo superficial). El bloqueo real
 #  de Bionic sigue existiendo, pero en OTRO lugar: needle NO trae su motor
 #  nativo en el wheel — lo DESCARGA de HuggingFace (repo Cactus-Compute/
 #  needle2) recién al INSTANCIAR `Needle(...)` (needle/__init__.py `_bind()` →
@@ -161,7 +162,8 @@
 #  nota de arquitectura corregida más abajo. `_needle_importa_ya()` ahora
 #  instancia Needle(...) de verdad (antes solo hacía "import needle", que
 #  siempre pasaba y nunca disparaba el fallback proot-distro/glibc real —
-#  falso positivo clásico de `.claude/rules/empirical-verification-before-fix.md`).
+#  falso positivo clásico de confiar en un chequeo superficial en vez de la
+#  post-condición real).
 #  Fallback proot/glibc confirmado funcional end-to-end en dispositivo real
 #  (Ubuntu proot-distro real resuelve los SONAMEs glibc que Bionic no tiene).)
 #  VERSIÓN ANTERIOR: 1.4.0 | Agosto 2026 (cactus serve — modo servidor HTTP liviano y
@@ -322,8 +324,8 @@ _install_cactus_glibc_fallback() {
   # (la que trae Termux hoy):
   #  1. "proot-distro list-installed" YA NO EXISTE — "Error: unknown command 'list-installed'"
   #     a stderr, silenciado por "2>/dev/null" — el chequeo viejo SIEMPRE daba falso. Mismo bug
-  #     ya encontrado y corregido antes en ciberseguridad.sh (ver comentario ahí,
-  #     docs/humano226.md) — su fix ahí (y el de entorno.sh/_proot_distros(), stacks.sh/
+  #     ya encontrado y corregido antes en ciberseguridad.sh (ver comentario ahí)
+  #     — su fix ahí (y el de entorno.sh/_proot_distros(), stacks.sh/
   #     _distro_is_installed()) usa "proot-distro list" a secas como fallback, pero eso choca
   #     con el bug #2 de abajo, no verificado hasta ahora en ninguno de los 3.
   #  2. "proot-distro list" (SIN "-q") solo imprime su tabla con formato cuando stdout es una
@@ -804,7 +806,7 @@ def exec_tool(name, args):
     if name == "write_file":
         path = os.path.expanduser(args.get("path", ""))
         try:
-            # Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales
+            # Bug real encontrado 2026-08-24 (pruebas funcionales
             # reales por ADB): con un nombre de archivo sin directorio (ej. "cactus_ok.txt"),
             # os.path.dirname() devuelve "" — os.makedirs("", exist_ok=True) revienta con
             # "FileNotFoundError: [Errno 2] No such file or directory: ''" en vez de escribir

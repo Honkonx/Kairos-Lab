@@ -27,7 +27,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * Pantalla "Nube" — pedido explícito del usuario (docs/humano*.md): convertir el
+ * Pantalla "Nube" — pedido explícito del usuario: convertir el
  * teléfono en una nube de almacenamiento mínima tipo Drive/Mediafire, acotada a UNA
  * carpeta fija ($HOME/nube, ver NubeServer.nubeRoot) y accesible desde cualquier
  * navegador, no solo desde la app. Pantalla propia (no una 3ra pestaña de
@@ -72,7 +72,8 @@ class NubeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el
-        // token de acceso de NubeServer en la URL — ver .claude/rules/kairos-secrets-never-revealed.md.
+        // token de acceso de NubeServer en la URL — un secreto guardado nunca vuelve a
+        // mostrarse en texto plano fuera de su uso real.
         view.filterTouchesWhenObscured = true
         // NubeServer.nubeRoot es un `by lazy` que crea $HOME/nube si no existía todavía
         // (primer acceso a esta pantalla) — cumple el pedido "crear la carpeta la

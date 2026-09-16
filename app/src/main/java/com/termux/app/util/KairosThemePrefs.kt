@@ -5,9 +5,9 @@ import com.termux.R
 
 /**
  * Selector de tema visual de Kairos — 3 temas (Oscuro/Señal/Claro, ver
- * res/values/themes_kairos.xml), pedido explícito del usuario (ver docs/humano/humano190.md): "no es
- * eliminar la tematica/tema/estilo que tenemos es agregar una opcion para cambiar el tema...
- * dejar el que tenemos, añadir ese que te dije y tambien un modo claro". "Oscuro" es el default
+ * res/values/themes_kairos.xml), pedido explícito del usuario: no eliminar la temática/tema/estilo
+ * que ya existía, sino agregar una opción para cambiar de tema — mantener el que había, sumar uno
+ * nuevo y también un modo claro. "Oscuro" es el default
  * (mismos valores que colors_kairos.xml de siempre) — instalar la app y no tocar el selector se
  * ve exactamente igual que antes de este cambio.
  *

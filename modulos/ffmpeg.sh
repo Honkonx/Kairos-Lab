@@ -3,7 +3,8 @@
 #  kairos-app · ffmpeg.sh (silent mode)
 #  FFmpeg — paquete nativo de Termux (pkg install ffmpeg).
 #
-#  Categoría nueva "multimedia": Kairos no tenía ningún módulo de audio/video.
+#  Propuesto en la ronda 2026-09-15 ("más módulos, el bootstrap") —
+#  categoría nueva "multimedia": Kairos no tenía ningún módulo de audio/video.
 #  Verificado ANTES de escribir este script contra el índice real de
 #  termux-packages (github.com/termux/termux-packages/packages/ffmpeg/build.sh,
 #  TERMUX_PKG_VERSION="8.1.2", paquete normal — NO root-packages/x11-packages,

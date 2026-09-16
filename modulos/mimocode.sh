@@ -31,7 +31,7 @@
 #       loader glibc de Termux — comando: mimo
 #    ✅ Registry actualizado
 #
-#  QUÉ CAMBIÓ (v2.0.0, 2026-08-24, ver docs/humano212.md):
+#  QUÉ CAMBIÓ (v2.0.0, 2026-08-24):
 #    v1.0.0 instalaba vía "npm install -g @mimo-ai/cli" — falla SIEMPRE en
 #    Android/Termux porque XiaomiMiMo nunca publicó el paquete opcional
 #    "@mimo-ai/mimocode-android-arm64" que el postinstall.mjs de ese CLI
@@ -60,7 +60,7 @@
 #  VERSIÓN: 3.0.0 | Agosto 2026 (fork nativo MiMoCode-Termux — Bionic puro,
 #  sin glibc — como método preferido, ver github.com/Honkonx/MiMoCode-Termux;
 #  fallback al binario oficial XiaomiMiMo + glibc/patchelf que reemplazó el
-#  método npm roto — ver docs/humano212.md)
+#  método npm roto)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -175,8 +175,8 @@ _mimocode_download_native_fork() {
   mkdir -p "$_extract"
   dpkg-deb -x "$_deb" "$_extract" || { rm -rf "$_tmp"; return 1; }
 
-  # Mismo bug/fix real ya confirmado en freebuff.sh/codebuff.sh/codegraph.sh
-  # (docs/humano281.md): dpkg-deb -x deja el árbol bajo la RUTA ABSOLUTA COMPLETA
+  # Mismo bug/fix real ya confirmado en freebuff.sh/codebuff.sh/codegraph.sh:
+  # dpkg-deb -x deja el árbol bajo la RUTA ABSOLUTA COMPLETA
   # "$_extract/data/data/com.termux/files/usr/..." (así empaqueta Termux sus .deb),
   # no bajo "$_extract/usr/" — copiar el árbol usr/ COMPLETO preserva la relación
   # wrapper→runtime intacta (acá: usr/bin/mimo invoca usr/lib/mimocode/runtime/mimocode).
@@ -299,9 +299,9 @@ if ! $SILENT; then
 fi
 
 # ── PASO 1 — Capa de compatibilidad glibc (Método ORIGINAL, primario) ─
-# Orden corregido 2026-08-28 (docs/humano281.md, corrección explícita del usuario: "deben
-# quedar con el método que teníamos y los repos como el mío o de hoppe son de respaldo, todo
-# es respaldo no remplazo") — el fork propio (Honkonx/MiMoCode-Termux, hoy sin releases
+# Orden corregido 2026-08-28 (corrección explícita del usuario: "deben quedar con el método
+# que teníamos y los repos como el mío o de hoppe son de respaldo, todo es respaldo no
+# remplazo") — el fork propio (Honkonx/MiMoCode-Termux, hoy sin releases
 # propios, cae a Hope2333/MiMoCode-Termux) queda como RESPALDO real, tentado solo si el
 # método original (glibc + patchelf, el que ya se usaba antes de esta ronda) falla — nunca
 # al revés.

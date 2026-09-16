@@ -89,8 +89,8 @@
     <string name="file_manager_clipboard_multi">%1$d archivos</string>
     <string name="file_manager_toast_batch_result">%1$d listo(s), %2$d con error</string>
     <string name="file_manager_dialog_msg_delete_batch">¿Eliminar %1$d elementos? Esta acción no se puede deshacer.</string>
-    <!-- Barra persistente de portapapeles + confirmación real al pegar (fix UX 2026-09-14,
-         docs/humano334.md — antes solo había un Snackbar fugaz de ~2.75s como única señal). -->
+    <!-- Barra persistente de portapapeles + confirmación real al pegar (fix UX 2026-09-14
+         — antes solo había un Snackbar fugaz de ~2.75s como única señal). -->
     <string name="file_manager_clipboard_bar_cancel">Cancelar</string>
     <string name="file_manager_dialog_msg_paste">¿Pegar %1$s en esta carpeta?</string>
     <!-- Marcadores + historial de navegación (esfuerzo bajo #2) -->
@@ -165,7 +165,7 @@
     <string name="install_sheet_variant_n8n_udocker_desc">Imagen oficial n8nio/n8n, sin proot, ~800MB</string>
     <string name="install_sheet_variant_n8n_proot_title">⚡ proot</string>
     <string name="install_sheet_variant_n8n_proot_desc">Node.js 22 LTS + n8n + cloudflared en Debian, ~300MB</string>
-    <!-- Rediseño 2026-09-09 (docs/humano328.md): reemplaza a los viejos "native"/"termux"
+    <!-- Rediseño 2026-09-09: reemplaza a los viejos "native"/"termux"
          (binario prebuilt de WangChengYeh/codex_android, repo abandonado, retirado). -->
     <string name="install_sheet_variant_codex_normal_title">📦 Normal</string>
     <string name="install_sheet_variant_codex_normal_desc">@mmmbuto/codex-cli-termux vía npm (DioNanos/codex-termux), con respaldo automático si falla</string>

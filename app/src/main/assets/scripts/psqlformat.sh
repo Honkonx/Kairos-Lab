@@ -4,8 +4,7 @@
 #  PSQL Format — npm install -g psqlformat (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/psqlformat/install.sh
-#  (mismo comando real: npm install -g psqlformat) — ver ronda "paquetes
-#  adicionales core-termux" en docs/humano/.
+#  (mismo comando real: npm install -g psqlformat).
 #
 #  USO DESDE APP (KairosApp):
 #    bash psqlformat.sh --silent

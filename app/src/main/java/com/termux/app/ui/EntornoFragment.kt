@@ -108,7 +108,7 @@ class EntornoFragment : BaseModuleFragment() {
      * protegido — solo lectura): cada instalación de escritorio dentro de una distro empieza
      * con `pkill -9 -f "proot-distro login $DISTRO"` (limpieza de procesos huérfanos de una
      * corrida anterior interrumpida) — si dos instalaciones para LA MISMA distro corren
-     * solapadas (posible desde que `ProgressDialogController` ofrece "Enviar a 2do plano":
+     * solapadas (posible desde que `ProgressDialogController` ofrece "Enviar a 2do plano",
      * el diálogo desaparece pero el Thread sigue corriendo, nada impide
      * volver a tocar el mismo botón u otro que toque el mismo proot-distro login/dpkg), la
      * segunda mataría a la primera en pleno `apt-get install` sin avisar — el usuario ve
@@ -162,8 +162,8 @@ class EntornoFragment : BaseModuleFragment() {
     private val vncTab by lazy { EntornoVncTab(this) }
     private val sistemaTab by lazy { EntornoSistemaTab(this) }
 
-    // ── Fondo de pantalla — objetivo: poder cambiar la imagen de fondo del escritorio desde
-    // la app. Mismo patrón que mPickImageLauncher (ChatFragment.kt) /
+    // ── Fondo de pantalla — pedido explícito del usuario ("incluso poder cambiar la imagen de
+    // fondo etc"). Mismo patrón que mPickImageLauncher (ChatFragment.kt) /
     // mPickImportFileLauncher (CactusFragment.kt): registro como campo de instancia (requisito
     // de ciclo de vida de ActivityResultLauncher), no dentro de un onClick — por eso el
     // mecanismo entero (target sealed class, launcher, pickWallpaper()) se queda en el
@@ -270,7 +270,7 @@ class EntornoFragment : BaseModuleFragment() {
     }
 
     /**
-     * Fix real (bug real: "da error al instalar entorno gráfico en la distro"). Varios
+     * Fix real (bug reportado: "da error al instalar entorno gráfico en la distro"). Varios
      * `progress.failure(...)` de las pestañas solo mostraban `json.error` (mensaje corto) y
      * descartaban `json.output` (la salida real de apt-get/pkg dentro del proot — por qué
      * falló de verdad) sin mostrarlo NI loguearlo — mismo tipo de gap de diagnosticabilidad
@@ -360,8 +360,8 @@ class EntornoFragment : BaseModuleFragment() {
 
     /**
      * Fila del inventario "📋 INSTALADO" con el logo real de la distro (reemplaza el 🐧
-     * genérico fijo que antes se mostraba para CUALQUIER distro instalada) — mismo layout de
-     * 2 columnas que infoRow() pero con
+     * genérico fijo que antes se mostraba para CUALQUIER distro instalada — pedido explícito
+     * del usuario) — mismo layout de 2 columnas que infoRow() pero con
      * un ícono de identidad antes del nombre.
      */
     private fun distroInventoryRow(name: String): View {

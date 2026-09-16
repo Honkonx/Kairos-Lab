@@ -9,8 +9,8 @@ import java.io.File
  * Lógica de `cmd_tunnel` (+ helpers `_ensure_ngrok`/`_ensure_cloudflared`/`_tunnel_session`)
  * de modulos/kairos_manager.py portada a Kotlin (ronda 2026-07-31). TunnelFragment dependía
  * de `python3 kairos_manager.py tunnel ...` para TODO — mismo bug sistémico "Cannot run
- * program python3" con evidencia real de dispositivo que ya rompió Procesos/Monitor (ver
- * docs/humano*.md de esa ronda). Mecanismo genérico (cloudflared/ngrok quick-tunnel por
+ * program python3" con evidencia real de dispositivo que ya rompió Procesos/Monitor.
+ * Mecanismo genérico (cloudflared/ngrok quick-tunnel por
  * puerto) separado de los túneles bespoke de n8n (N8nFragment) y Remote/SSH (RemoteManager)
  * — no los reemplaza, sigue siendo un camino nuevo y único para CUALQUIER puerto.
  */
@@ -27,8 +27,8 @@ object TunnelManager {
     /**
      * Configuración persistente de un proveedor de túnel (Cloudflare / ngrok) guardada
      * en el registry ~/.android_server_registry (claves tunnel.cloudflare.* y
-     * tunnel.ngrok.*). Pedido explícito del usuario (ronda 2026-08-13, ver
-     * docs/humano/humano100.md): poder agregar/cambiar/eliminar dominios y tokens desde
+     * tunnel.ngrok.*). Pedido explícito del usuario (ronda 2026-08-13):
+     * poder agregar/cambiar/eliminar dominios y tokens desde
      * la pantalla de Túnel, y que los botones rápidos reutilicen lo guardado.
      */
     data class ProviderConfig(val token: String = "", val domain: String = "") {
@@ -136,7 +136,7 @@ object TunnelManager {
         ""
     }
 
-    // Patrón confirmado en core-termux-main (docs/humano/humano1.md punto 3): ngrok se instala
+    // Patrón confirmado en core-termux-main: ngrok se instala
     // vía su paquete npm oficial, que baja su propio binario real en el postinstall —
     // mucho más simple que cloudflared (sin build ARM64 propio).
     private fun ensureNgrok(): ActionResult {
@@ -210,13 +210,13 @@ object TunnelManager {
     // authtoken configurado; cloudflared: no aplica acá — con --token el dominio ya
     // quedó atado del lado del dashboard de Cloudflare al crear el named tunnel, así
     // que pedirlo de nuevo en la app sería redundante). Pedido explícito del usuario,
-    // 2026-08-12 (ver docs/humano/humano99.md): "agregar una opcion en tunel para
-    // agregar los dominios y tokens, sea de cloudflare o ngrok" — cloudflare con token
+    // 2026-08-12: agregar una opción en túnel para
+    // agregar los dominios y tokens, sea de cloudflare o ngrok — cloudflare con token
     // ya existía (promptTokenAndStart en TunnelFragment); lo que faltaba de verdad era
     // el authtoken de ngrok, sin el cual ngrok solo da URLs efímeras al azar y no deja
     // usar un dominio propio en absoluto.
     //
-    // 2026-08-13 (ver docs/humano/humano100.md): si NO se pasan token/domain explícitos
+    // 2026-08-13: si NO se pasan token/domain explícitos
     // (null), se reutiliza la config guardada en el registry (getConfig) — así los
     // botones rápidos "▶ Cloudflare"/"🚇 ngrok" usan el token/dominio persistidos en
     // vez de volver a preguntar. El valor explícito siempre tiene prioridad.
@@ -303,7 +303,7 @@ object TunnelManager {
                 cmd = "$cfBin tunnel --no-autoupdate run --token ${shellQuote(effectiveToken)}"
             }
         }
-        // Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano183.md/humano184.md):
+        // Bug real confirmado (auditoría ADB 2026-08-21):
         // tanto cloudflared como ngrok (ambos binarios Go oficiales, CGO_ENABLED=0) fallan en
         // este dispositivo con "lookup ... on [::1]:53: read: connection refused" — el resolver
         // DNS puro de Go busca /etc/resolv.conf real de Android (no existe, solo lectura) en vez
@@ -351,8 +351,8 @@ object TunnelManager {
         val log = File(TUNNEL_LOG_DIR, "$port.log")
         if (running && log.exists()) {
             try {
-                // Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano183.md/
-                // humano184.md, "falso positivo de éxito" — el hallazgo más grave del día):
+                // Bug real confirmado (auditoría ADB 2026-08-21,
+                // "falso positivo de éxito" — el hallazgo más grave del día):
                 // cuando cloudflared falla, su propio mensaje de error contiene el literal
                 // "https://api.trycloudflare.com/tunnel":" (la URL del endpoint de la API que
                 // intentó llamar, con las comillas/dos puntos del texto de error) — el regex
@@ -403,10 +403,10 @@ object TunnelManager {
     // del proyecto, ver docs/arquitectura/REGISTRO.md si existe). Claves:
     //   tunnel.cloudflare.token / tunnel.cloudflare.domain
     //   tunnel.ngrok.token      / tunnel.ngrok.domain
-    // Pedido explícito del usuario, 2026-08-13 (ver docs/humano/humano100.md): "agregar
-    // opciones de cloudflare, agregar dominio y token para cloudflare y ngrok... poder
+    // Pedido explícito del usuario, 2026-08-13: agregar
+    // opciones de cloudflare, agregar dominio y token para cloudflare y ngrok, poder
     // agregar los dominios que quieran, los token, poder cambiarlos, modificarlos,
-    // eliminarlos, configurar cloudflare y ngrok desde la pantalla de tunel".
+    // eliminarlos, configurar cloudflare y ngrok desde la pantalla de túnel.
     private fun registryFile() = File(HOME, ".android_server_registry")
 
     private fun registryValues(): Map<String, String> {
@@ -640,9 +640,9 @@ object TunnelManager {
     //  VERIFICAR — consistencia real registry ↔ archivo ↔ proceso
     // ═══════════════════════════════════════════════════════════
     // Pedido explícito del usuario: chequeo real, no solo "el registry dice que está
-    // configurado" (ver .claude/rules/empirical-verification-before-fix.md — mismo
-    // principio: verificar la post-condición real, no confiar solo en que se escribió un
-    // valor). Por cada módulo con config propia asignada: (a) confirma que el registry
+    // configurado" — mismo principio de verificación empírica que rige el resto del
+    // proyecto: verificar la post-condición real, no confiar solo en que se escribió un
+    // valor. Por cada módulo con config propia asignada: (a) confirma que el registry
     // sigue teniendo token/dominio, (b) para n8n, que ~/.cf_token existe Y coincide con el
     // token del registry (el bug real que originó todo este fix), (c) si el túnel de ese
     // módulo está corriendo, confirma con pgrep que el PROCESO cloudflared/ngrok sigue vivo

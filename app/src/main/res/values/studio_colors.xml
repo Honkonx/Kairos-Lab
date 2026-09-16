@@ -66,7 +66,7 @@
     <color name="ide_syntax_attribute">#F5C463</color>
     <color name="ide_syntax_punctuation">#8D96A8</color>
 
-    <!-- Variante "Claro" del tema de Estudio (2026-08-22, ver docs/humano/humano202.md) — solo cubre
+    <!-- Variante "Claro" del tema de Estudio (2026-08-22) — solo cubre
          los 3 ?attr/studio* de attrs.xml (fondo raíz, superficie de la toolbar, texto primario)
          por ahora, no todo "Kairos Ink" (sidebar/tabs/sintaxis siguen fijos en @color/ide_* de
          arriba, fase mínima). Contraste verificado a ojo contra ide_accent (#5CE0C6, se mantiene

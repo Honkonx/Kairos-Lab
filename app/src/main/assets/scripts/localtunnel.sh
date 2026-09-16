@@ -6,8 +6,8 @@
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/localtunnel/install.sh
 #  (mismo comando real: npm install -g localtunnel, + fix de Android: el paquete
 #  openurl intenta abrir el navegador con un comando que no existe en Termux —
-#  se parchea openurl.js para usar termux-open-url en 'android') — ver ronda
-#  "paquetes adicionales core-termux" en docs/humano/.
+#  se parchea openurl.js para usar termux-open-url en 'android') — parte de
+#  la ronda de incorporación de paquetes adicionales de core-termux.
 #
 #  USO DESDE APP (KairosApp):
 #    bash localtunnel.sh --silent
@@ -98,7 +98,7 @@ _localtunnel_fix_openurl() {
   fi
 }
 
-# Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por ADB):
+# Bug real encontrado 2026-08-24 (pruebas funcionales reales por ADB):
 # antes esto era "install_npm_global localtunnel localtunnel lt" seguido de
 # _localtunnel_fix_openurl() — pero install_npm_global() YA verifica "lt --version" internamente
 # (lib.sh, verify_binary_installed) ANTES de devolver el control acá, y esa verificación falla

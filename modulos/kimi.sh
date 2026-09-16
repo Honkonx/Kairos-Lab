@@ -21,16 +21,15 @@
 #
 #  NOTA DE VERSIÓN:
 #    Kimi Code requiere Node.js 22.19+. El package real es @moonshot-ai/kimi-code
-#    (el "kimi-cli" de nombre corto en npm es un paquete distinto/legacy — ver
-#    docs/humano/humano123.md, módulos candidatos core-termux v4.25.0).
+#    (el "kimi-cli" de nombre corto en npm es un paquete distinto/legacy —
+#    módulo candidato de la ronda core-termux v4.25.0).
 #
 #  OUTPUT (modo --silent):
 #    [STEP] descripción
 #    [OK]/[WARN]/[ERROR] mensaje
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux v4.25.0,
-#  ver docs/humano/humano123.md)
+#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux v4.25.0)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -164,10 +163,10 @@ if check_done "npm_install"; then
 else
   info "Ejecutando: npm install -g ${KIMI_PKG}"
   npm install -g "$KIMI_PKG"; [ $? -eq 0 ] || error "npm install falló"
-  # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
+  # Bug real confirmado (auditoría ADB 2026-08-21): el symlink npm no
   # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "kimi" "${KIMI_PKG%@latest}"
-  # Chequeo funcional real, no solo "existe en PATH" — ver docs/humano/humano194.md,
+  # Chequeo funcional real, no solo "existe en PATH" —
   # verify_binary_installed() en lib.sh.
   verify_binary_installed kimi || error "kimi no ejecuta tras la instalación (revisá manualmente: kimi --version)"
   log "Kimi Code instalado"

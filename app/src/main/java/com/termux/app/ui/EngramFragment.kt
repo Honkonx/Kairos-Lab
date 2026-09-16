@@ -335,8 +335,8 @@ class EngramFragment : BaseModuleFragment() {
     private fun runEngramCommand(vararg args: String, onDone: ((String) -> Unit)? = null) {
         Thread {
             val output = try {
-                // Ruta absoluta — mismo riesgo de "Cannot run program" ya confirmado esta
-                // sesión (ver docs/humano/humano63.md), y Engram ya venía reportado sin
+                // Ruta absoluta — mismo riesgo de "Cannot run program" ya confirmado en
+                // auditoría de arquitectura central, y Engram ya venía reportado sin
                 // instalar/con bugs de git clone en rondas anteriores.
                 val pb = ProcessBuilder(listOf("$TERMUX_PREFIX_PATH/bin/engram") + args)
                 pb.redirectErrorStream(true)

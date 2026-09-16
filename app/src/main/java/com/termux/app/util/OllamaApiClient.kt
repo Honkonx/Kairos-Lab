@@ -13,8 +13,8 @@ import java.net.URL
  * gestión de modelos que antes pasaban por kairos_manager.py cmd_ollama
  * (models-list/models-pull/models-delete/models-info). Ese código Python era subprocess +
  * urllib puro sin lógica propia — la API HTTP es la misma que ya habla Ollama, saltar a
- * python3 en el medio solo agregaba una dependencia (y un punto de falla, ver
- * "Cannot run program python3" en docs/humano*.md 2026-07-31) sin aportar nada.
+ * python3 en el medio solo agregaba una dependencia (y un punto de falla real reportado,
+ * "Cannot run program python3", 2026-07-31) sin aportar nada.
  *
  * Todas las funciones de red son bloqueantes (sin threading propio) — igual que
  * ProcesosFragment.runPm2(), el Fragment que llama es responsable de correrlas en un
@@ -78,8 +78,8 @@ object OllamaApiClient {
      * `total` (para que la UI muestre una barra determinada real, ver ProgressDialogController
      * .updateProgress()), o -1 en fases sin tamaño conocido todavía ("verifying sha256 digest",
      * "writing manifest") — ahí solo hay texto de estado, no % que calcular. Antes esto era un
-     * único `String` ya formateado (docs/humano247.md, pedido explícito del usuario: la barra
-     * de progreso de descargas debe ser real, no solo texto dentro de un spinner indeterminado).
+     * único `String` ya formateado — pedido explícito del usuario: la barra
+     * de progreso de descargas debe ser real, no solo texto dentro de un spinner indeterminado.
      */
     @Throws(Exception::class)
     fun pullModel(name: String, onProgress: ((percent: Int, message: String) -> Unit)? = null) {
@@ -333,7 +333,7 @@ object OllamaApiClient {
 
     // ── HTTP helpers ─────────────────────────────────────────────────
 
-    // Bug real confirmado (reporte del usuario, 2026-07-31 — ver docs/humano/humano33.md): las 2
+    // Bug real confirmado (reporte del usuario, 2026-07-31): las 2
     // funciones de abajo tiraban el cuerpo real de la respuesta de error de Ollama al
     // lanzar la excepción (o ni lo leían), dejando solo "HTTP 404"/"HTTP 400" sin ninguna
     // pista de qué salió mal — Ollama manda `{"error": "..."}` con el motivo real

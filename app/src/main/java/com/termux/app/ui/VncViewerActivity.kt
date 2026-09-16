@@ -30,7 +30,7 @@ import com.termux.app.vnc.VncCanvasView
 import com.termux.app.vnc.VncClient
 
 /**
- * Visor VNC embebido — pedido explícito del usuario (ver `docs/humano/humano136.md`): en vez
+ * Visor VNC embebido — pedido explícito del usuario: en vez
  * de depender de una app VNC externa para conectarse al `vncserver` que ya arranca
  * `EntornoNative.vncStart()` en `127.0.0.1:5901`, esta Activity conecta directo con
  * `VncClient` (implementación propia del protocolo RFB, ver ese archivo) y dibuja el
@@ -83,7 +83,7 @@ class VncViewerActivity : androidx.appcompat.app.AppCompatActivity() {
         // docstring de setupSoftKeyboardBridge() para el porqué.
         private const val KEYBOARD_PLACEHOLDER = " "
 
-        // ── Menú de 3 puntos + orientación (pedido explícito 2026-09-03, docs/humano316.md:
+        // ── Menú de 3 puntos + orientación (pedido explícito 2026-09-03:
         // "en las opciones de vnc se debe ajustar la orientación [...] también agregar el icono
         // de teclado y el de 3 puntos para minimizar y cerrar") ──────────────────────────────
         private const val MENU_MINIMIZE = 1

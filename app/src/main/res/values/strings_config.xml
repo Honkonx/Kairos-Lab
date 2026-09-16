@@ -24,7 +24,7 @@
     <string name="config_row_set_nvim_editor">✏️ Definir nvim como editor por defecto</string>
     <string name="config_row_external_input">⌨ Usar teclado/mouse externo (OTG/Bluetooth)</string>
     <!-- Casilla desplegable de modo de terminal (2026-09-08, reemplaza el switch binario de
-         arriba — mockups A/B del artifact de terminal adaptada).
+         arriba — decidido tras mockups A/B de un artifact de terminal adaptada).
          Arranca con 2 opciones (Clásica/Adaptada); "Simple" (Fase 2) se agrega cuando esa
          evolución tenga contenido real. Sigue guardando el mismo boolean pref_classic_terminal
          que ya lee TermuxActivity/ConfigExportManager — solo cambia la presentación. -->
@@ -281,4 +281,17 @@
     <string name="config_update_debug_manifest_saved">URL de prueba guardada</string>
     <string name="config_update_debug_manifest_clear">Quitar override</string>
     <string name="config_update_debug_manifest_cleared">Override quitado — se vuelve a usar la URL real</string>
+
+    <!-- ═══════════════ Accesos rápidos (2026-09-15) — App Shortcuts + Quick Settings Tile,
+         ver QuickAccessPrefs.kt/QuickModuleTileService.kt/BaseModuleFragment.buildFavoriteStar() ═══ -->
+    <string name="config_quick_access_header">ACCESOS RÁPIDOS</string>
+    <string name="config_quick_access_favorites_label">Favoritos del launcher (mantené presionado el ícono de Kairos)</string>
+    <string name="config_quick_access_favorites_empty">Sin favoritos todavía — marcá uno con la ⭐ en la pantalla de cualquier módulo.</string>
+    <string name="config_quick_access_favorite_removed">%1$s quitado de favoritos</string>
+    <string name="config_quick_access_tile_label">Módulo del Quick Settings Tile</string>
+    <string name="config_quick_access_tile_none">Ninguno</string>
+    <string name="config_quick_access_tile_cleared">Quick Settings Tile sin módulo asignado</string>
+    <string name="config_quick_access_tile_set">Quick Settings Tile ahora controla: %1$s</string>
+    <string name="qs_tile_default_label">Kairos</string>
+    <string name="qs_tile_no_module_label">Elegí un módulo en Ajustes</string>
 </resources>

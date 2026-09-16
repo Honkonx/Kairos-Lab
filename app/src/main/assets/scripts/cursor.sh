@@ -35,8 +35,7 @@
 #    [OK]/[WARN]/[ERROR] mensaje
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux v4.25.0,
-#  ver docs/humano/humano123.md)
+#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux v4.25.0)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -94,7 +93,7 @@ if $DESCRIBE_FILES; then
         {path: $p1, required: true, note: "binario cursor-agent, instalador oficial cursor.com/install, ya parcheado con patchelf --set-interpreter"}
       ],
       file_globs: [
-        {pattern: $glob, required: true, note: "payload real: $HOME/.local/bin/cursor-agent es un symlink a un script bash dentro de este dir, que a su vez exec-a un Node.js glibc embebido (node) contra index.js — confirmado en dispositivo (docs/humano212.md); sin este glob el wrapper de arriba queda roto tras reinstalar"}
+        {pattern: $glob, required: true, note: "payload real: $HOME/.local/bin/cursor-agent es un symlink a un script bash dentro de este dir, que a su vez exec-a un Node.js glibc embebido (node) contra index.js — confirmado en dispositivo; sin este glob el wrapper de arriba queda roto tras reinstalar"}
       ],
       dependencies: [
         {id: "glibc_loader", check_cmd: $dep1_check, install_hint: $dep1_hint},
@@ -162,7 +161,8 @@ else
 
   if $_GLIBC_MISSING; then
     info "glibc no detectado — instalando glibc-repo..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
+    # por índices de paquetes desactualizados (mirror con problemas).
     pkg_update_with_fallback
     pkg install -y glibc-repo \
       -o Dpkg::Options::="--force-confdef" \
@@ -180,7 +180,8 @@ else
 
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
+    # por índices de paquetes desactualizados (mirror con problemas).
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
@@ -203,7 +204,7 @@ else
 
   export PATH="$HOME/.local/bin:$PATH"
 
-  # Bug real encontrado 2026-08-24 (ver docs/humano212.md), reemplaza el
+  # Bug real encontrado 2026-08-24, reemplaza el
   # bloque anterior de acá que asumía que "$HOME/.local/bin/cursor-agent" era
   # el binario glibc a parchear con patchelf. Confirmado en dispositivo:
   #  1. "cursor-agent" NO es un ELF — es un script bash de ~1KB
@@ -240,7 +241,7 @@ else
       fi
     fi
   fi
-  # verify_binary_installed() en vez de command -v a secas (2026-08-22, ver docs/humano/humano201.md)
+  # verify_binary_installed() en vez de command -v a secas (2026-08-22)
   # — corre DESPUÉS del fix de shebang/patchelf de arriba (antes de eso, "cursor-agent --version"
   # está garantizado a fallar, sería un falso negativo).
   verify_binary_installed cursor-agent || error "cursor-agent no ejecuta tras la instalación (ni con el fix de shebang/patchelf aplicado) — revisá manualmente: $_CURSOR_BIN --version"

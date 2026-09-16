@@ -21,7 +21,7 @@ import com.termux.app.util.kairosThemeColor
 /** Pantalla 5 (última, opcional) del wizard — comprobar paquetes instalados/
  * actualizaciones antes de entrar a la app. Misma acción que el botón de Ajustes
  * (ConfigFragment) — RootfsPackageChecker.kt, 100% Kotlin, sin invocar python3 (pedido
- * explícito del usuario, ver docs/humano/humano12.md). Solo muestra una rueda + texto de
+ * explícito del usuario). Solo muestra una rueda + texto de
  * estado corto, nunca el detalle línea por línea — mismo criterio de instalación
  * silenciosa del resto de la app. */
 class WizardCheckFragment : Fragment() {

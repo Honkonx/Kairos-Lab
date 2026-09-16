@@ -98,7 +98,7 @@ def parse_packages_index(raw):
                     # 2026-08-27: nodejs-lts en package_list.txt + algún paquete con
                     # "Depends: nodejs | nodejs-lts" tomando ciegamente "nodejs" como primera
                     # alternativa -> ambos terminaban en el rootfs, "apt install" fallaba con
-                    # "Conflicts: nodejs-lts" código 100, ver docs/humano259.md).
+                    # "Conflicts: nodejs-lts" código 100).
                     alt_names = []
                     for choice in alt.split("|"):
                         dep_name = re.split(r"[\s(]", choice.strip(), 1)[0].strip()

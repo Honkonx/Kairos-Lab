@@ -62,7 +62,7 @@ public final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
 
-    // Bug real reportado (ver docs/humano/humano58.md): el wizard llama a este método desde 2
+    // Bug real reportado: el wizard llama a este método desde 2
     // pantallas distintas — WizardPermissionsFragment lo dispara temprano en segundo plano al
     // avanzar, y WizardInstallFragment lo vuelve a llamar al llegar a la pantalla de
     // instalación. Si la primera llamada todavía está a mitad de extraer el bootstrap (borra

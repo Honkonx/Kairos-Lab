@@ -34,7 +34,7 @@ object RootAccess {
      * dispositivo no se rootea/desrootea en caliente mientras la app corre). Mismo one-liner ya
      * usado en `modulos/docker.sh` (`command -v su && su -c "id"`), portado a `ProcessBuilder`.
      *
-     * Bug real corregido 2026-09-14 (ver `docs/humano334.md`): un timeout (el gestor de root
+     * Bug real corregido 2026-09-14: un timeout (el gestor de root
      * mostrando su diálogo de confirmación mientras el usuario todavía no respondió) se
      * cacheaba como `false` para siempre, sin distinguirlo de "el usuario denegó" — un usuario
      * que otorgaba el permiso DESPUÉS de ese primer timeout seguía viendo "sin root" en Kairos

@@ -48,13 +48,13 @@ export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 export LD_LIBRARY_PATH="$TERMUX_PREFIX/lib"
 export DEBIAN_FRONTEND=noninteractive
 
-# Bug real (2026-08-06, ver docs/humano/humano77.md): este script llama a
+# Bug real (2026-08-06): este script llama a
 # pkg_update_with_fallback() en el PASO 2 pero nunca importaba lib.sh (donde
 # vive esa función) — el error "command not found" se tragaba en silencio
 # (sin set -e) y el PASO 2 terminaba sin refrescar el índice de paquetes
 # contra ningún mirror, marcándose igual como completado.
 #
-# Bug real #2 (2026-08-27, ver docs/humano261.md, reproducido de punta a punta con el
+# Bug real #2 (2026-08-27, reproducido de punta a punta con el
 # wizard real en dispositivo): el fix de arriba asume que lib.sh vive en el MISMO
 # directorio que kairos.sh — pero KairosBootstrap.kt::doExtract() extrae kairos.sh
 # directo a ~/scripts/kairos.sh (caso especial) mientras que TODO el resto de scripts,
@@ -102,7 +102,7 @@ _kairos_help() {
 
   if [ "$_id" = "--install-glow" ]; then
     info "Instalando glow (renderer de markdown en terminal)..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC).
     pkg_update_with_fallback
     pkg install glow -y || error "No se pudo instalar glow"
     log "glow instalado — usá: kairos help <módulo>"
@@ -157,7 +157,7 @@ mark_done()  { echo "$1" >> "$CHECKPOINT"; }
 
 # Helper: pkg install
 pkg_install() {
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md — cubre
+  # Bug real, mismo patrón que bug #21 (VNC) — cubre
   # a todos los llamadores de este helper en un solo lugar (DRY).
   pkg_update_with_fallback
   # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): antes esto pipeaba a
@@ -235,7 +235,7 @@ if check_done "pkg_update"; then
   log "Termux ya actualizado [checkpoint]"
 else
   info "Actualizando repositorios..."
-  # Quick win de la auditoría de referencia/ (2026-08-05, ver docs/humano70.md) — antes
+  # Quick win de la auditoría de referencia/ (2026-08-05) — antes
   # probaba solo 2 mirrors fijos en orden; ahora comparte la misma selección por
   # velocidad real que ya usaba entorno.sh (5 mirrors, medida vía curl).
   pkg_update_with_fallback
@@ -306,7 +306,7 @@ else
     libopenblas \
     || warn "Algunos paquetes build tuvieron advertencias"
 
-  # Fix real (auditoría QA 2026-09-14, docs/humano338.md): este paso mezcla paquetes
+  # Fix real (auditoría QA 2026-09-14): este paso mezcla paquetes
   # realmente críticos (clang/make/rustc, de los que varios módulos dependen para compilar
   # desde fuente) con otros más opcionales — el "|| warn" de arriba solo avisa un fallo
   # combinado del pkg install completo, y mark_done corre siempre, sin importar cuáles
@@ -344,7 +344,7 @@ else
     patchelf-glibc \
     || warn "Algunos paquetes glibc tuvieron advertencias"
 
-  # Verificar ld.so — bug real confirmado (auditoría 2026-08-01, ver docs/humano/humano42.md):
+  # Verificar ld.so — bug real confirmado (auditoría 2026-08-01):
   # esto antes era solo un warn() informativo, mark_done corría igual sin importar el
   # resultado. Mismo patrón de "checkpoint marcado sin verificar" ya corregido varias
   # veces esta sesión en scripts de módulo — acá vive en la infraestructura BASE
@@ -399,7 +399,7 @@ else
     dos2unix \
     || warn "Algunas utilidades tuvieron advertencias"
 
-  # Fix real (auditoría QA 2026-09-14, docs/humano338.md): mismo motivo que PASO 4 — chequeo
+  # Fix real (auditoría QA 2026-09-14): mismo motivo que PASO 4 — chequeo
   # visible por binario en vez de un "|| warn" combinado que esconde cuál paquete puntual
   # falló. No aborta (best-effort, mismo criterio ya existente para este paso).
   for cmd in nano lsof ps bc dos2unix; do
@@ -438,7 +438,7 @@ if check_done "npm_globals" && command -v pm2 &>/dev/null; then
   log "npm globales ya instalados [checkpoint]"
 else
   if command -v npm &>/dev/null; then
-    # Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): "npm install
+    # Bug real (auditoría 2026-08-05): "npm install
     # -g npm" sobreescribe el npm parcheado para Termux (shebang sin /usr/bin/env, que
     # acá no existe) con uno genérico del registry — "bad interpreter" en cualquier
     # npm posterior (corepack/pm2 de abajo incluidos). El npm que ya trae nodejs-lts
@@ -621,7 +621,7 @@ _kairos_module_script() {
 }
 
 if [ "$1" = "install" ] || [ "$1" = "reinstall" ]; then
-  # Bug real #2 (auditoría forense 2026-08-29, docs/humano285.md, ver el guard exportado en
+  # Bug real #2 (auditoría forense 2026-08-29, ver el guard exportado en
   # lib.sh): un módulo que YA está corriendo (python.sh, ollama.sh variante standard,
   # cactus.sh, ciberseguridad.sh, hf.sh, mistralvibe.sh, stacks.sh — todos instalan el
   # paquete real "python"/"ollama" de Termux con una lista de UN solo elemento que coincide
@@ -833,7 +833,7 @@ registry_write kairos \
   "node=$(node --version 2>/dev/null || echo 'none')" \
   "npm=$(npm --version 2>/dev/null || echo 'none')"
 
-# 2026-08-11 (humano97 feedback): python3 se instala como parte del bootstrap/rootfs
+# 2026-08-11 (feedback real del usuario): python3 se instala como parte del bootstrap/rootfs
 # (rootfs_package_list.txt), pero kairos.sh solo escribía kairos.python=<versión> y NUNCA
 # python.installed=true -> PythonFragment.isModuleInstalled() (registry) decía
 # "Python no está instalado" aunque el binario exista. El módulo python también registra

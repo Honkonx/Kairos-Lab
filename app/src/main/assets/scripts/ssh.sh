@@ -36,7 +36,7 @@
 #
 #  REPO: https://github.com/Honkonx/termux-ai-stack
 #  VERSIÓN: 2.2.0 | Agosto 2026 (agrega mosh-server best-effort — auditoría de
-#  referencia/interfaz/Haven-main/, ver docs/humano/humano170.md)
+#  referencia/interfaz/Haven-main/)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -222,7 +222,7 @@ else
 
   if [ ${#DEPS_TO_INSTALL[@]} -gt 0 ]; then
     info "Instalando: ${DEPS_TO_INSTALL[*]}..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón ya visto en el módulo VNC.
     pkg_update_with_fallback
     pkg install -y \
       -o Dpkg::Options::="--force-confdef" \
@@ -389,7 +389,7 @@ if ! check_done "mosh_install"; then
     mark_done "mosh_install"
   else
     info "Instalando mosh (sesiones resilientes a cambios de red)..."
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón ya visto en el módulo VNC.
     pkg_update_with_fallback
     pkg install -y mosh && command -v mosh-server &>/dev/null && {
       log "mosh-server instalado"

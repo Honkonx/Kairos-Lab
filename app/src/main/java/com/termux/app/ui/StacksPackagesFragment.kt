@@ -12,7 +12,7 @@ import com.termux.shared.termux.TermuxConstants
 import java.io.File
 
 /**
- * "📦 Paquetes necesarios" — pantalla propia (reorganización 2026-08-23, ver docs/humano208.md,
+ * "📦 Paquetes necesarios" — pantalla propia (reorganización 2026-08-23,
  * pedido explícito del usuario: "no es quitar opciones es reorganizarlas"). Antes esto vivía
  * como 4 cards con 8 botones sueltos directo en la pantalla principal de StacksFragment — MISMA
  * lógica exacta (mismos presets, mismo mecanismo `stacks.sh --preset <id> [--distro <nombre>]
@@ -82,7 +82,7 @@ class StacksPackagesFragment : BaseModuleFragment() {
                 "dotnet", getString(R.string.stacks_packages_preset_dotnet_title),
                 getString(R.string.stacks_packages_preset_dotnet_summary), emptyList()
             ),
-            // Gap real confirmado por auditoría QA (2026-09-14, docs/humano338.md):
+            // Gap real confirmado por auditoría QA (2026-09-14):
             // modulos/stacks.sh ya soporta "--preset linux-completo [--flavor debian|ubuntu]"
             // desde hace tiempo (VALID_PRESETS lo incluye), pero esta pantalla nunca lo
             // ofrecía — es un caso distinto de los demás presets (SIEMPRE proot-distro
@@ -105,7 +105,7 @@ class StacksPackagesFragment : BaseModuleFragment() {
 
     private val distroRows = mutableListOf<android.view.View>()
 
-    // Catálogo de frameworks/librerías extra por preset (2026-08-23, ver docs/humano209.md,
+    // Catálogo de frameworks/librerías extra por preset (2026-08-23,
     // pedido explícito: "en entorno faltan muchas configuracion o lenjuages tipo fash api de
     // python [...] investiga y agregalos") — mismo catálogo que extra_packages_catalog() en
     // modulos/stacks.sh, no una lista inventada acá. Nombres de librerías/frameworks (fastapi,
@@ -121,7 +121,7 @@ class StacksPackagesFragment : BaseModuleFragment() {
 
     private val selectedExtras = mutableMapOf<String, MutableSet<String>>()
 
-    // Ícono por preset (2026-08-23, rediseño visual real — ver docs/humano209.md, el usuario
+    // Ícono por preset (2026-08-23, rediseño visual real — el usuario
     // rechazó la ronda anterior por ser solo reordenamiento sin diseño real).
     private fun iconFor(preset: Preset): String = when (preset.id) {
         "python-postgres" -> "🐍"

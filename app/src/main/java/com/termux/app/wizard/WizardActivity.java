@@ -15,8 +15,8 @@ import com.termux.app.TermuxActivity;
  * Host del wizard de primer arranque — 6 pantallas en un ViewPager2 (bienvenida ->
  * permisos -> procesos fantasma -> batería -> instalación -> comprobar paquetes), cada una
  * su propio Fragment (Wizard*Fragment.kt). Patrón tomado de ver/MiceWine-Application-master/
- * (WelcomeActivity + ViewPager2 + FragmentStateAdapter), pedido explícito del usuario
- * — ver docs/humano/humano12.md. Rediseño 2026-08-04 (ver docs/humano53.md/humano54.md):
+ * (WelcomeActivity + ViewPager2 + FragmentStateAdapter), pedido explícito del usuario.
+ * Rediseño 2026-08-04:
  * procesos fantasma y batería pasaron de ser popups dentro del paso de instalación a
  * pantallas propias, no bloqueantes. Esta clase queda deliberadamente delgada: la lógica
  * real de cada pantalla vive en su propio Fragment, esta Activity solo aloja el pager y
@@ -32,10 +32,10 @@ public class WizardActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // Bug real confirmado en dispositivo (auditoría ADB 2026-08-22, ver docs/humano/humano199.md):
+        // Bug real confirmado en dispositivo (auditoría ADB 2026-08-22):
         // el manifest declara esta Activity con el tema base "Theme.TermuxApp.DayNight.
-        // NoActionBar" (sin los atributos ?attr/kairos* del selector de temas introducido en
-        // humano190), y sin este applyTheme() ANTES de super.onCreate() ese tema nunca se
+        // NoActionBar" (sin los atributos ?attr/kairos* del selector de temas), y sin
+        // este applyTheme() ANTES de super.onCreate() ese tema nunca se
         // reemplaza por uno de los 3 reales (Theme.Kairos.Oscuro/Senal/Claro) — cualquier color
         // resuelto vía ?attr/kairos* (XML) o kairosThemeColor() (Kotlin, ver
         // WizardWelcomeFragment/WizardPermissionsFragment/etc.) caía en el valor por defecto

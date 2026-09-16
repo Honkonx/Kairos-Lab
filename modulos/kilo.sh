@@ -17,10 +17,10 @@
 #       loader glibc de Termux — comando: kilo
 #    ✅ Registry actualizado
 #
-#  QUÉ CAMBIÓ (v2.0.0, 2026-08-24, ver docs/humano215.md):
+#  QUÉ CAMBIÓ (v2.0.0, 2026-08-24):
 #    v1.0.0 instalaba vía "npm install -g @kilocode/cli" — el package.json
-#    de ese paquete no lista "android" en su campo "os" (--force lo saltea,
-#    ver v1.1.0/humano212), pero incluso saltando eso, su postinstall.mjs
+#    de ese paquete no lista "android" en su campo "os" (--force lo saltea
+#    desde v1.1.0), pero incluso saltando eso, su postinstall.mjs
 #    busca un paquete opcional "@kilocode/cli-android-arm64" que
 #    Kilo-Org nunca publicó en npm (404 real, confirmado 2026-08-24) — el
 #    mismo patrón de raíz que mimocode v1 (paquete de plataforma inexistente
@@ -40,7 +40,7 @@
 #    Kilo Code es un fork del motor OpenCode (el mismo que Kairos ya
 #    instala como módulo opencode) con su propio ecosistema/proveedores.
 #    Se mantiene como módulo separado porque es un binario/paquete distinto
-#    y el usuario puede querer ambos (ver docs/humano/humano123.md).
+#    y el usuario puede querer ambos.
 #
 #  OUTPUT (modo --silent):
 #    [STEP] descripción
@@ -48,7 +48,7 @@
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
 #  VERSIÓN: 2.0.0 | Agosto 2026 (binario nativo ARM64 + glibc, reemplaza el
-#  método npm roto — ver docs/humano215.md)
+#  método npm roto)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -94,7 +94,7 @@ if $DESCRIBE_FILES; then
       version_registry_key: "kilo.version",
       files: [{path: $path, required: true, note: "Wrapper que ejecuta el binario nativo ARM64 parcheado con patchelf, resuelto por PATH al momento de empaquetar"}],
       file_globs: [
-        {pattern: $glob, required: true, note: "binario real (~/.local/share/kilo/kilo) parcheado con patchelf, que el wrapper de arriba exec-a — bug real confirmado en dispositivo (docs/humano281.md): sin esto el wrapper queda roto en un device nuevo"}
+        {pattern: $glob, required: true, note: "binario real (~/.local/share/kilo/kilo) parcheado con patchelf, que el wrapper de arriba exec-a — bug real confirmado en dispositivo: sin esto el wrapper queda roto en un device nuevo"}
       ],
       dependencies: [
         {id: "glibc_ld", check_cmd: "[ -f \"$PREFIX/glibc/lib/ld-linux-aarch64.so.1\" ]", install_hint: "pkg install -y glibc-repo && pkg install -y glibc"},
@@ -132,7 +132,7 @@ get_installed_ver() {
 # mismo mecanismo de descubrimiento en vivo que freebuff.sh/mimocode.sh — no
 # hardcodear nombres de tag/asset/binario).
 #
-# Bug real confirmado 2026-08-27 (docs/humano269.md, auditoría ADB): Kilo-Org/kilocode
+# Bug real confirmado 2026-08-27 (auditoría ADB): Kilo-Org/kilocode
 # publica DOS streams de releases bajo el mismo repo — la CLI nativa (assets
 # "*-linux-arm64.tar.gz") y el plugin de JetBrains (tags "jetbrains/vX.Y.Z", assets .zip,
 # SIN ningún linux-arm64.tar.gz). /releases/latest de GitHub devuelve la release MÁS
@@ -171,7 +171,7 @@ _kilo_download_native() {
   tar -zxf "$tmp/$tarball" -C "$KILO_DIR" 2>/dev/null || { rm -rf "$tmp"; return 1; }
   rm -rf "$tmp"
 
-  # Bug real encontrado 2026-08-24 (ver docs/humano216.md): el tarball trae
+  # Bug real encontrado 2026-08-24: el tarball trae
   # VARIOS archivos ejecutables además del binario real (bwrap, kilo-sandbox-
   # seccomp, kilo-sandbox-*.js) — a diferencia de freebuff/mimocode que
   # extraen un único binario limpio. "find | head -1" agarraba el primero

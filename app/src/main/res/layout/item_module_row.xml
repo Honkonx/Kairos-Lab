@@ -32,8 +32,8 @@
                 android:orientation="horizontal"
                 android:padding="12dp">
 
-                <!-- Badge de estado superpuesto (esquina inferior-derecha, patrón Proxmox VE
-                     — ver docs/humano/humano194.md): el ícono se mantiene fijo, un punto chico de
+                <!-- Badge de estado superpuesto (esquina inferior-derecha, patrón Proxmox VE):
+                     el ícono se mantiene fijo, un punto chico de
                      color comunica el Status sin recolorear toda la fila; el borde
                      kairosBg2 (mismo fondo que la card) lo "recorta" visualmente sobre el
                      ícono en vez de quedar pegado sin separación. -->

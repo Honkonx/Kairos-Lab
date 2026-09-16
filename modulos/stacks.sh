@@ -77,8 +77,8 @@
 #                            para arrancar cada pieza) — la UI filtra
 #                            estas líneas para mostrar el resultado.
 #
-#  MODO PROYECTO REAL (--project-path, agregado en v1.2.0, a partir del
-#  pedido "tengo un proyecto que usa python y sqlite en
+#  MODO PROYECTO REAL (--project-path, agregado en v1.2.0, a pedido de
+#  "tengo un proyecto que usa python y sqlite en
 #  backend y react+vite o html/javascript en frontend"):
 #    bash stacks.sh --project-path <carpeta> --project-action detect --silent
 #    bash stacks.sh --project-path <carpeta> --project-action install [--project-target native|distro|udocker] [--project-distro <nombre>] --silent
@@ -432,7 +432,7 @@ _install_essentials() {
 }
 
 # Instalación REAL dentro de la distro (ya no es un MVP de "copiar y sugerir"
-# — a partir del pedido: "automatizalo de verdad, al mismo nivel
+# — a pedido de "automatizalo de verdad, al mismo nivel
 # que nativo/udocker"). Copia el proyecto dentro del rootfs real de la distro
 # (resuelto vía _distro_rootfs_dir(), layout dual — ver ese comentario para el
 # bug real que esto reemplazó) y después instala el set completo de paquetes

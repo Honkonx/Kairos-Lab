@@ -3,7 +3,7 @@
     <attr name="termuxActivityDrawerBackground" format="reference" />
     <attr name="termuxActivityDrawerImageTint" format="reference" />
 
-    <!-- Atributos de tema Kairos (2026-08-22, ver docs/humano/humano190.md) — permiten elegir entre
+    <!-- Atributos de tema Kairos (2026-08-22) — permiten elegir entre
          3 temas (Oscuro/Señal/Claro, ver themes_kairos.xml) sin tocar los layouts/Kotlin que ya
          referencian estos colores: primero usaban @color/kairos_* fijo (un solo tema posible);
          ahora ?attr/kairos* resuelve contra el tema activo de la Activity. La migración es
@@ -30,7 +30,7 @@
     <attr name="kairosStatusError" format="color" />
     <attr name="kairosStatusNotInstalled" format="color" />
 
-    <!-- Atributos de tema de Estudio/IDE (2026-08-22, ver docs/humano/humano202.md y
+    <!-- Atributos de tema de Estudio/IDE (2026-08-22, ver
          docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §3) — sistema de temas
          INDEPENDIENTE del tema del apk (?attr/kairos*): pedido explícito del usuario, "el tema
          del ide/estudio no debe ser el mismo que el del apk". Fase mínima (StudioThemePrefs.kt):

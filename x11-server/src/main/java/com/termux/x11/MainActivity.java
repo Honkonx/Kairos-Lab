@@ -245,7 +245,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
             return mInputHandler.sendKeyEvent(v, e);
         };
         // Kairos: bug real (reporte usuario 2026-08-14, "no funciona el tactil, ni al
-        // tocar o deslizar" — ver docs/humano/). Este listener venia stub desde el commit
+        // tocar o deslizar"). Este listener venia stub desde el commit
         // original que embebio el modulo (fc62af1, heredado del fork Linbox, ver
         // referencia/emuladores/linbox-main/termux-x11/.../MainActivity.java) — consumia
         // TODO evento touch (devuelve true) sin reenviarlo nunca a mInputHandler, dejando
@@ -289,7 +289,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
             }
         });
 
-        // Bug real (2026-08-13, ver docs/humano/humano116.md): la llamada de 3 argumentos
+        // Bug real (2026-08-13): la llamada de 3 argumentos
         // Context.registerReceiver(receiver, filter, int flags) recién existe desde API 33
         // (Tiramisu) — con minSdk=24, invocarla directo (aunque el flag pasado para SDK menor
         // fuera 0) tira NoSuchMethodError en dispositivos Android 7-12. Además, exportar el
@@ -353,7 +353,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
 
     /**
      * Kairos: el botón atrás del visor X11 ofrece un diálogo con dos acciones
-     * (feedback del usuario 2026-08-11, ver docs/humano/humano97.md punto 7):
+     * (feedback del usuario 2026-08-11):
      * - **Minimizar** → moveTaskToBack(true): la app pasa a segundo plano pero el
      *   servidor X11 sigue corriendo (patrón del visor de termux-x11/linbox).
      * - **Cerrar servidor X11** → detiene el servicio :xserver (X11Service) y cierra
@@ -375,7 +375,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
      * Kairos: diálogo Minimizar/Cerrar servidor X11 — compartido entre el back del sistema
      * (onBackPressed()) y el botón flotante transparente (x11_float_menu_button, ver
      * main_activity.xml) agregado a pedido explícito del usuario ("boton tranparente dentro
-     * de x11 para minimizar, cerrar etc", ver docs/humano/humano98.md). Antes solo era
+     * de x11 para minimizar, cerrar etc"). Antes solo era
      * alcanzable con el gesto/botón back del sistema — el botón flotante da acceso al mismo
      * menú sin depender de eso (útil con teclado/mouse externos, donde back no siempre está
      * a mano).

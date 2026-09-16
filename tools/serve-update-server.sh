@@ -22,8 +22,8 @@ set -euo pipefail
 #   tools/serve-update-server.sh <versionCode> <versionName> [puerto]
 #   tools/serve-update-server.sh 128 0.1.1-test 8085
 #
-# Requiere: bash, python3, ./gradlew (build local — ver
-# .claude/rules/kairos-rootfs-local-build.md para el criterio de build local en esta PC).
+# Requiere: bash, python3, ./gradlew (build local — no necesita empaquetar el rootfs
+# embebido para este flujo de prueba).
 
 if [ "${1:-}" = "" ] || [ "${2:-}" = "" ]; then
     echo "Uso: $0 <versionCode> <versionName> [puerto]" >&2

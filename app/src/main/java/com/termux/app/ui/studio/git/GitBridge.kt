@@ -153,7 +153,7 @@ object GitBridge {
 
     /** `git stash push` — guarda cambios locales (staged + unstaged, no untracked) en la pila
      * de stash y limpia el working tree. Hallazgo real de la auditoría de `referencia/ides/`
-     * (2026-08-31, ver `docs/humano/`): GitBridge cubría status/log/diff/commit/push/pull pero
+     * (2026-08-31): GitBridge cubría status/log/diff/commit/push/pull pero
      * no stash — hueco real, bajo riesgo, mismo patrón `runGit` que el resto del archivo. */
     fun stashSave(projectPath: String, callback: (GitResult<String>) -> Unit) {
         val command = "git -C ${quote(projectPath)} stash push"

@@ -29,8 +29,8 @@ class ClaudeFragment : BaseModuleFragment() {
     private lateinit var oauthStatusSlot: LinearLayout
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-    // CLAUDE_CODE_OAUTH_TOKEN (~/.claude_oauth_token) — ver
-    // .claude/rules/kairos-secrets-never-revealed.md.
+    // CLAUDE_CODE_OAUTH_TOKEN (~/.claude_oauth_token) — una vez guardado no se vuelve
+    // a mostrar en la UI, solo reemplazar/borrar.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -47,9 +47,9 @@ class ClaudeFragment : BaseModuleFragment() {
         if (!isModuleInstalled()) { showNotInstalled(getModuleName()); return }
         addCard(getString(R.string.claude_card_estado)) {
             addView(infoRow(getString(R.string.claude_label_method), getString(R.string.claude_value_native_glibc)))
-            // claude.sh escribe claude.version al registry en cada instalación (fix real de
-            // esta ronda — antes tenía un mismatch de prefijo, claude_code.* vs claude.*, ver
-            // docs/humano/humano34.md) — este valor estaba hardcodeado en "—" sin leerlo nunca.
+            // claude.sh escribe claude.version al registry en cada instalación (fix real:
+            // antes tenía un mismatch de prefijo, claude_code.* vs claude.*) — este valor
+            // estaba hardcodeado en "—" sin leerlo nunca.
             val claudeVersion = com.termux.app.data.ModuleRegistry(requireContext()).load().get("claude.version")
             addView(infoRow(getString(R.string.claude_label_version), claudeVersion?.ifBlank { getString(R.string.claude_placeholder_dash) } ?: getString(R.string.claude_placeholder_dash)))
             estadoPillSlot = LinearLayout(requireContext()).apply {
@@ -461,7 +461,7 @@ class ClaudeFragment : BaseModuleFragment() {
     // Captura genérica de un subcomando de una sola pasada (doctor, auth status) — mismo patrón
     // que CodexFragment.runExecCapture: corre en background con ManagerNativeUtils.runShell (PATH
     // de Termux real) en vez de abrir una terminal solo para mostrar output, guard estándar de
-    // Fragment-adjunto (kotlin-kairos-android-patterns.md). Reusa ClaudeNative.openCmd para el
+    // Fragment-adjunto (patrón usado en todo el proyecto). Reusa ClaudeNative.openCmd para el
     // mismo comando/entorno detectado (native vs legacy) que ya usa "Abrir en directorio raíz".
     private fun runCaptureDialog(subcommand: String, title: String) {
         val progress = AlertDialog.Builder(requireContext())

@@ -27,12 +27,12 @@
              selecting text on pre-6.0 (non-floating toolbar). -->
         <item name="android:windowActionModeOverlay">true</item>
 
-        <!-- Bug real, 4to intento (2026-08-07, ver docs/humano/humano89.md): humano83 había
-             reemplazado estos flags legacy por android:statusBarColor/navigationBarColor
+        <!-- Bug real, 4to intento (2026-08-07): una ronda anterior había reemplazado estos
+             flags legacy por android:statusBarColor/navigationBarColor
              transparentes, razonando que eran incompatibles con el modelo moderno de
              edge-to-edge manual (setDecorFitsSystemWindows(false)). El bug NO se resolvió con
-             ese cambio (humano86 lo confirmó en dispositivo real). Investigación más profunda
-             (humano89) confirmó que termux-app real y todos los forks de referencia
+             ese cambio (confirmado en dispositivo real). Investigación más profunda
+             confirmó que termux-app real y todos los forks de referencia
              comparados usan estos flags legacy sin ningún problema — porque NINGUNO de ellos
              usa edge-to-edge manual en absoluto, dejan que el sistema clásico maneje el
              resize. Revertido a coincidir con eso (TermuxActivity.java ya no llama

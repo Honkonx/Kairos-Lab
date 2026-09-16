@@ -25,6 +25,10 @@
         android:icon="@drawable/ic_homelab"
         android:title="Homelab"/>
     <item
+        android:id="@+id/nav_automations"
+        android:icon="@drawable/ic_automation"
+        android:title="Automatizaciones"/>
+    <item
         android:id="@+id/nav_settings"
         android:icon="@drawable/ic_settings"
         android:title="Config"/>

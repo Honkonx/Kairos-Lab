@@ -1,7 +1,7 @@
 #!/bin/sh
 # kairos-llm — copia los .so dependientes de llama-server a los assets generados.
 #
-# Bug real (2026-08-06, ver docs/humano/humano84.md): un "bash -c '...'" con comillas
+# Bug real (2026-08-06): un "bash -c '...'" con comillas
 # anidadas directo en el COMMAND de add_custom_command (CMakeLists.txt) se corrompía al
 # pasar por 2 capas de escapado de shell (CMake -> ninja -> sh) — confirmado en log real de
 # CI: "cp: target '2': No such file or directory" / "/bin/sh: 1: true: not found", la
@@ -10,7 +10,7 @@
 # embebidos en el COMMAND de CMake), evita ese problema de raíz — solo hay UNA capa de shell
 # real acá adentro.
 #
-# Bug real de peso (2026-08-27, ver docs/humano263.md): este "cp" copiaba los .so TAL CUAL
+# Bug real de peso (2026-08-27): este "cp" copiaba los .so TAL CUAL
 # salen de ninja — con toda la info de debug, "not stripped" (confirmado con `file`: mismo
 # BuildID que la copia paralela que Android deja en lib/<abi>/, pero esa segunda copia SÍ
 # queda stripped porque AGP la optimiza automáticamente al empaquetar el APK; ESTA copia

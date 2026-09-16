@@ -94,7 +94,7 @@ object ModuleEventBridge {
     private fun pipeFile(): File = File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".kairos_events")
 
     /**
-     * Bug real confirmado (ver docs/humano/humano63.md, auditoría de ProcessBuilder): usaba
+     * Bug real confirmado (auditoría de ProcessBuilder): usaba
      * `"mkfifo"` por nombre relativo y solo seteaba `PATH` a mano (sin HOME/PREFIX/
      * LD_LIBRARY_PATH/SHELL) — entorno incompleto, mismo patrón del bug original de julio.
      * Se llama UNA sola vez, al arrancar la app (`TermuxApplication.onCreate()`) — la

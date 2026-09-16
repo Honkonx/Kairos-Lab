@@ -26,7 +26,7 @@ interface CommandHost {
     fun onAskAi()
     /** Selector rápido de tema de Estudio (independiente del tema del apk, ver
      * `StudioThemePrefs.kt`) — faltaba en la paleta pese a ya estar en el menú overflow desde
-     * `docs/humano/humano202.md`; agregado en la reorganización del menú "⋮" del 2026-09-03. */
+     * antes; agregado en la reorganización del menú "⋮" del 2026-09-03. */
     fun onStudioTheme()
 
     /** Señales de estado para calcular [Command.isEnabled] — agregadas en la ronda 2026-09-01

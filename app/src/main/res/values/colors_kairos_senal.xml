@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema "Señal" (2026-08-22, ver docs/humano/humano190.md) — azul-negro tipo panel de control,
+    <!-- Tema "Señal" (2026-08-22) — azul-negro tipo panel de control,
          acento cian único en vez de los 4 colores saturados default de "Oscuro". Aplicado vía
          Theme.Kairos.Senal (themes_kairos.xml), nunca referenciado directo desde layouts. -->
     <color name="kairos_senal_bg">#0A0E14</color>

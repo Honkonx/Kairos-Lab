@@ -11,7 +11,7 @@
 #  zipalign (alineación) → apksigner (firma). Se implementa aquí
 #  adaptado al contrato de scripts de KairosApp (lib.sh, registry,
 #  checkpoints) y a los paquetes nativos aarch64 de Termux.
-#  Nota de atribución (auditoría 2026-08-13, humano107, ver
+#  Nota de atribución (auditoría 2026-08-13, ver
 #  docs/referencias/REFERENCIA_TERMUX_APK_MAKE.md): el mirror
 #  Sable/android-platforms para android.jar NO está documentado en el
 #  README de termux-apk-make (que ni siquiera trae un script real, solo
@@ -63,7 +63,7 @@
 #    compil-apk-termux merge <base.apk> <partes...> → split APKs fusionados
 #    compil-apk-termux decode <apk> <dir>    → extrae + manifest legible
 #
-#  NIVEL 2 (C5, humano123): parser de salida del compilador portado a
+#  NIVEL 2 (C5): parser de salida del compilador portado a
 #  bash del CompilerOutputParser de CodeAssist (formato GNU
 #  archivo:linea:col: error|warning:, ver referencia/ides/CodeAssist-main/
 #  build-engine/.../CompilerOutputParser.kt) + subcomandos info/merge/decode.
@@ -74,7 +74,7 @@
 #  - decode = extracción del APK + AndroidManifest legible (aapt2 xmltree);
 #             smali/decompile completo necesita pkg install apktool
 #
-#  INSTRUMENTACIÓN SIN ROOT (2026-09-12, ver docs/humano331.md — fuente
+#  INSTRUMENTACIÓN SIN ROOT (2026-09-12 — fuente
 #  VictorH028/no-root-logger, https://github.com/VictorH028/no-root-logger,
 #  clonado a ver/no-root-logger para la auditoría): subcomandos
 #  instrument-decode/instrument-search/instrument-methods/instrument-apply +
@@ -95,7 +95,7 @@
 #  VERSIÓN: 2.2.0 | Septiembre 2026 (instrumentación sin root, ver arriba)
 #  VERSIÓN previa: 2.1.0 | Agosto 2026 (pedido 2026-08-13: "el compilador apk
 #  de i-haklab... compilar apk dentro de download o en sus sub carpetas
-#  o en la carpeta home/proyectos" — ver humano102; nivel 2 = C5 humano123)
+#  o en la carpeta home/proyectos"; nivel 2 = C5)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -207,7 +207,7 @@ if ! $SILENT; then
 fi
 
 # ── PASO 1 — Herramientas de compilación ───────────────────────
-# Bug real encontrado 2026-08-24 (ver docs/humano212.md): "zipalign" NO es
+# Bug real encontrado 2026-08-24: "zipalign" NO es
 # el nombre de un paquete de Termux ("E: Unable to locate package zipalign",
 # confirmado con `pkg search zipalign` sin resultados) — el binario zipalign
 # lo trae el paquete "aapt" (Android Asset Packaging Tool, distinto de
@@ -225,7 +225,7 @@ else
   # ANTES de que Java (redirectErrorStream) pudiera capturarlo, así que el
   # log persistente (install_apk.log) saltaba directo de "Reading state
   # information..." a "[ERROR] ..." sin mostrar qué paquete falló ni por qué
-  # (bug reportado 2026-08-14, ver docs/humano/). Ahora se captura stdout+stderr
+  # (bug reportado 2026-08-14). Ahora se captura stdout+stderr
   # completo y se vuelca al log solo si algo falla, para no ensuciar el log
   # en el caso exitoso.
   _APK_TOOLS_OUT=$(pkg install aapt2 openjdk-17 d8 aapt apksigner unzip zip wget -y 2>&1)
@@ -367,8 +367,8 @@ KEYSTORE="${APK_KEYSTORE:-$HOME/.local/share/kairos-apk/key.keystore}"
 KEY_ALIAS="${APK_ALIAS:-kairos}"
 KEY_PASS="${APK_PASS:-password}"
 
-# ── Instrumentación "sin root" (fuente VictorH028/no-root-logger, ver
-#    docs/humano331.md) — decompila con apktool, inyecta llamadas a un logger
+# ── Instrumentación "sin root" (fuente VictorH028/no-root-logger)
+#    — decompila con apktool, inyecta llamadas a un logger
 #    remoto vía smali_hook.py, recompila, agrega RemoteLogger+liblogger.so
 #    como un dex/lib adicionales (sin tocar el .smali del logger a mano) y
 #    vuelve a firmar. LOGGER_DIR trae el payload fuente (extraído por
@@ -411,7 +411,7 @@ cmd_merge() {
   # Los splits traen AndroidManifest.xml duplicado (idéntico entre partes) — se conserva
   # el de la base; des-dupear entries duplicadas no es posible sin un merge semántico.
   echo "── empaquetando"
-  # -n .arsc:.so (2026-09-12, ver docs/humano331.md — mismo bug confirmado y arreglado en
+  # -n .arsc:.so (2026-09-12, mismo bug confirmado y arreglado en
   # cmd_instrument_apply): sin esto, resources.arsc queda comprimido y Android 30+ rechaza el
   # install ("Targeting R+ ... requires the resources.arsc ... stored uncompressed").
   ( cd "$work" && zip -q -r -n .arsc:.so "$out" . -x "*.idsig" )
@@ -462,7 +462,7 @@ cmd_build() {
 
   BUILD_DIR="$PROJECT/build"
   rm -rf "$BUILD_DIR"
-  # Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por ADB):
+  # Bug real encontrado 2026-08-24 (pruebas funcionales reales por ADB):
   # faltaba crear "$BUILD_DIR/dex" acá — d8 (PASO de dex más abajo) requiere que su "--output" ya
   # exista como directorio real ("Invalid output: .../build/dex — Output must be a .zip or .jar
   # archive or an existing directory", confirmado en el stacktrace real de R8/d8 al compilar un
@@ -631,7 +631,7 @@ cmd_instrument_methods() {
 }
 
 # ── liblogger.so + classes-logger.dex (compilados UNA vez, reusados en cada
-#    instrumentación) — ver docs/humano331.md para el porqué de este diseño
+#    instrumentación) — diseño elegido
 #    (RemoteLogger se agrega como dex/lib adicionales al APK ya recompilado
 #    en vez de traducirlo a mano a .smali para inyectarlo junto al resto). ──
 _ensure_logger_lib() {
@@ -708,7 +708,7 @@ cmd_instrument_apply() {
   mkdir -p "$HOME/proyectos/instrumented"
   local _out="$HOME/proyectos/instrumented/$(basename "$work").apk"
   rm -f "$_out"
-  # -n .arsc:.so (2026-09-12, confirmado en dispositivo real, ver docs/humano331.md): "zip"
+  # -n .arsc:.so (2026-09-12, confirmado en dispositivo real): "zip"
   # comprime TODO por default, incluido resources.arsc — Android 30+ exige resources.arsc
   # SIN comprimir y alineado a 4 bytes ("pm install" real: "Failed parse during
   # installPackageLI: Targeting R+ (version 30 and above) requires the resources.arsc of

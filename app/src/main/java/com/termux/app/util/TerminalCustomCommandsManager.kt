@@ -21,8 +21,8 @@ import java.util.UUID
  *
  * Persistencia en [SharedPreferences] planas con un JSON array — mismo patrón que
  * `RecentProjectsManager` (`app/src/main/java/com/termux/app/ui/studio/project/RecentProjectsManager.kt`):
- * sin cifrar a propósito, los comandos de terminal no son secretos (a diferencia de credenciales,
- * ver `.claude/rules/kairos-secrets-never-revealed.md`, que no aplica acá).
+ * sin cifrar a propósito, los comandos de terminal no son secretos (a diferencia de
+ * credenciales, que nunca se vuelven a mostrar — eso no aplica acá).
  */
 class TerminalCustomCommandsManager(context: Context) {
 

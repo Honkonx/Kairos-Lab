@@ -89,8 +89,8 @@
     <string name="file_manager_clipboard_multi">%1$d files</string>
     <string name="file_manager_toast_batch_result">%1$d done, %2$d failed</string>
     <string name="file_manager_dialog_msg_delete_batch">Delete %1$d items? This cannot be undone.</string>
-    <!-- Persistent clipboard bar + real confirmation on paste (UX fix 2026-09-14,
-         docs/humano334.md — before there was only a fleeting ~2.75s Snackbar as the only signal). -->
+    <!-- Persistent clipboard bar + real confirmation on paste (UX fix 2026-09-14 — before
+         there was only a fleeting ~2.75s Snackbar as the only signal). -->
     <string name="file_manager_clipboard_bar_cancel">Cancel</string>
     <string name="file_manager_dialog_msg_paste">Paste %1$s into this folder?</string>
     <!-- Bookmarks + browser-style navigation history (low-effort #2) -->
@@ -163,7 +163,7 @@
     <string name="install_sheet_variant_n8n_udocker_desc">Official n8nio/n8n image, no proot, ~800MB</string>
     <string name="install_sheet_variant_n8n_proot_title">⚡ proot</string>
     <string name="install_sheet_variant_n8n_proot_desc">Node.js 22 LTS + n8n + cloudflared on Debian, ~300MB</string>
-    <!-- 2026-09-09 redesign (docs/humano328.md): replaces the old "native"/"termux" (prebuilt
+    <!-- 2026-09-09 redesign: replaces the old "native"/"termux" (prebuilt
          binary from WangChengYeh/codex_android, abandoned repo, retired). -->
     <string name="install_sheet_variant_codex_normal_title">📦 Normal</string>
     <string name="install_sheet_variant_codex_normal_desc">@mmmbuto/codex-cli-termux via npm (DioNanos/codex-termux), with an automatic fallback if it fails</string>

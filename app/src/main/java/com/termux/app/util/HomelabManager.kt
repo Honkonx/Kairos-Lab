@@ -20,7 +20,8 @@ import java.net.URL
  *
  * Mismo patrón de registry que [RemoteManager] (una clave con un array JSON compacto en
  * `~/.android_server_registry`, protegido por [RegistryLock]) y de secreto-nunca-legible que
- * `RemoteManager` usa para claves SSH importadas: el token/contraseña de un servicio se
+ * `RemoteManager` usa para claves SSH importadas: un secreto guardado nunca se vuelve a mostrar
+ * en la UI una vez persistido — el token/contraseña de un servicio se
  * guarda en un archivo propio con permisos restringidos a nivel de aplicación — ninguna función
  * de este objeto expone su contenido a la UI, solo un booleano `hasSecret`. [secretFor] existe
  * únicamente para que un futuro cliente HTTP autenticado (fuera del alcance de esta ronda) lo

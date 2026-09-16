@@ -271,8 +271,8 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Barra persistente de portapapeles (fix UX 2026-09-14, docs/humano334.md) — antes la
-         única señal de "hay algo copiado/cortado" era un Snackbar de ~2.75s que desaparecía
+    <!-- Barra persistente de portapapeles (fix UX 2026-09-14) — antes la única señal de
+         "hay algo copiado/cortado" era un Snackbar de ~2.75s que desaparecía
          solo; visible mientras FileManagerFragment.clipboardFiles no esté vacío. -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/clipboard_bar"

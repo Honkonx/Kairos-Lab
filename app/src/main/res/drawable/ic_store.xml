@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ícono propio para la Tienda de plugins (2026-08-27, ver docs/humano257.md) — antes
+<!-- Ícono propio para la Tienda de plugins (2026-08-27) — antes
      MoreBottomSheetFragment.MENU_ITEMS reusaba R.drawable.ic_module_ollama para el ítem
      "Plugins" (nav_plugins → PluginsFragment.kt, la tienda de módulos), mostrando la marca de
      Ollama en un ítem sin relación temática. Bolsa de tienda con una etiqueta de precio en la

@@ -262,7 +262,7 @@
     <!-- Kairos: botón flotante transparente, siempre visible encima de la sesión X11 en
          curso (a diferencia de preferences_button/exit_button, que solo existen en el
          "stub" de no-conectado, ver arriba) — pedido explícito del usuario ("boton
-         tranparente dentro de x11 para minimizar, cerrar etc", ver docs/humano/humano98.md).
+         tranparente dentro de x11 para minimizar, cerrar etc").
          Abre el mismo diálogo Minimizar/Cerrar que ya ofrece el back del sistema
          (MainActivity.onBackPressed()/showExitDialog()), sin duplicar esa lógica. -->
     <Button

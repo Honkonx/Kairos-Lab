@@ -29,9 +29,9 @@ class CodexFragment : BaseModuleFragment() {
         addCard(getString(R.string.codex_card_estado)) {
             // codex.sh (_update_reg, prefijo "codex.") escribe codex.version Y codex.channel al
             // registry en cada instalación. "Canal" estaba hardcodeado al literal "termux" sin
-            // leerlo nunca (mismo bug de codex.version, auditoría 2026-08-01,
-            // docs/humano/humano34.md) — desde el rediseño de 2 variantes + fallback automático
-            // (2026-09-09, docs/humano328.md) el valor real puede ser "termux" (DioNanos/
+            // leerlo nunca (mismo bug de codex.version, auditoría 2026-08-01) — desde el
+            // rediseño de 2 variantes + fallback automático (2026-09-09) el valor real puede
+            // ser "termux" (DioNanos/
             // codex-termux vía npm), "termux-fallback" (respaldo nativo automático,
             // wallentx/codex-termux) o "vl" (DioNanos/codex-vl, opt-in) — mostrar el valor real
             // en vez del literal fijo.
@@ -130,9 +130,9 @@ class CodexFragment : BaseModuleFragment() {
         engramSetupButton("codex")
         // Antes reinstalaba siempre el mismo canal (reinstallModuleService, variant=null) sin
         // dar forma real de elegir — codex.sh solo soportaba "--variant native" (repo
-        // abandonado) invocable a mano, nunca expuesto acá. Rediseño 2026-09-09
-        // (docs/humano328.md): 2 variantes reales seleccionables ("Normal" con respaldo
-        // automático, "VL" con code-mode, sin respaldo) — mismo patrón de diálogo que
+        // abandonado) invocable a mano, nunca expuesto acá. Rediseño 2026-09-09: 2 variantes
+        // reales seleccionables ("Normal" con respaldo automático, "VL" con code-mode, sin
+        // respaldo) — mismo patrón de diálogo que
         // N8nFragment.showSilentInstallVariantDialog() (setItems + installModuleInBackground).
         actionButton(getString(R.string.codex_btn_install_change_channel), GHOST) {
             showVariantSelectorDialog()
@@ -162,7 +162,7 @@ class CodexFragment : BaseModuleFragment() {
         }.start()
     }
 
-    // Diálogo real de selección de variante (2026-09-09, docs/humano328.md) — mismo patrón que
+    // Diálogo real de selección de variante (2026-09-09) — mismo patrón que
     // N8nFragment.showSilentInstallVariantDialog(): setItems + installModuleInBackground no
     // sirve tal cual acá porque necesita force=true para que codex.sh no se salga temprano por
     // "ya instalado" al cambiar de canal (installModuleInBackground() hardcodea force=false) —
@@ -318,7 +318,7 @@ class CodexFragment : BaseModuleFragment() {
     // background con ManagerNativeUtils.runShell (aplica el mismo entorno/PATH de Termux que
     // el resto de los *Native.kt del proyecto) y el resultado se muestra en un diálogo nativo
     // en vez de una sesión de terminal — mismo guard de Fragment-adjunto que el resto del
-    // proyecto (kotlin-kairos-android-patterns.md). Timeout largo (180s) porque es una llamada
+    // proyecto. Timeout largo (180s) porque es una llamada
     // real a un modelo, no un comando instantáneo.
     //
     // "--output-last-message <archivo>" (confirmado en developers.openai.com/codex/cli/reference,

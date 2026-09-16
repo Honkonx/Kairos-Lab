@@ -18,12 +18,12 @@ import java.time.format.DateTimeParseException
  *
  * Fuentes reales, investigadas en docs/arquitectura/INVESTIGACION_TERMINAL_AGENTES_IA_2026-09-01.md
  * y docs/referencias/token-uso/ (auditoría de 7 proyectos de referencia, 2026-09-01) + ronda de
- * paridad Codex/OpenCode del mismo día (ver docs/humano/ de esa fecha):
+ * paridad Codex/OpenCode del mismo día:
  * - Claude: `GET https://api.anthropic.com/api/oauth/usage` con el `accessToken` OAuth que
  *   Claude Code ya guarda en `~/.claude/.credentials.json` — confirmado en producción real por
  *   `usage-monitor` (Kotlin) Y `token-monitor` (Electron), ambos proyectos MIT auditados de
  *   forma independiente. Endpoint NO documentado públicamente por Anthropic — puede cambiar de
- *   formato sin aviso (ver .claude/rules/empirical-verification-before-fix.md), por eso todo el
+ *   formato sin aviso, por eso todo el
  *   parseo de abajo usa alias defensivos (snake_case/camelCase) en vez de asumir un único nombre
  *   de campo, mismo patrón que `token-monitor/src/shared/limitCollector.js` (valueFromAliases).
  *   Tokens/costo de la SESIÓN activa: Claude Code persiste cada sesión como JSONL en
@@ -41,8 +41,8 @@ import java.time.format.DateTimeParseException
  *   referencia) da el modelo real usado, que se cruza contra `CODEX_PRICE_TABLE` (tabla estática
  *   embebida en `Codex-Token-Monitor/src/extension.js` línea 13-20, precios reales publicados de
  *   la familia `gpt-5-codex`) para estimar el costo — sin llamar a ningún endpoint de precios ni
- *   inventar un número: si el modelo no está en la tabla, el costo simplemente no se muestra
- *   (ver .claude/rules/empirical-verification-before-fix.md), igual que Claude no muestra
+ *   inventar un número: si el modelo no está en la tabla, el costo simplemente no se muestra,
+ *   igual que Claude no muestra
  *   ventanas de rate-limit que el endpoint no trae.
  * - OpenCode: es un CLI cliente-servidor propio (`sst/opencode`) — `opencode serve`/`opencode
  *   web` levantan un servidor HTTP+WebSocket real (puerto default `4096`, o `3000` vía el script

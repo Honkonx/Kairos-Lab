@@ -246,7 +246,7 @@ object NubeServer {
     }
 
     /** Icono + color de acento por TIPO de archivo, un único lookup en vez de dos `when`
-     *  paralelos que podrían desincronizarse (DRY, ver .claude/rules/clean-code-principles.md).
+     *  paralelos que podrían desincronizarse (principio DRY).
      *  El color es el mismo que pinta el fondo/borde del cuadrado del icono en la tarjeta (ver
      *  serveIndex()) — paleta inspirada en el material de referencia de `ver/nube/` (tarjetas
      *  con icono coloreado por tipo: sky=imagen, rose=video, violeta=audio, púrpura=comprimido,
@@ -903,8 +903,9 @@ object NubeServer {
      * AES-256-GCM cuya clave se deriva de esa contraseña (PBKDF2-HMAC-SHA256, salt propio por
      * archivo) — cifrado real, no un flag cosmético (pedido explícito del usuario). El header
      * en claro (MAGIC+salt+iv) es imprescindible para poder re-derivar la misma clave al
-     * descifrar; la contraseña en sí NUNCA se guarda en ningún lado (mismo criterio que
-     * .claude/rules/kairos-secrets-never-revealed.md aplica a credenciales).
+     * descifrar; la contraseña en sí NUNCA se guarda en ningún lado (mismo criterio de
+     * "un secreto guardado nunca se vuelve a mostrar" que aplica a credenciales en el resto
+     * de la app).
      *
      * Todavía no hay UI de descifrado dentro de la app (fase 2 documentada, ver
      * docs/arquitectura/INVESTIGACION_NUBE_PERSONAL_2026-09-01.md) — el dueño del teléfono
@@ -933,8 +934,8 @@ object NubeServer {
 
     /**
      * chmod 700 (carpetas) / 600 (archivos) reales sobre todo lo que llega por el link de
-     * Nube — mismo criterio de "restringir en disco, no solo ocultar en la UI" que
-     * .claude/rules/kairos-secrets-never-revealed.md aplica a credenciales, extendido acá a
+     * Nube — mismo criterio de "restringir en disco, no solo ocultar en la UI" que ya aplica
+     * a credenciales en el resto de la app, extendido acá a
      * contenido de terceros que el dueño del teléfono no pidió hacer accesible más allá del
      * propio link. Usa `chmod` real vía ManagerNativeUtils.runShell (bash de Termux) en vez de
      * File.setReadable/setWritable de Java — mismo patrón ya usado por RemoteManager.kt para

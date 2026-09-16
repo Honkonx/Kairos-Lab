@@ -28,6 +28,7 @@ import com.termux.app.util.ConfigExportManager
 import com.termux.app.util.DiagnosticExportManager
 import com.termux.app.util.OverlayPermissionHelper
 import com.termux.app.util.TelegramNotifier
+import com.termux.app.util.setScreenSecure
 import com.termux.app.wizard.WizardActivity
 import com.termux.shared.termux.TermuxConstants
 import java.io.File
@@ -51,11 +52,26 @@ class ConfigFragment : Fragment() {
         return inflater.inflate(R.layout.fragment_config, c, false)
     }
 
+    // FLAG_SECURE (hallazgo de auditoría de referencia, 2026-09-15 — ver
+    // com.termux.app.util.setScreenSecure para el porqué es por-pantalla y no global): la
+    // pestaña Notificaciones tipea el token de bot de Telegram (tokenInput más abajo) —
+    // bloquea screenshots/grabación de pantalla mientras Config está en foreground, sin
+    // importar qué pestaña esté activa (FLAG_SECURE es a nivel de Window, no de pestaña).
+    override fun onResume() {
+        super.onResume()
+        setScreenSecure(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        setScreenSecure(false)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla guarda el
-        // token de bot de Telegram (tokenInput más abajo) — un secreto guardado nunca se
-        // vuelve a mostrar, y esto evita que un overlay malicioso capture toques sobre el campo.
+        // token de bot de Telegram (tokenInput más abajo) — una vez guardado no se vuelve a
+        // mostrar en la UI, solo reemplazar/borrar.
         view.filterTouchesWhenObscured = true
         val prefs = requireContext().getSharedPreferences(PREFS_NAME, 0)
 
@@ -140,7 +156,7 @@ class ConfigFragment : Fragment() {
         }
         // Chequeo de versión a nivel de MÓDULO individual (no del rootfs base) — pedido
         // explícito del usuario, complemento de "Comprobar paquetes del sistema" de arriba.
-        // 2026-08-14 (humano123 C1): "Verificar todas" — cubre npm + GitHub Releases + PyPI +
+        // 2026-08-14: "Verificar todas" — cubre npm + GitHub Releases + PyPI +
         // claude + apt (antes solo npm), ver ModuleVersionChecker.kt. Solo informa (nada se
         // instala automáticamente); actualizar cada módulo lo sigue disparando el usuario
         // desde su propia pantalla con "Actualizar".
@@ -161,10 +177,20 @@ class ConfigFragment : Fragment() {
             prefs.edit().putBoolean("pref_notify_modules", checked).apply()
         }
 
+        // Accesos rápidos fuera de la app (2026-09-15) — investigación de esta ronda sobre
+        // termux/termux-widget (plugin oficial de Termux dedicado solo a lanzar scripts desde
+        // el launcher) confirmó demanda real de este tipo de acceso. Los favoritos en sí (para
+        // App Shortcuts) se marcan desde la ⭐ de la propia pantalla de cada módulo (ver
+        // BaseModuleFragment.buildFavoriteStar()) — acá solo se muestra el resumen (para poder
+        // quitarlos sin tener que reabrir cada módulo uno por uno) + el selector del módulo del
+        // Quick Settings Tile. Ver QuickAccessPrefs.kt para el mecanismo completo.
+        addQuickAccessSection(generalContainer)
+
         // Bug real (2026-08-07): "Node proot"/"Python"/
         // "Claude Code"/"Dashboard" quedaban en "—" para siempre — ningún código en este
         // archivo los volvía a tocar. "Dashboard" además referencia un módulo ya eliminado
-        // del stack por completo, y Python/Claude Code duplican info que ya se muestra de verdad en
+        // del stack por completo (el módulo "dashboard" fue eliminado del proyecto original
+        // termux-ai-stack), y Python/Claude Code duplican info que ya se muestra de verdad en
         // sus propias pantallas de módulo — se quitan en vez de fingir que son reales.
         // Sección TERMINAL — mejora de menor esfuerzo ya identificada (ver MEJORAS_PENDIENTES.md,
         // "Terminal sin personalizar por CLI", idea 2) para el pedido explícito del usuario
@@ -175,7 +201,7 @@ class ConfigFragment : Fragment() {
         addClickableRow(terminalContainer, getString(R.string.config_row_install_fzf_zsh), R.drawable.ic_install) {
             installFzfZshAutosuggestions()
         }
-        // Segunda mejora de la terminal de módulos (2026-08-13, ver humano101): fijar nvim
+        // Segunda mejora de la terminal de módulos (2026-08-13): fijar nvim
         // como editor por defecto (EDITOR + alias vim) — complementa el módulo IDE nuevo
         // (modulos/ide.sh, Neovim + NvChad) y aplica a todas las terminales nuevas.
         addClickableRow(terminalContainer, getString(R.string.config_row_set_nvim_editor)) {
@@ -398,7 +424,7 @@ class ConfigFragment : Fragment() {
         // Pedido explícito del usuario: "la opcion de salir que
         // mate todos los servicios y luego cierre la app como si pusiera exit en la terminal" —
         // distinto de un botón genérico "cerrar app" (que el propio usuario descartó en la
-        // ronda anterior, ver humano67.md, por no ser algo que una app pueda lograr de forma
+        // ronda anterior, por no ser algo que una app pueda lograr de forma
         // confiable desde adentro): esto SÍ detiene servicios reales primero.
         addClickableRow(generalContainer, getString(R.string.config_row_exit_app), R.drawable.ic_stop) { confirmExitApp() }
 
@@ -407,7 +433,7 @@ class ConfigFragment : Fragment() {
     }
 
     // ────────────────────────────────────────────────────────────
-    // Notificaciones Telegram — pedido explícito del usuario (2026-08-13, ver
+    // Notificaciones Telegram — pedido explícito del usuario (2026-08-13,
     // plan en docs/mini-pc/PLAN_EXPANSION_HOMELAB_2026-08-13.md
     // sección 4): ítem de mayor valor/menor esfuerzo de la auditoría de referencia/ciberseguridad/
     // i-Haklab-master (patrón walkie-tg). Sección armada 100% en código (sin XML propio para el
@@ -632,7 +658,7 @@ class ConfigFragment : Fragment() {
     // Resultados importantes (backup/restore/desinstalar/config) usan Snackbar, no Toast —
     // pulido visual 2026-08-25 (docs/estructura/ESTILO_VISUAL_2026-08-25.md), mismo patrón ya
     // establecido en PluginsFragment.kt. Guard de isAdded: puede llamarse desde un callback de
-    // background thread después de que el Fragment ya se desadjuntó (kotlin-kairos-android-patterns.md).
+    // background thread después de que el Fragment ya se desadjuntó (patrón estándar del proyecto).
     private fun resultSnackbar(msg: String) {
         if (!isAdded) return
         Snackbar.make(requireView(), msg, Snackbar.LENGTH_LONG).show()
@@ -687,7 +713,7 @@ class ConfigFragment : Fragment() {
         }.start()
     }
 
-    // Editor por defecto = nvim (pedido 2026-08-13, ver humano101). Escribe en ~/.bashrc
+    // Editor por defecto = nvim (pedido 2026-08-13). Escribe en ~/.bashrc
     // (idempotente: grep antes de agregar) y aplica a las terminales nuevas. Si nvim no está
     // instalado, avisa y sugiere el módulo IDE (modulos/ide.sh).
     private fun showExternalInputGuide() {
@@ -775,7 +801,7 @@ class ConfigFragment : Fragment() {
         val ctx = requireContext()
         val progress = com.termux.app.util.ProgressDialogController(ctx)
         val checker = com.termux.app.util.ModuleVersionChecker
-        // Ronda 2026-08-14 (humano123 C1): antes solo cubría npm. Ahora el chequeo cubre
+        // Ronda 2026-08-14: antes solo cubría npm. Ahora el chequeo cubre
         // todas las fuentes (npm + GitHub Releases + PyPI + claude + apt) — ver
         // ModuleVersionChecker.kt cabecera para la lista por mecanismo.
         progress.show(getString(R.string.config_progress_module_updates_title), getString(R.string.config_progress_querying_modules, checker.supportedModuleIds().size))
@@ -1160,7 +1186,7 @@ class ConfigFragment : Fragment() {
     }
 
     // Fila "🎨 Tema" con selector inline (PopupMenu, aplica al toque) — reemplaza el
-    // AlertDialog.setSingleChoiceItems()+"Aplicar" anterior (humano202, 2026-08-22, pedido
+    // AlertDialog.setSingleChoiceItems()+"Aplicar" anterior (2026-08-22, pedido
     // explícito del usuario: "el boton de tema [...] deberia ser una casilla al tocar salir las
     // demas opciones y al tocar cambiar asi bonito estetico como las apk modernas"). Componente
     // compartido con StudioFragment (ver com.termux.app.ui.widget.InlineThemePicker) — "un solo
@@ -1219,6 +1245,91 @@ class ConfigFragment : Fragment() {
             com.termux.app.util.KairosLanguagePrefs.setSelectedLanguage(newLanguage)
         }
         container.addView(row)
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Accesos rápidos — favoritos del launcher (App Shortcuts) + módulo del Quick Settings Tile.
+    // Ver QuickAccessPrefs.kt/QuickModuleTileService.kt para el mecanismo completo. Reusa
+    // InlineThemePicker (mismo componente que Tema/Idioma/Log de arriba) para el selector del
+    // tile — ConfigFragment no extiende BaseModuleFragment, así que no tiene dropdownRow().
+    // ────────────────────────────────────────────────────────────
+
+    private fun addQuickAccessSection(container: LinearLayout) {
+        val ctx = requireContext()
+        val catalog = com.termux.app.data.ModuleCatalog.load(ctx)
+        fun moduleName(id: String) = catalog.firstOrNull { it.id == id }?.name ?: id
+
+        val header = TextView(ctx).apply {
+            text = getString(R.string.config_quick_access_header)
+            textSize = 10f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            letterSpacing = 0.12f
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).also {
+                it.topMargin = dp(16); it.bottomMargin = dp(4); it.marginStart = dp(4)
+            }
+        }
+        container.addView(header)
+
+        // Favoritos — resumen de lo marcado desde cada módulo, con opción de quitar sin tener
+        // que volver a abrir esa pantalla.
+        container.addView(TextView(ctx).apply {
+            text = getString(R.string.config_quick_access_favorites_label)
+            textSize = 12f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
+            setPadding(dp(14), dp(4), dp(14), dp(2))
+        })
+        val favoritesList = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        container.addView(favoritesList)
+
+        fun renderFavorites() {
+            favoritesList.removeAllViews()
+            val favorites = com.termux.app.util.QuickAccessPrefs.getFavorites(ctx)
+            if (favorites.isEmpty()) {
+                favoritesList.addView(TextView(ctx).apply {
+                    text = getString(R.string.config_quick_access_favorites_empty)
+                    textSize = 12f
+                    setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+                    setPadding(dp(14), dp(2), dp(14), dp(10))
+                })
+                return
+            }
+            favorites.forEach { id ->
+                addClickableRow(favoritesList, "★ ${moduleName(id)}") {
+                    com.termux.app.util.QuickAccessPrefs.toggleFavorite(ctx, id)
+                    toast(getString(R.string.config_quick_access_favorite_removed, moduleName(id)))
+                    renderFavorites()
+                }
+            }
+        }
+        renderFavorites()
+
+        // Quick Settings Tile — un módulo fijo (v1, ver KDoc de QuickAccessPrefs), elegido acá.
+        val installableModules = catalog.filterNot { it.internal || it.hideFromCatalog }
+        val tileOptions = listOf(
+            com.termux.app.ui.widget.InlineThemePicker.Option("", getString(R.string.config_quick_access_tile_none))
+        ) + installableModules.map { com.termux.app.ui.widget.InlineThemePicker.Option(it.id, it.name) }
+        val savedTileId = com.termux.app.util.QuickAccessPrefs.getTileModule(ctx) ?: ""
+        // Fallback a "Ninguno" si el módulo guardado ya no existe en el catálogo (desinstalado/
+        // renombrado) — InlineThemePicker.row() revienta con NoSuchElementException si currentId
+        // no matchea ningún Option de la lista.
+        val currentTileId = if (tileOptions.any { it.id == savedTileId }) savedTileId else ""
+        val tileRow = com.termux.app.ui.widget.InlineThemePicker.row(
+            context = ctx,
+            label = getString(R.string.config_quick_access_tile_label),
+            options = tileOptions,
+            currentId = currentTileId,
+            labelColor = ctx.kairosThemeColor(R.attr.kairosText),
+            valueColor = ctx.kairosThemeColor(R.attr.kairosText2),
+            dp = ::dp
+        ) { chosen ->
+            com.termux.app.util.QuickAccessPrefs.setTileModule(ctx, chosen.id.ifBlank { null })
+            toast(
+                if (chosen.id.isBlank()) getString(R.string.config_quick_access_tile_cleared)
+                else getString(R.string.config_quick_access_tile_set, chosen.label)
+            )
+        }
+        container.addView(tileRow)
     }
 
     // ────────────────────────────────────────────────────────────

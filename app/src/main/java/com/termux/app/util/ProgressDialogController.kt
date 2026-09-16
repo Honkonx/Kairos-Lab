@@ -21,8 +21,8 @@ import androidx.appcompat.app.AlertDialog
  * actualizar con `update()`) -> DONE_SUCCESS / DONE_FAILURE (mensaje final, botón OK
  * habilitado, detalle técnico si se pasó uno).
  *
- * Fix real (docs/humano247.md, pedido explícito del usuario — CLAUDE.md § filosofía de
- * producto: "no bloquear, no dejar hacer más nada"): antes el diálogo se creaba SIEMPRE con
+ * Fix real (pedido explícito del usuario — filosofía de
+ * producto de Kairos: "no bloquear, no dejar hacer más nada"): antes el diálogo se creaba SIEMPRE con
  * `setCancelable(false)` y sin ningún botón salvo el OK final — un `AlertDialog` modal bloquea
  * toda la pantalla (bottom nav incluido) mientras la operación corre, y no había forma de
  * volver a navegar hasta que terminara. Ahora `show()` acepta `allowBackground = true` para

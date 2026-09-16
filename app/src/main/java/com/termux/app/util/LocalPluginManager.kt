@@ -12,9 +12,8 @@ import java.io.FileOutputStream
 
 /**
  * Instalación de PLUGINS LOCALES desde la Tienda (pedido explícito del usuario, ronda
- * 2026-08-13, ver docs/humano/humano100.md): "agregar una opcion en la tienda de plugins
- * para instalar paquetes locales, por ejemplo tar.gz o .deb — seran los mismos plugins
- * pero en paquetes que yo creare".
+ * 2026-08-13): agregar una opción en la tienda de plugins para instalar paquetes locales,
+ * por ejemplo tar.gz o .deb — los mismos plugins pero en paquetes creados por el usuario.
  *
  * DOS formatos soportados (elegidos por extensión del archivo elegido en el SAF picker):
  *
@@ -188,9 +187,9 @@ object LocalPluginManager {
     fun localIds(): Set<String> = readLocalCatalog().keys
 
     /**
-     * Quita un plugin del catálogo local — pedido explícito del usuario (humano123, ver
-     * docs/humano/humano123.md): los plugins instalados vía .tar.gz quedaban permanentemente
-     * en la Tienda sin forma de sacarlos desde la UI. Borra su entrada del catálogo local
+     * Quita un plugin del catálogo local — pedido explícito del usuario: los plugins instalados
+     * vía .tar.gz quedaban permanentemente en la Tienda sin forma de sacarlos desde la UI.
+     * Borra su entrada del catálogo local
      * persistente y su script (~/scripts/install/<id>.sh) — NO toca paquetes instalados por
      * apt (un .deb se gestiona con "Desinstalar" normal vía ModuleController). Devuelve true
      * si había algo que quitar.

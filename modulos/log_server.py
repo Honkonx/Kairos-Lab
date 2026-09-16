@@ -4,7 +4,7 @@
 # VictorH028/no-root-logger (https://github.com/VictorH028/no-root-logger),
 # portado tal cual salvo la ruta del log (absoluta, junto al propio script,
 # en vez de relativa al cwd — apk.sh lo arranca vía tmux y no controla desde
-# qué directorio corre). Ver docs/humano331.md.
+# qué directorio corre).
 
 import json
 import logging
@@ -22,7 +22,7 @@ MAX_BODY = 1024 * 1024
 LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_logs.txt")
 
 
-# level=logging.DEBUG (2026-09-12, confirmado en dispositivo real, ver docs/humano331.md):
+# level=logging.DEBUG (2026-09-12, confirmado en dispositivo real):
 # el proyecto original usaba level=logging.INFO acá, pero RemoteLogger.hookEnter/hookExit/d
 # (RemoteLogger.java) mandan SIEMPRE level="DEBUG" — Python descarta cualquier logging.debug()
 # cuando el logger está en INFO (DEBUG < INFO en la jerarquía de logging), así que el archivo

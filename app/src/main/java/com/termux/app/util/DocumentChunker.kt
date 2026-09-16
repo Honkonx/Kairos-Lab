@@ -10,8 +10,8 @@ package com.termux.app.util
  * es búsqueda semántica real, es superposición de palabras), y llenar un presupuesto de
  * caracteres empezando por los fragmentos más relevantes.
  *
- * Utilidad genérica a propósito (repropósito creativo, ver
- * `.claude/rules/kairos-reference-fragment-extraction.md`) — no vive dentro de ChatFragment
+ * Utilidad genérica a propósito (repropósito creativo — el mismo mecanismo aplicado más allá
+ * de su uso original) — no vive dentro de ChatFragment
  * porque el mismo mecanismo sirve para cualquier lugar de Kairos con más texto disponible que
  * contexto de LLM: recortar un log largo de MonitorFragment antes de pasarlo a un agente de
  * IA, o seleccionar solo las partes relevantes de un archivo grande antes de dárselo como

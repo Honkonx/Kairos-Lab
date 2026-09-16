@@ -30,8 +30,7 @@ import com.termux.app.util.kairosThemeColor
  * N8nFragment) y Remote/SSH (RemoteManager, sesión cf-ssh-tunnel). No los reemplaza ni
  * los toca — es una superficie de control nueva y unificada para CUALQUIER módulo con
  * puerto, vía TunnelManager (ronda 2026-07-31: migrado de kairos_manager.py cmd_tunnel /
- * python3 a Kotlin puro — ver docs/humano/humano.md / INVESTIGACION_FASE4.md para el diseño
- * original del mecanismo).
+ * python3 a Kotlin puro).
  */
 class TunnelFragment : Fragment() {
 
@@ -109,7 +108,7 @@ class TunnelFragment : Fragment() {
     /**
      * Panel de configuración persistente de proveedores (Cloudflare/ngrok) — dominios y
      * tokens guardados en el registry vía TunnelManager (pedido explícito del usuario,
-     * 2026-08-13, ver docs/humano/humano100.md). Arriba de las cards de módulos: cada
+     * 2026-08-13). Arriba de las cards de módulos: cada
      * proveedor muestra si tiene token/dominio guardados y permite editarlos o borrarlos.
      */
     private fun buildConfigPanel() {
@@ -471,7 +470,8 @@ class TunnelFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-        // tokens de tunneling (ngrok/cloudflared) — ver .claude/rules/kairos-secrets-never-revealed.md.
+        // tokens de tunneling (ngrok/cloudflared) — un secreto guardado nunca vuelve a
+        // mostrarse en la UI.
         view.filterTouchesWhenObscured = true
         refreshAll()
     }
@@ -549,7 +549,7 @@ class TunnelFragment : Fragment() {
         inner.addView(urlRow)
 
         // HorizontalScrollView en vez de pesos iguales (0, WRAP_CONTENT, 1f) — con 5
-        // chips (se agregó "ngrok+dominio" esta ronda, ver docs/humano/humano99.md)
+        // chips (se agregó "ngrok+dominio" esta ronda)
         // repartir el ancho en partes iguales dejaba cada chip demasiado angosto para
         // su texto en una pantalla de celular; con scroll horizontal cada chip mantiene
         // su ancho natural y el que no entra queda a un swipe de distancia.
@@ -698,7 +698,7 @@ class TunnelFragment : Fragment() {
     /**
      * ngrok necesita su propio authtoken (cuenta gratuita de ngrok.com) para dejar de dar
      * URLs efímeras al azar — sin él no hay forma de usar un dominio propio en absoluto.
-     * Pedido explícito del usuario, 2026-08-12 (ver docs/humano/humano99.md).
+     * Pedido explícito del usuario, 2026-08-12.
      */
     private fun promptNgrokTokenAndStart(m: ModuleTunnel) {
         val ctx = requireContext()

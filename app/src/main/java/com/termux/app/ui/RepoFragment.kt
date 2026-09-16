@@ -42,8 +42,8 @@ class RepoFragment : BaseModuleFragment() {
     private lateinit var generatedContainer: LinearLayout
     private lateinit var moduleDebContainer: LinearLayout
 
-    /** Módulos deliberadamente excluidos de "Crear .deb de un módulo" (2026-08-23, ver
-     * docs/humano206.md) — no porque no tengan valor, sino porque empaquetar como archivos
+    /** Módulos deliberadamente excluidos de "Crear .deb de un módulo" (2026-08-23) —
+     * no porque no tengan valor, sino porque empaquetar como archivos
      * portátiles no tiene sentido para ellos: infraestructura completa/estado pesado
      * (entorno, db, stacks, udocker, qemu, docker), contenedores meta de otros módulos sin
      * archivos propios (languages, packages), o el propio mecanismo de empaquetado
@@ -126,7 +126,7 @@ class RepoFragment : BaseModuleFragment() {
         }
 
         // Empaquetado de MÓDULOS de Kairos — generación dinámica (2026-08-23, ver
-        // docs/humano206.md y docs/arquitectura/MODULEDEB_GENERICO.md): distinto de "repo
+        // docs/arquitectura/MODULEDEB_GENERICO.md): distinto de "repo
         // pack" de arriba (que empaqueta cualquier paquete apt ya instalado), esto arma un
         // .deb con el contenido YA instalado/parcheado de un módulo real de Kairos + el
         // manifest que sale de `<id>.sh --describe-files` — el post-install usa eso para

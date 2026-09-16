@@ -153,8 +153,8 @@ object SyntaxHighlighter {
         themeModelCache[resolvedName]?.let { return it }
 
         val appContext = context.applicationContext
-        // Bug real confirmado (crash en TODO arranque de la app, auditoría ADB 2026-08-21/22,
-        // ver docs/humano/humano186.md): tm4e's `IThemeSource.guessFileFormat()` adivina el formato
+        // Bug real confirmado (crash en TODO arranque de la app, auditoría ADB 2026-08-21/22):
+        // tm4e's `IThemeSource.guessFileFormat()` adivina el formato
         // del theme a partir de la EXTENSIÓN del nombre que se le pasa acá — pasar el nombre
         // pelado ("kairos-ink", sin ".json") lo hacía fallar con "Unsupported file type:
         // kairos-ink" pese a que el archivo real en assets sí tiene la extensión correcta.

@@ -348,7 +348,7 @@ public final class TermuxConstants {
 
     /** Termux app name */
     // Kairos: la notificación de la app (canal, título, ANR/crash reports) usaba "Termux" pese
-    // a que el APK se llama "Kairos" (ver docs/humano*.md 2026-08-28) — la constante controla
+    // a que el APK se llama "Kairos" (fix 2026-08-28) — la constante controla
     // ese texto en todo termux-shared/, así que cambiarla acá corrige la marca en cascada.
     public static final String TERMUX_APP_NAME = "Kairos"; // Default: "Termux"
     /** Termux package name */

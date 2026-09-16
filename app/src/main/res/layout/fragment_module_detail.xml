@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FrameLayout envolvente (2026-08-23, ver docs/humano209.md) — antes esto era directo un
+<!-- FrameLayout envolvente (2026-08-23) — antes esto era directo un
      ScrollView raíz, así que ninguna de las ~40 pantallas de módulo podía tener un FAB real
      (un elemento flotante necesita un hermano superpuesto, un ScrollView solo no lo permite).
      El ScrollView + content_container quedan IDÉNTICOS a como estaban — este cambio es

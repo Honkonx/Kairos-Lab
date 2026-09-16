@@ -396,7 +396,7 @@
             </LinearLayout>
 
             <!-- Pestañas de sesiones nombradas activas (Fase 1 del roadmap de terminal — ver
-                 MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases", docs/humano318.md).
+                 MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases").
                  Poblada/ocultada por TermuxActivity#refreshAdaptedSessionTabs(): GONE con 0 o 1
                  sesión nombrada activa (antes de esta fila, cambiar de sesión con 2+ módulos
                  corriendo a la vez requería el drawer lateral o el menú popup de
@@ -447,9 +447,9 @@
             <!-- Fila de chips de dependencia (backend IA local: Ollama/llama-server) — poblada
                  dinámicamente por TermuxActivity#refreshAdaptedBarInfo() vía
                  adaptedModuleDependencies(moduleId), GONE si el módulo activo no depende de
-                 ningún otro (la mayoría). Pedido explícito del usuario (docs/humano/humano169.md,
-                 "mejorar la terminal adaptada... si estan en opencode ver si ollama/llama esta
-                 corriendo") — mecanismo genérico, no hardcodeado solo para OpenCode: agregar una
+                 ningún otro (la mayoría). Pedido explícito del usuario ("mejorar la terminal
+                 adaptada... si estan en opencode ver si ollama/llama esta corriendo") —
+                 mecanismo genérico, no hardcodeado solo para OpenCode: agregar una
                  entrada más en adaptedModuleDependencies() alcanza para que otro CLI muestre sus
                  propios chips sin tocar este layout. Los chips en sí son TextView creados en
                  código (mismo patrón que addAdaptedDrawerAction), no hace falta declarar cada
@@ -468,9 +468,9 @@
         </LinearLayout>
 
         <!-- Panel embebido de acciones rápidas de la terminal adaptada (pedido explícito del
-             usuario 2026-09-08, docs/humano324.md: "falta el administrador de archivos,
-             navegador... sin salir de la terminal adaptada", y corregido el mismo día en
-             docs/humano325.md: "falta la opción de que sean pestañas" — la primera versión
+             usuario 2026-09-08: "falta el administrador de archivos, navegador... sin salir de
+             la terminal adaptada", y corregido el mismo día: "falta la opción de que sean
+             pestañas" — la primera versión
              cubría TODO el overlay incluyendo terminal_adapted_bar, tapando la fila de pestañas
              mientras el panel estaba activo, lo que hacía imposible cambiar de pestaña sin
              cerrar el panel primero). Ahora POSICIONADO IGUAL que drawer_layout (layout_below/

@@ -226,8 +226,8 @@ class ApkFragment : BaseModuleFragment() {
         val progress = com.termux.app.util.ProgressDialogController(requireContext())
         // allowBackground=true: compilar un APK (aapt2 → javac/kotlinc → d8 → zipalign →
         // apksigner) puede tardar varios minutos — mismo tratamiento que las descargas de
-        // modelos/imágenes, se puede seguir navegando mientras corre y se avisa por
-        // notificación al terminar.
+        // modelos/imágenes, el usuario puede seguir navegando mientras
+        // corre y se avisa por notificación al terminar.
         progress.show(getString(R.string.apk_progress_title), getString(R.string.apk_progress_starting), allowBackground = true)
         val fullLog = StringBuilder()
 

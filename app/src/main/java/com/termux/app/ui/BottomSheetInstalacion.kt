@@ -20,6 +20,7 @@ import com.termux.R
 import com.google.android.material.snackbar.Snackbar
 import com.termux.app.ModuleController
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.kairosThemeColorAlpha
 
 class BottomSheetInstalacion : DialogFragment() {
 
@@ -48,7 +49,7 @@ class BottomSheetInstalacion : DialogFragment() {
     // script de instalación re-ejecuta con --force para reinstalar sobre el método ya
     // elegido (ver ModuleController.installModule: sin --force es casi siempre un no-op).
     private var forceReinstall: Boolean = false
-    // Origen de instalación (2026-08-23, pedido explícito del usuario, ver docs/humano206.md):
+    // Origen de instalación (2026-08-23, pedido explícito del usuario):
     // "Limpia" es el flujo de siempre (ModuleController.installModule, corre el script completo
     // del módulo). "GitHub" es nuevo — busca un .deb pre-armado en GitHub Releases
     // (ModuleDebInstaller) y lo instala vía moduledeb extract/verify/apply, sin correr el
@@ -180,8 +181,10 @@ class BottomSheetInstalacion : DialogFragment() {
                     val gd = GradientDrawable().apply {
                         cornerRadius = dp(8).toFloat()
                         if (isSelected) {
-                            setColor(Color.parseColor("#0A22C55E"))
-                            setStroke(dp(1), Color.parseColor("#22C55E"))
+                            // Auditoría de temas 2026-09-15: era hex fijo del tema Oscuro
+                            // (#0A22C55E/#22C55E) — roto en Señal/Claro, ver kairosThemeColorAlpha().
+                            setColor(context.kairosThemeColorAlpha(R.attr.kairosGreen, 10))
+                            setStroke(dp(1), context.kairosThemeColor(R.attr.kairosGreen))
                         } else {
                             setColor(context.kairosThemeColor(R.attr.kairosBg3))
                             setStroke(dp(1), context.kairosThemeColor(R.attr.kairosBorder))
@@ -219,7 +222,7 @@ class BottomSheetInstalacion : DialogFragment() {
                             setPadding(dp(8), dp(2), dp(8), dp(2))
                             val badgeBg = GradientDrawable().apply {
                                 cornerRadius = dp(10).toFloat()
-                                setColor(Color.parseColor("#1A22C55E"))
+                                setColor(context.kairosThemeColorAlpha(R.attr.kairosGreen, 26))
                             }
                             background = badgeBg
                         })
@@ -532,7 +535,7 @@ class BottomSheetInstalacion : DialogFragment() {
     /**
      * Re-habilita [button] apenas [moduleId] deja de estar instalando — contraparte del estado
      * inicial "alreadyInstalling" de [onCreateView]. Mismo guard de Fragment-adjunto (`isAdded`)
-     * que el resto del proyecto (`.claude/rules/kotlin-kairos-android-patterns.md`) y el mismo
+     * que el resto del proyecto y el mismo
      * mecanismo de poll que BaseModuleFragment.pollInstallingButtonState() (duplicado acá en vez
      * de compartido porque esta clase es un DialogFragment, no extiende BaseModuleFragment).
      */
@@ -557,8 +560,8 @@ class BottomSheetInstalacion : DialogFragment() {
             val gd = GradientDrawable().apply {
                 cornerRadius = dp(8).toFloat()
                 if (isSelected) {
-                    setColor(Color.parseColor("#0A22C55E"))
-                    setStroke(dp(1), Color.parseColor("#22C55E"))
+                    setColor(ctx.kairosThemeColorAlpha(R.attr.kairosGreen, 10))
+                    setStroke(dp(1), ctx.kairosThemeColor(R.attr.kairosGreen))
                 } else {
                     setColor(ctx.kairosThemeColor(R.attr.kairosBg3))
                     setStroke(dp(1), ctx.kairosThemeColor(R.attr.kairosBorder))
@@ -578,8 +581,8 @@ class BottomSheetInstalacion : DialogFragment() {
             val gd = GradientDrawable().apply {
                 cornerRadius = dp(8).toFloat()
                 if (isSelected) {
-                    setColor(Color.parseColor("#0A22C55E"))
-                    setStroke(dp(1), Color.parseColor("#22C55E"))
+                    setColor(ctx.kairosThemeColorAlpha(R.attr.kairosGreen, 10))
+                    setStroke(dp(1), ctx.kairosThemeColor(R.attr.kairosGreen))
                 } else {
                     setColor(ctx.kairosThemeColor(R.attr.kairosBg3))
                     setStroke(dp(1), ctx.kairosThemeColor(R.attr.kairosBorder))
@@ -646,7 +649,7 @@ class BottomSheetInstalacion : DialogFragment() {
             // alcanza, no hace falta proot completo — ver
             // docs/viejo/PROPUESTA_SCRIPTS_MODULOS.md). Sin selector — un solo camino.
             "n8n" -> listOf(
-                // Orden invertido 2026-08-06 (ver docs/humano/humano77.md, pedido explícito
+                // Orden invertido 2026-08-06 (pedido explícito
                 // del usuario): udocker pasa a ser la recomendada — vive en $HOME (Termux
                 // nativo puede verla/gestionarla), cloudflared corre nativo sin necesitar
                 // proot-distro (aislado, más dependencias, peor compatibilidad en algunos
@@ -654,7 +657,7 @@ class BottomSheetInstalacion : DialogFragment() {
                 getString(R.string.install_sheet_variant_n8n_udocker_title) to getString(R.string.install_sheet_variant_n8n_udocker_desc),
                 getString(R.string.install_sheet_variant_n8n_proot_title) to getString(R.string.install_sheet_variant_n8n_proot_desc)
             )
-            // codex: rediseño 2026-09-09 (docs/humano328.md) — la vieja variante "native"
+            // codex: rediseño 2026-09-09 — la vieja variante "native"
             // (binario prebuilt de WangChengYeh/codex_android) se retiró por completo, repo
             // abandonado hace más de un año. Reemplazada por 2 variantes npm reales: "Normal"
             // (DioNanos/codex-termux, con respaldo automático a wallentx/codex-termux si la

@@ -37,7 +37,7 @@ import com.termux.app.util.kairosThemeColor
  * ciberseguridad.sh — este fragment solo LEE ese estado para decidir qué botones mostrar
  * (ej. "Entrar a Kali" solo si el registry dice que el contenedor existe).
  *
- * Ampliado 2026-08-19 (auditoría de conversión terminal→UI nativa, ver docs/humano/humano169.md): antes
+ * Ampliado 2026-08-19 (auditoría de conversión terminal→UI nativa): antes
  * los botones de nmap/nikto/dirb solo abrían el binario SIN argumentos en la terminal — sin un
  * target no hacen nada útil por sí solos, así que en la práctica el usuario terminaba escribiendo
  * el comando completo a mano igual. Se agregan 3 paneles nativos de "escaneo rápido" (target por
@@ -133,8 +133,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
 
     // sqlmap tiene 4 acciones mutuamente excluyentes (scan/dbs/tables/dump), cada una con
     // targets/params propios — no es un simple encendido/apagado, así que no encaja en
-    // dropdownSwitchRow(). Con dropdownRow() (nuevo componente, ver docs/humano/humano194.md/
-    // humano195.md) se reemplazan los 4 botones sueltos por 1 dropdown + 1 botón "Ejecutar"
+    // dropdownSwitchRow(). Con dropdownRow() (nuevo componente) se reemplazan los 4 botones sueltos por 1 dropdown + 1 botón "Ejecutar"
     // que despacha al prompt correcto según la opción elegida.
     private val SQLMAP_ACTIONS = arrayOf(
         "Prueba rápida de SQLi (--batch)",
@@ -145,12 +144,11 @@ class CiberseguridadFragment : BaseModuleFragment() {
     private var sqlmapActionRow: DropdownRow? = null
 
     override fun buildContent() {
-        // Instalación silenciosa en segundo plano (pedido explícito, ver docs/humano/humano181.md:
-        // "en n8n, hermes y ciberseguridad, en la ventana de instalar debe salir la opción o un
-        // switch para la instalación silenciosa que al tocar se empiece a instalar pero se
-        // cierre la ventana y el usuario pueda seguir utilizando el apk, además cuando termine
-        // debe avisar" — Hermes/n8n ya lo tenían desde 2026-08-13 (humano101), a Ciberseguridad
-        // le faltaba: mismo patrón que N8nFragment.showSilentInstallVariantDialog(), con las 3
+        // Instalación silenciosa en segundo plano (pedido explícito: "en n8n, hermes y ciberseguridad,
+        // en la ventana de instalar debe salir la opción o un switch para la instalación silenciosa
+        // que al tocar se empiece a instalar pero se cierre la ventana y el usuario pueda seguir
+        // utilizando el apk, además cuando termine debe avisar" — Hermes/n8n ya lo tenían desde
+        // 2026-08-13, a Ciberseguridad le faltaba: mismo patrón que N8nFragment.showSilentInstallVariantDialog(), con las 3
         // variantes reales de modulos/ciberseguridad.sh (básico/pro-headless/pro-gui).
         if (!isModuleInstalled()) {
             showNotInstalled(getModuleName()) { showSilentInstallVariantDialog() }
@@ -1096,7 +1094,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
     }
 
     // Mismo patrón que N8nFragment.showSilentInstallVariantDialog() — ver comentario de
-    // buildContent() más arriba para el pedido original (docs/humano/humano181.md).
+    // buildContent() más arriba para el pedido original.
     private fun showSilentInstallVariantDialog() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(getString(com.termux.R.string.ciberseguridad_silent_install_dialog_title))

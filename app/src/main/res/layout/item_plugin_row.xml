@@ -32,9 +32,9 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- Badge de estado superpuesto (esquina inferior-derecha, patrón Proxmox VE
-                     — ver docs/humano/humano194.md): mismo mecanismo que item_module_row.xml, ver
-                     ese comentario para el detalle. -->
+                <!-- Badge de estado superpuesto (esquina inferior-derecha, patrón Proxmox VE):
+                     mismo mecanismo que item_module_row.xml, ver ese comentario para el
+                     detalle. -->
                 <FrameLayout
                     android:layout_width="42dp"
                     android:layout_height="42dp">

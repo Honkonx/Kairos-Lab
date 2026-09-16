@@ -220,8 +220,8 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
     }
 
     /**
-     * Restaurar distro desde un backup .tar.gz de ~/ (ronda 2026-09-09, docs/humano328.md —
-     * completa el par backup/restore, antes solo existía backup). Los nombres reales que genera
+     * Restaurar distro desde un backup .tar.gz de ~/ (ronda 2026-09-09 — completa el par
+     * backup/restore, antes solo existía backup). Los nombres reales que genera
      * distroBackup() son "<distro>_backup_<fecha>.tar.gz" — se usa el prefijo antes de
      * "_backup_" como nombre de distro real a pasar a distroRestore().
      */
@@ -252,7 +252,7 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
             .show()
     }
 
-    /** `proot-distro reset <name>` — reinstala la distro desde cero sin eliminar+reinstalar a mano (ronda 2026-09-09, docs/humano328.md). */
+    /** `proot-distro reset <name>` — reinstala la distro desde cero sin eliminar+reinstalar a mano (ronda 2026-09-09). */
     private fun promptDistroReset() {
         Thread {
             val json = EntornoNative.distroList()
@@ -396,7 +396,7 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
         if (!fragment.beginOp(opKey)) return
         val appContext = fragment.requireContext().applicationContext
         val progress = ProgressDialogController(fragment.requireContext())
-        // allowBackground=true (docs/humano247.md) — instalar un entorno gráfico dentro de una
+        // allowBackground=true — instalar un entorno gráfico dentro de una
         // distro no debe bloquear el resto de la app.
         progress.show(fragment.getString(R.string.entorno_progreso_instalando_app_titulo), fragment.getString(R.string.entorno_progreso_instalando_app_mensaje, pkg, distro), allowBackground = true)
         Thread {

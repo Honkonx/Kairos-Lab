@@ -17,9 +17,8 @@ import com.termux.app.util.kairosThemeColor
 // Piezas de renderizado compartidas entre ModuleListAdapter (pantalla Módulos) y
 // PluginListAdapter (Tienda de plugins) — extraídas para que ambas filas de módulo se
 // mantengan visualmente simétricas por construcción, en vez de mantener a mano dos copias
-// del mismo cálculo (pedido explícito del usuario, ver docs/humano/humano115.md; hallazgo
-// previo en docs/viejo/AUDITORIA_CODIGO_2026-08-13.md §3.6, antes diferido a
-// propósito por el riesgo de tocar UI sin poder verla renderizada).
+// del mismo cálculo (pedido explícito del usuario; hallazgo
+// previo antes diferido a propósito por el riesgo de tocar UI sin poder verla renderizada).
 
 /** dp -> px como Float, para `GradientDrawable.cornerRadius` y similares. */
 fun dpFloat(value: Int): Float {
@@ -84,7 +83,7 @@ fun bindModuleIcon(icon: ImageView, module: ModuleInfo) {
 
 /**
  * Color de estado para el badge circular superpuesto sobre el ícono de una fila de
- * módulo/plugin (patrón Proxmox VE — ver docs/humano/humano194.md, investigación de paneles homelab:
+ * módulo/plugin (patrón Proxmox VE — investigación de paneles homelab:
  * un punto de color chico en una esquina fija escanea mejor en listas largas que recolorear
  * toda la tarjeta). Usa los mismos atributos `kairosStatus*` de attrs.xml, no un color nuevo.
  */

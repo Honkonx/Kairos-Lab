@@ -59,7 +59,7 @@
 #      real) y le aplica patchelf al resultado, en vez de asumir que
 #      "npm install" ya deja todo funcional.
 #
-#  CORRECCIÓN 2026-08-24 (ver docs/humano212.md — pedido explícito del
+#  CORRECCIÓN 2026-08-24 (pedido explícito del
 #  usuario: "busca si alguien lo hizo funcionar en termux android"; 3 bugs
 #  reales encontrados y arreglados en cadena, confirmados uno por uno en
 #  dispositivo real, no solo por lectura de código):
@@ -95,7 +95,7 @@
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 
-# Bug real #2 encontrado 2026-08-24 (ver docs/humano212.md): el launcher npm
+# Bug real #2 encontrado 2026-08-24: el launcher npm
 # calcula la clave de descarga como `${process.platform}-${process.arch}`
 # ("android-arm64" en Termux), que NO existe en su propio PLATFORM_TARGETS
 # (solo "linux-arm64", "darwin-arm64", etc. — confirmado leyendo el
@@ -234,7 +234,7 @@ _codebuff_download_native_fork() {
   mkdir -p "$_extract"
   dpkg-deb -x "$_deb" "$_extract" || { rm -rf "$_tmp"; return 1; }
 
-  # Mismo bug/fix real ya confirmado en freebuff.sh (docs/humano281.md): dpkg-deb -x
+  # Mismo bug/fix real ya confirmado en freebuff.sh: dpkg-deb -x
   # deja el árbol bajo la RUTA ABSOLUTA COMPLETA "$_extract/data/data/com.termux/
   # files/usr/..." (así empaqueta Termux sus .deb), no bajo "$_extract/usr/" — copiar
   # el árbol usr/ COMPLETO preserva la relación wrapper→lib intacta (acá:
@@ -256,7 +256,7 @@ _codebuff_download_native_fork() {
   rm -rf "$_tmp"
 
   # Verificación FUNCIONAL real — mismo criterio tolerante al banner animado que
-  # PASO 6 más abajo (bug real #3, docs/humano212.md): no exige un semver
+  # PASO 6 más abajo (bug real #3): no exige un semver
   # parseado, solo que no aparezca ninguno de los 2 errores fatales conocidos.
   local _raw
   _raw=$(timeout 25 "$TERMUX_PREFIX/bin/codebuff" --version 2>&1)
@@ -311,7 +311,7 @@ if $_NATIVE; then
     if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
       info "Instalando: ${_MISSING_DEPS[*]}"
       pkg_update_with_fallback
-      # Fix real (auditoría QA 2026-09-14, docs/humano338.md): este era el único módulo del
+      # Fix real (auditoría QA 2026-09-14): este era el único módulo del
       # grupo (kilo/mimocode/freebuff/ohmypi/cursor/antigravity, todos con el mismo bloque
       # glibc copy-pasted) que usaba "|| warn" en vez de "|| error" y nunca verificaba que
       # ld-linux-aarch64.so.1 quedó de verdad en disco tras el install — un fallo de red/mirror
@@ -330,7 +330,7 @@ if $_NATIVE; then
 fi
 
 # ── PASO 2 — Node.js (Método ORIGINAL, primario) ──────────────
-# Orden corregido 2026-08-28 (docs/humano281.md, corrección explícita del usuario: "deben
+# Orden corregido 2026-08-28 (corrección explícita del usuario: "deben
 # quedar con el método que teníamos y los repos como el mío o de hoppe son de respaldo, todo
 # es respaldo no remplazo") — el fork propio (Honkonx/codebuff-termux, hoy sin releases
 # propios, cae a Hope2333/codebuff-termux) se movió al final (PASO 5b) como RESPALDO real,
@@ -369,7 +369,7 @@ if check_done "npm_install"; then
 else
   info "Ejecutando: npm install -g ${CODEBUFF_PKG}"
   npm install -g "$CODEBUFF_PKG" --force || error "npm install falló"
-  # Bug real encontrado 2026-08-24 (ver docs/humano212.md): faltaba este
+  # Bug real encontrado 2026-08-24: faltaba este
   # wrapper — el symlink que deja "npm install -g" tiene shebang
   # "#!/usr/bin/env node", que no existe en Termux (no hay /usr en la raíz
   # real del filesystem). Confirmado en vivo: "codebuff --version" fallaba
@@ -439,7 +439,7 @@ fi
 
 # ── PASO 5b — Fork nativo (RESPALDO, solo si el método original no dejó un binario
 #              ejecutable) ────────────────────────────────────
-# Orden corregido 2026-08-28 (docs/humano281.md) — el fork propio (Honkonx/codebuff-termux,
+# Orden corregido 2026-08-28 — el fork propio (Honkonx/codebuff-termux,
 # hoy sin releases propios, cae a Hope2333/codebuff-termux) es RESPALDO real, nunca
 # reemplazo: solo se intenta si el método original (PASO 2-5, arriba) terminó sin dejar un
 # binario ejecutable funcional.
@@ -463,12 +463,12 @@ fi
 # ── PASO 6 — Verificación FUNCIONAL real ──────────────────────
 step "PASO 6 — Verificando instalación"
 # Verificación FUNCIONAL real, no solo "command -v" (mismo principio ya
-# aplicado a mistralvibe/n8n/freebuff, ver docs/humano/humano121.md) — el
+# aplicado a mistralvibe/n8n/freebuff) — el
 # binario nativo puede estar presente pero no ejecutar sobre Bionic sin el
 # patchelf de arriba; "command -v" solo no lo detecta, "--version"
 # corriendo de verdad sí.
 #
-# Bug real #3 encontrado 2026-08-24 (ver docs/humano212.md): a diferencia de
+# Bug real #3 encontrado 2026-08-24: a diferencia de
 # claude/mimo/freebuff, 'codebuff --version' NO responde rápido — el
 # launcher siempre dibuja un banner ASCII animado (pantalla alterna, cursor
 # oculto) antes de mostrar cualquier versión, confirmado en vivo en
@@ -512,7 +512,7 @@ else
 fi
 
 # ── Persistir CODEBUFF_BINARY_TARGET para uso diario ──────────
-# Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por ADB):
+# Bug real encontrado 2026-08-24 (pruebas funcionales reales por ADB):
 # el "export CODEBUFF_BINARY_TARGET=linux-arm64" de arriba (línea ~93) solo vive mientras CORRE
 # ESTE script — la verificación de PASO 4 (línea 326) pasa porque hereda ese export del mismo
 # proceso, pero un usuario real que abre una terminal NUEVA después de instalar y corre
@@ -526,7 +526,7 @@ if ! check_done "codebuff_bashrc_env"; then
   cat >> "$BASHRC" << 'BASHRC_EOF'
 
 # ════════════════════════════════
-#  Codebuff · override de plataforma (fix real, ver docs/humano216.md)
+#  Codebuff · override de plataforma (fix real)
 # ════════════════════════════════
 export CODEBUFF_BINARY_TARGET="linux-arm64"
 BASHRC_EOF

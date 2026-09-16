@@ -24,9 +24,9 @@
 #    [OK]/[WARN]/[ERROR] mensaje
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato de i-Haklab, ver
-#  docs/humano/humano99.md — comando real confirmado "mmx" vía
-#  github.com/MiniMax-AI/cli, no "minimax" como listaba i-Haklab)
+#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato de i-Haklab —
+#  comando real confirmado "mmx" vía github.com/MiniMax-AI/cli, no
+#  "minimax" como listaba i-Haklab)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -145,11 +145,10 @@ if check_done "npm_install"; then
 else
   info "Ejecutando: npm install -g ${MINIMAX_PKG}"
   npm install -g "$MINIMAX_PKG" || error "npm install falló"
-  # Bug real confirmado (auditoría ADB 2026-08-21, ver docs/humano/humano184.md): el symlink npm no
-  # ejecuta directo en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
+  # Bug real confirmado (auditoría ADB 2026-08-21): el symlink npm no ejecuta directo
+  # en este dispositivo — mismo patrón que explica el "version=?" ya visto acá.
   fix_npm_shebang_wrapper "mmx" "${MINIMAX_PKG%@latest}"
-  # Chequeo funcional real, no solo "existe en PATH" — ver docs/humano/humano194.md,
-  # verify_binary_installed() en lib.sh.
+  # Chequeo funcional real, no solo "existe en PATH" — ver verify_binary_installed() en lib.sh.
   verify_binary_installed mmx || error "mmx no ejecuta tras la instalación (revisá manualmente: mmx --version)"
   log "MiniMax CLI instalado"
   mark_done "npm_install"

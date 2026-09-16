@@ -107,7 +107,8 @@ class CactusFragment : BaseModuleFragment() {
     }
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el token
-    // HTTP del servidor (showServerTokenDialog()) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    // HTTP del servidor (showServerTokenDialog()) — un secreto guardado nunca se vuelve a
+    // mostrar en claro sin protección adicional una vez guardado.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true

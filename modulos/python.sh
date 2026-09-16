@@ -92,7 +92,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 # Helper: pkg install silencioso
 pkg_install() {
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md — el
+  # Bug real, mismo patrón ya visto en el módulo VNC: el
   # fallback de mirrors del PASO 1 de este script no detecta "No mirror or
   # mirror group selected" (solo lo hace pkg_update_with_fallback de lib.sh),
   # así que se cubre acá para todos los llamadores de este helper (DRY).
@@ -205,8 +205,8 @@ fi
 # ============================================================
 step "3/$TOTAL_STEPS Instalando Python"
 
-# Bug real confirmado con evidencia de dispositivo (capturas + logs, docs/humano*.md
-# 2026-07-31): python.installed=true en el registry y checkpoint "python_install" marcado
+# Bug real confirmado con evidencia de dispositivo (capturas + logs, 2026-07-31):
+# python.installed=true en el registry y checkpoint "python_install" marcado
 # de una corrida anterior exitosa, pero python3 roto/ausente en la práctica ("Cannot run
 # program python3" en 6+ pantallas). El checkpoint por sí solo no prueba nada sobre el
 # estado ACTUAL del binario — solo que en algún momento pasado la instalación funcionó.
@@ -501,10 +501,9 @@ fi
 # ============================================================
 step "10/$TOTAL_STEPS Actualizando registry"
 
-# Verificación funcional real antes de marcar installed=true (.claude/rules/
-# empirical-verification-before-fix.md — python.sh era uno de los 2 únicos módulos sin
-# ningún chequeo --version antes de registry_install, confirmado en la auditoría
-# docs/arquitectura/AUDITORIA_CONSISTENCIA_MODULOS_2026-08-26.md § 3). "--version" es el flag
+# Verificación funcional real antes de marcar installed=true — python.sh era uno de los 2
+# únicos módulos sin ningún chequeo --version antes de registry_install, confirmado en la
+# auditoría docs/arquitectura/AUDITORIA_CONSISTENCIA_MODULOS_2026-08-26.md § 3. "--version" es el flag
 # default de verify_binary_installed(), python3 lo soporta sin problema.
 verify_binary_installed python3 || error "python3 no ejecuta tras la instalación"
 

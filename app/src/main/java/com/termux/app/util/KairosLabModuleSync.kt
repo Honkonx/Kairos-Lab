@@ -10,11 +10,10 @@ import java.net.URL
 /**
  * "Verificar actualizaciones de módulos" contra el repo público Kairos-Lab
  * (https://github.com/Honkonx/Kairos-Lab), que desde 2026-08-29 hospeda una copia real de
- * `modulos/` (ver `.claude/rules/kairos-lab-batching.md` — se actualiza por lotes, no en cada
- * commit de kairos-dev, así que es una fuente "periódicamente refrescada", no bleeding-edge).
+ * `modulos/` — se actualiza por lotes probados, no en cada
+ * commit de kairos-dev, así que es una fuente "periódicamente refrescada", no bleeding-edge.
  *
- * Bug real que este archivo resuelve (confirmado esta sesión, ver docs/humanoN.md de la ronda):
- * los scripts de `modulos/<id>.sh` se copian UNA sola vez de los assets del APK al HOME real de
+ * Bug real que este archivo resuelve: los scripts de `modulos/<id>.sh` se copian UNA sola vez de los assets del APK al HOME real de
  * Termux (`~/scripts/install/<id>.sh`, ver [KairosBootstrap.doExtract]) — la re-extracción solo
  * se dispara si `versionCode` cambió (`KairosBootstrap.isAlreadyExtracted`), así que un rebuild
  * local sin bump de versión (el caso normal de un build debug de desarrollo) NUNCA vuelve a

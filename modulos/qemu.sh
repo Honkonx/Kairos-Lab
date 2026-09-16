@@ -204,7 +204,7 @@ step "1/3 Habilitando x11-repo"
 if check_done "qemu_x11repo"; then
   log "x11-repo ya habilitado [checkpoint]"
 else
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md. Sin "2>/dev/null"
+  # Bug real, mismo patrón ya visto en el módulo VNC. Sin "2>/dev/null"
   # — mismo motivo que PASO 2/PASO 3 abajo: para que el error real de apt/dpkg llegue al log
   # en vez de descartarse.
   pkg_update_with_fallback
@@ -222,7 +222,7 @@ step "2/3 Instalando qemu-user (x86_64 + arm)"
 if check_done "qemu_user"; then
   log "qemu-user ya instalado [checkpoint]"
 else
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+  # Bug real, mismo patrón ya visto en el módulo VNC.
   pkg_update_with_fallback
   # Sin "2>/dev/null" — el usuario reportó (2026-08-25, ver docs/adb/AUDITORIA_MODULO_POR_MODULO_
   # 2026-08-24.md) que ni qemu-user ni qemu-system quedaron instalados y el log de instalación
@@ -249,7 +249,7 @@ step "3/3 Instalando qemu-system-aarch64-headless + qemu-system-x86-64-headless 
 if check_done "qemu_system"; then
   log "qemu-system ya instalado [checkpoint]"
 else
-  # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+  # Bug real, mismo patrón ya visto en el módulo VNC.
   pkg_update_with_fallback
   # Mismo motivo que PASO 2 — sin "2>/dev/null", para que el error real de apt/dpkg llegue al
   # log en vez de descartarse. Un solo comando `pkg install` con ambos paquetes: si uno de los
@@ -379,7 +379,7 @@ QMP_FLAG=(-qmp "unix:$QMP_SOCK,server,nowait")
 # Inofensivo si no existían (rm -f no falla).
 rm -f "$QMP_SOCK" "$VNC_SOCK"
 
-# Bug real confirmado (2026-08-27, ver docs/humano256.md): el código viejo SIEMPRE
+# Bug real confirmado (2026-08-27): el código viejo SIEMPRE
 # forzaba "-drive file=$IMG,format=qcow2", incluso para un .iso (ej. el catálogo
 # de descarga ofrece alpine-virt-*.iso). Un ISO9660 no es qcow2 — qemu detecta el
 # formato inválido y sale con error DESPUÉS de haber reemplazado el proceso bash

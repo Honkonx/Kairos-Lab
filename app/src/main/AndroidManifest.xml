@@ -29,6 +29,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- "Live Updates" de Android 16/API 36 (Notification.ProgressStyle + notificación
+         "promovida" en status bar/lock screen) — ver DownloadProgressNotifier.kt. Nombre de
+         permiso confirmado por investigación externa (WebFetch, docs.android.com +
+         github.com/781flyingdutchman/background_downloader#703), NO por un stub verificable en
+         el android.jar de compileSdk=36 (android.Manifest$permission no lo expone como
+         constante pública — solo NotificationManager.canPostPromotedNotifications() y
+         Notification.FLAG_PROMOTED_ONGOING sí están confirmados por javap real). Declararlo es
+         inofensivo en versiones viejas de Android (el SO ignora permisos que no reconoce); el
+         código solo pide la promoción cuando canPostPromotedNotifications() devuelve true, así
+         que un nombre de permiso equivocado degrada en silencio a notificación ongoing normal,
+         nunca rompe nada. -->
+    <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
     <!-- Entrada de voz en el chat (SpeechInputManager.kt, ver docs/referencias/REFERENCIA_NEWTERMUX.md) —
          SpeechRecognizer necesita RECORD_AUDIO en runtime (API 23+), pedido desde ChatFragment. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -129,8 +141,8 @@
              onResume() vuelve a disparar beginInstall() — un SEGUNDO kairos.sh (modo silent)
              corriendo en paralelo al primero, que sigue vivo en el hilo de la instancia
              vieja. Mismo patrón de bug ya confirmado en este wizard para
-             setupBootstrapIfNeeded() sin guard de concurrencia (bug real ya confirmado:
-             "corrompía $PREFIX"). Fix: declarar configChanges acá, igual que ya hace
+             setupBootstrapIfNeeded() sin guard de concurrencia ("corrompía $PREFIX").
+             Fix: declarar configChanges acá, igual que ya hace
              TermuxActivity (línea ~75) y VncViewerActivity (línea ~136) para este mismo tipo
              de riesgo — Android entrega onConfigurationChanged() en vez de recrear la
              Activity, así que el Fragment/Thread de instalación en curso nunca se duplica.
@@ -146,7 +158,7 @@
              (o al -vnc propio de QEMU en 5902, ver QemuFragment.kt/bootVmVnc()). Ver
              docs/x11/X11_EMBEBIDO.md.
              android:screenOrientation="sensorLandscape" (2026-09-03): bug
-             real reportado — el escritorio remoto (TigerVNC default 1280x720,
+             real reportado por el usuario — el escritorio remoto (TigerVNC default 1280x720,
              QEMU/guest lo que sea) es siempre horizontal, pero esta Activity nunca fijaba
              orientación propia y heredaba portrait del sistema en la mayoría de teléfonos,
              mostrando el framebuffer horizontal chico y letterboxed dentro de una ventana
@@ -448,6 +460,23 @@
             </intent-filter>
         </receiver>
 
+        <!-- Automatizaciones (docs/modulos/AUTOMATIZACIONES.md) — receiver propio y separado de
+             SystemEventReceiver de arriba (Android permite varios <receiver> estáticos para la
+             misma acción), ver KDoc de AutomationBootReceiver.kt para el motivo completo. -->
+        <receiver
+            android:name=".app.AutomationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Disparado solo por el PendingIntent explícito que arma AutomationScheduler.kt —
+             sin intent-filter porque nunca se invoca por acción implícita. -->
+        <receiver
+            android:name=".app.AutomationAlarmReceiver"
+            android:exported="false" />
+
         <receiver
             android:name=".shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
             android:exported="false" />
@@ -490,6 +519,20 @@
             android:name=".app.TelegramBotService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Quick Settings Tile — togglea UN módulo elegido en Ajustes ("Accesos rápidos") sin
+             abrir la app (ver QuickAccessPrefs.kt/QuickModuleTileService.kt, ronda 2026-09-15 —
+             investigación sobre termux/termux-widget confirmó demanda real de este acceso). -->
+        <service
+            android:name=".app.QuickModuleTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_shortcut_module"
+            android:label="@string/qs_tile_default_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
 
         <!-- This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the

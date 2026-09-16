@@ -7,8 +7,8 @@ import java.util.Locale
 
 /**
  * Log persistente de todo lo que pasa en el wizard desde la pantalla 3 (Procesos fantasma) en
- * adelante — pedido explícito del usuario (ver docs/humano/humano62.md): "si puedes agregar log
- * a la aplicacion entera... desde la tercera pantalla". Las 4 pantallas de esta ronda en
+ * adelante — pedido explícito del usuario: agregar log a la aplicación entera desde la
+ * tercera pantalla. Las 4 pantallas de esta ronda en
  * adelante (`WizardPhantomProcessFragment`, `WizardBatteryFragment`, `WizardInstallFragment`,
  * `TermuxInstaller.setupBootstrapIfNeeded()`, `RootfsInstaller`) son las que tuvieron bugs
  * reales que solo se pudieron confirmar con capturas de pantalla, ronda tras ronda — un log

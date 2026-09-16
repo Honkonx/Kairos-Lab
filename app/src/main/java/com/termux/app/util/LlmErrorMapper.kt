@@ -58,8 +58,8 @@ object LlmErrorMapper {
 
     /**
      * Traduce una respuesta HTTP no-2xx de la API real de Ollama (127.0.0.1:11434) a un
-     * mensaje accionable — reporte real del usuario (2026-07-31, ver docs/humano/humano33.md):
-     * el chat mostraba "HTTP 404"/"HTTP 400" a secas sin explicar qué hacer. Causa raíz real
+     * mensaje accionable — reporte real del usuario (2026-07-31): el chat mostraba "HTTP
+     * 404"/"HTTP 400" a secas sin explicar qué hacer. Causa raíz real
      * (no la única causa, pero la más común): el selector de modelos del chat ofrecía
      * nombres que el usuario nunca había hecho `ollama pull` — Ollama devuelve 404 con
      * `{"error": "model \"x\" not found, try pulling it first"}` en ese caso (a veces 400

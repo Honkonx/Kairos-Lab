@@ -199,4 +199,9 @@
     <string name="base_module_close_terminal">✕ Cerrar terminal</string>
     <string name="base_module_terminal_closed">Terminal de %1$s cerrada</string>
 
+    <!-- Estrella de favorito (App Shortcuts dinámicos, ver QuickAccessPrefs.kt, 2026-09-15) -->
+    <string name="base_module_favorite_added">%1$s agregado a favoritos — accesible desde el launcher (mantené presionado el ícono de Kairos)</string>
+    <string name="base_module_favorite_removed">%1$s quitado de favoritos</string>
+    <string name="base_module_favorite_limit">Máximo %1$d módulos favoritos — quita uno antes de agregar otro</string>
+
 </resources>

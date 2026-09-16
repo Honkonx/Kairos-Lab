@@ -39,7 +39,7 @@ import com.termux.app.util.kairosThemeColor
  * ninguno de los dos existe sin root en este entorno, prometerlo sería UI aspiracional sin
  * respaldo real (mismo criterio de honestidad que qemu.sh y mimocode.sh).
  *
- * **Pregunta real del usuario (2026-09-03, ver docs/humano316.md y
+ * **Pregunta real del usuario (2026-09-03, ver
  * docs/arquitectura/PROPUESTA_QEMU_DISPLAY_2026-08-26.md sección "Resolución"): "inicié en VNC
  * sin haber instalado VNC, ¿tiene VNC dentro QEMU?"** — Sí. El modo VNC de este módulo NO usa
  * TigerVNC (el paquete que sí instala `modulos/entorno.sh` para Mini PC) ni ningún otro servidor
@@ -476,7 +476,7 @@ class QemuFragment : BaseModuleFragment() {
             actionButton(getString(R.string.qemu_btn_qmp_change_media), GHOST) { promptChangeMedia() }
             actionButton(getString(R.string.qemu_btn_qmp_eject_media), GHOST) { promptEjectMedia() }
 
-            // SSH host→VM (docs/humano266.md — ajustar SSH/X11 para QEMU): run_vm.sh ya arma
+            // SSH host→VM (ajustar SSH/X11 para QEMU): run_vm.sh ya arma
             // hostfwd tcp::2222-:22 en TODOS los modos de boot (console y vnc, ver más arriba). No
             // se reusa RemoteManager/RemoteFragment (conexiones SSH guardadas con alias/clave
             // propia) porque esa UI está pensada para hosts persistentes con credenciales
@@ -1168,7 +1168,7 @@ class QemuFragment : BaseModuleFragment() {
      *   - VNC — `run_vm.sh` arranca QEMU en background (sesión tmux detached, sin terminal
      *     visible — ver `bootVmVnc()`/`modulos/qemu.sh`) con `-vnc unix:<ruta>` (socket unix,
      *     v1.4.0) en vez de `-nographic`; se sondea la existencia real del socket (no un delay
-     *     fijo, corregido 2026-08-27 tras `docs/humano256.md`) y recién entonces se abre
+     *     fijo, corregido 2026-08-27) y recién entonces se abre
      *     automáticamente `VncViewerActivity` (mismo visor RFB nativo que ya usa Mini PC/Entorno
      *     — `VncViewerActivity.EXTRA_SOCKET_PATH` es lo que permite reusarlo acá sin escribir un
      *     cliente VNC nuevo).
@@ -1241,13 +1241,13 @@ class QemuFragment : BaseModuleFragment() {
         )
     }
 
-    // Bug real confirmado por captura de pantalla del usuario (2026-08-27, ver
-    // docs/humano256.md): esta función llamaba a launchTerminalCommand() — abría la terminal
+    // Bug real confirmado por captura de pantalla del usuario (2026-08-27): esta función
+    // llamaba a launchTerminalCommand() — abría la terminal
     // adaptada CRUDA con el script corriendo como texto plano, exactamente lo que el selector
     // de modo (agregado el día anterior) debía evitar en el camino VNC. Además corría en
     // paralelo un segundo camino (abrir VncViewerActivity tras un delay fijo) — dos caminos a
-    // la vez, ninguno exclusivo. Viola kairos-product-philosophy.md: el modo VNC es justamente
-    // el que NO debería obligar a mirar una terminal.
+    // la vez, ninguno exclusivo. Viola la filosofía de producto de Kairos: el modo VNC es
+    // justamente el que NO debería obligar a mirar una terminal.
     //
     // Fix real: correr run_vm.sh en background (silencioso, mismo patrón que
     // ModuleController.startModule — Thread + ProcessBuilder, sin abrir la terminal) — el
@@ -1350,8 +1350,8 @@ class QemuFragment : BaseModuleFragment() {
     }
 
     /**
-     * Diálogo de usuario + arranque de connectSsh() — pedido explícito (docs/humano266.md,
-     * "ajustar lo del vcn, ssh y x11"). El campo de usuario no tiene default fijo porque varía
+     * Diálogo de usuario + arranque de connectSsh() — pedido explícito del usuario
+     * ("ajustar lo del vcn, ssh y x11"). El campo de usuario no tiene default fijo porque varía
      * mucho según la imagen del catálogo (root en Alpine, debian/ubuntu en las cloud images).
      */
     private fun promptConnectSsh() {
@@ -1520,7 +1520,7 @@ class QemuFragment : BaseModuleFragment() {
         if (target.exists()) { toast(getString(R.string.qemu_toast_already_exists, entry.fileName)); return }
         val appContext = requireContext().applicationContext
         val progress = com.termux.app.util.ProgressDialogController(requireContext())
-        // allowBackground=true (docs/humano247.md, pedido explícito del usuario): imágenes de
+        // allowBackground=true (pedido explícito del usuario): imágenes de
         // disco QEMU pueden pesar varios GB — antes el diálogo no-cancelable bloqueaba toda la
         // pantalla hasta terminar. Ahora se puede mandar a 2do plano y navegar libremente.
         progress.show(getString(R.string.qemu_download_progress_title, getString(entry.nameResId)), getString(R.string.qemu_connecting), allowBackground = true)

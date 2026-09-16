@@ -3,7 +3,7 @@ apply plugin: 'org.jetbrains.kotlin.android'
 
 // Módulo NDK/JNI que embebe llama.cpp directo — el wrapper JNI original (kairos_llm,
 // usado por el tab Chat IA) más, desde la rama "llama-server-and-terminal-ux"
-// (2026-08-05, ver docs/humano/humano71.md), el binario real llama-server (servidor HTTP
+// (2026-08-05), el binario real llama-server (servidor HTTP
 // compatible OpenAI de llama.cpp), para que OpenCode/Hermes/OpenClaw (procesos Termux
 // separados, necesitan un endpoint de red — el wrapper JNI es en proceso, sin puerto)
 // puedan usar llama.cpp igual que ya usan Ollama. Ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md
@@ -39,7 +39,7 @@ def sdkDirPath = { ->
 }
 def sdkDir = sdkDirPath()
 
-// Build local en Windows (2026-08-15, ver docs/humano128.md/tools/build-local.ps1): las
+// Build local en Windows (2026-08-15, ver tools/build-local.ps1): las
 // herramientas de HOST que llama.cpp compila durante el build (llama-ui-embed en
 // tools/ui/CMakeLists.txt, y el vulkan-shaders-gen de más abajo) asumen un compilador
 // GCC/Clang de host real. En Linux (CI) eso es /usr/bin/gcc; en Windows no hay g++/clang++
@@ -144,7 +144,7 @@ android {
                 arguments "-DANDROID_PLATFORM=android-28"
                 arguments "-DCMAKE_BUILD_TYPE=Release"
                 arguments "-DBUILD_SHARED_LIBS=ON"
-                // Rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md):
+                // Rama "llama-server-and-terminal-ux" (2026-08-05):
                 // se agrega el binario llama-server real (servidor HTTP compatible OpenAI de
                 // llama.cpp) además del wrapper JNI — para que OpenCode/Hermes/OpenClaw (procesos
                 // Termux separados, necesitan un endpoint de red) puedan usar llama.cpp además de
@@ -163,7 +163,7 @@ android {
                 arguments "-DLLAMA_BUILD_UI=OFF"
                 arguments "-DKAIROS_LLAMA_SERVER_OUT_DIR=" + llamaServerAssetsScriptsDir.absolutePath
                 arguments "-DLLAMA_CURL=OFF"
-                // Auditoría 2026-08-05 (ver docs/humano/humano73.md) — guía oficial de
+                // Auditoría 2026-08-05 — guía oficial de
                 // ggml-org/llama.cpp para Android (docs/android.md) recomienda explícitamente
                 // estos 2 flags. Verificado leyendo ggml/src/CMakeLists.txt: GGML_OPENMP hace
                 // `find_package(OpenMP)` con fallback gracioso (WARNING, no error, si no lo
@@ -211,7 +211,7 @@ android {
                     // los .spv en build time, no en el device) — el NDK trae shader-tools por
                     // SO de host (linux-x86_64/ windows-x86_64/...), hardcodear linux-x86_64
                     // rompe en un host Windows con "Failed to create process" (intenta
-                    // ejecutar un ELF de Linux). Ver docs/humano128.md.
+                    // ejecutar un ELF de Linux).
                     def shaderToolsHostDir = isWindowsHost ? "windows-x86_64" : "linux-x86_64"
                     def glslcName = isWindowsHost ? "glslc.exe" : "glslc"
                     arguments "-DVulkan_GLSLC_EXECUTABLE=" + sdkDir + "/ndk/27.2.12479018/shader-tools/" + shaderToolsHostDir + "/" + glslcName
@@ -288,8 +288,8 @@ def llamaCppDir = new File(projectDir, "llama.cpp")
 
 // Herramientas de tools/CMakeLists.txt que Kairos no necesita (no las pide LLAMA_BUILD_SERVER,
 // que solo requiere ui/cli/server + mtmd, dependencia dura de server) — deshabilitadas por
-// parche (ver downloadLlamaCpp) en vez de EXCLUDE_FROM_ALL. Bug real de build (2026-08-06, ver
-// docs/humano/humano76.md): EXCLUDE_FROM_ALL en el add_subdirectory de llama.cpp entero NO
+// parche (ver downloadLlamaCpp) en vez de EXCLUDE_FROM_ALL. Bug real de build (2026-08-06):
+// EXCLUDE_FROM_ALL en el add_subdirectory de llama.cpp entero NO
 // tiene efecto — confirmado leyendo el comando real de ninja en 2 builds de CI, Android Gradle
 // Plugin enumera TODOS los targets vía la File API de CMake y se los pasa a ninja
 // explícitamente por nombre, ignorando esa propiedad por completo. La única forma real de que
@@ -351,7 +351,7 @@ task downloadLlamaCpp {
     }
 }
 
-// Fase 2 (2026-08-06, ver docs/humano/humano77.md) — bug real confirmado en dispositivo:
+// Fase 2 (2026-08-06) — bug real confirmado en dispositivo:
 // KairosBootstrap no encontró llama-server en assets tras un build que SÍ compiló OK
 // (log: "llama-server no está en .../scripts/install/llama-server"). No hay forma de
 // confirmar desde acá si el custom target de copia (kairos_copy_llama_server, ver
@@ -369,7 +369,7 @@ task verifyLlamaServerAsset {
                 "llama-server no se generó en " + expected.absolutePath + " tras la build " +
                 "nativa de CMake — el custom target kairos_copy_llama_server (ver " +
                 "src/main/cpp/CMakeLists.txt) no corrió o falló silenciosamente. La APK " +
-                "resultante NO tendría el binario de llama-server (ver docs/humano/humano77.md)."
+                "resultante NO tendría el binario de llama-server."
             )
         }
         logger.quiet("llama-server verificado en assets: " + expected.absolutePath +

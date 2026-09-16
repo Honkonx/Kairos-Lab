@@ -5,8 +5,8 @@ import com.termux.R
 
 /**
  * Selector de tema de Estudio (IDE embebido) — INDEPENDIENTE de [KairosThemePrefs] (tema del
- * apk), pedido explícito del usuario (ver docs/humano/humano202.md): "el tema del ide/estudio no debe
- * ser el mismo que el del apk si es posible que ambos tengas tenga su botones de temas". Fase
+ * apk), pedido explícito del usuario: el tema del IDE/Estudio no debe
+ * ser el mismo que el del APK — ambos deben tener sus propios botones de tema. Fase
  * mínima (ver docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §3-4): solo 2 temas
  * propios (Oscuro/Claro) + una opción [StudioTheme.SYNC_WITH_APP] que no es un 3er style propio
  * — reusa Oscuro o Claro según la polaridad del tema Kairos activo (ver [resolveStyleRes]), para

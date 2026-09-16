@@ -154,7 +154,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
         terminalSessionsRow.setOnClickListener { showTerminalSessionsMenu() }
         refreshTerminalSessionsIndicator()
 
-        // Bug real (2026-08-06, ver docs/humano/humano77.md): fragment_modules.xml
+        // Bug real (2026-08-06): fragment_modules.xml
         // define este SwipeRefreshLayout pero nunca se conectaba desde Kotlin — el
         // widget nativo arranca su animación al deslizar hacia abajo sin necesitar
         // ningún listener (es comportamiento propio de Android), pero sin
@@ -179,8 +179,8 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
 
         recyclerView = view.findViewById(R.id.modules_recycler)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        // Bug #27 real confirmado en dispositivo 3 veces (ver docs/humano/humano189.md/humano190.md,
-        // "tocar la fila N abre la fila N-1"): el DiffCallback del adapter ya compara por ID
+        // Bug #27 real confirmado en dispositivo 3 veces
+        // ("tocar la fila N abre la fila N-1"): el DiffCallback del adapter ya compara por ID
         // estable (no por posición), así que no era un bug de identidad de datos — el
         // candidato real era el ItemAnimator por defecto de RecyclerView. Con el poll de
         // estado cada 5s (pollStatus() más abajo) llamando a submitList() periódicamente, cada
@@ -214,7 +214,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
 
     override fun onResume() {
         super.onResume()
-        // Bug real confirmado en dispositivo (2026-08-27, ver docs/humano264.md — "pantalla
+        // Bug real confirmado en dispositivo (2026-08-27 — "pantalla
         // principal dice 3 instalados" tras instalar 50 módulos por script fuera de la app):
         // esto SOLO agendaba pollRunnable con postDelayed(5000) — el primer re-chequeo real al
         // volver a esta pantalla (ej. la Activity vuelve de background tras pausarse con la
@@ -273,7 +273,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
      * sesión activa (ForegroundProcessDetector, potencialmente varias decenas de /proc/<pid>/stat
      * si el dispositivo tiene muchos procesos vivos) — mismo criterio de "trabajo de I/O fuera
      * del hilo principal" que el resto del Fragment, guard `isAdded` antes y después del salto
-     * de hilo (.claude/rules/kotlin-kairos-android-patterns.md).
+     * de hilo.
      */
     private fun refreshTerminalSessionsForegroundDots(names: List<String>) {
         val act = activity as? TermuxActivity ?: return
@@ -496,7 +496,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
                 previousStatuses = installed.toMap()
 
                 // Subconjunto visible: solo los instalados (RUNNING o INSTALLED_STOPPED).
-                // 2026-08-11 (humano97 punto 4): los módulos ocultos desde la Tienda
+                // 2026-08-11 (pedido explícito del usuario): los módulos ocultos desde la Tienda
                 // ("Desactivar" = ocultar del home SIN desinstalar, registry <id>.hidden=true)
                 // se restan del subconjunto visible — el módulo sigue instalado y reactivable
                 // desde la Tienda (ver PluginsFragment.manageModule).
@@ -638,7 +638,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
                 "✗ ${friendlyProcessErrorMessage(e, "git")}"
             }
             handler.post {
-                // Bug real confirmado (ver docs/humano/humano63.md): `view` se capturó ANTES
+                // Bug real confirmado: `view` se capturó ANTES
                 // de arrancar el Thread — si el usuario navega fuera mientras el `git pull`
                 // sigue en curso, ese `view` puede haber quedado obsoleto (Fragment sin vista
                 // activa). Mismo patrón de guard ya establecido en el resto de la app.
@@ -698,8 +698,8 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
                 if (!isAdded) return@startModule
                 requireActivity().runOnUiThread {
                     if (!isAdded) return@runOnUiThread
-                    // Libera el guard "pendiente" (gap real reportado en auditoría 2026-08-27,
-                    // docs/humano273.md) — sin esto, un start/stop que tarda más de 5s (el poll
+                    // Libera el guard "pendiente" (gap real reportado en auditoría 2026-08-27)
+                    // — sin esto, un start/stop que tarda más de 5s (el poll
                     // periódico) reactivaba el switch antes de que la operación terminara de
                     // verdad, permitiendo un doble-tap real.
                     adapter.setPending(module.id, false)

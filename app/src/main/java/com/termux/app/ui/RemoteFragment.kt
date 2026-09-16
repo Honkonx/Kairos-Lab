@@ -19,14 +19,15 @@ import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.util.RemoteManager
 import com.termux.app.util.friendlyProcessErrorMessage
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.setScreenSecure
 
 class RemoteFragment : BaseModuleFragment() {
     override fun getModuleId() = "remote"
     override fun getModuleName() = getString(R.string.remote_module_name)
 
     // Anti-tapjacking (hallazgo de auditoría referencia/ia/*, 2026-08-31): esta pantalla
-    // gestiona/importa claves SSH (RemoteManager.kt — un secreto guardado nunca se vuelve a
-    // mostrar) — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
+    // gestiona/importa claves SSH (RemoteManager.kt — un secreto guardado nunca vuelve a
+    // mostrarse en la UI) — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
     // (Reemplazar/Borrar clave) sin que el usuario lo note. Se setea de forma PROGRAMÁTICA (no
     // hay <layout> propio de este Fragment, comparte fragment_module_detail.xml con el resto de
     // BaseModuleFragment) porque Android no soporta este atributo a nivel de Fragment, solo de
@@ -34,6 +35,23 @@ class RemoteFragment : BaseModuleFragment() {
     override fun onViewCreated(view: View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
+    }
+
+    // FLAG_SECURE (hallazgo de auditoría de referencia, 2026-09-15 — ver
+    // com.termux.app.util.setScreenSecure para el porqué es por-pantalla y no global): esta
+    // pantalla muestra/importa claves privadas SSH (promptImportPrivateKey más abajo) y
+    // contraseñas (promptAndRun("ssh-password")) mientras se tipean — bloquea
+    // screenshots/grabación de pantalla mientras Remote está en foreground. BaseModuleFragment
+    // no tiene un hook propio de onResume/onPause para esto (su terminalStatusHandler es un
+    // concern distinto), así que se llama a super primero como con cualquier override normal.
+    override fun onResume() {
+        super.onResume()
+        setScreenSecure(true)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        setScreenSecure(false)
     }
 
     // Holds the latest remote info — antes venía del JSON de kairos_manager.py, ahora de
@@ -103,8 +121,8 @@ class RemoteFragment : BaseModuleFragment() {
     // igual que antes (agregando directo a `container`), y section() registra qué vistas de
     // `container` pertenecen a qué pestaña para poder mostrar/ocultar por índice después.
     // Terminología corregida 2026-08-27 (bug real confirmado: la app
-    // tenía estos dos roles exactamente invertidos respecto al modelo esperado). Definición
-    // real: "Emisor" = Kairos ACTIVA ssh y da la IP/clave para que ALGUIEN MÁS lo
+    // tenía estos dos roles exactamente invertidos respecto al modelo del usuario). Definición
+    // real del usuario: "Emisor" = Kairos ACTIVA ssh y da la IP/clave para que ALGUIEN MÁS lo
     // controle (rol de servidor); "Receptor" = NOSOTROS ponemos la IP/clave para controlar
     // OTROS dispositivos/VPS (rol de cliente). Antes estaba al revés (Receptor=servidor,
     // Emisor=cliente) — se renombraron constantes/funciones/comentarios, la lógica de cada
@@ -423,7 +441,8 @@ class RemoteFragment : BaseModuleFragment() {
     // ---------------------------------------------------------------------
     private fun runRemoteAction(action: String, vararg extraArgs: String, silent: Boolean = true) {
         // applicationContext resuelto ANTES de entrar al Thread (mismo patrón que
-        // nativeLibraryDir en TunnelManager) — el Fragment puede desadjuntarse mientras el hilo corre, pero un Context de
+        // nativeLibraryDir en TunnelManager)
+        // — el Fragment puede desadjuntarse mientras el hilo corre, pero un Context de
         // aplicación sigue siendo válido igual, a diferencia de requireContext() llamado tarde.
         val appContext = context?.applicationContext
         Thread {

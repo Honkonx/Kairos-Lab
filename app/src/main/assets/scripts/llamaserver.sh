@@ -7,7 +7,7 @@
 #  en proceso — ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md y
 #  docs/referencias/REFERENCIA_OLLAMASERVER.md).
 #
-#  Rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md) —
+#  Rama "llama-server-and-terminal-ux" (2026-08-05) —
 #  primera implementación, sin confirmar en dispositivo real todavía.
 #
 #  USO DESDE APP (KairosApp):
@@ -139,11 +139,11 @@ if check_done "llamaserver_bin"; then
   log "Binario ya copiado [checkpoint]"
 else
   SRC_BIN="$HOME/scripts/install/llama-server"
-  [ ! -f "$SRC_BIN" ] && error "llama-server no está en $SRC_BIN — KairosBootstrap no lo extrajo (¿build sin el binario? ver docs/humano/humano71.md)"
+  [ ! -f "$SRC_BIN" ] && error "llama-server no está en $SRC_BIN — KairosBootstrap no lo extrajo (¿build sin el binario?)"
   cp "$SRC_BIN" "$LLAMASERVER_BIN" || error "No se pudo copiar $SRC_BIN a $LLAMASERVER_BIN"
   chmod 755 "$LLAMASERVER_BIN" || error "No se pudo hacer ejecutable $LLAMASERVER_BIN"
 
-  # Bug real (2026-08-06, ver docs/humano/humano83.md): "CANNOT LINK EXECUTABLE: library
+  # Bug real (2026-08-06): "CANNOT LINK EXECUTABLE: library
   # libllama-server-impl.so not found" — llama-server es un binario dinámicamente linkeado
   # (BUILD_SHARED_LIBS=ON) contra varias bibliotecas propias (libggml-base.so, libllama.so,
   # libllama-common.so, libmtmd.so, libllama-server-impl.so). KairosBootstrap.kt las extrae al
@@ -159,7 +159,7 @@ else
     warn "No se encontraron .so dependientes en scripts/install/ — llama-server puede no arrancar"
   fi
 
-  # timeout defensivo (auditoría 2026-08-05, ver docs/humano/humano73.md): si "--version" no
+  # timeout defensivo (auditoría 2026-08-05): si "--version" no
   # se reconociera como se espera y el binario intentara arrancar el servidor de verdad sin
   # modelo, esto evita que el instalador quede colgado para siempre esperando una conexión que
   # nunca llega — mismo criterio que notify_event() en lib.sh.
@@ -247,11 +247,11 @@ if [ -z "\$MODEL_FILE" ] || [ ! -f "\$MODELS_DIR/\$MODEL_FILE" ]; then
   exit 1
 fi
 
-# Bug real (2026-08-06, ver docs/humano/humano86.md y humano88.md): llama-server arrancaba
+# Bug real (2026-08-06): llama-server arrancaba
 # y llegaba hasta intentar cargar el modelo, pero fallaba con "no backends are loaded" —
 # ggml_backend_load_all() (BUILD_SHARED_LIBS=ON + GGML_BACKEND_DL=ON, ver
 # llama-engine/build.gradle) busca los .so de los backends (libggml-cpu-*.so,
-# libggml-vulkan.so). Fix real de humano86 (GGML_BACKEND_DIR) NO FUNCIONABA — confirmado
+# libggml-vulkan.so). El primer intento de fix (exportar GGML_BACKEND_DIR) NO FUNCIONABA — confirmado
 # leyendo el código fuente real de llama.cpp (ggml/src/ggml-backend-reg.cpp):
 # GGML_BACKEND_DIR es una macro de COMPILACIÓN (#ifdef), nunca una variable de entorno de
 # runtime, así que exportarla acá no hacía nada. Las rutas que SÍ se consultan sin

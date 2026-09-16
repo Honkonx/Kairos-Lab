@@ -26,7 +26,7 @@ build-apk:
   interruptible: true
   before_script:
     - chmod +x gradlew
-    # Bug real (2026-08-06, ver docs/humano/humano79.md): "eclipse-temurin:17-jdk" es una imagen
+    # Bug real (2026-08-06): "eclipse-temurin:17-jdk" es una imagen
     # solo-JDK, sin toolchain de C/C++ — cmake encontraba /usr/bin/cc (paquete "cmake" trae algo
     # de C mínimo) pero fallaba con "No CMAKE_CXX_COMPILER could be found" al configurar
     # SPIRV-Headers (su CMakeLists.txt pide C++ por defecto vía project()). g++ hace falta
@@ -48,7 +48,7 @@ build-apk:
     # NDK 27.2.12479018 aparte del NDK 29.x del resto del proyecto (terminal-emulator)
     # — es la versión con la que este setup de Vulkan está probado.
     - printf 'y\n' | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "ndk;27.2.12479018" 2>&1
-    # Bug real (2026-08-06, ver docs/humano/humano80.md): "cmake;3.22.1" (el componente del SDK
+    # Bug real (2026-08-06): "cmake;3.22.1" (el componente del SDK
     # que trae el ninja que llama-engine/build.gradle usa para el toolchain de host de
     # vulkan-shaders-gen, ver generateVulkanHostToolchain) se instala recién DENTRO del build de
     # Gradle, lazy, la primera vez que un configureCMake* lo necesita — pero

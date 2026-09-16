@@ -9,7 +9,7 @@ import org.json.JSONObject
 /**
  * Persiste la LISTA de sesiones de proyecto abiertas en Estudio — multi-proyecto (ver
  * `docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md` §2, implementado 2026-08-26). Antes
- * (`docs/humano/humano202.md` en adelante) solo guardaba una única carpeta+pestañas; ahora
+ * solo guardaba una única carpeta+pestañas; ahora
  * guarda cada [StudioSession] completa (URI de árbol, pestañas abiertas, pestaña activa) más
  * cuál era la sesión activa, para restaurar el estado multi-proyecto completo al reabrir la app
  * (ver `StudioFragment.restoreSessionIfAny`/`onStop`).

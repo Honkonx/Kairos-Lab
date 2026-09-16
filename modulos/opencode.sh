@@ -16,7 +16,7 @@
 #    --force                Reinstala aunque ya esté
 #    --variant <glibc|bionic>  Vía de instalación (default: glibc)
 #
-#  QUÉ INSTALA (2026-09-09, ver docs/humano/ ronda "rediseño OpenCode 2 vías"):
+#  QUÉ INSTALA (2026-09-09, ronda "rediseño OpenCode 2 vías"):
 #    --variant glibc  (default, la vía de siempre, SIN cambios de lógica):
 #      ✅ glibc + openssl-glibc + ncurses (paquetes de Termux, no proot)
 #      ✅ Binario desde github.com/Honkonx/opencode-termux, rama pure-android
@@ -127,7 +127,7 @@ update_registry() {
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Reemplaza el manifest a mano modulos/manifests/opencode.json (borrado
-# como código muerto en humano165, ver docs/arquitectura/MODULEDEB_GENERICO.md).
+# como código muerto, ver docs/arquitectura/MODULEDEB_GENERICO.md).
 # Contenido migrado 1:1 del manifest piloto original
 # (git show 838544d^:modulos/manifests/opencode.json).
 # NOTA (2026-09-09): este bloque sigue describiendo únicamente los archivos de
@@ -307,7 +307,7 @@ if [ "$VARIANT" = "glibc" ]; then
   else
     info "Instalando glibc-repo, glibc, openssl-glibc y ncurses..."
 
-    # Bug real (2026-08-06, ver docs/humano/humano77.md): a diferencia del PASO 2
+    # Bug real (2026-08-06): a diferencia del PASO 2
     # (curl --max-time / wget --timeout), este PASO 1 no tenía ningún timeout —
     # con conexión lenta/inestable "pkg install" puede quedarse colgado
     # indefinidamente sin devolver el control al script. Se envuelve con
@@ -315,7 +315,8 @@ if [ "$VARIANT" = "glibc" ]; then
     # termine en error en vez de silencio infinito.
     TIMEOUT_PKG=180
 
-    # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
+    # "pkg install" no lo tiene disponible.
     pkg_update_with_fallback
 
     timeout "$TIMEOUT_PKG" pkg install -y glibc-repo \
@@ -377,7 +378,7 @@ install_opencode_glibc() {
     # vuelve a fallar, el mensaje de error ahora muestra qué se descargó de
     # verdad para poder diagnosticarlo sin adivinar.
     #
-    # 2026-08-14 (ver docs/humano/... investigación del log real
+    # 2026-08-14 (investigación del log real
     # install_opencode.log): se investigaron 2 hipótesis para el
     # "[ERROR] No se pudo consultar la API de GitHub. Verifica conexión."
     # 1) Falta de header User-Agent → 403. Verificado CON PRUEBA REAL contra
@@ -760,10 +761,9 @@ fi
 # El "2>&1" original solo mezclaba stderr con stdout DENTRO del pane de tmux —
 # si "opencode web" moría antes de los 2s de sleep, la sesión se cerraba con
 # ella y ese output se perdía para siempre (bug confirmado en dispositivo
-# real: [ERROR] sin ninguna pista de la causa, ver log/photo_..._773.jpg y
-# docs/humano/humano8.md). Ahora queda en un archivo persistente en disco.
+# real: [ERROR] sin ninguna pista de la causa). Ahora queda en un archivo persistente en disco.
 #
-# Bug real (2026-08-07, ver docs/humano/humano88.md): "--cwd" no es un flag válido de
+# Bug real (2026-08-07): "--cwd" no es un flag válido de
 # "opencode web" (confirmado con el --help real, log/kairos_logs/opencode_web.log) — yargs
 # lo rechaza e imprime --help en vez de arrancar el server, así que :3000 nunca respondía
 # (el usuario solo podía usar :4096, que OpenCodeNative.kt arranca sin --cwd). El working

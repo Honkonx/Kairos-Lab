@@ -276,4 +276,17 @@
     <string name="config_update_debug_manifest_saved">Test URL saved</string>
     <string name="config_update_debug_manifest_clear">Clear override</string>
     <string name="config_update_debug_manifest_cleared">Override cleared — using the real URL again</string>
+
+    <!-- ═══════════════ Quick access (2026-09-15) — App Shortcuts + Quick Settings Tile,
+         see QuickAccessPrefs.kt/QuickModuleTileService.kt/BaseModuleFragment.buildFavoriteStar() ═══ -->
+    <string name="config_quick_access_header">QUICK ACCESS</string>
+    <string name="config_quick_access_favorites_label">Launcher favorites (long-press the Kairos icon)</string>
+    <string name="config_quick_access_favorites_empty">No favorites yet — mark one with the ⭐ on any module screen.</string>
+    <string name="config_quick_access_favorite_removed">%1$s removed from favorites</string>
+    <string name="config_quick_access_tile_label">Quick Settings Tile module</string>
+    <string name="config_quick_access_tile_none">None</string>
+    <string name="config_quick_access_tile_cleared">Quick Settings Tile has no module assigned</string>
+    <string name="config_quick_access_tile_set">Quick Settings Tile now controls: %1$s</string>
+    <string name="qs_tile_default_label">Kairos</string>
+    <string name="qs_tile_no_module_label">Pick a module in Settings</string>
 </resources>

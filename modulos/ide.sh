@@ -138,8 +138,8 @@ if check_done "neovim" && command -v nvim &>/dev/null; then
 else
   info "Instalando: git neovim nodejs-lts python perl curl wget lua-language-server ripgrep stylua tree-sitter"
   pkg_update_with_fallback
-  # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): el fix de
-  # docs/humano266.md (2026-08-27) silenciaba TODO el output ("&>/dev/null") para evitar
+  # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): un fix anterior
+  # (2026-08-27) silenciaba TODO el output ("&>/dev/null") para evitar
   # un log de 1.7MB — pero eso deja el error real invisible si "pkg install" falla, dejando
   # solo el mensaje genérico de abajo sin ninguna pista de la causa (mismo antipatrón ya
   # corregido en udocker.sh/mistralvibe.sh). Un log grande pero diagnosticable es preferible
@@ -176,8 +176,7 @@ else
   nvim --headless "+Lazy! clean nvim-treesitter" +qa
   nvim --headless "+Lazy! install nvim-treesitter" +qa
 
-  # Post-condición real (2026-08-29, mismo bug ya confirmado en codegraph #28 — ver
-  # docs/humano194.md, .claude/rules/empirical-verification-before-fix.md): "nvim
+  # Post-condición real (2026-08-29, mismo bug ya confirmado en codegraph #28): "nvim
   # --headless" sale con exit 0 aunque el "git clone" interno de Lazy para un plugin
   # falle (sin red, GitHub con rate-limit, etc.) — sin este chequeo, un sync fallido
   # marcaba mark_done igual y Kairos nunca reintentaba. Se verifica que Lazy realmente

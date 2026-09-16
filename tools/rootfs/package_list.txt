@@ -66,7 +66,7 @@ psmisc
 bc
 dos2unix
 
-# ── Agregado 2026-08-28 (docs/humano280.md) — paquetes generales, NO módulos completos ──
+# ── Agregado 2026-08-28 — paquetes generales, NO módulos completos ──
 # Criterio: usados por 3+ módulos independientes vía "pkg install", no exclusivos de un módulo.
 # NOTA: "bun" (pedido como ejemplo por el usuario) se investigó y se descarta — no existe como
 # paquete `pkg` en el repo real de Termux; freebuff.sh/hf.sh/ohmypi.sh lo instalan como binario
@@ -75,3 +75,37 @@ dos2unix
 # un paquete inexistente en packages.termux.dev.
 perl
 # usado por: ciberseguridad.sh, ide.sh, psqlformat.sh (además de perl.sh, su módulo dedicado)
+
+# ── Auditoría 2026-09-15 (luz verde del usuario para "agregar más paquetes") — SIN
+# candidatos nuevos agregados acá. Se recorrieron los 62 modulos/*.sh reales (grep de
+# "pkg install"/"install_single_pkg", body real ejecutado, no solo los install_hint de los
+# bloques --describe-files) contando cuántos módulos INDEPENDIENTES instalan cada paquete vía
+# pkg install. Ningún paquete nuevo (fuera de los ya listados arriba) llegó al umbral de 3+
+# módulos dentro del repo termux-main — candidatos por debajo del umbral: "dpkg" (2: codebuff.sh,
+# codegraph.sh — ya viene con el bootstrap de Termux igual), "nodejs" no-LTS (2: expo.sh,
+# stacks.sh), "fd" (1: pi.sh), "zip"/"aapt2"/"openjdk-17"/"d8"/"aapt"/"apksigner"/"apktool"
+# (todos 1: apk.sh), "neovim"/"lua-language-server"/"stylua"/"tree-sitter" (todos 1: ide.sh),
+# "mariadb"/"postgresql"/"redis"/"mongodb" (todos 1: db.sh), "cloudflared" (1: n8n.sh, además
+# nativo vía NDK en Remote/Nube), "mosh" (1: ssh.sh), "nmap"/"netcat-openbsd"/"dirb"/"clamav"
+# (todos 1: ciberseguridad.sh), "vulkan-tools"/"vulkan-loader-android" (1: ollama.sh),
+# "qemu-user-x86-64"/"qemu-user-arm"/"qemu-system-*-headless"/"qemu-utils" (todos 1: qemu.sh).
+#
+# HALLAZGO REAL MÁS IMPORTANTE de esta auditoría, DELIBERADAMENTE NO AGREGADO ACÁ — la familia
+# glibc (paquetes "glibc-repo"/"glibc"/"glibc-runner"/"patchelf-glibc") es, por lejos, la
+# dependencia compartida más común de todo modulos/*.sh: confirmado con pkg install REAL (no
+# solo hint) en 12 módulos independientes — claude.sh, antigravity.sh, kilo.sh, copilotcli.sh,
+# cursor.sh, mimocode.sh, ohmypi.sh, openclaw.sh, freebuff.sh, codebuff.sh, codegraph.sh,
+# opencode.sh (este último también instala "openssl-glibc"/"ncurses" del mismo repo). Muy por
+# encima del umbral de 3+ — normalmente el candidato obvio a agregar. NO se agregó porque estos
+# paquetes NO viven en termux-main (el único índice que fetch_packages_index() de
+# tools/rootfs/build_rootfs.py consulta, REPO_BASE hardcodeado) — "glibc-repo" instala un
+# sources.list apuntando a un repo apt COMPLETAMENTE separado, termux-pacman/glibc-packages
+# (github.com/termux-pacman/glibc-packages, antes termux/glibc-packages — confirmado por
+# búsqueda real 2026-09-15, no asumido), con su propia estructura de Packages.gz sin confirmar
+# todavía. Esto coincide con la exclusión ya documentada más arriba en este archivo para PASO 5
+# (glibc), ahí referida a "packages-cf.termux.dev/apt/termux-glibc" — incluir esta familia
+# requeriría extender build_rootfs.py con soporte multi-repo (una segunda REPO_BASE + su propio
+# fetch/resolve, posible formato de índice distinto) — cambio arquitectónico real, no un simple
+# agregado de líneas a este archivo, y por eso queda fuera de esta ronda. Ver
+# docs/bootstrap/ROOTFS_EMBEBIDO.md para el detalle completo y la recomendación para una ronda
+# futura dedicada.

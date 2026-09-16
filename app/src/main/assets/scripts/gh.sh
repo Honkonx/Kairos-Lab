@@ -5,7 +5,7 @@
 #
 #  FUENTE: paquete oficial de Termux (gh) — hueco real confirmado
 #  auditando referencia/ia/termux_AI-master (no cubierto por ningún
-#  módulo existente de modulos/, ver docs/humano*.md de esta ronda).
+#  módulo existente de modulos/).
 #
 #  USO DESDE APP (KairosApp):
 #    bash gh.sh --silent

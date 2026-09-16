@@ -258,7 +258,7 @@ WRAPPER
   chmod +x "$TERMUX_PREFIX/bin/freebuff"
 
   # Verificación FUNCIONAL real (no solo "los pasos no tiraron error") — mismo
-  # principio ya aplicado a mistralvibe/n8n/XFCE4 (ver docs/humano/humano121.md):
+  # principio ya aplicado a mistralvibe/n8n/XFCE4:
   # si el binario nativo (con o sin patchelf) no responde --version, el método
   # nativo se declara fallido de verdad y se cae a npm, en vez de marcar [OK]
   # con un binario que en realidad no corre.
@@ -308,7 +308,7 @@ _bun_download_native_runtime() {
   mkdir -p "$_extract"
   dpkg-deb -x "$_deb" "$_extract" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
 
-  # Bug real confirmado por ADB en dispositivo real (2026-08-28, docs/humano281.md), con el
+  # Bug real confirmado por ADB en dispositivo real, con el
   # .deb real descargado y extraído a mano para confirmar el layout exacto: dpkg-deb -x deja
   # el árbol bajo la RUTA ABSOLUTA COMPLETA "$_extract/data/data/com.termux/files/usr/..."
   # (así empaqueta Termux sus .deb — no relocatable, la ruta absoluta va adentro del propio
@@ -341,7 +341,7 @@ _bun_download_native_runtime() {
 
   # Verificación FUNCIONAL real del runtime en sí (no solo que la copia haya
   # funcionado) — mismo principio de post-condición real que el resto del
-  # script (.claude/rules/empirical-verification-before-fix.md).
+  # script.
   "$TERMUX_PREFIX/bin/bun" --version >/dev/null 2>&1 || {
     warn "bun nativo Bionic instalado pero no responde a --version — descartando runtime nativo"
     return 1
@@ -591,7 +591,7 @@ if ! $_NATIVE && ! $_NATIVE_BUN; then
   else
     info "Ejecutando: npm install -g ${FREEBUFF_PKG}"
     npm install -g "$FREEBUFF_PKG" --force; [ $? -eq 0 ] || error "npm install falló"
-    # Bug real confirmado por ADB (docs/humano269.md, auditoría 2026-08-27, mismo patrón ya
+    # Bug real confirmado por ADB (auditoría 2026-08-27, mismo patrón ya
     # documentado en lib.sh/expo.sh): el symlink que "npm install -g" genera no ejecuta directo
     # en este dispositivo — aplicar el wrapper ANTES del chequeo de abajo, no después.
     # Bug real (auditoría freebuff/minimax 2026-08-28): se pasaba "$FREEBUFF_PKG" tal cual
@@ -601,7 +601,7 @@ if ! $_NATIVE && ! $_NATIVE_BUN; then
     # package.json. Mismo patrón ya usado en minimaxcli.sh/kimi.sh/qwencode.sh/copilotcli.sh/
     # pi.sh: pasar el nombre de paquete sin "@latest".
     fix_npm_shebang_wrapper freebuff "${FREEBUFF_PKG%@latest}"
-    # verify_binary_installed() en vez de command -v a secas (2026-08-22, ver docs/humano/humano201.md).
+    # verify_binary_installed() en vez de command -v a secas — confirma que el binario ejecuta de verdad, no solo que existe.
     verify_binary_installed freebuff || error "freebuff no ejecuta tras la instalación (revisá manualmente: freebuff --version)"
     log "Freebuff instalado"
     mark_done "npm_install"

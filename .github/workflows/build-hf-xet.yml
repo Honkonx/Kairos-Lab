@@ -12,14 +12,15 @@ name: Build hf_xet prebuilt wheel (aarch64-linux-android)
 # fuente con el NDK, consume minutos reales de CI, y hf_xet no cambia de versión
 # seguido, así que no tiene sentido correrlo en cada push (mismo criterio que
 # build-rootfs.yml: pesado, sin trigger automático, solo a mano cuando hace falta
-# refrescar la versión). Ver .claude/rules/multi-machine-continuity.md sobre cuota de
-# CI ya agotada antes.
+# refrescar la versión). La cuota de minutos de CI ya se había agotado antes por
+# builds automáticos sin necesidad.
 #
 # NOTA sobre el repo de destino de la Release (2026-08-28): igual que
 # build-rootfs.yml, este job publica en el repo donde corre (hoy el privado
 # kairos-dev) usando el GITHUB_TOKEN por defecto — Honkonx/kairos-lab (destino real
 # planeado, ver modulos/hf.sh HF_XET_PREBUILT_REPO) todavía no existe como repo
-# público (ver docs/humano267.md). Publicar cross-repo requeriría un PAT con permiso
+# público (decisión: ningún link de descarga debe apuntar al repo privado kairos-dev).
+# Publicar cross-repo requeriría un PAT con permiso
 # de "contents: write" sobre kairos-lab que hoy no está configurado como secret en
 # este repo — no se agrega unilateralmente. Cuando kairos-lab exista de verdad, este
 # workflow (y build-rootfs.yml) necesitan actualizarse para apuntar ahí con

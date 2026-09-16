@@ -46,8 +46,8 @@
 #  (permite "re-endosar" un módulo que quedó en el registry sin binario real).
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.1.0 | Agosto 2026 (C7 humano123 — port de core-termux list.sh,
-#  ver docs/humano/humano123.md | v1.1.0: agrega MOD_STRAT para udocker/qemu/
+#  VERSIÓN: 1.1.0 | Agosto 2026 (port de core-termux list.sh |
+#  v1.1.0: agrega MOD_STRAT para udocker/qemu/
 #  repo + los 11 módulos "tools" (typescript/nestjs/prettier/livesrv/
 #  localtunnel/vercel/markserv/psqlformat/ncu/ngrok) — todos caían en SKIP
 #  porque MOD_STRAT no tenía entrada, aunque core-termux-main::list.sh
@@ -164,7 +164,7 @@ MOD_STRAT[opencode]="cmd|opencode"
 MOD_STRAT[hermes]="cmd|hermes"
 MOD_STRAT[remote]="cmd|cloudflared"
 MOD_STRAT[ssh]="cmd|cloudflared"
-# Bug real encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales reales por ADB):
+# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
 # el binario real que instala expo.sh es "eas" (EAS CLI, @expo/eas-cli) — "expo" nunca fue el
 # comando real, así que este chequeo SIEMPRE reportaba "registry dice installed pero falla"
 # aunque el módulo estuviera perfectamente instalado y funcional (confirmado: "eas --version"
@@ -204,7 +204,7 @@ MOD_STRAT[kilo]="cmd|kilo"
 MOD_STRAT[cursor]="cmd|cursor-agent"
 MOD_STRAT[hf]="cmd|hf"
 MOD_STRAT[kairos]="dir|$HOME/kairos"
-# Gap real confirmado por auditoría de código (2026-09-14, docs/humano337.md): git.sh:74 ya
+# Gap real confirmado por auditoría de código (2026-09-14): git.sh:74 ya
 # define verify_cmd en el formato esperado por lib.sh, pero nunca se agregó acá — "Verificar
 # todos los módulos" siempre marcaba "git" como sin estrategia (SKIP) aunque estuviera
 # perfectamente instalado. Mismo patrón exacto que el bug ya arreglado de expo/antigravity/

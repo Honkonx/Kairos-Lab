@@ -27,7 +27,7 @@ import java.io.File
 import java.io.InputStreamReader
 import com.termux.app.util.kairosThemeColor
 
-/** Pantalla 4 del wizard (antes pantalla 2, ver docs/humano54.md — el rediseño 2026-08-04
+/** Pantalla 4 del wizard (antes pantalla 2 — el rediseño 2026-08-04
  * sumó procesos fantasma y batería como pantallas propias antes de esta) — bootstrap de
  * Termux + rootfs (opcional) + kairos.sh, con progreso en vivo. Es la pantalla de mayor
  * riesgo del wizard (toca el flujo real de primer arranque) — se migró acá con la MISMA
@@ -77,8 +77,8 @@ class WizardInstallFragment : Fragment() {
         retryButton?.text = "Reintentar"
         retryButton?.setOnClickListener { onRetryClicked() }
 
-        // beginInstall() NO se dispara acá a propósito (bug real reportado, ver
-        // docs/humano/humano56.md: "la ventana de rootfs no encontrado sale antes de tiempo,
+        // beginInstall() NO se dispara acá a propósito (bug real reportado:
+        // "la ventana de rootfs no encontrado sale antes de tiempo,
         // en una pantalla antes" + "Cannot run program bash"). ViewPager2 necesita crear la
         // View/Fragment de la página SIGUIENTE antes de que termine la animación de scroll
         // entre páginas — onViewCreated() de esta pantalla puede correr mientras la pantalla
@@ -127,7 +127,7 @@ class WizardInstallFragment : Fragment() {
          * Dispara el bootstrap crudo de Termux (bash/pkg/apt, sin rootfs ni kairos.sh) sin
          * esperar a esta pantalla — WizardPhantomProcessFragment (página 2, ANTES de esta)
          * necesita `pkg`/`bash`/`adb` ya extraídos para poder instalar nmap/android-tools;
-         * bug real reportado (ver docs/humano/humano56.md): "no descarga los paquetes" porque
+         * bug real reportado: "no descarga los paquetes" porque
          * el bootstrap todavía no existía cuando esa pantalla intentaba usarlo. Llamado desde
          * `WizardPermissionsFragment` al avanzar. Idempotente —
          * `TermuxInstaller.setupBootstrapIfNeeded()` ya no hace nada si `$PREFIX` existe, así
@@ -176,8 +176,8 @@ class WizardInstallFragment : Fragment() {
      * esos pasos se saltan solos. Si falla, no bloquea nada — kairos.sh sigue con
      * pkg install normal, exactamente igual que sin esta clase.
      *
-     * El texto que ve el usuario distingue las 2 situaciones reales (pedido explícito,
-     * ver docs/humano54.md): "Extrayendo rootfs" si está embebido en el APK (sin red,
+     * El texto que ve el usuario distingue las 2 situaciones reales (pedido explícito):
+     * "Extrayendo rootfs" si está embebido en el APK (sin red,
      * RootfsInstaller.isEmbedded()), "Descargando e instalando rootfs" si no está embebido
      * pero se puede bajar de la Release — en vez de mostrar tal cual los mensajes internos
      * de RootfsInstaller ("Copiando rootfs embebido…", "Extrayendo paquetes… X%", etc.), que
@@ -187,7 +187,7 @@ class WizardInstallFragment : Fragment() {
         if (!isAdded) return
         // progressBar pasa a determinado (0-100) apenas RootfsInstaller reporta el primer %
         // real — antes quedaba indeterminado toda la instalación, sin dar ninguna pista de
-        // avance durante "Instalando paquetes" (fase silenciosa de 5+ min, ver docs/humano268.md).
+        // avance durante "Instalando paquetes" (fase silenciosa de 5+ min).
         progressBar?.isIndeterminate = true
         progressBar?.max = 100
         val embedded = RootfsInstaller.isEmbedded(requireContext())
@@ -200,7 +200,7 @@ class WizardInstallFragment : Fragment() {
                     if (!isAdded) return@post
                     // Se muestra el mensaje real de RootfsInstaller (fase + % si lo trae) en
                     // vez de una etiqueta fija genérica — el usuario pidió saber "por donde
-                    // va" (docs/humano268.md), no solo un texto estático de "Extrayendo rootfs".
+                    // va", no solo un texto estático de "Extrayendo rootfs".
                     statusText?.text = progress
                     val percent = Regex("(\\d+)%").find(progress)?.groupValues?.get(1)?.toIntOrNull()
                     if (percent != null) {
@@ -221,7 +221,7 @@ class WizardInstallFragment : Fragment() {
                         statusText?.text = "Configurando KairosApp"
                         runKairosSetup()
                     } else {
-                        // Pedido explícito del usuario (docs/humano/humano16.md): si el rootfs no
+                        // Pedido explícito del usuario: si el rootfs no
                         // está disponible ni embebido ni por descarga, la caída al wizard
                         // clásico (pkg install por paquete) NO puede ser automática/silenciosa
                         // — antes esto pasaba directo a runKairosSetup() sin avisar nada.
@@ -233,17 +233,17 @@ class WizardInstallFragment : Fragment() {
     }
 
     /**
-     * Bug real reportado (2026-08-01, ver docs/humano/humano42.md): "apenas no detecta el rootfs
+     * Bug real reportado (2026-08-01): "apenas no detecta el rootfs
      * lo dice" — el usuario lo interpretó como un problema de timing de UI (el diálogo
      * aparece "demasiado rápido"). Investigado a fondo: NO es un bug de timing —
      * `WizardPermissionsFragment` ya gatea el botón "Continuar" correctamente
      * (`maybeEnableContinue()`, deshabilitado hasta que storage+notificaciones estén
      * resueltos) y esta pantalla solo se abre desde ese click (índice de página 2 en el
-     * layout original de 4 pantallas; índice 4 desde el rediseño de docs/humano54.md), así
+     * layout original de 4 pantallas; índice 4 desde el rediseño 2026-08-04), así
      * que `WizardInstallFragment`/`beginInstall()` genuinamente arrancan recién ahí, no antes.
      *
      * La causa real: `RootfsInstaller.kt` documenta explícitamente que el repo público de
-     * destino `Honkonx/kairos-lab` (ver docs/humano267.md — ningún link de descarga apunta
+     * destino `Honkonx/kairos-lab` (ningún link de descarga apunta
      * al privado kairos-dev) todavía no existe — la variante liviana del build
      * (`build-app.yml`, sin rootfs embebido en assets/) SIEMPRE va a fallar con 404 al
      * intentar descargarlo en runtime hasta que se cree el repo y se publique la Release.
@@ -331,21 +331,21 @@ class WizardInstallFragment : Fragment() {
                 when {
                     i < current -> {
                         num.text = "✓"
-                        setCircleBg(num, "#22C55E")
+                        setCircleBg(num, ctx.kairosThemeColor(R.attr.kairosGreen))
                         num.setTextColor(Color.WHITE)
                         label.setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
                     }
                     i == current -> {
                         num.text = (i + 1).toString()
-                        setCircleBg(num, "#3B82F6")
+                        setCircleBg(num, ctx.kairosThemeColor(R.attr.kairosBlue))
                         num.setTextColor(Color.WHITE)
                         label.setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
                         label.text = description.ifEmpty { STEP_LABELS[i] }
                     }
                     else -> {
                         num.text = (i + 1).toString()
-                        setCircleBg(num, "#333333")
-                        num.setTextColor(Color.parseColor("#555555"))
+                        setCircleBg(num, ctx.kairosThemeColor(R.attr.kairosStatusNotInstalled))
+                        num.setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
                         label.setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
                     }
                 }
@@ -353,16 +353,19 @@ class WizardInstallFragment : Fragment() {
         }
     }
 
-    private fun setCircleBg(tv: TextView, color: String) {
+    // Auditoría de temas 2026-09-15: recibía un hex fijo (String) — los 3 llamadores pasaban
+    // literales del tema Oscuro ("#22C55E"/"#3B82F6"/"#333333"), rotos en Señal/Claro. Firma
+    // cambiada a Int (color ya resuelto contra el tema activo por el llamador).
+    private fun setCircleBg(tv: TextView, color: Int) {
         val gd = GradientDrawable()
         gd.shape = GradientDrawable.OVAL
-        gd.setColor(Color.parseColor(color))
+        gd.setColor(color)
         tv.background = gd
     }
 
     /**
      * `applyTermuxEnv()` en vez del bloque de env vars a mano que tenía esto antes (bug real
-     * bajo sospecha, ver docs/humano/humano61.md: "sigue el mismo error del rootfs y el
+     * bajo sospecha: "sigue el mismo error del rootfs y el
      * wizard"): el bloque manual replicaba HOME/PREFIX/PATH/LD_LIBRARY_PATH pero se olvidaba
      * `SHELL` — hueco documentado en ProcessBuilderExt.kt (cualquier proceso hijo que
      * kairos.sh dispare y que resuelva su shell a partir de `$SHELL`, como tmux o npm, puede
@@ -371,8 +374,8 @@ class WizardInstallFragment : Fragment() {
      * de la constante canónica — mismo criterio que usa el resto de la app.
      *
      * `TERMUX_BASH_PATH` (ruta absoluta) en vez de `"bash"` (nombre relativo) — el error
-     * "Cannot run program bash" seguía apareciendo pese al fix de arriba (ver
-     * docs/humano/humano62.md), y en la misma ronda apareció el mismo error con `apt` en
+     * "Cannot run program bash" seguía apareciendo pese al fix de arriba, y en
+     * la misma ronda apareció el mismo error con `apt` en
      * `RootfsInstaller.installDebs()`, que YA usaba `applyTermuxEnv()`. Eso apunta a que la
      * resolución de PATH vía nombre relativo no es 100% confiable justo después de que el
      * bootstrap termina de extraerse en este dispositivo — la ruta absoluta es más robusta
@@ -425,19 +428,19 @@ class WizardInstallFragment : Fragment() {
                 val exitCode = process.waitFor()
                 WizardDebugLog.log("WizardInstallFragment", "runKairosSetup(): terminó con exit code $exitCode")
                 if (exitCode == 0) {
-                    // 2026-08-11 (humano97 punto 1): el wizard instala de una vez los módulos
+                    // 2026-08-11: el wizard instala de una vez los módulos
                     // base del stack (remote=SSH+cloudflared, llamaserver=IA Local, entorno=
                     // proot-distro/X11/GPU) encadenando sus instaladores propios tras kairos.sh.
                     // Cada script escribe su <id>.installed en el registry real (mismo contrato
                     // que desde la Tienda) — "registrar de una vez" sin duplicar lógica.
                     //
-                    // Bug real reportado (2026-08-22, ver docs/humano/humano200.md): este paso corre
+                    // Bug real reportado (2026-08-22): este paso corre
                     // en silencio total (sin updateStep, ver KDoc de runWizardModules()) — con
                     // las 11 casillas visibles ya en verde, la pantalla queda estática varios
                     // minutos (entorno.sh solo puede tardar ~3 min, incluyendo el bug de mirror
                     // ya conocido) sin ninguna señal de que sigue trabajando — indistinguible de
                     // "se colgó". Fix: indicador genérico (sin nombrar los 3 módulos, respeta el
-                    // pedido original de humano97 R2 de no mostrarlos como pasos propios) con
+                    // pedido original del usuario de no mostrarlos como pasos propios) con
                     // progreso indeterminado mientras corre.
                     handler.post {
                         if (!isAdded) return@post
@@ -549,8 +552,8 @@ class WizardInstallFragment : Fragment() {
             val num = row.getChildAt(0) as? TextView
             val label = row.getChildAt(1) as? TextView
             num?.text = (i + 1).toString()
-            num?.let { setCircleBg(it, "#333333") }
-            num?.setTextColor(Color.parseColor("#555555"))
+            num?.let { setCircleBg(it, requireContext().kairosThemeColor(R.attr.kairosStatusNotInstalled)) }
+            num?.setTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
             label?.text = STEP_LABELS[i]
             label?.setTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
         }

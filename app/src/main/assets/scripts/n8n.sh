@@ -56,6 +56,7 @@ DESCRIBE=false
 DESCRIBE_FILES=false
 REPAIR_SCRIPTS=false
 INSTALL_SOURCE="clean"
+INSTALL_SOURCE_EXPLICIT=false
 VARIANT="udocker"
 VARIANT_EXPLICIT=false
 
@@ -66,11 +67,27 @@ while [ $# -gt 0 ]; do
     --describe)        DESCRIBE=true ;;
     --describe-files)  DESCRIBE_FILES=true ;;
     --repair-scripts)  REPAIR_SCRIPTS=true ;;
-    --source)          shift; INSTALL_SOURCE="$1" ;;
+    --source)          shift; INSTALL_SOURCE="$1"; INSTALL_SOURCE_EXPLICIT=true ;;
     --variant)         shift; VARIANT="$1"; VARIANT_EXPLICIT=true ;;
   esac
   shift
 done
+
+# Hallazgo viejo "n8n --source no expuesto en UI" (ver MEJORAS_PENDIENTES.md) — ModuleController.
+# installModule() (app/src/main/java/com/termux/app/ModuleController.kt) es la firma compartida
+# que usan ~57 módulos y solo reenvía --variant/--force al script, nunca flags puntuales de un
+# módulo — agregarle un parámetro nuevo (INSTALL_SOURCE) solo para n8n es un riesgo
+# desproporcionado (rompe el orden posicional de los ~9 call-sites reales que llaman a
+# installModule() con argumentos posicionales, no nombrados). Se usa acá el mismo patrón de bajo
+# riesgo que YA existe en este mismo script para el flag ".n8n_local_only" (ver PASO de arranque
+# más abajo, escrito por N8nFragment.setLocalOnly()): la UI (N8nFragment.showInstallSourceDialog())
+# escribe la preferencia en un archivo ANTES de llamar a ModuleController.installModule() normal,
+# y este script la lee acá — SOLO si --source no llegó explícito por CLI, para no pisar el uso
+# manual/TUI real (termux-ai-stack-dev/scripts/menu_proot.sh) ni una futura corrida con --source
+# explícito desde la propia app.
+if ! $INSTALL_SOURCE_EXPLICIT && [ -f "$HOME/.n8n_install_source" ]; then
+  INSTALL_SOURCE="$(cat "$HOME/.n8n_install_source" 2>/dev/null | tr -d '\r\n')"
+fi
 
 # ── Manifiesto declarativo (--describe) ───────────────────────
 if $DESCRIBE; then
@@ -82,7 +99,7 @@ fi
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Reemplaza el manifest a mano modulos/manifests/n8n.json (borrado como
-# código muerto en humano165, ver docs/arquitectura/MODULEDEB_GENERICO.md).
+# código muerto, ver docs/arquitectura/MODULEDEB_GENERICO.md).
 # Contenido migrado 1:1 del manifest piloto original
 # (git show 838544d^:modulos/manifests/n8n.json). PILOTO LIMITADO: solo
 # empaqueta scripts de control/boot — NO la imagen/contenedor udocker
@@ -181,7 +198,7 @@ update_registry() {
   registry_install n8n "$version" "mode=$mode" "port=5678"
 }
 
-# Bug real (2026-08-06, ver docs/humano/humano77.md): si este intento de
+# Bug real (2026-08-06): si este intento de
 # instalación falla DESPUÉS de que un intento anterior (de la OTRA variante,
 # proot o udocker) ya haya escrito el registry con éxito, el registry se
 # queda con ese valor viejo — la UI termina mostrando "instalado, modo: X"
@@ -259,7 +276,7 @@ if ! udocker inspect n8n &>/dev/null; then
 fi
 [ -f "$TERMUX_HOME/.udocker_force_p2" ] && udocker setup --execmode=P2 n8n 2>/dev/null || true
 
-# Bug real (2026-08-06, ver docs/humano/humano88.md): el modo proot ya soportaba
+# Bug real (2026-08-06): el modo proot ya soportaba
 # "Configurar dominio webhook" (N8N_WEBHOOK_URL en ~/.env_n8n, portado del [d] del
 # TUI original) pero el modo udocker no leía ese archivo en absoluto — el botón de
 # la app escribía el dominio pero solo tenía efecto si el usuario había instalado
@@ -282,13 +299,12 @@ echo "[*] Esperando n8n..."
 # comando exitoso) — ModuleController.startModule()/installModule() en Kotlin
 # interpretan waitFor()==0 como "éxito", así que tanto el botón "Iniciar n8n" como
 # la instalación reportaban éxito aunque el contenedor jamás respondiera en :5678.
-# Bug real reportado (ver docs/humano/humano57.md): "n8n... dura mucho y al final
+# Bug real reportado: "n8n... dura mucho y al final
 # ni siquiera se si se inicia" — 60s (30x2s) es corto para el arranque en frío de
 # udocker (pull/extract de la imagen + primer boot de n8n dentro de proot P2, más
 # lento que un contenedor nativo). Subido a 90s (45x2s), mismo criterio que el
 # timeout equivalente de ModuleController.kt (Kotlin) para n8n.
-# Subido de nuevo a 180s (90x2s) — evidencia real de dispositivo (ver
-# docs/humano290.md): 90s seguía siendo insuficiente en hardware real para un
+# Subido de nuevo a 180s (90x2s) — evidencia real de dispositivo: 90s seguía siendo insuficiente en hardware real para un
 # arranque en frío (pull/extract de imagen + primer boot bajo proot P2), el
 # script devolvía [ERROR] pero n8n seguía booteando en la sesión tmux detached
 # igual y quedaba arriba segundos/minutos después — un reintento manual poco
@@ -305,7 +321,7 @@ if ! $N8N_UP; then
   exit 1
 fi
 
-# Bug real reportado (auditoría 2026-08-05, ver docs/humano65.md): /healthz responde
+# Bug real reportado (auditoría 2026-08-05): /healthz responde
 # "ok" apenas el proceso de n8n está vivo, ANTES de que terminen las migraciones de
 # base de datos — el usuario veía "listo" en la app varios segundos antes de que la
 # interfaz de n8n realmente sirviera algo. Margen extra + segunda verificación real
@@ -337,7 +353,7 @@ CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null
 [ -n "$CF_URL" ] && echo "$CF_URL" > "$TERMUX_HOME/.last_cf_url"
 echo "[OK] n8n (udocker) activo :5678"
 [ -n "$CF_URL" ] && echo "[OK] URL: $CF_URL"
-# Bug real confirmado con evidencia de dispositivo (2026-08-14, ver docs/humano/humano120.md):
+# Bug real confirmado con evidencia de dispositivo (2026-08-14):
 # sin este "exit 0", el código de salida del script es el de la última línea ejecutada —
 # cuando CF_URL está vacío (modo .n8n_local_only, sin túnel), "[ -n "$CF_URL" ] && echo ..."
 # evalúa a falso y devuelve 1, así que start.sh "fallaba" pese a haber impreso
@@ -379,11 +395,11 @@ VER_ANTES=$(grep "^n8n\.version=" "$REGISTRY" 2>/dev/null | cut -d'=' -f2)
 tmux kill-session -t "n8n-udocker" 2>/dev/null || true
 sleep 2
 # --platform=linux/arm64: ver comentario del PASO 2 en n8n.sh (mismo bug real
-# confirmado por ADB, docs/humano269.md) — sin esto, udocker pide el manifest
+# confirmado por ADB) — sin esto, udocker pide el manifest
 # de "android/arm64" (Python de Termux reporta platform.system()="Android") y
 # Docker Hub siempre lo rechaza.
 # Fallback a :stable si :latest falla — ver comentario real del PASO 2 en n8n.sh
-# (docs/humano291.md, "n8nio/n8n:latest" confirmado roto en Docker Hub 2 veces).
+# ("n8nio/n8n:latest" confirmado roto en Docker Hub 2 veces).
 _N8N_UPDATE_TAG="latest"
 if ! udocker pull --platform=linux/arm64 n8nio/n8n; then
   echo "[WARN] n8nio/n8n:latest falló, probando n8nio/n8n:stable..."
@@ -465,13 +481,13 @@ echo "[*] Esperando n8n..."
 # la verificación post-instalación (n8n.sh, PASO 7) interpretaban éxito aunque
 # n8n nunca hubiera llegado a responder en :5678 (mismo patrón ya corregido en
 # start.sh de la variante udocker, arriba en este mismo archivo).
-# Bug real reportado (ver docs/humano/humano57.md): "n8n... dura mucho y al final
+# Bug real reportado: "n8n... dura mucho y al final
 # ni siquiera se si se inicia" — 60s (20x3s) puede ser corto para un login a
 # proot-distro + arranque en frío de n8n dentro de Debian (más lento que nativo).
 # Subido a 120s (40x3s), mismo criterio que el timeout equivalente de
 # ModuleController.kt (Kotlin) para n8n.
 # Subido de nuevo a 240s (80x3s) — mismo hallazgo real que la variante udocker
-# arriba en este archivo (ver docs/humano290.md): login a proot-distro + arranque
+# arriba en este archivo: login a proot-distro + arranque
 # en frío de n8n dentro de Debian puede exceder 120s en hardware real; duplicar
 # el techo evita depender de un reintento manual para el mismo intento de instalación.
 N8N_UP=false
@@ -485,7 +501,7 @@ if ! \$N8N_UP; then
   exit 1
 fi
 
-# Bug real reportado (auditoría 2026-08-05, ver docs/humano65.md): /healthz responde
+# Bug real reportado (auditoría 2026-08-05): /healthz responde
 # "ok" apenas el proceso de n8n está vivo, ANTES de que terminen las migraciones de
 # base de datos — el usuario veía "listo" en la app varios segundos antes de que la
 # interfaz de n8n realmente sirviera algo. Margen extra + segunda verificación real
@@ -527,8 +543,8 @@ SCRIPT
   cat > "$_dir/stop_servidor.sh" << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
 DISTRO_NAME="${_distro}"
-# Mismo bug real que en openclaw_start.sh/openclaw_stop.sh (ver docs/humano219.md/humano220.md,
-# confirmado por ADB con "time"+exit code): "pkill -f n8n" matchea contra la línea de comando
+# Mismo bug real que en openclaw_start.sh/openclaw_stop.sh (confirmado por ADB
+# con "time"+exit code): "pkill -f n8n" matchea contra la línea de comando
 # COMPLETA de cualquier proceso vivo — el propio "bash -c 'pkill -f n8n ...'" que lo ejecuta
 # tiene "n8n" en SU PROPIA línea de comando (el texto del pkill que está corriendo), así que se
 # automataba con SIGKILL antes de llegar a "pkill -f cloudflared". Patrón de 2 palabras
@@ -693,7 +709,7 @@ if [ "$VARIANT" = "udocker" ]; then
     "https://download.a.incd.pt/udocker/udocker-englib-1.2.11.tar.gz"
   )
 
-  # TMPDIR (2026-09-11, confirmado por ADB en dispositivo real, ver docs/humano330.md):
+  # TMPDIR (2026-09-11, confirmado por ADB en dispositivo real):
   # sin esto, udocker (Python) cae al fallback "/tmp" del sistema Android, que la app NO
   # puede escribir (drwxrwx--x, solo shell:shell) — todo curl interno de udocker (tarball de
   # udockertools Y pull de la imagen n8n) fallaba con "Error: in download: %s" / curl exit 23
@@ -703,8 +719,8 @@ if [ "$VARIANT" = "udocker" ]; then
   export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
   mkdir -p "$TMPDIR"
 
-  # UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real, ver
-  # docs/humano330.md): con el fix de TMPDIR arriba, "udocker install"/udockertools ya
+  # UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real):
+  # con el fix de TMPDIR arriba, "udocker install"/udockertools ya
   # funcionaba, pero "udocker pull" seguía fallando con el mismo "Error: in download: %s" —
   # traza real con "udocker -D pull" mostró X-ND-CURLSTATUS=1 (protocolo no soportado, típico
   # de una llamada a subprocess malformada) y "Debug: using curl executable " en blanco: la
@@ -731,7 +747,7 @@ if [ "$VARIANT" = "udocker" ]; then
   # reportaba como "no existe" (fix portado de install_n8n.sh, 2026-07-26).
   if command -v udocker &>/dev/null && udocker inspect n8n &>/dev/null && ! $FORCE; then
     log "n8n (udocker) ya instalado"
-    # Bug real confirmado por ADB (2026-08-28, docs/humano281.md): este atajo hacía "exit 0"
+    # Bug real confirmado por ADB (2026-08-28): este atajo hacía "exit 0"
     # SIN pasar nunca por update_registry() — cualquier corrida previa donde el registry se
     # hubiera invalidado (invalidate_registry, arriba) o nunca se hubiera escrito (primera
     # instalación interrumpida a mitad) quedaba con "n8n.installed=false" PARA SIEMPRE, aunque
@@ -753,7 +769,7 @@ if [ "$VARIANT" = "udocker" ]; then
 
   # ── PASO 0 — udocker ──────────────────────────────────────
   step "0/7 Instalando udocker"
-  # Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): esta variable
+  # Bug real (auditoría 2026-08-05): esta variable
   # vivía DENTRO del bloque "else" de abajo, así que solo se exportaba la PRIMERA vez
   # que corría el script. Si un intento anterior dejó "udocker_install" marcado como
   # hecho (checkpoint) pero falló más adelante (PASO 2/3, pull o create de la imagen),
@@ -770,7 +786,7 @@ if [ "$VARIANT" = "udocker" ]; then
       log "udocker ya disponible"
     else
       info "Instalando udocker..."
-      # Bug real confirmado por ADB (docs/humano246.md, 2026-08-26): "udocker" NO es un paquete
+      # Bug real confirmado por ADB (2026-08-26): "udocker" NO es un paquete
       # del repo apt de Termux — "pkg install udocker" fallaba siempre con "Unable to locate
       # package" (oculto por el "2>/dev/null" anterior).
       # Bug real #2 confirmado por ADB (docs/arquitectura/DEPURACION_COMPLETA_2026-08-26.md,
@@ -853,7 +869,8 @@ if [ "$VARIANT" = "udocker" ]; then
     if command -v cloudflared &>/dev/null; then
       log "cloudflared ya disponible"
     else
-      # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+      # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
+      # "pkg install" no lo tiene disponible.
       pkg_update_with_fallback
       if pkg install -y cloudflared; then
         log "cloudflared instalado via pkg"
@@ -890,7 +907,7 @@ if [ "$VARIANT" = "udocker" ]; then
     # (no depende de Docker Hub ni de udocker).
     #
     # --platform=linux/arm64 explícito: bug real confirmado por ADB en dispositivo
-    # (docs/humano269.md ronda de auditoría) — udocker arma el selector de
+    # (ronda de auditoría) — udocker arma el selector de
     # plataforma con HostInfo.osversion() = platform.system().lower(), y el
     # Python de Termux devuelve "Android" (no "Linux") ahí, así que sin este
     # flag udocker pide el manifest de "android/arm64" a Docker Hub, que no
@@ -898,7 +915,7 @@ if [ "$VARIANT" = "udocker" ]; then
     # descarga falla siempre, en todo dispositivo. --platform es un flag real
     # y documentado del propio udocker (ver udocker/cli.py, "udocker pull
     # --platform=linux/arm64 <imagen>" en su propio --help).
-    # Fallback real a ":stable" si ":latest" falla (2026-08-31, ver docs/humano291.md):
+    # Fallback real a ":stable" si ":latest" falla (2026-08-31):
     # confirmado que "n8nio/n8n:latest" puede quedar roto en Docker Hub temporalmente
     # (build con un módulo interno faltante, "Cannot find module
     # '@n8n/ai-utilities/generic-text-editor'", reproducido 2 veces) — n8nio SÍ publica
@@ -1002,7 +1019,7 @@ SCRIPT
     error "n8n (udocker) se instaló pero no arrancó — revisa el log con: bash ~/scripts/n8n-udocker/log.sh (o ~/kairos_logs/install_n8n.log)"
   fi
 
-  # Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): "udocker images" en la
+  # Bug real confirmado por ADB (2026-08-24): "udocker images" en la
   # versión real instalada (1.3.17) devuelve REPO:TAG en una sola columna
   # ("n8nio/n8n:latest"), no en 2 columnas separadas — "awk '{print $2}'" agarraba la
   # columna del flag "protected" (".") en vez del tag, dejando "n8n.version=." en el
@@ -1044,7 +1061,7 @@ if [ -n "$DISTRO_NAME" ] && ! $FORCE; then
   if proot-distro login "$DISTRO_NAME" -- bash -c 'command -v n8n' &>/dev/null 2>&1; then
     N8N_VER=$(proot-distro login "$DISTRO_NAME" -- bash -c 'n8n --version 2>/dev/null' 2>/dev/null | head -1)
     log "n8n ya instalado — v${N8N_VER} ($DISTRO_NAME)"
-    # Mismo bug real que la variante udocker (docs/humano281.md) — este atajo tampoco pasaba
+    # Mismo bug real que la variante udocker — este atajo tampoco pasaba
     # por update_registry(), dejando "n8n.installed=false" atascado en cualquier corrida donde
     # el registry se hubiera invalidado o nunca escrito, pese a que n8n funciona de verdad.
     update_registry "proot" "${N8N_VER:-desconocida}"
@@ -1139,7 +1156,7 @@ elif check_done "termux_update"; then
   log "Termux ya actualizado [checkpoint]"
 else
   info "Actualizando Termux..."
-  # Quick win de la auditoría de referencia/ (2026-08-05, ver docs/humano70.md) — antes
+  # Quick win de la auditoría de referencia/ (2026-08-05) — antes
   # probaba solo 2 mirrors fijos en orden; ahora comparte la selección por velocidad
   # real centralizada en lib.sh (mismo criterio que entorno.sh/kairos.sh).
   pkg_update_with_fallback
@@ -1175,7 +1192,8 @@ else
   else
     if ! command -v proot-distro &>/dev/null; then
       info "Instalando proot-distro..."
-      # Bug real, mismo patrón que bug #21 (VNC), ver docs/humano/humano193.md.
+      # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
+      # "pkg install" no lo tiene disponible.
       pkg_update_with_fallback
       pkg install proot-distro proot -y \
         -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || \
@@ -1271,7 +1289,7 @@ fi
 apt-get install -y $DPKG_OPTS nodejs
 echo "[OK] Node.js $(node --version)"
 
-# Sospecha real (ver docs/humano/humano63.md): si "node --version" falla, NODE_MAJOR queda
+# Sospecha real: si "node --version" falla, NODE_MAJOR queda
 # vacío y la comparación de abajo tira un error de bash genérico ("integer expression
 # expected") en vez de diagnosticar el problema real — se chequea explícito antes.
 NODE_MAJOR=$(node --version | sed 's/v//' | cut -d'.' -f1)

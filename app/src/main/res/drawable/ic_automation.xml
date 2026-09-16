@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono propio para la pantalla "Automatizaciones" (2026-09-15, ver
+     docs/modulos/AUTOMATIZACIONES.md) — rayo/bolt clásico (mismo glifo que Material "flash_on"),
+     representa "algo se dispara solo" de forma abstracta, mismo criterio que ic_store.xml/
+     ic_homelab.xml: ícono neutral en vez de reusar el logo de otro módulo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFF"
+        android:pathData="M 7 2 v 11 h 3 v 9 l 7 -12 h -4 l 4 -8 Z"/>
+</vector>

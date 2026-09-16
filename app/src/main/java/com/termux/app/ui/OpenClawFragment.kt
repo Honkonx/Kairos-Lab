@@ -22,7 +22,7 @@ class OpenClawFragment : BaseModuleFragment() {
     override fun getModuleName() = "OpenClaw"
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el token
-    // real del gateway (tokenValue) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    // real del gateway (tokenValue) — un secreto guardado nunca vuelve a mostrarse sin control.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -52,7 +52,7 @@ class OpenClawFragment : BaseModuleFragment() {
             // que agregó la sección de proyectos acá (fuera de su alcance en ese momento).
             val openclawVersion = com.termux.app.data.ModuleRegistry(requireContext()).load().get("openclaw.version")
             addView(infoRow(getString(R.string.openclaw_label_version), openclawVersion?.ifBlank { getString(R.string.openclaw_dash) } ?: getString(R.string.openclaw_dash)))
-            // Bug real (2026-08-07, ver docs/humano/humano88.md): "Gateway"/"Token"/"Modelo
+            // Bug real (2026-08-07): "Gateway"/"Token"/"Modelo
             // activo" estaban hardcodeados fijos ("detenido", "sk-***...", "qwen2.5:0.5b")
             // sin leer nada real — el usuario veía "detenido" incluso con el gateway
             // corriendo, un token falso con forma de API key (el token real de OpenClaw es
@@ -62,7 +62,7 @@ class OpenClawFragment : BaseModuleFragment() {
             // "Modelo activo" se quitó — no hay un único campo confiable de "modelo activo"
             // en el config real (depende del proveedor elegido en onboarding), mostrar algo
             // inventado sería peor que no mostrar nada.
-            // Switch real (2026-08-22, ver docs/humano/humano193.md) — reemplaza la pill de solo
+            // Switch real (2026-08-22) — reemplaza la pill de solo
             // lectura + los botones separados "Iniciar gateway"/"Detener" de más abajo.
             gatewaySwitch = switchRow(getString(R.string.openclaw_label_gateway)) { on ->
                 if (on) startGatewayGuarded() else stopModuleService { ok ->
@@ -140,7 +140,7 @@ class OpenClawFragment : BaseModuleFragment() {
             showChannelsMenu()
         }
         // Nunca hab\u00EDa opci\u00F3n para importar/sincronizar/symlink workspaces ac\u00E1 \u2014 pedido
-        // expl\u00EDcito del usuario (2026-08-01, ver docs/humano/humano42.md): "las opciones de
+        // expl\u00EDcito del usuario (2026-08-01): "las opciones de
         // proyectos... toca ponerlos en todo los cli". Mismo patr\u00F3n de UI que
         // AntigravityFragment.manageProjects(), pero sobre workspaceDir (no ~/proyectos).
         actionButton(getString(R.string.openclaw_btn_manage_workspaces), GHOST) {
@@ -225,7 +225,7 @@ class OpenClawFragment : BaseModuleFragment() {
                     tokenValue.text = getString(R.string.openclaw_token_masked_format, token.take(6), token.takeLast(4))
                     tokenValue.setTextColor(requireContext().kairosThemeColor(R.attr.kairosText))
                 } else {
-                    // No es un bug (auditor\u00eda 2026-08-12, ver docs/humano/humano99.md): el
+                    // No es un bug (auditor\u00eda 2026-08-12): el
                     // token solo se genera al correr "openclaw onboard" (wizard interactivo,
                     // nunca automatizado por el instalador silencioso a prop\u00f3sito). Se resalta
                     // en \u00e1mbar en vez de texto neutro para que se note que hace falta una
@@ -353,7 +353,7 @@ class OpenClawFragment : BaseModuleFragment() {
         }.start()
     }
 
-    // Bug real (2026-08-07, ver docs/humano/humano91.md): "Proveedor IA / Modelo" era de
+    // Bug real (2026-08-07): "Proveedor IA / Modelo" era de
     // solo lectura — el TUI real (_submenu_cl_proveedor) tiene 3 acciones que escriben el
     // config de verdad, portadas acá 1:1 (ver OpenClawNative.kt para el detalle del JSON).
     private fun showProvidersMenu() {

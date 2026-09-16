@@ -4,8 +4,7 @@
 #  Prettier — npm install -g prettier (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/prettier/install.sh
-#  (mismo comando real: npm install -g prettier) — ver ronda "paquetes
-#  adicionales core-termux" en docs/humano/.
+#  (mismo comando real: npm install -g prettier).
 #
 #  USO DESDE APP (KairosApp):
 #    bash prettier.sh --silent

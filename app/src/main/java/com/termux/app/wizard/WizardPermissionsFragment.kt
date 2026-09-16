@@ -24,7 +24,7 @@ import com.termux.R
 import com.termux.app.util.kairosThemeColor
 
 /** Pantalla 1 del wizard — permisos de almacenamiento y notificaciones, EN ESE ORDEN
- * (pedido explícito del usuario, ver docs/humano/humano10.md). El botón "Continuar" queda
+ * (pedido explícito del usuario). El botón "Continuar" queda
  * deshabilitado hasta que ambos quedan resueltos (concedido o explícitamente rechazado
  * para notificaciones — almacenamiento sí es obligatorio, Kairos lo necesita de verdad). */
 class WizardPermissionsFragment : Fragment() {
@@ -81,10 +81,10 @@ class WizardPermissionsFragment : Fragment() {
             setOnClickListener {
                 // Dispara el bootstrap crudo de Termux (bash/pkg/adb) en segundo plano ANTES
                 // de entrar a la pantalla de procesos fantasma — esa pantalla corre comandos
-                // pkg/adb reales y bug real reportado (ver docs/humano/humano56.md) mostró que
+                // pkg/adb reales y bug real reportado mostró que
                 // fallaban porque el bootstrap todavía no existía a esa altura del wizard.
-                // Idempotente, no interfiere con el bootstrap completo de la pantalla 4 — desde
-                // docs/humano/humano58.md, TermuxInstaller.setupBootstrapIfNeeded() además
+                // Idempotente, no interfiere con el bootstrap completo de la pantalla 4 —
+                // TermuxInstaller.setupBootstrapIfNeeded() además
                 // encola cualquier llamada concurrente en vez de correr 2 extracciones en
                 // paralelo (esa doble llamada, sin el guard, corrompía $PREFIX y era la causa
                 // real de "Cannot run program bash" más adelante en la pantalla 4).
@@ -197,7 +197,7 @@ class WizardPermissionsFragment : Fragment() {
             maybeEnableContinue()
             return
         }
-        // BUG REAL confirmado por ADB en dispositivo (Android 16/API 36, ver docs/humano/humanoXXX.md):
+        // BUG REAL confirmado por ADB en dispositivo (Android 16/API 36):
         // gradle.properties tiene targetSdkVersion=28 (< 33/Tiramisu) — con targetSdk por debajo
         // de 33, Android NUNCA muestra el diálogo runtime de POST_NOTIFICATIONS al llamar
         // requestPermissions()/ActivityResultContracts.RequestPermission(); simplemente resuelve

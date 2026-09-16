@@ -12,6 +12,7 @@ import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.util.TERMUX_BASH_PATH
 import com.termux.app.util.TunnelManager
 import com.termux.app.util.applyTermuxEnv
+import com.termux.app.util.kairosThemeColor
 import com.termux.app.util.showProjectsMenu
 import com.termux.shared.termux.TermuxConstants
 import java.io.File
@@ -24,7 +25,7 @@ class N8nFragment : BaseModuleFragment() {
     private lateinit var tunnelUrlValue: TextView
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona la API
-    // Key de n8n (showApiKeyDialog()) — ver .claude/rules/kairos-secrets-never-revealed.md.
+    // Key de n8n (showApiKeyDialog()) — un secreto guardado nunca vuelve a mostrarse en la UI.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -33,14 +34,14 @@ class N8nFragment : BaseModuleFragment() {
     private lateinit var networkRow: DropdownSwitchRow
     private val networkModes get() = listOf(getString(R.string.n8n_network_mode_local), getString(R.string.n8n_network_mode_tunnel))
 
-    // Bug real (2026-08-06, ver docs/humano/humano83.md): esta card mostraba "proot" fijo,
+    // Bug real (2026-08-06): esta card mostraba "proot" fijo,
     // sin leer el registry — con n8n instalado en udocker (la variante recomendada desde una
     // ronda anterior), la UI mentía sobre qué entorno se estaba usando de verdad.
     private fun n8nMode(): String =
         com.termux.app.data.ModuleRegistry(requireContext()).load().get("n8n.mode") ?: "proot"
 
     override fun buildContent() {
-        // Instalación silenciosa en segundo plano (pedido 2026-08-13, ver humano101): si n8n
+        // Instalación silenciosa en segundo plano (pedido explícito del usuario, 2026-08-13): si n8n
         // no está instalado, el fragment ofrece instalarlo internamente sin bloquear — el
         // usuario elige variante (udocker/proot-distro) y sigue navegando mientras se instala.
         if (!isModuleInstalled()) {
@@ -52,10 +53,10 @@ class N8nFragment : BaseModuleFragment() {
         addCard(getString(R.string.n8n_card_estado)) {
             addView(infoRow(getString(R.string.n8n_label_entorno), n8nMode()))
             // Dropdown (modo de red) + switch bloqueado — pedido explícito del usuario
-            // (2026-08-22, ver docs/humano/humano192.md/humano193.md, ejemplo textual que dio: "n8n
+            // (2026-08-22, ejemplo textual que dio: "n8n
             // podría tener una casilla desplegable con modo localhost y modo cloudflare y el
             // switch dentro"). Reemplaza el botón de acción único que alternaba el modo
-            // (docs/humano/humano116.md) + los botones separados "Iniciar n8n"/"Detener" de
+            // + los botones separados "Iniciar n8n"/"Detener" de
             // abajo. El cambio de modo requiere reiniciar n8n para aplicar — antes esto era
             // solo un aviso en un toast ("aplica al próximo inicio"), ahora el propio switch
             // lo hace estructural: mientras n8n está corriendo (switch ON) no se puede tocar
@@ -82,7 +83,8 @@ class N8nFragment : BaseModuleFragment() {
                 addView(TextView(requireContext()).apply {
                     text = getString(R.string.n8n_label_estado)
                     textSize = 13f
-                    setTextColor(0xff8888aa.toInt())
+                    // Auditoría de temas 2026-09-15: era 0xff8888aa fijo — roto en Señal/Claro.
+                    setTextColor(requireContext().kairosThemeColor(R.attr.kairosText2))
                     layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 0.5f)
                 })
                 addView(pill(getString(R.string.n8n_status_stopped), false))
@@ -121,7 +123,7 @@ class N8nFragment : BaseModuleFragment() {
         }
         actionButton(getString(R.string.n8n_btn_api_key), GHOST) { showApiKeyDialog() }
         actionButton(getString(R.string.n8n_btn_view_logs), GHOST) {
-            // Bug real (2026-08-06, ver docs/humano/humano83.md): mismo patrón ya corregido en
+            // Bug real (2026-08-06): mismo patrón ya corregido en
             // "Actualizar n8n" — hardcodeado a la ruta de la variante proot, sin importar cuál
             // se instaló de verdad.
             val script = if (n8nMode() == "udocker") "~/scripts/n8n-udocker/log.sh" else "~/scripts/n8n/n8n_log.sh"
@@ -139,7 +141,7 @@ class N8nFragment : BaseModuleFragment() {
             showProjectsMenu(onToast = { toast(it) })
         }
         actionButton(getString(R.string.n8n_btn_update), GHOST) {
-            // Bug real (auditoría 2026-08-05, ver docs/humano65.md/humano66.md): este botón
+            // Bug real (auditoría 2026-08-05): este botón
             // corría SIEMPRE "~/scripts/n8n/n8n_update.sh" (el script de la variante proot) sin
             // importar con qué variante se instaló n8n — si el usuario instaló la variante
             // udocker (que vive en "~/scripts/n8n-udocker/update.sh", una ruta distinta), el
@@ -155,7 +157,7 @@ class N8nFragment : BaseModuleFragment() {
             showCfTokenDialog()
         }
         // Opcion [d] de submenu_n8n() en termux-ai-stack-dev/scripts/menu_proot.sh, faltaba por
-        // completo en la app (ver docs/humano/humano88.md) — permite fijar N8N_WEBHOOK_URL en
+        // completo en la app — permite fijar N8N_WEBHOOK_URL en
         // ~/.env_n8n para que los webhooks de n8n se construyan con un dominio propio en vez del
         // subdominio *.trycloudflare.com temporal. modulos/n8n.sh ya lo soportaba en modo proot;
         // se agrego soporte en modo udocker en esta misma ronda.
@@ -185,7 +187,7 @@ class N8nFragment : BaseModuleFragment() {
 
     private fun isLocalOnly(): Boolean = localOnlyFlagFile().exists()
 
-    // Pedido 2026-08-13 (ver docs/humano/humano115.md): n8n arrancaba SIEMPRE el túnel
+    // Pedido explícito del usuario, 2026-08-13: n8n arrancaba SIEMPRE el túnel
     // cloudflared si el binario estaba presente (que siempre lo está) — sin forma de usar
     // n8n solo por LAN/localhost:5678. El flag lo leen start.sh (udocker) y
     // start_servidor.sh (proot) de modulos/n8n.sh antes de levantar el túnel.
@@ -201,8 +203,8 @@ class N8nFragment : BaseModuleFragment() {
         }.start()
     }
 
-    // Reemplaza los botones separados "Iniciar n8n"/"Detener" (2026-08-22, ver
-    // docs/humano/humano193.md) — el switch de la fila "n8n" (dropdown de modo de red) ahora
+    // Reemplaza los botones separados "Iniciar n8n"/"Detener" (2026-08-22) — el switch
+    // de la fila "n8n" (dropdown de modo de red) ahora
     // controla start/stop. Misma lógica de startModuleService/stopModuleService de siempre.
     private fun onN8nSwitchToggled(on: Boolean) {
         if (on) {
@@ -219,7 +221,7 @@ class N8nFragment : BaseModuleFragment() {
         }
     }
 
-    // Pedido 2026-08-13 (ver humano101): instalación silenciosa en segundo plano — el usuario
+    // Pedido explícito del usuario, 2026-08-13: instalación silenciosa en segundo plano — el usuario
     // elige la variante (udocker = nativo recomendado, proot-distro = Debian) y sigue haciendo
     // otras cosas mientras n8n se instala internamente (ModuleController.installModule, Thread).
     private fun showSilentInstallVariantDialog() {
@@ -227,15 +229,67 @@ class N8nFragment : BaseModuleFragment() {
             .setTitle(getString(R.string.n8n_install_dialog_title))
             .setMessage(getString(R.string.n8n_install_dialog_message))
             .setItems(arrayOf(getString(R.string.n8n_install_variant_udocker), getString(R.string.n8n_install_variant_proot))) { _, which ->
-                val variant = if (which == 0) "udocker" else "proot-distro"
-                installModuleInBackground(variant) { ok ->
-                    if (ok) {
-                        toast(getString(R.string.n8n_toast_installed))
-                        refreshView()
-                    } else {
-                        toast(getString(R.string.n8n_toast_install_failed))
-                    }
+                if (which == 0) {
+                    startSilentInstall("udocker")
+                } else {
+                    // proot-distro es la única variante donde --source aplica (ver
+                    // showInstallSourceDialog() más abajo) — se pregunta ANTES de arrancar la
+                    // instalación en segundo plano, mismo momento que el picker de variante de
+                    // arriba.
+                    showInstallSourceDialog { startSilentInstall("proot-distro") }
                 }
+            }
+            .setNegativeButton(getString(R.string.n8n_cancel), null)
+            .show()
+    }
+
+    private fun startSilentInstall(variant: String) {
+        installModuleInBackground(variant) { ok ->
+            if (ok) {
+                toast(getString(R.string.n8n_toast_installed))
+                refreshView()
+            } else {
+                toast(getString(R.string.n8n_toast_install_failed))
+            }
+        }
+    }
+
+    // Hallazgo viejo "n8n --source no expuesto en UI" (ver MEJORAS_PENDIENTES.md) —
+    // modulos/n8n.sh soporta --source (clean|github|rootfs-github|rootfs-clean, SOLO aplica a
+    // --variant proot) desde su v4.0.0, pero nunca se expuso acá porque hacerlo "bien" parecía
+    // requerir agregarle un parámetro nuevo a ModuleController.installModule() — la firma
+    // compartida que usan ~57 módulos (9 call-sites reales, TODOS con argumentos posicionales,
+    // no nombrados: ver p.ej. BaseModuleFragment.installModuleInBackground()) — riesgo
+    // desproporcionado para un flag de un solo módulo.
+    //
+    // Vía de menor riesgo (2026-09-15): mismo patrón que YA usa este archivo para
+    // ".n8n_local_only" (ver setLocalOnly() más arriba) — la UI escribe la preferencia en un
+    // archivo ANTES de llamar a installModuleInBackground() normal, y modulos/n8n.sh la lee
+    // internamente (INSTALL_SOURCE_EXPLICIT) SOLO si --source no llegó por CLI. No toca
+    // ModuleController.kt ni ningún otro módulo.
+    private fun n8nInstallSourceFile() = File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".n8n_install_source")
+
+    private fun showInstallSourceDialog(onChosen: () -> Unit) {
+        val values = arrayOf("clean", "github", "rootfs-github", "rootfs-clean")
+        val labels = arrayOf(
+            getString(R.string.n8n_install_source_clean),
+            getString(R.string.n8n_install_source_github),
+            getString(R.string.n8n_install_source_rootfs_github),
+            getString(R.string.n8n_install_source_rootfs_clean)
+        )
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.n8n_install_source_dialog_title))
+            .setMessage(getString(R.string.n8n_install_source_dialog_message))
+            .setItems(labels) { _, which ->
+                Thread {
+                    try { n8nInstallSourceFile().writeText(values[which]) } catch (_: Exception) { }
+                    // Guard de Fragment-adjunto — el usuario puede navegar fuera mientras este
+                    // I/O de archivo corre.
+                    if (!isAdded) return@Thread
+                    requireActivity().runOnUiThread {
+                        if (isAdded) onChosen()
+                    }
+                }.start()
             }
             .setNegativeButton(getString(R.string.n8n_cancel), null)
             .show()
@@ -398,8 +452,8 @@ class N8nFragment : BaseModuleFragment() {
                 false
             }
             // Bug real (auditoría terminal adaptada 2026-08-19): este Thread no tenía NINGÚN
-            // guard de Fragment-adjunto — mismo patrón/mismo tipo de crash confirmado en
-            // docs/humano/humano57.md (IllegalStateException si el usuario navega a otra
+            // guard de Fragment-adjunto — mismo patrón/mismo tipo de crash ya confirmado antes
+            // (IllegalStateException si el usuario navega a otra
             // pantalla mientras el I/O de archivo corre en background).
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
@@ -477,9 +531,10 @@ class N8nFragment : BaseModuleFragment() {
         }.start()
     }
 
-    // Gap real reportado en auditoría 2026-08-27 (docs/humano273.md): abría la terminal solo
+    // Gap real reportado en auditoría 2026-08-27: abría la terminal solo
     // para leer un archivo (cat ~/.last_cf_url) — contradice la filosofía de producto de Kairos
-    // (ver .claude/rules/kairos-product-philosophy.md), no hace falta terminal para esto.
+    // (la app existe para no obligar al usuario a vivir en la terminal), no hace falta terminal
+    // para esto.
     // Lectura directa del archivo, mismo patrón que localOnlyFlagFile()/webhookDomainFile() en
     // este mismo Fragment.
     private fun showTunnelUrlDialog() {
@@ -505,7 +560,7 @@ class N8nFragment : BaseModuleFragment() {
             .show()
     }
 
-    // Gap real reportado en auditoría 2026-08-27 (docs/humano273.md): backup.sh/n8n_backup.sh
+    // Gap real reportado en auditoría 2026-08-27: backup.sh/n8n_backup.sh
     // son acciones no-interactivas y deterministas (tar + un mensaje final "[OK] Backup: ...")
     // — no hace falta terminal, mismo patrón que runRepairScripts() de más abajo.
     private fun runBackupWorkflows() {
@@ -532,7 +587,7 @@ class N8nFragment : BaseModuleFragment() {
         }.start()
     }
 
-    // Gap real reportado en auditoría 2026-08-27 (docs/humano273.md): n8n_update.sh/update.sh
+    // Gap real reportado en auditoría 2026-08-27: n8n_update.sh/update.sh
     // son acciones no-interactivas (npm update / udocker pull+create) pero pueden tardar unos
     // minutos — se pide confirmación antes (como el resto de acciones potencialmente lentas de
     // este Fragment) y se corre en background con el mismo patrón de runRepairScripts().
@@ -758,7 +813,7 @@ class N8nFragment : BaseModuleFragment() {
                 // Fragment confirmado adjunto (ver su KDoc en BaseModuleFragment.kt) — envolverlo
                 // en un requireActivity().runOnUiThread{} extra acá encolaba un SEGUNDO post al
                 // Looper principal sin volver a chequear isAdded, reabriendo la misma ventana de
-                // "Fragment not attached" (docs/humano/humano57.md) que este helper existe para
+                // "Fragment not attached" que este helper existe para
                 // cerrar: si el usuario navegaba fuera justo en ese instante, ese post extra
                 // podía ejecutarse con el Fragment ya desadjunto.
                 startModuleService { ok, _ ->

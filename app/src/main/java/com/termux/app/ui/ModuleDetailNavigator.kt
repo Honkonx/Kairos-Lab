@@ -16,6 +16,7 @@ import com.termux.app.model.ModuleInfo
  */
 object ModuleDetailNavigator {
 
+    @JvmStatic
     fun navigate(fragmentManager: FragmentManager, module: ModuleInfo) {
         val fragment = when (module.id) {
             "ollama" -> OllamaFragment()

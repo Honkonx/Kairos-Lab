@@ -174,7 +174,7 @@ public class LoriePreferences extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Bug real (2026-08-13, ver docs/humano/humano116.md): mismo caso que MainActivity.java
+        // Bug real (2026-08-13): mismo caso que MainActivity.java
         // — el registerReceiver(receiver, filter, int flags) de 3 argumentos recién existe
         // desde API 33, con minSdk=24 tiraba NoSuchMethodError en Android 7-12 sin importar el
         // valor del flag. ContextCompat resuelve la compatibilidad real hacia atrás.

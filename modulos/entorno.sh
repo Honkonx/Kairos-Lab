@@ -25,7 +25,7 @@
 #      distros, socket visible dentro de la distro, GPU y pulseaudio — para
 #      entender por qué NO se renderiza la GUI dentro de una distro proot
 #
-#  NOTA X11 (desde la ronda 2026-08-13): Kairos ya NO usa la
+#  NOTA X11 (ronda 2026-08-13): Kairos ya NO usa la
 #  app externa Termux:X11 (com.termux.x11). El servidor X11 va embebido en el APK
 #  (Xlorie, proceso ":xserver" vía X11Service, ver docs/x11/X11_EMBEBIDO.md).
 #  Este instalador solo registra el modo embebido en el registry; los scripts
@@ -154,7 +154,7 @@ ENTORNO_SCRIPTS="$TERMUX_HOME/scripts/entorno"
 
 # ── Helpers compartidas (log/warn/error/info/step/titulo/check_done/mark_done/
 #    notify_event/registry_write/mirrors) ──
-# Fuenteado en lugar de copiado: antes (bug real) este script definía
+# Fuenteado en lugar de copiado: antes este script definía
 # log/warn/error/check_done/mark_done y copiaba notify_event()
 # inline, con SILENT=0/1 mientras lib.sh espera true/false — causaba
 # "notify_event: command not found" al final de TODA instalación. Desde el refactor
@@ -198,7 +198,7 @@ _check_gpu() {
 _install_proot_distro() {
   titulo "proot-distro"
   command -v proot-distro &>/dev/null && { log "proot-distro ya instalado"; return 0; }
-  # Bug real, mismo patrón que bug #21 (VNC): esta función corre
+  # pkg_update_with_fallback() acá: esta función corre
   # después de check_done "entorno_pkg_update" (gate de una sola vez por checkpoint) — en
   # una reinstalación parcial (checkpoint ya marcado en una corrida previa) el mirror puede
   # haberse roto entretanto y este "pkg install" fallaría sin pista útil.
@@ -225,7 +225,7 @@ _install_udocker() {
 }
 
 _install_x11() {
-  # Desde la ronda 2026-08-13, Kairos NO usa la app
+  # Desde la ronda 2026-08-13 Kairos NO usa la app
   # externa Termux:X11 (com.termux.x11): el servidor X va embebido en el propio APK
   # (X11Service, proceso ":xserver", ver docs/x11/X11_EMBEBIDO.md). Por eso
   # acá no hay APK que descargar — solo se registra el modo embebido en el registry
@@ -243,7 +243,7 @@ _install_pulseaudio() {
   if command -v pulseaudio &>/dev/null; then
     log "PulseAudio ya instalado"
   else
-    # Bug real, mismo patrón que bug #21 (VNC).
+    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
     pkg_update_with_fallback
     pkg install -y pulseaudio || error "No se pudo instalar pulseaudio"
     log "PulseAudio instalado"
@@ -299,7 +299,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s vulkan-loader-generic &>/dev/null; then
         log "GPU Adreno: mesa + vulkan-loader-generic ya instalados"
       else
-        # Bug real, mismo patrón que bug #21 (VNC).
+        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
         pkg_update_with_fallback
         pkg install -y mesa vulkan-loader-generic || \
           warn "GPU Adreno: algunos paquetes fallaron (puede que ya estén)"
@@ -319,7 +319,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s virglrenderer-android &>/dev/null && dpkg -s angle-android &>/dev/null; then
         log "GPU Mali: mesa + virglrenderer-android + angle-android ya instalados"
       else
-        # Bug real, mismo patrón que bug #21 (VNC).
+        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
         pkg_update_with_fallback
         pkg install -y mesa virglrenderer-android angle-android || \
           warn "GPU Mali: algunos paquetes fallaron (puede que ya estén)"
@@ -340,7 +340,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s virglrenderer-android &>/dev/null && dpkg -s angle-android &>/dev/null; then
         log "GPU Xclipse: mesa + virglrenderer-android ya instalados"
       else
-        # Bug real, mismo patrón que bug #21 (VNC).
+        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
         pkg_update_with_fallback
         pkg install -y mesa virglrenderer-android angle-android || \
           warn "GPU Xclipse: algunos paquetes fallaron"
@@ -353,21 +353,22 @@ _install_gpu_native() {
         log "mesa (softGPU llvmpipe) ya instalado"
       else
         warn "GPU no detectada — instalando mesa (softGPU llvmpipe)"
-        # Bug real, mismo patrón que bug #21 (VNC).
+        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
         pkg_update_with_fallback
         pkg install -y mesa || true
       fi
       GPU_METHOD="llvmpipe"
       ;;
   esac
-  # mesa-demos (glxinfo/glxgears) — bug real: el diagnóstico de GPU (EntornoNative.kt
-  # gpuDiagnostic()) sugería "pkg install mesa-utils" en un mensaje de texto pero nunca lo
-  # instalaba de verdad, así que el propio comando sugerido nunca funcionaba solo. Corregido
-  # 2026-09-14: el paquete real en el repo de Termux se llama "mesa-demos", no "mesa-utils"
-  # (ese nombre no existe acá — confirmado con "apt-cache search mesa" en dispositivo real)
-  # — mismo bug de nombre de paquete que mesa-zink/mesa-vulkan-icd-freedreno-dri3 de arriba.
-  # Se instala acá, una sola vez, para todas las ramas de GPU_TYPE (diagnóstico real, no
-  # específico de un driver).
+  # mesa-demos (glxinfo/glxgears) — bug real (pedido explícito del
+  # usuario): el diagnóstico de GPU (EntornoNative.kt gpuDiagnostic()) sugería "pkg install
+  # mesa-utils" en un mensaje de texto pero nunca lo instalaba de verdad, así que el propio
+  # comando sugerido nunca funcionaba solo. Corregido 2026-09-14: el
+  # paquete real en el repo de Termux se llama "mesa-demos", no "mesa-utils" (ese nombre no
+  # existe acá — confirmado con "apt-cache search mesa" en dispositivo real) — mismo bug de
+  # nombre de paquete que mesa-zink/mesa-vulkan-icd-freedreno-dri3 de arriba. Se instala
+  # acá, una sola vez, para todas las ramas de GPU_TYPE (diagnóstico real, no específico de
+  # un driver).
   dpkg -s mesa-demos &>/dev/null || pkg install -y mesa-demos || \
     warn "mesa-demos no se pudo instalar (glxinfo/glxgears no van a estar disponibles para diagnóstico)"
 }
@@ -551,7 +552,7 @@ TX11STOP
   cat > "$ENTORNO_SCRIPTS/vnc_start.sh" << 'VNCSTART'
 #!/data/data/com.termux/files/usr/bin/bash
 export DISPLAY=:1
-# Fix real (bug real: "al darle iniciar da error"): TigerVNC exige contraseña
+# Fix real (bug reportado "al darle iniciar da error"): TigerVNC exige contraseña
 # interactiva (vncpasswd) en el primer uso — vncInstall() solo deja un aviso pero
 # nada la fuerza. Con stdin sin tty (este script corre vía ProcessBuilder desde
 # EntornoNative.vncStart(), sin stdin interactivo), vncserver/tigervncserver no
@@ -672,7 +673,7 @@ case "$GPU_METHOD" in
     export MESA_GLES_VERSION_OVERRIDE=3.2
     export LIBGL_DRI3_DISABLE=1 ;;
   turnip)
-    # Fix real (roadmap Mini PC item 1, bug "en gpu falta
+    # Fix real (roadmap Mini PC item 1, bug reportado "en gpu falta
     # wrapper, zink, turnip o panfrot" — nunca cerrado del todo: setGpuMethod("turnip")
     # ya instalaba paquetes desde 2026-08-xx pero este case nunca existió, así que la
     # variable real que activa el driver freedreno nativo (paquete apt
@@ -722,7 +723,7 @@ case "$GPU_METHOD" in
   llvmpipe)
     export GALLIUM_DRIVER=llvmpipe ;;
   wrapper)
-    # "Wrapper" real (corregido 2026-08-28 — se aclaró
+    # "Wrapper" real (corregido 2026-08-28 — el usuario aclaró
     # explícitamente que NO es ANGLE/OpenGL/EGL, es Vulkan puro, una capa ENCIMA del driver
     # Vulkan nativo del propio dispositivo, y SOLO funciona en modo nativo, nunca dentro de
     # proot-distro). Identificado en referencia/termux/termux-desktop-main/docs/
@@ -1071,7 +1072,7 @@ if ! $USE_GPU; then
   INNER="export LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe GALLIUM_DRIVER=llvmpipe; $INNER"
 fi
 
-# Fix real (bug: "en gpu falta wrapper, zink, turnip o panfrot"): las variables
+# Fix real (bug reportado "en gpu falta wrapper, zink, turnip o panfrot"): las variables
 # GPU aceleradas (GALLIUM_DRIVER=zink/virpipe/etc., seteadas por gpu_env.sh según lo elegido
 # en "⚙ Configurar método GPU" → EntornoNative.setGpuMethod()) se sourceaban en ESTE shell
 # (host) más arriba pero nunca se pasaban al `env` explícito de `proot-distro login ... --
@@ -1085,7 +1086,7 @@ fi
 # faltante, no se inventa acá.
 #
 # Bug real confirmado 2026-08-27 (reporte de usuario: fondo NEGRO al
-# abrir un entorno gráfico en distro, pero el panel/resto sí carga): el fix anterior
+# abrir un entorno gráfico en distro, pero el panel/resto sí carga): el fix de arriba
 # construía GPU_ENV_ARGS leyendo $GALLIUM_DRIVER/$MESA_GL_VERSION_OVERRIDE/etc DIRECTO del shell
 # actual — pero este bloque "modo distro" nunca sourcea gpu_env.sh (a diferencia del modo nativo,
 # línea ~754 arriba), así que esas variables SIEMPRE estaban unset acá, sin importar qué método
@@ -1172,7 +1173,7 @@ pkill -f 'dbus-run-session' 2>/dev/null
 pkill -f 'proot-distro login' 2>/dev/null
 pkill -f 'tigervncserver' 2>/dev/null
 
-# Fix real (bug: "instalo nativo y luego abrir con distro da error"): pkill
+# Fix real (bug reportado "instalo nativo y luego abrir con distro da error"): pkill
 # solo manda SIGTERM y retorna al toque, sin esperar a que el proceso termine de verdad —
 # xfce4-session/proot-distro login pueden tardar >0s en apagarse limpio. showConflictDialog()
 # (EntornoFragment.kt) reintenta el arranque del OTRO modo apenas stopDesktopSession()
@@ -1293,7 +1294,7 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
       mate)  _SESSION_BIN=mate-session ;;
       kde)   _SESSION_BIN=startplasma-x11 ;;
     esac
-    # Fix real (bug: "da error al instalar entorno gráfico en la distro"):
+    # Fix real (bug reportado "da error al instalar entorno gráfico en la distro"):
     # antes toda la salida de apt-get iba a /dev/null — si la instalación fallaba (mirror
     # caído, sin red dentro del proot, paquete no encontrado, disco lleno), el único rastro
     # era el "[ERROR] La instalación de la DE falló..." genérico de más abajo, sin ninguna
@@ -1664,15 +1665,15 @@ _install_desktop_tools() {
 _install_ai_tools() {
   titulo "Base CLIs de IA en HOST (best-effort)"
   if command -v pkg &>/dev/null; then
-    # Bug real, mismo patrón que bug #21 (VNC).
+    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
     pkg_update_with_fallback
     # Bug real confirmado contra el índice apt real de Termux (2026-09-15,
     # packages.termux.dev/apt/termux-main Packages, aarch64): "python3" NUNCA existió
     # como nombre de paquete — el paquete real se llama "python" (provee el binario
     # /usr/bin/python3, ver stacks.sh native_package_for_preset() que ya distinguía esto
     # bien: "python" para pkg install, "python3" solo como nombre de binario a chequear).
-    # Mismo patrón exacto que mesa-zink/dbus-x11/mesa-vulkan-icd-freedreno-dri3: con un
-    # nombre de paquete inválido en la lista, "pkg install"
+    # Mismo patrón exacto que mesa-zink/dbus-x11/mesa-vulkan-icd-freedreno-dri3:
+    # con un nombre de paquete inválido en la lista, "pkg install"
     # falla de forma atómica para TODOS los paquetes (ni nodejs-lts/git/curl se instalaban
     # nunca), silenciado sin distinción por el "|| warn" de abajo.
     pkg install -y python nodejs-lts git curl || \

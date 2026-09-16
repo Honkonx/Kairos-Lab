@@ -24,7 +24,7 @@
 #    esta misma app) memoria persistente entre sesiones — guarda contexto en
 #    SQLite local, sin depender de ningún servicio externo. Adaptado de
 #    core-termux (DevCoreXOfficial, MIT) — ver
-#    docs/REFERENCIA_ENGRAM.md y docs/humano/humano14.md.
+#    docs/REFERENCIA_ENGRAM.md.
 #
 #  OUTPUT (modo --silent):
 #    [STEP] descripción
@@ -131,7 +131,7 @@ else
   pkg install -y golang git sqlite || error "No se pudieron instalar golang/git/sqlite"
   command -v go &>/dev/null || error "golang no disponible tras instalación"
   command -v git &>/dev/null || error "git no disponible tras instalación"
-  # Fix real (auditoría QA 2026-09-14, docs/humano338.md): "sqlite" nunca se verificaba tras
+  # Fix real (auditoría QA 2026-09-14): "sqlite" nunca se verificaba tras
   # el install (a diferencia de go/git arriba) — un fallo puntual de ese paquete solo se
   # notaría recién en PASO 3 (compilación Go con CGO contra libsqlite3), con un error de
   # linker menos claro que este chequeo directo.
@@ -164,7 +164,7 @@ if check_done "build"; then
   log "Binario ya compilado [checkpoint]"
 else
   info "go build (puede tardar 1-2 min la primera vez)..."
-  # Bug real reportado (2026-08-04, ver docs/humano/humano57.md — "engram... da error"): igual
+  # Bug real reportado (2026-08-04 — "engram... da error"): igual
   # que expo.sh, esto pipeaba directo a `tail -10` y perdía el motivo real de un `go build`
   # fallido (dependencia de módulo no resuelta, versión de Go sin el flag -C, error de
   # compilación real) en el log de instalación. Ahora se guarda la salida completa y solo se

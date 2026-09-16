@@ -20,7 +20,8 @@ import org.json.JSONObject
 /**
  * Describe qué soporta realmente cada CLI de agente de IA que cae en [CliToolFragment] —
  * confirmado leyendo cada `modulos/<id>.sh` + docs oficiales reales de cada proyecto (nunca
- * asumido). NO agregar una entrada nueva sin confirmar la sintaxis real del CLI.
+ * asumido), ver reporte de la ronda 2026-08-17 que originó este archivo. NO agregar una
+ * entrada nueva sin confirmar la sintaxis real del CLI.
  *
  * - [authCommand] es un subcomando real de shell confirmado (ej. "kimi login"). Cuando es
  *   `null` pero [hasAuth] es `true`, el CLI SÍ soporta autenticarse (env var de API key y/o un
@@ -64,8 +65,8 @@ data class CliModuleConfig(
     // status") sobre la carpeta del proyecto. null si el CLI no tiene esta capacidad.
     val analyzeProjectTemplate: String? = null,
     // Bug real confirmado 2026-08-24 por PRUEBA REAL en el dispositivo, vía la terminal
-    // real de la app (no solo por ADB directo): toda sesión de terminal real de Kairos
-    // hereda LD_PRELOAD=.../libtermux-exec-ld-preload.so (confirmado
+    // real de la app (no solo por ADB directo): toda sesión de
+    // terminal real de Kairos hereda LD_PRELOAD=.../libtermux-exec-ld-preload.so (confirmado
     // con "env | sort" DENTRO de una sesión real) — necesario para que los shims npm con
     // shebang "#!/usr/bin/env" (ver bug #8, ExpoFragment.kt) resuelvan bien, pero ROMPE
     // cualquier binario glibc-patcheado (patchelf --set-interpreter) o basado en Bun:

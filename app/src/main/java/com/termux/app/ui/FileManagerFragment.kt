@@ -418,7 +418,7 @@ class FileManagerFragment : Fragment() {
         updateClipboardBar()
     }
 
-    // Fix UX 2026-09-14 (docs/humano334.md): antes la única señal de "hay algo en el
+    // Fix UX 2026-09-14: antes la única señal de "hay algo en el
     // portapapeles" era un Snackbar.LENGTH_LONG (~2.75s) que desaparecía solo — si el usuario
     // no tocaba "Pegar aquí" a tiempo, la única forma de volver a pegar era el menú de tres
     // puntos, sin ningún indicador visual de que el portapapeles seguía teniendo algo. Ahora es
@@ -434,7 +434,7 @@ class FileManagerFragment : Fragment() {
         }
     }
 
-    // Fix UX 2026-09-14 (docs/humano334.md): antes pasteInto() se ejecutaba directo, sin
+    // Fix UX 2026-09-14: antes pasteInto() se ejecutaba directo, sin
     // confirmación — a diferencia de confirmDeleteBatch()/showDeleteConfirm() en este mismo
     // archivo, que sí usan AlertDialog antes de una acción con impacto real. Mismo patrón acá.
     private fun confirmPasteInto(targetDir: File) {

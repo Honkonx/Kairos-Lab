@@ -25,8 +25,8 @@ object ModuleIcons {
         "engram" to R.drawable.ic_module_engram
     )
 
-    // Bug real confirmado en dispositivo (auditoría ADB 2026-08-22, ver docs/humano/humano187.md,
-    // "muchos módulos tienen el logo de Ollama"): 25/57 módulos (44%) no tienen `iconAsset` en
+    // Bug real confirmado en dispositivo (auditoría ADB 2026-08-22: "muchos módulos tienen
+    // el logo de Ollama"): 25/57 módulos (44%) no tienen `iconAsset` en
     // modules.json ni entrada acá en ICONS — caían en el logo ESPECÍFICO de Ollama como
     // fallback, mostrando la marca de un módulo no relacionado (Freebuff, Entornos de Prueba,
     // Verificación, etc.). Fallback cambiado a un ícono genérico neutral de "módulo" en vez de

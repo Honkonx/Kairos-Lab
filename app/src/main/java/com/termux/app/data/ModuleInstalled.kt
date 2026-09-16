@@ -35,7 +35,7 @@ object ModuleInstalled {
     // Mismo criterio que los overrides de isModuleInstalled() en PythonFragment/OllamaFragment.
     // remote = sshd (sin tmux, ver ModuleController.isRunning). llamaserver = binario propio.
     //
-    // Expandido 2026-08-13 (ver docs/humano/humano118.md, PLAN_EXPANSION_HOMELAB_2026-08-13.md)
+    // Expandido 2026-08-13 (ver PLAN_EXPANSION_HOMELAB_2026-08-13.md)
     // a todos los módulos con un binario CLI real y de nombre confirmado — cada nombre se
     // verificó contra el `terminalCommand` de modules.json Y el `command -v <bin>` real dentro
     // de su modulos/<id>.sh (no se adivinó ninguno). Quedan afuera a propósito los módulos sin
@@ -49,7 +49,7 @@ object ModuleInstalled {
         "remote" to "sshd",
         "db" to "mariadbd",
         // claude.sh (método "native"): wrapper real SOLO en $HOME/.local/bin/claude —
-        // corregido 2026-08-21 (ver docs/humano/humano182.md), la afirmación vieja de que también
+        // corregido 2026-08-21 — la afirmación vieja de que también
         // había uno en $TERMUX_PREFIX/bin/claude era falsa (confirmado por ADB en dispositivo
         // real: ese archivo no existe). El fix real vive en applyTermuxEnv()
         // (ProcessBuilderExt.kt), que ahora agrega $HOME/.local/bin al PATH usado acá.
@@ -140,7 +140,7 @@ object ModuleInstalled {
         "psqlformat" to "psqlformat",
         "ncu" to "ncu",
         "ngrok" to "ngrok",
-        // "udocker" to "udocker" — REVERTIDO 2026-08-27 (docs/humano272.md, pedido explícito
+        // "udocker" to "udocker" — REVERTIDO 2026-08-27 (pedido explícito
         // del usuario): el fallback a `command -v udocker` (agregado 2026-08-26 para detectar
         // una instalación manual fuera de la app) detectaba como "instalado" el binario que
         // n8n.sh --variant udocker deja como efecto colateral de su PASO 0 (instala udocker
@@ -186,7 +186,7 @@ object ModuleInstalled {
         "repo" to "repo",
         "pi" to "pi",
         "codegraph" to "codegraph",
-        // git.sh (2026-09-08, módulo nuevo extraído de expo.sh — ver docs/humano*.md): instala
+        // git.sh (2026-09-08, módulo nuevo extraído de expo.sh): instala
         // git + gh vía install_single_pkg(), `command -v git` coincide con el moduleId por
         // coincidencia — entrada explícita por prolijidad, mismo criterio que "kimi"/"kilo"/"hf"
         // de arriba (documentado para no depender silenciosamente de esa coincidencia).
@@ -244,7 +244,7 @@ object ModuleInstalled {
         "cursor" to LiveCheck.PATH_BINARY,
         "hf" to LiveCheck.PATH_BINARY,
         // "udocker" to LiveCheck.PATH_BINARY — revertido junto con BINARY_FALLBACK arriba,
-        // mismo motivo real (docs/humano272.md).
+        // mismo motivo real (ver comentario en BINARY_FALLBACK).
         "entorno" to LiveCheck.DPKG_PACKAGE,
         "stacks" to LiveCheck.DPKG_PACKAGE,
         "ide" to LiveCheck.DIRECTORY,
@@ -294,11 +294,11 @@ object ModuleInstalled {
     // Módulos donde isInstalledRobust() NO debe caer al chequeo en vivo por defecto
     // (liveIsInstalled() con LiveCheck.PATH_BINARY sin entrada explícita en LIVE_FALLBACK
     // cae a "command -v <moduleId>" — ver liveIsInstalled() abajo). Bug real reportado por
-    // el usuario 2026-08-28 (docs/humano278.md): udocker aparecía "Desactivar" (instalado)
+    // el usuario 2026-08-28: udocker aparecía "Desactivar" (instalado)
     // en la Tienda de plugins (PluginsFragment, que usa isInstalledRobust()) pero NO en la
     // pantalla principal Módulos (ModulesFragment, que usa isInstalled() sin el nivel
     // robusto) — mismo binario "udocker" real en PATH, dos resultados distintos para la
-    // misma pregunta. Causa raíz: el revert de 2026-08-27 (docs/humano272.md) sacó "udocker"
+    // misma pregunta. Causa raíz: el revert de 2026-08-27 sacó "udocker"
     // de BINARY_FALLBACK y de LIVE_FALLBACK para dejar de detectarlo por
     // `command -v udocker` (falso positivo: n8n --variant udocker instala ese binario como
     // dependencia interna aunque el módulo n8n falle después, sin que el usuario haya
@@ -386,7 +386,7 @@ object ModuleInstalled {
     /**
      * Invalida el cache de "¿está instalado?" para [moduleId] (o todo el cache si es null) —
      * bug real reportado por el usuario: "al instalar un plugin no sale instalado y todavía da
-     * la opción de instalar" (ver docs/humano/humano166.md/humano167.md). El registry en disco ya
+     * la opción de instalar". El registry en disco ya
      * puede decir `<id>.installed=true` apenas termina el script de instalación, pero
      * [registryCached] seguía sirviendo el snapshot leído hasta 30s ANTES de eso — cualquier
      * Fragment que releía el estado justo después de una instalación (BaseModuleFragment.

@@ -41,9 +41,9 @@ object ManagerNativeUtils {
      *  contra el mismo lock, no uno por manager (consolidación 2026-08-13, ver auditoría). */
     val registryLockFile: File get() = File(home, ".android_server_registry.lock")
 
-    // Rutas absolutas en vez de nombre relativo — bug real confirmado esta sesión (ver
-    // docs/humano/humano63.md), usado por EntornoNative.kt entre otros, ya con bugs reales
-    // confirmados y parcheados con timeouts en rondas previas.
+    // Rutas absolutas en vez de nombre relativo — bug real confirmado, usado por
+    // EntornoNative.kt entre otros, ya con bugs reales confirmados y parcheados con
+    // timeouts en rondas previas.
     fun tmuxHas(session: String): Boolean =
         runExec(listOf(TERMUX_TMUX_PATH, "has-session", "-t", session), 5).first == 0
 
@@ -58,7 +58,7 @@ object ManagerNativeUtils {
 
     /**
      * Chequeo de "actividad real" de un proceso vía delta de `/proc/<pid>/io` entre dos
-     * lecturas separadas por [sampleMs] (ronda 2026-09-09, docs/humano328.md, hallazgo de
+     * lecturas separadas por [sampleMs] (ronda 2026-09-09, hallazgo de
      * referencia/termux/RDeX-main/smb_tui.py:33-52) — a diferencia de un simple "¿el PID
      * existe?" (que solo dice running/stopped), esto distingue un proceso VIVO pero
      * colgado/inactivo de uno con transferencia de datos real en curso (descarga de un
@@ -103,8 +103,8 @@ object ManagerNativeUtils {
      * cómo se arma el [ProcessBuilder] y si hay [stdin] que escribir; el resto (lectura de
      * stdout/stderr en threads separados, orden waitFor→destroyForcibly→join, manejo de
      * timeout) era código idéntico copiado 3 veces. Ya causó un bug real de divergencia: el
-     * fix de orden destroyForcibly()-antes-de-join() (2026-08-24, ver docs/humano222.md,
-     * "claude doctor" colgado ~2min pese al timeout de 30s) se aplicó a runExec()/runShell()
+     * fix de orden destroyForcibly()-antes-de-join() (2026-08-24, "claude doctor" colgado
+     * ~2min pese al timeout de 30s) se aplicó a runExec()/runShell()
      * pero se había olvidado en runExecWithStdin() en la ronda siguiente — con un solo helper,
      * el próximo fix de este tipo solo hace falta aplicarlo una vez.
      *

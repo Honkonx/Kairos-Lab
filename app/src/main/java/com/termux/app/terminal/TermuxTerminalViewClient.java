@@ -592,7 +592,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             if (isStartup && mActivity.isOnResumeAfterOnCreate())
                 mShowSoftKeyboardWithDelayOnce = true;
         } else {
-            // Bug real, 4to intento (2026-08-07, ver docs/humano/humano89.md): humano77 quitó
+            // Bug real, 4to intento (2026-08-07): un fix anterior quitó
             // esta llamada razonando que competía con el modelo de edge-to-edge manual que se
             // estaba construyendo en TermuxActivity.java — pero esta línea es EXACTAMENTE el
             // mecanismo real que usa termux-app (confirmado leyendo

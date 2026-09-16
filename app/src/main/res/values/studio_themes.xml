@@ -12,8 +12,8 @@
         <item name="tabStyle">@style/Theme.KairosIde.TabLayout</item>
     </style>
 
-    <!-- Temas seleccionables de Estudio (2026-08-22, ver docs/humano/humano202.md,
-         StudioThemePrefs.kt) — independientes del tema del apk (?attr/kairos*), pedido explícito
+    <!-- Temas seleccionables de Estudio (2026-08-22, ver StudioThemePrefs.kt) —
+         independientes del tema del apk (?attr/kairos*), pedido explícito
          del usuario. "Oscuro" mapea ?attr/studio* a los MISMOS valores que Theme.KairosIde ya
          usaba fijo — cero cambio visual para quien no toque el picker nuevo (mismo criterio que
          KairosThemePrefs ya usa para su default). "Claro" es la única variante nueva, fase

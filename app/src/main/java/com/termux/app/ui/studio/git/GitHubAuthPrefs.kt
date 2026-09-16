@@ -13,7 +13,7 @@ import androidx.security.crypto.MasterKey
  * específicamente de los secretos de ChatFragment (API keys BYO de proveedores cloud), no un
  * store genérico compartido entre features.
  *
- * Regla dura (.claude/rules/kairos-secrets-never-revealed.md): el token guardado acá NUNCA se
+ * Regla dura del proyecto: el token guardado acá NUNCA se
  * expone de nuevo en la UI — [GitPanelActivity] solo lo usa para armar la URL del remote al
  * ejecutar push/pull, nunca lo muestra. Las únicas acciones sobre el token guardado son
  * usar/reemplazar/borrar.

@@ -7,8 +7,8 @@
 #  ORIGEN: hasta esta versión, "git push" vivía embebido dentro de
 #  expo.sh (acoplado al proyecto Expo activo) — pedido explícito
 #  del usuario: "sobre expo creo que podemos sacar git y github a
-#  un modulo independiente, crear un modulo llamado git/github"
-#  (ver docs/humano*.md de esta ronda). expo.sh sigue instalando
+#  un modulo independiente, crear un modulo llamado git/github".
+#  expo.sh sigue instalando
 #  git como dependencia propia (lo necesita para sus propios
 #  flujos EAS) — este módulo es la pantalla de propósito general
 #  para CUALQUIER proyecto (status/commit/push/pull/clonar +

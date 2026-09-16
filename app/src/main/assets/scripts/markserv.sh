@@ -4,8 +4,8 @@
 #  Markserv — npm install -g markserv (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/markserv/install.sh
-#  (mismo comando real: npm install -g markserv) — ver ronda "paquetes
-#  adicionales core-termux" en docs/humano/.
+#  (mismo comando real: npm install -g markserv) — parte de la ronda de
+#  incorporación de paquetes adicionales de core-termux.
 #
 #  USO DESDE APP (KairosApp):
 #    bash markserv.sh --silent

@@ -43,7 +43,7 @@ import java.security.MessageDigest
  */
 object RootfsInstaller {
 
-    // Guard anti-concurrencia — bug real confirmado por ADB (docs/humano269.md, auditoría
+    // Guard anti-concurrencia — bug real confirmado por ADB (auditoría
     // 2026-08-27): un wizard fresco en un dispositivo recién flasheado reportó "Rootfs no
     // disponible" con un error de dependencias sin sentido (svt-av1/xvidcore/oniguruma/
     // libresolv-wrapper "not installable" pese a estar TODOS presentes en el rootfs) — el log
@@ -66,7 +66,7 @@ object RootfsInstaller {
     // hasta entonces, install() falla limpiamente y el caller cae al flujo normal.
     //
     // Apunta al futuro repo PÚBLICO kairos-lab (todavía no creado) a propósito — pedido
-    // explícito del usuario (docs/humano267.md): ningún link de descarga debe apuntar al
+    // explícito del usuario: ningún link de descarga debe apuntar al
     // repo privado kairos-dev, ni siquiera hoy que kairos-lab no existe aún, para que el
     // día que se cree y se suba la Release real esto funcione sin tocar código de nuevo.
     // A diferencia del repo privado (ver comentario de downloadWithChecksum() más abajo),
@@ -86,7 +86,7 @@ object RootfsInstaller {
 
     // Mensaje único para el 404 al descargar el rootfs desde kairos-lab — lo tiran los dos
     // pasos de downloadWithChecksum() (sha256 y tar.xz), ver docstring de ese método.
-    // Caso esperado HOY (2026-08-27, ver docs/humano267.md): kairos-lab todavía no existe
+    // Caso esperado HOY (2026-08-27): kairos-lab todavía no existe
     // como repo público, así que cualquier descarga acá da 404 — no por ser privado (ya no
     // apunta al repo privado kairos-dev a propósito), sino porque el repo/Release reales
     // todavía no se crearon. El día que kairos-lab exista y tenga la Release publicada, esta
@@ -162,7 +162,7 @@ object RootfsInstaller {
         return out
     }
 
-    // ESTADO REAL HOY (2026-08-27, ver docs/humano267.md) — no es un bug a arreglar acá:
+    // ESTADO REAL HOY (2026-08-27) — no es un bug a arreglar acá:
     // kairos-lab (repo PÚBLICO de destino, ver ROOTFS_BASE_URL arriba) todavía no existe —
     // esta descarga en runtime va a fallar con 404 hasta que se cree el repo y se publique
     // la Release real. A diferencia del repo privado kairos-dev (que SIEMPRE habría fallado
@@ -319,7 +319,7 @@ object RootfsInstaller {
      * para que dpkg/apt los registren como instalados de verdad (ver docstring de la
      * clase: esto es lo que permite que "pkg list --upgradable" los detecte después).
      *
-     * Bug real reportado (ver docs/humano/humano62.md): "Cannot run program 'apt': error=2,
+     * Bug real reportado: "Cannot run program 'apt': error=2,
      * No such file or directory" — pese a que este método ya llamaba `applyTermuxEnv()`
      * antes de este fix. Ahora usa la ruta absoluta de `apt` (`TERMUX_APT_PATH`) en vez de
      * confiar en la resolución por PATH, y reintenta una vez con una pausa corta antes de
@@ -330,7 +330,7 @@ object RootfsInstaller {
     // Antes esto corría `apt install` con los 190 .deb de una y esperaba el exit code
     // en silencio (process.inputStream.bufferedReader().readText() bloqueaba hasta el
     // final) — 5+ minutos sin ningún dato real para el wizard, reportado por el usuario
-    // (docs/humano268.md: "dura mas de 5 minutos extrayendo [...] no dice nada para saber
+    // ("dura mas de 5 minutos extrayendo [...] no dice nada para saber
     // por donde va"). apt/dpkg SÍ emite una línea "Unpacking <paquete>" por cada .deb a
     // medida que instala — se lee línea por línea en un hilo separado (sin esperar a que
     // el proceso termine) y se cuenta cuántas ya pasaron para reportar un % real.
@@ -360,7 +360,7 @@ object RootfsInstaller {
                         outputBuilder.append(line).append('\n')
                         // Solo "Unpacking " — dpkg emite "Preparing to unpack .../X.deb ..." Y
                         // "Unpacking X (versión) ..." como 2 líneas SEPARADAS por cada paquete
-                        // (confirmado en vivo, ver docs/humano271.md): contar ambas duplicaba
+                        // (confirmado en vivo): contar ambas duplicaba
                         // el conteo real, mostrando "99% (248/190)" — más instalado que el
                         // total de paquetes.
                         if (line.startsWith("Unpacking ")) {

@@ -72,7 +72,7 @@
     <string name="apk_notify_info_done">%1$s info ready</string>
 
     <!-- No-root instrumentation (compil-apk-termux instrument-*/log*) — 2026-09-12, source
-         VictorH028/no-root-logger, see docs/humano331.md -->
+         VictorH028/no-root-logger -->
     <string name="apk_card_instrument">INSTRUMENTATION (advanced)</string>
     <string name="apk_instrument_disclaimer_label">Use</string>
     <string name="apk_instrument_disclaimer_value">Only for your OWN or AUTHORIZED apps — debugging and analysis, not for intercepting third-party apps without permission</string>

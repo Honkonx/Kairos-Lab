@@ -4,8 +4,8 @@
 #  Live Server — npm install -g live-server (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/livesrv/install.sh
-#  (mismo comando real: npm install -g live-server) — ver ronda "paquetes
-#  adicionales core-termux" en docs/humano/.
+#  (mismo comando real: npm install -g live-server) — parte de la ronda de
+#  incorporación de paquetes adicionales de core-termux.
 #
 #  USO DESDE APP (KairosApp):
 #    bash livesrv.sh --silent

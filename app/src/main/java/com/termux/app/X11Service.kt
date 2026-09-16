@@ -126,7 +126,7 @@ class X11Service : Service() {
         }
         wakeLock = null
         super.onDestroy()
-        // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): "Cerrar servidor
+        // Bug real confirmado por ADB (2026-08-24): "Cerrar servidor
         // X11" llamaba a stopService() y el proceso :xserver seguía vivo indefinidamente
         // (confirmado con `ps -ef` antes/después — mismo PID, CPU acumulándose, sin morir).
         // Causa raíz: CmdEntryPoint.main() (código nativo protegido, no se toca) corre

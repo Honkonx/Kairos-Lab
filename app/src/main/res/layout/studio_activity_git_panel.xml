@@ -45,7 +45,8 @@
     </LinearLayout>
 
     <!-- Conectar/desconectar GitHub (Device Flow, ver GitHubDeviceAuth) — token cifrado, nunca
-         se vuelve a mostrar (.claude/rules/kairos-secrets-never-revealed.md). -->
+         se vuelve a mostrar (principio de seguridad del proyecto: un secreto guardado no se
+         re-expone en la UI, solo se usa/reemplaza/borra). -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

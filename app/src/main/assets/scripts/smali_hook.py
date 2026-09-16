@@ -8,7 +8,7 @@ modulos/apk.sh, cmd_instrument) — usado tal cual salvo 2 cambios: la clase de
 destino apunta a com.kairos.logger.RemoteLogger (no com.deadnote.RemoteLogger,
 para no colisionar con el proyecto original) y se agregó --json a --list para
 que la UI de Kairos pueda parsear la lista de métodos sin scrapear texto con
-colores ANSI. Ver docs/humano331.md.
+colores ANSI.
 
 Uso:
     python3 smali_hook.py archivo.smali --method metodo --action observ
@@ -229,7 +229,7 @@ class HookInjector:
         # --method ("python3 smali_hook.py archivo.smali --list") — main() llama a load()
         # antes de mirar args.list, así que --list solo nunca funcionaba (self.method_name
         # es None, "m.name == None" nunca es True, target_method queda None, error, exit 1).
-        # Confirmado en vivo (docs/humano331.md): "compil-apk-termux instrument-methods"
+        # Confirmado en vivo: "compil-apk-termux instrument-methods"
         # fallaba siempre con "Método 'None' no encontrado" hasta este fix. Si no se pidió un
         # método puntual (self.method_name vacío), cargar solo el archivo alcanza — quien
         # necesite un target_method real (todo lo que no sea --list) sigue validándolo abajo.

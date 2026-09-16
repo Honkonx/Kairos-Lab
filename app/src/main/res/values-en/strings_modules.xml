@@ -89,9 +89,9 @@
     <string name="codex_card_sesion">SESSION</string>
     <string name="codex_btn_resume_session">🕒 Resume last session</string>
     <string name="codex_btn_install_change_channel">⚙ Install / change channel</string>
-    <!-- Real variant selector (2026-09-09 round): "Normal" (termux
-         channel, DioNanos/codex-termux, with an automatic fallback to wallentx/codex-termux if
-         the npm path fails) vs "VL" (DioNanos/codex-vl, with code-mode, no fallback — opt-in). -->
+    <!-- Real variant selector (2026-09-09 round): "Normal" (termux channel, DioNanos/codex-termux,
+         with an automatic fallback to wallentx/codex-termux if the npm path fails) vs "VL"
+         (DioNanos/codex-vl, with code-mode, no fallback — opt-in). -->
     <string name="codex_variant_dialog_title">Choose variant — Codex CLI</string>
     <string name="codex_variant_dialog_message">Both install via npm. \"Normal\" has an automatic fallback if the install fails; \"VL\" does not — it is an opt-in choice.</string>
     <string name="codex_variant_normal">Normal (recommended) — DioNanos/codex-termux</string>
@@ -193,5 +193,10 @@
     <string name="base_module_terminal_tui_not_started">TUI not started</string>
     <string name="base_module_close_terminal">✕ Close terminal</string>
     <string name="base_module_terminal_closed">%1$s terminal closed</string>
+
+    <!-- Favorite star (dynamic App Shortcuts, see QuickAccessPrefs.kt, 2026-09-15) -->
+    <string name="base_module_favorite_added">%1$s added to favorites — reachable from the launcher (long-press the Kairos icon)</string>
+    <string name="base_module_favorite_removed">%1$s removed from favorites</string>
+    <string name="base_module_favorite_limit">Maximum of %1$d favorite modules — remove one before adding another</string>
 
 </resources>

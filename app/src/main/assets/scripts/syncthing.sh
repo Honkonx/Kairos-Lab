@@ -32,8 +32,8 @@
 #  dispositivo) queda para el usuario vía la UI web propia de Syncthing en
 #  http://localhost:8384 — es inherentemente interactiva por diseño de la
 #  herramienta upstream (mismo criterio que `rclone config` en rclone.sh) —
-#  único paso que hoy sigue requiriendo salir de la app, vía el webviewUrl que
-#  GenericModuleFragment ya abre embebido.
+#  único paso que hoy sigue requiriendo salir de la app, vía el webviewUrl
+#  que GenericModuleFragment ya abre embebido.
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
 #  VERSIÓN: 1.0.0 | Septiembre 2026

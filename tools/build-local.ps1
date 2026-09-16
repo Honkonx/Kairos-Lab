@@ -102,7 +102,7 @@ if (-not $SkipVulkan) {
 # clang++ del NDK de Android (solo sabe compilar para Android) y falla con
 # "'inttypes.h' file not found". w64devkit es un MinGW g++ portable (sin instalador,
 # sin tocar el registro) — si esta ahi, se antepone al PATH para que find_program lo
-# encuentre primero. Ver docs/humano128.md.
+# encuentre primero.
 $W64Devkit = Join-Path $ProjectRoot ".build-tools\w64devkit\bin"
 if (Test-Path "$W64Devkit\g++.exe") {
     $env:PATH = "$W64Devkit;$env:PATH"

@@ -36,7 +36,8 @@ object ModuleController {
     // sobrevive para retener ese estado por su cuenta.
     private val runningInstalls = java.util.concurrent.ConcurrentHashMap<String, Process>()
 
-    // Guard anti-duplicados (auditoría 2026-08-27): antes NADA impedía llamar a installModule() dos veces para el MISMO
+    // Guard anti-duplicados (pedido explícito del usuario, auditoría
+    // 2026-08-27): antes NADA impedía llamar a installModule() dos veces para el MISMO
     // moduleId mientras la primera seguía en curso (ej. tocar "Instalar" en Ollama variante
     // standard y, sin esperar, volver a tocar "Instalar" con variante gpu) — cada llamada
     // lanzaba su propio Thread + proceso independiente, y ambos terminaban peleando por el
@@ -88,9 +89,9 @@ object ModuleController {
      * hecho bien o mal su propio chequeo.
      */
     // n8n corre en proot (n8n_start.sh) — el boot completo del entorno proot + node.js puede
-    // tardar bien más de 8s (bug real reportado: "n8n... dura
-    // mucho" y el switch reportaba error aunque el módulo seguía arrancando bien, solo más
-    // lento que el timeout). Sin esto, waitForPortOpen() cortaba a los 8s y startModule()
+    // tardar bien más de 8s (bug real reportado: "n8n... dura mucho" y el switch reportaba
+    // error aunque el módulo seguía arrancando bien, solo más lento que el timeout). Sin esto,
+    // waitForPortOpen() cortaba a los 8s y startModule()
     // reportaba una falla falsa mientras n8n todavía estaba subiendo.
     private fun startTimeoutMsFor(moduleId: String): Long = when (moduleId) {
         "n8n" -> 60_000L
@@ -113,8 +114,8 @@ object ModuleController {
         return false
     }
 
-    // Bug real (2026-08-07): "Ollama queda atascado en
-    // Iniciando…" — una de las causas encontradas es que process.waitFor() acá (y en
+    // Bug real (2026-08-07): "Ollama queda atascado en Iniciando…" — una de las causas
+    // encontradas es que process.waitFor() acá (y en
     // stopModule() abajo) es SIN timeout, a diferencia de ManagerNativeUtils.runExec()/
     // runShell() (mismo proyecto), que sí usan waitFor(timeout, TimeUnit) +
     // destroyForcibly() como red de seguridad. Si el script o algún hijo suyo se cuelga sin
@@ -150,9 +151,9 @@ object ModuleController {
                 pb.redirectErrorStream(true)
                 val process = pb.start()
                 val outputBuilder = StringBuilder()
-                // Bug real confirmado por ADB (2026-08-24 — probando
-                // el switch de n8n desde la UI real, la app entera crasheaba y reiniciaba en
-                // loop cada ~2min): sin try/catch acá, destroyForcibly() más abajo cierra los
+                // Bug real confirmado por ADB (2026-08-24 — probando el switch de n8n desde la
+                // UI real, la app entera crasheaba y reiniciaba en loop cada ~2min): sin
+                // try/catch acá, destroyForcibly() más abajo cierra los
                 // streams del proceso mientras este Thread está bloqueado en readText() —
                 // igual que el bug ya arreglado en ManagerNativeUtils.runShell(), pero acá el
                 // problema no es un hang, es una excepción (InterruptedIOException) sin capturar
@@ -254,9 +255,9 @@ object ModuleController {
     /**
      * "Salir" (Config) — pedido explícito del usuario: detener todos los servicios en
      * ejecución y cerrar la app, "como si pusiera exit en la terminal" (a diferencia de un
-     * botón de "cerrar app" genérico, que se descartó: eso no se puede lograr de forma
-     * confiable desde dentro de la app, requiere "Forzar cierre" de Android). Esto sí es
-     * real: para cada módulo con
+     * botón de "cerrar app" genérico, que el propio usuario descartó: eso no se puede lograr
+     * de forma confiable desde dentro de la app, requiere "Forzar cierre" de Android). Esto sí
+     * es real: para cada módulo con
      * script de stop conocido (los mismos de [getModuleStopInfo]) que esté corriendo, corre
      * su stop script real — el mismo camino que usa el switch de cada módulo, uno por uno.
      * onComplete llega siempre en background thread, no en UI — el caller decide cómo cerrar
@@ -291,14 +292,14 @@ object ModuleController {
         // "pgrep -f redis-server &>/dev/null && REDIS_RUNNING=true"): tres servidores
         // independientes (mariadbd, postgres, redis-server) — el módulo cuenta como
         // "corriendo" si CUALQUIERA de los tres está vivo. Causa raíz REAL confirmada por ADB
-        // en vivo (2026-09-08): no
-        // era un tema de nombre de binario ni de flags de pgrep — ningún flag de pgrep
+        // en vivo (2026-09-08): no era un tema de nombre de binario ni de flags de pgrep —
+        // ningún flag de pgrep
         // funciona acá, porque el pgrep que lanza la app (dominio SELinux "untrusted_app_27")
         // nunca es ancestro de mariadbd/postgres/redis-server (viven en el árbol de la sesión
         // de terminal de TermuxService, un árbol hermano) y Yama ptrace_scope=1 bloquea ver
         // vía /proc a cualquier proceso que no sea descendiente directo, aunque comparta UID.
         // Fix real: chequeo de puerto TCP (mismo criterio que "pg_isready" ya usa del lado
-        // shell en postgres_start.sh) en vez de mirar procesos.
+        // shell en postgres_start.sh, ver modulos/db.sh bug #31) en vez de mirar procesos.
         if (moduleId == "db") {
             return ManagerNativeUtils.checkPort(3306) || ManagerNativeUtils.checkPort(5432) || ManagerNativeUtils.checkPort(6379)
         }
@@ -352,8 +353,8 @@ object ModuleController {
         // Fallback para un futuro módulo con nombre de proceso fijo pero SIN puerto conocido
         // (hoy ningún caller real llega hasta acá — "db" usa checkPort() directo y "remote" ya
         // tiene puerto vía getModulePort(), ver isRunning() arriba). Causa raíz REAL confirmada
-        // por ADB en vivo (2026-09-08): ningún flag de pgrep ("-x", sin
-        // flag, "-f") es confiable acá — es una restricción de Android (Yama ptrace_scope=1 +
+        // por ADB en vivo (2026-09-08): ningún flag de pgrep ("-x", sin flag, "-f") es
+        // confiable acá — es una restricción de Android (Yama ptrace_scope=1 +
         // dominio SELinux "untrusted_app_27" del proceso de la app, confirmado con `ps -Z`) que
         // impide ver vía /proc procesos que no son descendientes directos del propio pgrep,
         // aunque compartan UID — no hay forma de arreglar esto solo con flags. Se deja "-f"
@@ -438,8 +439,8 @@ object ModuleController {
         onProgress: (String) -> Unit,
         onComplete: (Boolean) -> Unit
     ) {
-        // Bug real confirmado (auditoría ADB 2026-08-22):
-        // módulos CONTENEDOR ("languages"/"packages" — ver ModuleInstalled.kt línea ~95, sin
+        // Bug real confirmado (auditoría ADB 2026-08-22, bug #26): módulos CONTENEDOR
+        // ("languages"/"packages" — ver ModuleInstalled.kt línea ~95, sin
         // instalador propio a propósito, script="" en el catálogo) llegaban hasta acá igual
         // que un módulo normal — installScriptFile() interpreta CUALQUIER script en blanco
         // (catálogo no disponible O deliberadamente vacío) como "usar el fallback
@@ -491,8 +492,8 @@ object ModuleController {
         InstallQueueManager.submit(onQueued = { onProgress(INSTALL_QUEUED_MESSAGE) }) {
         Thread {
             // Reintento automático de UNA sola vez para la excepción transitoria real
-            // confirmada en dispositivo (2026-09-03):
-            // instalaciones concurrentes bajo carga pesada (varios módulos a la vez) a veces
+            // confirmada en dispositivo (2026-09-03): instalaciones concurrentes bajo carga
+            // pesada (varios módulos a la vez) a veces
             // fallan con InterruptedIOException("read interrupted by close() on another
             // thread!") dentro de process.inputStream.bufferedReader().forEachLine — investigado
             // a fondo sin encontrar un cancelInstall()/destroyForcibly() explícito responsable;
@@ -546,8 +547,8 @@ object ModuleController {
                         installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
                             try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
                         }
-                        // Bug real ("al instalar un plugin no sale
-                        // instalado y todavía da la opción de instalar"): ModuleInstalled cachea el
+                        // Bug real ("al instalar un plugin no sale instalado y todavía da la
+                        // opción de instalar"): ModuleInstalled cachea el
                         // registry (30s) y el binario/verificación en vivo (10s/30s) — sin invalidar acá,
                         // un fragment que releía el estado justo después de que este script terminara
                         // (y ya escribiera "<id>.installed=true" en el registry en disco) seguía viendo
@@ -702,8 +703,9 @@ object ModuleController {
     }
 
     /**
-     * Desinstala un módulo — pedido explícito (auditoría 2026-08-05: "en ningún tab o menú...
-     * sale para desinstalar módulos"). Alcance DELIBERADAMENTE conservador: detiene el módulo si está corriendo,
+     * Desinstala un módulo — pedido explícito del usuario (auditoría 2026-08-05: "en ningún
+     * tab o menú... sale para desinstalar módulos"). Alcance DELIBERADAMENTE conservador:
+     * detiene el módulo si está corriendo,
      * borra su carpeta de scripts propia (~/scripts/<id>/, y ~/scripts/<id>-udocker/ para
      * n8n), borra su(s) checkpoint(s) de instalación y sus líneas del registry — deja el
      * módulo como si nunca se hubiera instalado desde el punto de vista de la app, lista
@@ -1028,12 +1030,12 @@ object ModuleController {
      * llamar a [deepUninstallModule] — o sea, ANTES de que borre nada — se respalda todo lo que
      * esa función va a tocar ([ModuleBackupManager.createBackup]). Si la reinstalación
      * posterior falla su misma verificación de siempre (exitCode != 0 del script, que ya corre
-     * `verify_binary_installed()` de lib.sh del lado bash — verificación empírica de
-     * post-condición real, no solo el exit code), el respaldo se restaura solo
+     * `verify_binary_installed()` de lib.sh del lado bash — post-condición real, no solo el
+     * exit code del instalador), el respaldo se restaura solo
      * ([ModuleBackupManager.restoreBackup]); si la reinstalación sale bien, el respaldo se
      * descarta ([ModuleBackupManager.discardBackup]) — no se acumula historial (v1: una sola
      * copia de la última reinstalación). Genérico para cualquier módulo que pase por acá,
-     * incluidos los módulos marcados como "protegidos" (no se tocan sin permiso explícito) — esta
+     * incluidos los módulos marcados como "no tocar sin permiso explícito" — esta
      * capa vive enteramente en Kotlin, no toca ningún script de modulos/.
      *
      * Ambos pasos ya son thread-safe por su cuenta (cada uno lanza su propio Thread) — acá solo
@@ -1110,6 +1112,10 @@ object ModuleController {
         // mismo patrón tmux+start/stop que cactus, sin Fragment propio (GenericModuleFragment
         // ya cubre hasSwitch+webviewUrl genéricamente, ver modulos/syncthing.sh PASO 2).
         "syncthing" -> "$HOME/scripts/syncthing/start.sh"
+        // Gitea y Tor (ronda 2026-09-15, sección "propuestos" de MEJORAS_PENDIENTES.md
+        // implementada) — mismo patrón tmux+start/stop que syncthing/cactus.
+        "gitea" -> "$HOME/scripts/gitea/start.sh"
+        "tor" -> "$HOME/scripts/tor/start.sh"
         else -> null
     }
 
@@ -1123,6 +1129,8 @@ object ModuleController {
         "db" -> "$HOME/scripts/db/stop.sh"
         "cactus" -> "$HOME/scripts/cactus/stop.sh"
         "syncthing" -> "$HOME/scripts/syncthing/stop.sh"
+        "gitea" -> "$HOME/scripts/gitea/stop.sh"
+        "tor" -> "$HOME/scripts/tor/stop.sh"
         else -> null
     }
 
@@ -1134,6 +1142,8 @@ object ModuleController {
         "llamaserver" -> "llamaserver"
         "cactus" -> "cactus-server"
         "syncthing" -> "syncthing-server"
+        "gitea" -> "gitea-server"
+        "tor" -> "tor-server"
         else -> null
     }
 
@@ -1174,6 +1184,10 @@ object ModuleController {
         "db" -> 3306
         "cactus" -> 8977
         "syncthing" -> 8384
+        // Gitea (3001, no 3000 — el 3000 default de Gitea choca con opencode, ver
+        // modulos/gitea.sh) y Tor (9050, SOCKS proxy) — ronda 2026-09-15.
+        "gitea" -> 3001
+        "tor" -> 9050
         else -> null
     }
 

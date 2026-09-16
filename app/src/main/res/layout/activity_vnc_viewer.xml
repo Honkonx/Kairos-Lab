@@ -48,8 +48,8 @@
         android:focusable="true"
         android:contentDescription="@string/vnc_viewer_open_keyboard" />
 
-    <!-- Menú de 3 puntos (pedido explícito del usuario, ver docs/humano316.md: "agregar el
-         icono de teclado y el de 3 puntos para minimizar y cerrar") — abre un PopupMenu con
+    <!-- Menú de 3 puntos (pedido explícito del usuario: "agregar el icono de teclado y el
+         de 3 puntos para minimizar y cerrar") — abre un PopupMenu con
          Minimizar/Orientación/Cerrar (ver VncViewerActivity.showOverflowMenu()), mismo patrón
          que ModuleWebViewFragment.showMenu(). El botón ✕ (btn_vnc_close) se conserva tal cual
          para el cierre directo de un toque — el menú ofrece la misma acción "Cerrar" además,

@@ -44,8 +44,8 @@ class OpenCodeFragment : BaseModuleFragment() {
             val versionRow = valueRow(getString(R.string.opencode_label_version), getString(R.string.opencode_dash))
             versionValue = versionRow.second
             addView(versionRow.first)
-            // Dropdown (puerto) + switch bloqueado — pedido explícito del usuario (2026-08-22,
-            // ver docs/humano/humano192.md): reemplaza los 2 botones "Servidor web :3000"/":4096" +
+            // Dropdown (puerto) + switch bloqueado — pedido explícito del usuario (2026-08-22):
+            // reemplaza los 2 botones "Servidor web :3000"/":4096" +
             // el "Detener servidor" suelto de abajo. Mientras el switch está ON no se puede
             // cambiar el puerto (hay que apagar primero) — la TUI queda totalmente aparte, sin
             // relación con este switch (aclaración explícita del usuario).
@@ -97,7 +97,7 @@ class OpenCodeFragment : BaseModuleFragment() {
                 onChooseFolder = { path -> launchTerminalCommand(OpenCodeNative.tuiCmd(path).optString("command")) }
             )
         }
-        // Bug real (2026-08-07, ver docs/humano/humano88.md): estos dos botones eran mucho
+        // Bug real (2026-08-07): estos dos botones eran mucho
         // m\u00E1s pobres que el "Gestionar proyectos" de CodexFragment/ClaudeFragment sobre la
         // misma carpeta compartida ~/proyectos \u2014 solo sincronizar-todos y una lista
         // de solo lectura, sin symlink/importar/eliminar. Se reemplazan por el mismo
@@ -157,7 +157,7 @@ class OpenCodeFragment : BaseModuleFragment() {
         actionButton(getString(R.string.opencode_btn_configure_ollama), GHOST) {
             configureOllama()
         }
-        // Rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md) \u2014
+        // Rama "llama-server-and-terminal-ux" (2026-08-05) \u2014
         // mismo mecanismo baseURL gen\u00E9rico compatible OpenAI que ya usa "Configurar Ollama
         // local" arriba, apuntando al puerto de llama-server en vez del de Ollama. Sin
         // confirmar en dispositivo real todav\u00EDa.
@@ -219,7 +219,7 @@ class OpenCodeFragment : BaseModuleFragment() {
     // Bug real (auditor\u00eda 2026-08-13, ver docs/viejo/AUDITORIA_CODIGO_2026-08-13.md
     // \u00a71.2): isModuleRunning() bloquea hasta 5s \u2014 antes se llamaba directo en el hilo de UI.
     // Mismo patr\u00f3n que loadInfo(): Thread de fondo + resultado posteado a runOnUiThread.
-    // Reemplaza openWebServer() (2026-08-22, ver docs/humano/humano192.md) \u2014 el switch bloqueado
+    // Reemplaza openWebServer() (2026-08-22) \u2014 el switch bloqueado
     // reemplaza los 2 botones de puerto + "Detener servidor" suelto. ON = iniciar en el
     // puerto elegido en el dropdown, OFF = OpenCodeNative.stopAll() (mata TODAS las sesiones
     // tmux "opencode"/"opencode-*", sin importar el puerto \u2014 mismo alcance que el bot\u00f3n viejo).

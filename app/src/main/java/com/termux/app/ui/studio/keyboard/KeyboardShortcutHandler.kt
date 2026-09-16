@@ -8,7 +8,7 @@ import android.view.KeyEvent
  * `override fun dispatchKeyEvent` y le pasa cada evento; separado en su propia clase para no
  * inflar más `MainActivity.kt` (ya es el archivo más grande del proyecto).
  *
- * ## Investigación previa (docs/ide/IDE_EXTERNO.md Sección 7, docs/humano/humano155.md)
+ * ## Investigación previa (docs/ide/IDE_EXTERNO.md Sección 7)
  *
  * Se leyeron 2 referencias reales antes de escribir esto (no se asumió su contenido de memoria):
  *

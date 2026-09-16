@@ -6,9 +6,8 @@ import androidx.viewpager2.adapter.FragmentStateAdapter
 
 /** 6 pantallas del wizard, en orden: bienvenida -> permisos -> procesos fantasma ->
  * batería -> instalación (bootstrap + rootfs opcional + kairos.sh) -> comprobar paquetes
- * (opcional). Ver docs/humano/humano10.md/humano11.md para el pedido explícito del orden
- * original (4 pantallas) y docs/humano53.md/humano54.md (ronda 2026-08-04) para el rediseño
- * que agregó procesos fantasma y batería como pantallas propias, sacándolas de dentro del
+ * (opcional). Orden original (4 pantallas) pedido explícito del usuario; rediseño
+ * 2026-08-04 que agregó procesos fantasma y batería como pantallas propias, sacándolas de dentro del
  * paso de instalación — ver docs/bootstrap/ROOTFS_EMBEBIDO.md para el diseño completo del
  * rootfs. Patrón ViewPager2+FragmentStateAdapter tomado de ver/MiceWine-Application-master/
  * (WelcomeActivity/AdapterWelcomeFragments). */

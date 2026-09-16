@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema "Claro" (2026-08-22, ver docs/humano/humano190.md) — modo claro real, no una simple
+    <!-- Tema "Claro" (2026-08-22) — modo claro real, no una simple
          inversión del oscuro (fondo cálido en vez de blanco puro, acentos más oscuros para
          mantener contraste sobre fondo claro). Aplicado vía Theme.Kairos.Claro
          (themes_kairos.xml), nunca referenciado directo desde layouts. -->

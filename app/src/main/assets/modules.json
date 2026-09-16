@@ -1805,5 +1805,81 @@
     "requires": [],
     "recommended": false,
     "downloads": 0
+  },
+  {
+    "id": "yt-dlp",
+    "name": "yt-dlp",
+    "description": "Descargador de video/audio (YouTube y ~1800 sitios más). Paquete real: python-yt-dlp. Recomendado usar junto al módulo ffmpeg para remux/extracción de audio.",
+    "repo": "Honkonx/kairos-lab",
+    "script": "yt-dlp.sh",
+    "icon": "⬇",
+    "iconBg": "#2A0F1A",
+    "port": "",
+    "size": "~20MB",
+    "type": "Nativo",
+    "requiresProot": false,
+    "estimate": "~1 min",
+    "hasSwitch": false,
+    "terminalCommand": "yt-dlp",
+    "arch": "bionic",
+    "category": "multimedia",
+    "catalogVersion": "1.0.0",
+    "installMethods": [
+      "standard"
+    ],
+    "requires": [],
+    "recommended": false,
+    "downloads": 0
+  },
+  {
+    "id": "gitea",
+    "name": "Gitea",
+    "description": "Servidor Git propio, autoalojado en el dispositivo. UI web propia. Puerto :3001 (el 3000 default choca con OpenCode, se reconfigura en la instalación).",
+    "repo": "Honkonx/kairos-lab",
+    "script": "gitea.sh",
+    "icon": "⎇",
+    "iconBg": "#0F2A2A",
+    "port": "3001",
+    "size": "~60MB",
+    "type": "",
+    "requiresProot": false,
+    "estimate": "~1 min",
+    "hasSwitch": true,
+    "tmuxSession": "gitea-server",
+    "webviewUrl": "http://localhost:3001",
+    "arch": "bionic",
+    "category": "dev",
+    "catalogVersion": "1.0.0",
+    "installMethods": [
+      "standard"
+    ],
+    "requires": [],
+    "recommended": false,
+    "downloads": 0
+  },
+  {
+    "id": "tor",
+    "name": "Tor",
+    "description": "Red de anonimato/enrutamiento cebolla — proxy SOCKS local. Complementa a Ciberseguridad (pentesting) con anonimato de red. Puerto :9050 (SOCKS5, no navegable — apuntá apps compatibles ahí).",
+    "repo": "Honkonx/kairos-lab",
+    "script": "tor.sh",
+    "icon": "◉",
+    "iconBg": "#1A0F2A",
+    "port": "9050",
+    "size": "~10MB",
+    "type": "",
+    "requiresProot": false,
+    "estimate": "~1 min",
+    "hasSwitch": true,
+    "tmuxSession": "tor-server",
+    "arch": "bionic",
+    "category": "seguridad",
+    "catalogVersion": "1.0.0",
+    "installMethods": [
+      "standard"
+    ],
+    "requires": [],
+    "recommended": false,
+    "downloads": 0
   }
 ]

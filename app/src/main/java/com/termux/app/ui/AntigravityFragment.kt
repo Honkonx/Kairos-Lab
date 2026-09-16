@@ -234,7 +234,7 @@ class AntigravityFragment : BaseModuleFragment() {
     }
 
     /**
-     * Bug real confirmado (ver docs/humano/humano63.md, auditoría de arquitectura central):
+     * Bug real confirmado (auditoría de arquitectura central):
      * los 4 `requireActivity().runOnUiThread {...}` de acá abajo no tenían ningún guard de
      * Fragment-adjunto — el más propenso a dispararse de toda la app, porque este flujo abre
      * el navegador externo (`ACTION_VIEW`) y el usuario sale de Kairos un rato real mientras

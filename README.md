@@ -103,6 +103,13 @@ blanca de un solo usuario y confirmación en dos pasos para acciones riesgosas.
 gratuita), el chat local tiene un comando `/buscar` que no necesita ninguna cuenta ni clave para
 traer resultados reales de la web.
 
+⏰ **Automatizaciones.** Arrancá o apagá un módulo solo, sin tocar la app — por horario diario fijo
+o al encender el teléfono.
+
+📌 **Accesos rápidos.** Marcá tus módulos favoritos para tenerlos como acceso directo desde el
+ícono del launcher, o controlá uno con un tile en el panel de ajustes rápidos de Android — sin
+entrar a la app.
+
 🍷 **A futuro: Windows en el teléfono.** Está planeado sumar Wine con FEXCore y DXVK para poder
 correr programas de Windows directamente en Android.
 

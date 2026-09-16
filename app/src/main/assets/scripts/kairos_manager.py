@@ -5,7 +5,7 @@ termux-ai-stack · ARM64 · sin root
 
 MÓDULOS: status, claude, opencode, openclaw, rootfs
 
-Ronda 2026-07-31 (ver docs/humano/humano27.md): la mayoría de los módulos que vivían
+Ronda 2026-07-31: la mayoría de los módulos que vivían
 acá (system, remote, python, sqlite, expo, ollama, n8n, hermes, tunnel,
 backup, pkg, entorno, pm2) eran subprocess+lectura/escritura de archivos+JSON
 sin ninguna necesidad real de Python — se migraron a Kotlin nativo
@@ -518,7 +518,7 @@ def cmd_openclaw(args):
 
 # ════════════════════════════════════════════════════════════
 #  cmd_rootfs — verificar/instalar/actualizar paquetes del rootfs embebido
-#  (pedido explícito del usuario, ver docs/humano/humano11.md): sirve tanto si el
+#  (pedido explícito del usuario): sirve tanto si el
 #  rootfs se extrajo bien (para detectar actualizaciones disponibles después,
 #  algo que solo funciona porque RootfsInstaller.kt instala con "apt install"
 #  real — quedan registrados en dpkg, no son archivos sueltos) como si faltó
@@ -581,7 +581,7 @@ def cmd_rootfs(args):
         rc, out, err = _pkg_install(missing)
         if rc != 0:
             json_error("Falló instalar paquetes faltantes", output=(out or err)[-500:]); return
-        # Fix real (auditoría QA 2026-09-14, docs/humano338.md): un solo "pkg install" con
+        # Fix real (auditoría QA 2026-09-14): un solo "pkg install" con
         # varios paquetes puede devolver rc=0 sin que TODOS hayan quedado instalados de
         # verdad (mismo hallazgo ya documentado en qemu.sh/ciberseguridad.sh para el mismo
         # patrón) — este es el motor real del auto-reparador del rootfs embebido, así que un
@@ -650,7 +650,7 @@ def cmd_rootfs(args):
     else:
         json_error(f"Acción desconocida: {a}")
 
-# Módulos migrados a Kotlin nativo (ver docs/humano/humano27.md, ronda 2026-07-31) y
+# Módulos migrados a Kotlin nativo (ronda 2026-07-31) y
 # removidos de acá: system, remote, python, sqlite, expo, ollama, n8n, hermes,
 # tunnel, backup, pkg, entorno, pm2 — eran subprocess+file-IO sin necesidad
 # real de Python, ahora ProcessBuilder/SQLiteDatabase directo desde los

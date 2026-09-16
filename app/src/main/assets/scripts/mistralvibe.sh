@@ -28,11 +28,11 @@
 #  (usado por moduledeb.sh pack) listaba "node" como dependencia (copiado de
 #  un módulo npm como copilotcli.sh/qwencode.sh) — este módulo usa Python/pip
 #  + toolchain rust/clang, nunca Node.js. Corregido a python+rust reales
-#  (auditoría de código 2026-08-27, ver docs/humano266.md).
+#  (auditoría de código 2026-08-27).
 #  VERSIÓN: 1.2.0 | Agosto 2026 — fix real: "pip install mistral-vibe" fallaba
 #  con "Failed to build rpds-py" (dependencia transitiva en Rust, sin wheel
 #  ARM64 en PyPI) por faltar el toolchain de compilación (rust/clang/make) —
-#  ver PASO 1.5, docs/humano215.md.
+#  ver PASO 1.5.
 #  VERSIÓN: 1.1.0 | Agosto 2026 — fix crash real en dispositivo: "pip install"
 #  terminaba con exit 0 pero 'vibe' crasheaba al ejecutar por un binario-
 #  incompatible de charset_normalizer (dependencia transitiva de mistral-vibe
@@ -43,8 +43,8 @@
 #  PASO 2 corre "vibe --version" de verdad y, si crashea, se auto-repara
 #  reinstalando charset-normalizer limpio (y si persiste, fijo a una versión
 #  conocida-buena) antes de dar la instalación por exitosa.
-#  (v1.0.0, Agosto 2026: nuevo módulo, candidato de i-Haklab, ver
-#  docs/humano/humano99.md — repo oficial github.com/mistralai/mistral-vibe;
+#  (v1.0.0, Agosto 2026: nuevo módulo, candidato de i-Haklab —
+#  repo oficial github.com/mistralai/mistral-vibe;
 #  i-Haklab lo instala solo vía su propio apt repo, acá se usa el pip
 #  oficial en su lugar, mismo criterio ya usado con freebuff/qwen-code)
 # ============================================================
@@ -213,7 +213,7 @@ else
 fi
 
 # ── PASO 1.5 — Toolchain de compilación (rust + clang + make) ─
-# Bug real encontrado 2026-08-24 (ver docs/humano215.md): "pip install
+# Bug real encontrado 2026-08-24: "pip install
 # mistral-vibe" fallaba con "Failed to build rpds-py" — rpds-py es una
 # dependencia transitiva de mistral-vibe escrita en Rust, sin wheel ARM64
 # publicado en PyPI para Termux, así que pip intenta compilarla desde
@@ -244,15 +244,15 @@ if check_done "pip_install"; then
 else
   PIP_PYTHON=$(command -v python 2>/dev/null || command -v python3 2>/dev/null)
   info "Ejecutando: $PIP_PYTHON -m pip install ${MISTRALVIBE_PKG}"
-  # pip_install() en vez de "$PIP_PYTHON" -m pip install directo (lib.sh, 2026-08-28, ver
-  # docs/humano278.md): serializa con flock contra cualquier OTRO módulo instalando por pip
+  # pip_install() en vez de "$PIP_PYTHON" -m pip install directo (lib.sh, 2026-08-28):
+  # serializa con flock contra cualquier OTRO módulo instalando por pip
   # al mismo tiempo — confirmado en dispositivo que esta instalación falló mientras
   # ciberseguridad.sh corría pip install en paralelo.
   # ANDROID_API_LEVEL/GYP_DEFINES (2026-08-29, patrón portado de referencia/termux/
   # core-termux-main/core/tools/ai/mistral-vibe/install.sh) — evita que algún paso de build
   # basado en gyp intente autodetectar el NDK de Android; correcto tenerlo, pero NO era la
-  # causa real del cuelgue visto en este dispositivo (corrección 2026-08-31, ver
-  # docs/humano291.md en adelante: la causa raíz confirmada, la misma que Hermes, es una
+  # causa real del cuelgue visto en este dispositivo (corrección 2026-08-31: la causa raíz
+  # confirmada, la misma que Hermes, es una
   # condición de carrera real de cargo/maturin compilando la dependencia nativa Rust
   # 'watchfiles' en paralelo — "Text file busy" (os error 26) — no una detección de NDK).
   # CARGO_BUILD_JOBS=1 (2026-08-31, confirmado con una instalación limpia real: exit 0,
@@ -261,7 +261,7 @@ else
   export ANDROID_API_LEVEL=24
   export GYP_DEFINES="android_ndk_path=''"
   export CARGO_BUILD_JOBS=1
-  # Sin "| tail -5" (2026-09-03, ver docs/humano318.md): un pipe a tail no imprime NADA hasta
+  # Sin "| tail -5" (2026-09-03): un pipe a tail no imprime NADA hasta
   # que ve EOF de su entrada — sin progreso en vivo durante toda la instalación, y si falla
   # antes de las últimas 5 líneas el error real queda descartado. El output real de pip ya
   # llega tal cual al log de instalación (ModuleController.kt captura stdout+stderr combinado
@@ -269,7 +269,7 @@ else
   pip_install "$PIP_PYTHON" "$MISTRALVIBE_PKG" 2>&1
   _mistralvibe_pip_rc=$?
   [ "$_mistralvibe_pip_rc" -eq 0 ] || error "pip install falló (ver output arriba)"
-  # verify_binary_installed() en vez de command -v a secas (2026-08-22, ver docs/humano/humano201.md).
+  # verify_binary_installed() en vez de command -v a secas (2026-08-22).
   verify_binary_installed vibe || error "vibe no ejecuta tras la instalación (revisá manualmente: vibe --version)"
 
   info "Verificando que 'vibe' ejecute de verdad (no solo que exista en PATH)..."

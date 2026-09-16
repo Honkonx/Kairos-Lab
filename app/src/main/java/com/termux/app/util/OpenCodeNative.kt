@@ -23,7 +23,7 @@ object OpenCodeNative {
     // archivo directo en vez de invocar grep por subproceso, mismo resultado sin el fork extra.
     private val URL_REGEX = Regex("""http://127\.0\.0\.1:\d+/\S*""")
 
-    // Bug real (ver docs/humano* de esta ronda): el botón "Servidor web :4096" usaba la
+    // Bug real: el botón "Servidor web :4096" usaba la
     // MISMA sesión tmux fija "opencode" que la que abre el botón ":3000" (ModuleController +
     // scripts/opencode/opencode_start.sh, ver ModuleController.getTmuxSession("opencode")).
     // Resultado: iniciar el de :4096 hacía que ModuleController.isRunning("opencode")
@@ -50,7 +50,7 @@ object OpenCodeNative {
         val reg = ManagerNativeUtils.readRegistry()
         var version = reg["opencode.version"] ?: ""
         if (version.isBlank()) {
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): nombre relativo,
+            // Bug real confirmado por ADB (2026-08-24): nombre relativo,
             // mismo patrón que Hermes/vncserver/udocker — ruta absoluta confirmada instalando
             // opencode.sh de verdad en el dispositivo (ver TERMUX_OPENCODE_PATH).
             val (rc, out, _) = ManagerNativeUtils.runExec(listOf(TERMUX_OPENCODE_PATH, "--version"), 10)
@@ -192,7 +192,7 @@ object OpenCodeNative {
 
     /**
      * Equivalente a [ollamaConfig] pero apuntando al llama-server local en vez de Ollama —
-     * rama "llama-server-and-terminal-ux" (2026-08-05, ver docs/humano/humano71.md). El
+     * rama "llama-server-and-terminal-ux" (2026-08-05). El
      * mecanismo baseURL genérico compatible OpenAI es el MISMO, solo cambia el puerto/nombre
      * — confirmado que OpenCode no está atado a Ollama específicamente. `modelLabel` es
      * cosmético (OpenCode no valida el nombre contra el servidor real, solo lo etiqueta).

@@ -7,9 +7,8 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 /**
- * Log interno TRANSVERSAL de la app Kairos en sí — pedido explícito del usuario (ver
- * docs/humano231.md): "por eso es bueno tener un log interno completo del apk incluso de la
- * terminal [...] Ojo, NO debe ser log de módulos, es log completo del APK en sí". Distinto de
+ * Log interno TRANSVERSAL de la app Kairos en sí — pedido explícito del usuario: tener un log
+ * interno completo del APK, incluso de la terminal, sin que sea log de módulos. Distinto de
  * `ModuleController.installLogFile()`/`WizardDebugLog.kt` (ambos ya existían, pero uno es
  * puramente por-módulo y el otro solo cubre el wizard de primer arranque) — este archivo cubre
  * el resto del ciclo de vida de la app: navegación, errores no capturados, y opcionalmente

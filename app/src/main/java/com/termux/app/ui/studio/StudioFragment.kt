@@ -183,7 +183,7 @@ class StudioFragment : Fragment(), CommandHost {
         // del tema del apk) — a diferencia de KairosThemePrefs (que necesita setTheme() +
         // recreate() de la Activity ENTERA), un Fragment puede re-temar su propia subrama de
         // vistas clonando el inflater con un Context envuelto — no hace falta recrear
-        // TermuxActivity para que cambiar el tema de Estudio tome efecto (ver docs/humano/humano202.md).
+        // TermuxActivity para que cambiar el tema de Estudio tome efecto.
         val themedContext = android.view.ContextThemeWrapper(
             requireContext(), com.termux.app.util.StudioThemePrefs.resolveStyleRes(requireContext())
         )
@@ -204,7 +204,7 @@ class StudioFragment : Fragment(), CommandHost {
         com.termux.app.ui.widget.InlineThemePicker.show(binding.toolbar, options, current.id) { chosen ->
             val newTheme = com.termux.app.util.StudioThemePrefs.StudioTheme.fromId(chosen.id)
             com.termux.app.util.StudioThemePrefs.setSelectedTheme(ctx, newTheme)
-            // Fase mínima (docs/humano/humano202.md): NO se re-infla la vista en caliente — hacerlo
+            // Fase mínima: NO se re-infla la vista en caliente — hacerlo
             // reventaría el editor abierto (CodeEditor/tabs/git state se recrearían desde cero,
             // arriesgando perder cambios sin guardar). Se aplica la próxima vez que
             // onCreateView() corra (salir y volver a entrar a Estudio, o cualquier recreate()
@@ -242,7 +242,7 @@ class StudioFragment : Fragment(), CommandHost {
             codeEditor = binding.codeEditor,
             barRoot = binding.searchBarInclude.root
         )
-        // Bug real confirmado por ADB (2026-08-25, ver docs/humano225.md y siguientes): el
+        // Bug real confirmado por ADB (2026-08-25): el
         // botón atrás de Android dejaba de navegar en TODA la app después de visitar el
         // módulo Estudio al menos una vez, sin importar a qué pantalla se navegara después
         // (confirmado en vivo: backstack de fragments acumulado hasta la entrada #26 sin que

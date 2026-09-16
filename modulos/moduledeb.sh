@@ -14,8 +14,8 @@
 #  postinst de este .deb corre SOLO las verificaciones/parches
 #  descritos en el manifest, nunca el instalador completo — así
 #  se reutiliza una instalación ya hecha sin re-descargar/re-parchear
-#  desde cero (pedido explícito del usuario, ver docs/humano/ ronda
-#  de "gestión de instalaciones .deb por módulo").
+#  desde cero (pedido explícito del usuario, ronda de "gestión de
+#  instalaciones .deb por módulo").
 #
 #  SUBCOMANDOS:
 #    moduledeb pack <id>            Empaqueta el módulo <id> — el manifest
@@ -59,10 +59,10 @@
 #    dependencies[] (id/check_cmd/install_hint), verify_cmd, patch_cmd,
 #    version_registry_key, not_covered[] (limitaciones honestas)
 #
-#  Mecanismo genérico implementado 2026-08-23 (ver docs/humano206.md) —
+#  Mecanismo genérico implementado 2026-08-23 —
 #  cubre HOY los 3 módulos que ya tienen --describe-files (claude, opencode,
 #  n8n, migrados 1:1 desde el piloto a mano original, borrado como código
-#  muerto en humano165 — ver docs/arquitectura/MODULEDEB_GENERICO.md §5.1).
+#  muerto — ver docs/arquitectura/MODULEDEB_GENERICO.md §5.1).
 #  Expandir a más módulos = agregarles su propio bloque --describe-files,
 #  sin tocar este script (plan de migración completo en esa misma sección).
 #
@@ -116,7 +116,7 @@ source "$_SCRIPT_DIR/lib.sh"
 
 command -v jq &>/dev/null || error "jq no disponible — moduledeb.sh requiere jq (paquete core de Kairos) para leer los manifests JSON"
 
-# Carpeta pública (2026-08-23, pedido explícito del usuario, ver docs/humano206.md): antes
+# Carpeta pública (2026-08-23, pedido explícito del usuario): antes
 # vivían en $HOME/kairos_local/ (privado de la app, invisible fuera de Termux) — ahora en
 # Download/kairos/ (memoria interna PÚBLICA) para que el usuario pueda verlos/moverlos/
 # compartirlos con cualquier explorador de archivos, no solo desde dentro de Kairos.
@@ -131,7 +131,7 @@ _moduledeb_version() {
   [ -n "$_key" ] && _v=$(grep "^${_key}=" "$REGISTRY" 2>/dev/null | tail -1 | cut -d= -f2)
   [ -z "$_v" ] && _v="0.0.0"
   # Sanitización real para el campo "Version:" de dpkg-deb — bug real confirmado en
-  # dispositivo (2026-08-29, docs/humano284.md/285.md): el valor crudo del registry NO
+  # dispositivo (2026-08-29): el valor crudo del registry NO
   # siempre es un número de versión Debian válido — dpkg exige que empiece con un dígito
   # y no tenga espacios embebidos. Ejemplos reales que rompían "dpkg-deb -b":
   #   ssh.version=OpenSSH_10.5p1        -> "version number does not start with digit"
@@ -239,11 +239,11 @@ _moduledeb_resolve_manifest() {
 # confirmado en dispositivo 2026-08-23: un path en files[] que además cae
 # dentro de un file_globs[] se copiaba 2 veces).
 #
-# Bug real #2 encontrado 2026-08-24 (ver docs/humano216.md, pruebas funcionales
+# Bug real #2 encontrado 2026-08-24 (pruebas funcionales
 # reales por ADB, pedido explícito del usuario de probar el ciclo completo de
 # empaquetado) — `_path`/`_pattern` ANTES pasaban por `eval echo "$_raw_*"`,
 # heredado de una era donde el manifest a mano (modulos/manifests/*.json, ya
-# borrado como código muerto en humano165) podía traer placeholders tipo
+# borrado como código muerto) podía traer placeholders tipo
 # "$HOME"/"$PREFIX" a expandir en runtime. Los manifests reales de hoy
 # vienen SIEMPRE de --describe-files vía `jq --arg` (que ya resuelve el
 # valor real al generar el JSON, sin placeholders de shell), así que esa
@@ -305,8 +305,8 @@ _moduledeb_expand_files() {
     else
       # Patrón con comodín en el nombre de archivo dentro de UN directorio, sin
       # bajar a subcarpetas: "$PREFIX/lib/libggml*.so" — la raíz real es todo lo
-      # que hay antes de la ÚLTIMA "/" (bug real confirmado 2026-08-23,
-      # docs/humano206.md: la versión anterior solo soportaba patrones "/**",
+      # que hay antes de la ÚLTIMA "/" (bug real confirmado 2026-08-23:
+      # la versión anterior solo soportaba patrones "/**",
       # cortar en el primer "*" dejaba un _base tipo ".../lib/libggml" que nunca
       # es un directorio real — el glob nunca expandía nada).
       _base="${_pattern%/*}"
@@ -362,7 +362,7 @@ _moduledeb_pack() {
   local _staging="$MODULEDEB_BUILD_DIR/.build_${_id}_$$"
   rm -rf "$_staging"
   mkdir -p "$_staging/DEBIAN"
-  # Bug real confirmado en dispositivo (2026-08-23, ver docs/humano206.md): el umask de
+  # Bug real confirmado en dispositivo (2026-08-23): el umask de
   # Termux en algunos devices deja DEBIAN/ con 777 — dpkg-deb -b exige <=0775, error
   # "control directory has bad permissions 777" sin este chmod explícito.
   chmod 0755 "$_staging/DEBIAN"
@@ -435,7 +435,7 @@ EOF
   # device destino, en vez de expandir los comandos a texto plano acá —
   # así el mismo postinst sirve para cualquier device sin fragilidad de
   # escaping por heredoc anidado. "kairos_package":true + "pack_date" son un
-  # marcador explícito (pedido del usuario, ver docs/humano206.md) para que
+  # marcador explícito (pedido del usuario) para que
   # 'moduledeb verify' pueda confirmar que un .deb es un paquete Kairos
   # genuino ANTES de instalar nada, en vez de asumirlo por la sola presencia
   # del archivo manifest.json.
@@ -570,8 +570,8 @@ _moduledeb_verify() {
   local _manifest="$_dir/DEBIAN/manifest.json"
   [ -f "$_manifest" ] || error "No hay DEBIAN/manifest.json en $_dir — corré 'extract' primero"
 
-  # Validación de autenticidad (pedido explícito del usuario, ver
-  # docs/humano206.md): un .deb cualquiera puede TENER un archivo
+  # Validación de autenticidad (pedido explícito del usuario):
+  # un .deb cualquiera puede TENER un archivo
   # manifest.json de casualidad — se confirma que es un paquete Kairos
   # genuino por la marca kairos_package:true que pack() agrega siempre, más
   # los campos mínimos que todo manifest real tiene.
@@ -615,7 +615,7 @@ _moduledeb_verify() {
     _required=$(jq -r ".files[$_i].required" "$_manifest")
     _path="$_raw_path"
     local _rel="${_path#/}" _staged="$_dir/$_rel"
-    # NOTA (2026-08-23, ver docs/humano206.md): en pruebas reales de dispositivo esta
+    # NOTA (2026-08-23): en pruebas reales de dispositivo esta
     # comparación a veces reporta "overwrite" para un archivo genuinamente idéntico
     # (posible diferencia de metadata que cmp trata como distinto, no confirmado del
     # todo — el dispositivo se desconectó a mitad de la depuración). NO afecta la
@@ -671,7 +671,7 @@ _moduledeb_apply() {
   fi
 
   step "Aplicando '$_id' — copiando archivos a su destino real"
-  # Bug real #3 encontrado 2026-08-24 (ver docs/humano216.md, mismo ciclo de prueba real
+  # Bug real #3 encontrado 2026-08-24 (mismo ciclo de prueba real
   # que encontró el bug de "eval echo" en _moduledeb_expand_files): esta función solo
   # copiaba .files[] del manifest, IGNORANDO .file_globs[] por completo — a diferencia de
   # _moduledeb_expand_files() (usada en pack/verify), que sí procesa ambos. Con el fix de
@@ -764,7 +764,7 @@ case "$_SUBCMD" in
     error "Subcomando desconocido: $_SUBCMD"
     ;;
 esac
-# Bug real confirmado en dispositivo (2026-08-23, ver docs/humano206.md): un "exit 0"
+# Bug real confirmado en dispositivo (2026-08-23): un "exit 0"
 # incondicional acá pisaba el exit code real de 'verify' (0=hay algo que hacer,
 # 1=ya está OK, 2=dependencias faltantes/manifest inválido) — la UI/wrapper que llama
 # 'moduledeb verify' necesita ese código real para decidir qué mostrar, no siempre 0.

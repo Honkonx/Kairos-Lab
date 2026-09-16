@@ -4,7 +4,7 @@ import com.termux.R
 
 /**
  * Registro de ícono de identidad + color de marca por distro de `EntornoNative.KNOWN_DISTROS`
- * (2026-08-27, ver docs/humano259.md — pedido explícito del usuario: reemplazar el emoji
+ * (2026-08-27 — pedido explícito del usuario: reemplazar el emoji
  * genérico 🐧 fijo que se mostraba para CUALQUIER distro instalada por un logo real por distro,
  * mismo criterio ya usado para íconos de módulo — `ic_module_*` + `iconBg`, ver
  * `ModuleRowRenderer.bindModuleIcon()`). Distinto de `ModuleIcons.kt` (íconos de MÓDULO/CLI,

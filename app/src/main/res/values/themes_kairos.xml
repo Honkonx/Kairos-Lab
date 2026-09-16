@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Temas seleccionables de Kairos (2026-08-22, ver docs/humano/humano190.md) — 3 temas que
+    <!-- Temas seleccionables de Kairos (2026-08-22) — 3 temas que
          mapean los mismos ?attr/kairos* a paletas distintas. "Oscuro" es el default (mismos
          valores que colors_kairos.xml, cero cambio visual para quien no toque el selector de
          tema). "Señal" y "Claro" son las 2 direcciones nuevas. Todos extienden

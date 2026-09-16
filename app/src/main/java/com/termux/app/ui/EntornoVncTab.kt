@@ -39,7 +39,7 @@ internal class EntornoVncTab(private val fragment: EntornoFragment) {
     }
 
     /**
-     * Fix real (humano181, bug 2: "no se sabe cuando esta listo vnc, no sale una barra de
+     * Fix real (bug: "no se sabe cuando esta listo vnc, no sale una barra de
      * progreso al instalar"). Mismo patrón que EntornoNativoTab.installDesktopWithProgress()
      * (ProgressDialogController) — la instalación de TigerVNC es igual de larga (paquete real
      * vía pkg) así que merece el mismo tratamiento. Comparte `nativePkgInstallKey` con las
@@ -107,12 +107,12 @@ internal class EntornoVncTab(private val fragment: EntornoFragment) {
             adapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, resolutionLabels)
             // Default 1280x720 (índice 2, no el 1920x1080 de índice 0) — pedido explícito del
             // usuario: "por defecto X11 y VNC debe estar en horizontal con 1280x720p"
-            // (2026-09-03, ver docs/humano316.md). Mismo criterio en el fallback de
+            // (2026-09-03). Mismo criterio en el fallback de
             // EntornoNative.vncStartWithConfig() para geometry inválido/vacío.
             setSelection(resolutionValues.indexOf("1280x720").coerceAtLeast(0))
         }
         layout.addView(sResolution)
-        // Orientación (docs/humano283.md, faltaba explícitamente) — swap real de ancho/alto
+        // Orientación (faltaba explícitamente) — swap real de ancho/alto
         // sobre el geometry "WxH" elegido arriba, no un toggle cosmético: vncStartWithConfig()
         // solo entiende "WxH" (regex ^\d{2,5}x\d{2,5}$), así que "Vertical" arma la cadena
         // invertida antes de mandarla.
@@ -137,7 +137,7 @@ internal class EntornoVncTab(private val fragment: EntornoFragment) {
             setPadding(0, dp(ctx, 12), 0, 0)
         }
         layout.addView(cbPassword)
-        // Campo real para escribir la contraseña (humano202, 2026-08-22): antes el checkbox de
+        // Campo real para escribir la contraseña (2026-08-22): antes el checkbox de
         // arriba no tenía forma de que el usuario la ingresara — vncStartWithConfig() asumía
         // que ya existía ~/.vnc/passwd de una corrida manual de vncpasswd en terminal.
         val tvPasswordLabel = TextView(ctx).apply {

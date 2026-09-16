@@ -10,8 +10,8 @@ import java.net.URL
 
 /**
  * Descarga+instalación de un `.deb` de módulo desde GitHub Releases (pedido explícito del
- * usuario, ver docs/humano206.md — "poder compilar/tener los modulos en paquetes y subirlo a
- * release y que el apk los pueda [...] descargar y instalar"). Complementa a
+ * usuario: poder compilar/tener los módulos en paquetes y subirlos a una Release para que el
+ * APK los pueda descargar e instalar). Complementa a
  * `RepoFragment.runModuleDebPack()` (que solo CREA el .deb, on-device, vía `moduledeb pack`) —
  * este archivo es el lado de INSTALAR desde un `.deb` ya armado, sea local o descargado.
  *
@@ -23,7 +23,7 @@ import java.net.URL
 object ModuleDebInstaller {
 
     // Apunta al futuro repo PÚBLICO kairos-lab (todavía no creado/publicado) a propósito —
-    // pedido explícito del usuario (docs/humano267.md): ningún link de descarga debe apuntar
+    // pedido explícito del usuario: ningún link de descarga debe apuntar
     // al repo privado kairos-dev, ni siquiera hoy que kairos-lab no existe aún, para que el
     // día que se cree y se suba la Release real esto ya funcione sin tocar código de nuevo.
     private const val REPO = "Honkonx/kairos-lab"
@@ -122,7 +122,7 @@ object ModuleDebInstaller {
             val process = pb.start()
             val out = StringBuilder()
             val err = StringBuilder()
-            // Bug real confirmado por ADB (2026-08-24, ver docs/humano222.md): sin try/catch
+            // Bug real confirmado por ADB (2026-08-24): sin try/catch
             // acá, destroyForcibly() más abajo cierra los streams mientras este Thread está
             // bloqueado en readText() — la excepción (InterruptedIOException) sin capturar
             // se propaga fuera de un Thread sin manejador propio y mata TODO el proceso de la
@@ -131,7 +131,7 @@ object ModuleDebInstaller {
             val errThread = Thread { try { err.append(process.errorStream.bufferedReader().readText()) } catch (_: Exception) {} }
             outThread.start(); errThread.start()
             val finished = process.waitFor(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS)
-            // Mismo bug real que ManagerNativeUtils.runShell() (ver docs/humano222.md) —
+            // Mismo bug real que ManagerNativeUtils.runShell() —
             // destroyForcibly() debe correr ANTES de join(), si no los threads lectores
             // bloquean para siempre esperando que el proceso colgado cierre sus streams.
             if (!finished) process.destroyForcibly()

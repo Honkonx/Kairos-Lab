@@ -7,8 +7,8 @@ import java.io.File
  * Comprobación/instalación/actualización de paquetes del rootfs — equivalente 100%
  * Kotlin de `cmd_rootfs` en kairos_manager.py (verify/install-missing/check-updates/
  * update/sync), pedido explícito del usuario para que el flujo de la app no dependa de
- * invocar python3 en absoluto (ver docs/humano/humano12.md — "la extracción del rootfs es
- * pura, con código del apk"). kairos_manager.py sigue teniendo `cmd_rootfs` como
+ * invocar python3 en absoluto (la extracción del rootfs debe ser
+ * pura, con código del apk). kairos_manager.py sigue teniendo `cmd_rootfs` como
  * comando manual por terminal (`python3 kairos_manager.py rootfs verify`, etc.), pero
  * la app ya no lo llama para esto.
  *
@@ -80,8 +80,8 @@ object RootfsPackageChecker {
         return VerifyResult(installed, missing)
     }
 
-    // Ruta absoluta de "apt" en vez de nombre relativo — bug real confirmado esta sesión
-    // (ver docs/humano/humano62.md/humano63.md): "Cannot run program apt" pasó en
+    // Ruta absoluta de "apt" en vez de nombre relativo — bug real confirmado:
+    // "Cannot run program apt" pasó en
     // RootfsInstaller.installDebs() pese a que ya usaba applyTermuxEnv() correctamente.
     private fun runApt(vararg args: String, timeoutMs: Long = 900_000): Pair<Boolean, String> {
         val cmd = mutableListOf(TERMUX_APT_PATH)

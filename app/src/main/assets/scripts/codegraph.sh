@@ -185,7 +185,7 @@ _codegraph_download_native_fork() {
   mkdir -p "$_extract"
   dpkg-deb -x "$_deb" "$_extract" || { rm -rf "$_tmp"; return 1; }
 
-  # Mismo bug/fix real ya confirmado en freebuff.sh/codebuff.sh (docs/humano281.md):
+  # Mismo bug/fix real ya confirmado en freebuff.sh/codebuff.sh:
   # dpkg-deb -x deja el árbol bajo la RUTA ABSOLUTA COMPLETA "$_extract/data/data/
   # com.termux/files/usr/..." (así empaqueta Termux sus .deb), no bajo
   # "$_extract/usr/" — copiar el árbol usr/ COMPLETO preserva la relación
@@ -247,7 +247,7 @@ _NATIVE=false
 
 # ── PASO 1 — Capa de compatibilidad glibc ────────────────────
 # Requisito del runtime Node embebido en el fork de respaldo (más abajo, PASO 5b).
-# Orden corregido 2026-08-28 (docs/humano281.md, corrección explícita del usuario: "deben
+# Orden corregido 2026-08-28 (corrección explícita del usuario: "deben
 # quedar con el método que teníamos y los repos como el mío o de hoppe son de respaldo, todo
 # es respaldo no remplazo") — el método ORIGINAL (GitHub Releases del binario oficial +
 # wrapper node) corre primero (PASO 3-5); el fork propio (Honkonx/codegraph-termux, hoy sin
@@ -324,7 +324,7 @@ else
 
   rm -rf "$CODEGRAPH_DATA"
   mkdir -p "$CODEGRAPH_DATA"
-  # Bug real confirmado (auditoría ADB 2026-08-22, ver docs/humano/humano193.md, bug #28): el tarball
+  # Bug real confirmado (auditoría ADB 2026-08-22, bug #28): el tarball
   # de GitHub Releases trae un directorio raíz con el mismo nombre que $CODEGRAPH_DATA
   # ("codegraph-linux-arm64/") envolviendo lib/dist/bin/codegraph.js — sin --strip-components=1
   # quedaba doble-anidado ($CODEGRAPH_DATA/codegraph-linux-arm64/lib/...) y el wrapper de
@@ -348,7 +348,7 @@ exec node "$CODEGRAPH_DATA/lib/dist/bin/codegraph.js" "\$@"
 WRAPPER
   chmod +x "$TERMUX_PREFIX/bin/codegraph"
   # Post-condición real, no solo "existe el archivo" (bug #28 real: MODULE_NOT_FOUND pese a
-  # que el wrapper existía y era ejecutable — ver docs/humano/humano194.md, verify_binary_installed()
+  # que el wrapper existía y era ejecutable — ver verify_binary_installed()
   # en lib.sh). --help es el flag real que codegraph expone (ver cabecera del script).
   verify_binary_installed codegraph --help || error "codegraph no responde tras crear el wrapper (revisar extracción del tarball)"
   mark_done "wrapper"

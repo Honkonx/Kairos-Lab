@@ -86,7 +86,7 @@ internal class EntornoNativoTab(private val fragment: EntornoFragment) {
         if (!fragment.beginOp(fragment.nativePkgInstallKey)) return
         val appContext = fragment.requireContext().applicationContext
         val progress = ProgressDialogController(fragment.requireContext())
-        // allowBackground=true (docs/humano247.md, pedido explícito del usuario: instalar un
+        // allowBackground=true (pedido explícito del usuario: instalar un
         // entorno gráfico NATIVO no debe bloquear el resto de la app). Si el usuario manda a
         // 2do plano, el visor X11 no se auto-abre al terminar (necesita una Activity real) —
         // se avisa por notificación para que lo abra manualmente.
@@ -142,7 +142,7 @@ internal class EntornoNativoTab(private val fragment: EntornoFragment) {
                 }
                 val ok = start.optBoolean("ok", false)
                 if (ok) {
-                    // Fix (docs/humano283.md): iniciar el escritorio NUNCA abre el visor X11
+                    // Fix: iniciar el escritorio NUNCA abre el visor X11
                     // automáticamente — solo se arranca el DE del lado servidor; abrir el
                     // visor queda como acción explícita del usuario vía el Snackbar.
                     progress.success(start.optString("message", fragment.getString(R.string.entorno_mensaje_xfce_iniciado)))
@@ -169,7 +169,7 @@ internal class EntornoNativoTab(private val fragment: EntornoFragment) {
         val appContext = fragment.requireContext().applicationContext
         val label = EntornoNative.desktopLabel(desktopId)
         val progress = ProgressDialogController(fragment.requireContext())
-        // allowBackground=true (docs/humano247.md) — instalar un escritorio puede tardar
+        // allowBackground=true — instalar un escritorio puede tardar
         // minutos; antes bloqueaba toda la app hasta terminar.
         progress.show(fragment.getString(R.string.entorno_progreso_instalando_escritorio_titulo), fragment.getString(R.string.entorno_progreso_instalando_desktop_mensaje, label), allowBackground = true)
         Thread {
@@ -235,7 +235,7 @@ internal class EntornoNativoTab(private val fragment: EntornoFragment) {
     /**
      * Arranca el servidor X11 embebido (X11Service) y, una vez arriba, el DE elegido — el
      * visor solo se abre si el usuario lo pide explícitamente (Snackbar "Abrir X11" o la tile
-     * de EntornoX11Tab), nunca automático (docs/humano283.md).
+     * de EntornoX11Tab), nunca automático.
      */
     private fun startDesktopOnEmbeddedX11(desktopId: String) {
         fragment.toastMsg(fragment.getString(R.string.entorno_toast_iniciando_sobre_x11, EntornoNative.desktopLabel(desktopId)))

@@ -3,9 +3,9 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Ícono genérico neutral para módulos sin artwork propio (2026-08-22, ver
-         docs/humano/humano187.md) — antes 25/57 módulos (44%) caían silenciosamente en el logo
-         específico de Ollama como fallback (ModuleIcons.forModule()), lo cual es confuso:
+    <!-- Ícono genérico neutral para módulos sin artwork propio (2026-08-22) — antes 25/57
+         módulos (44%) caían silenciosamente en el logo específico de Ollama como fallback
+         (ModuleIcons.forModule()), lo cual es confuso:
          módulos sin relación con Ollama (Freebuff, Entornos de Prueba, Verificación, etc.)
          mostraban su marca. Un simple ícono de "caja/paquete" (representa "módulo" de forma
          abstracta) es más honesto que reusar la marca de otro módulo real. -->

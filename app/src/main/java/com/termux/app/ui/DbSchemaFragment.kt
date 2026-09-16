@@ -31,7 +31,7 @@ private enum class DbEngine { SQLITE, MYSQL, POSTGRES }
 private enum class SchemaViewMode { CATEGORY, MINDMAP }
 
 /**
- * Pantalla "Estructura de la BD" (pedido explícito, ver docs/humano/humano115.md): muestra el
+ * Pantalla "Estructura de la BD" (pedido explícito del usuario): muestra el
  * esquema REAL de una base — tablas agrupadas por categoría derivada del propio esquema, y un
  * mapa mental (Canvas) con nodos=tablas y líneas=relaciones FK reales. Primera versión
  * funcional: sin drag/zoom/pan propios (el pedido explícito los marca como no necesarios acá),
@@ -499,7 +499,7 @@ class DbSchemaFragment : Fragment() {
     // para binarios de Termux (ver ProcessBuilderExt.applyTermuxEnv).
     // ────────────────────────────────────────────────────────────
 
-    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver docs/humano326.md — mismo
+    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08 — mismo
     // hallazgo aplicado en DbFragment.isAlive()): ningún flag de pgrep arregla esto — es una
     // restricción de Android (Yama ptrace_scope=1 + dominio SELinux "untrusted_app_27" del
     // proceso de la app, confirmado con `ps -Z`) que impide ver vía /proc procesos que no son

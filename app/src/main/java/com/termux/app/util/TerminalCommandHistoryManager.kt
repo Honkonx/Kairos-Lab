@@ -19,13 +19,13 @@ import org.json.JSONObject
  * TerminalView (terminal-view/, protegido — ver CLAUDE.md § Protected Files) directo a
  * TerminalSession.write() (terminal-emulator/, también protegido) sin pasar nunca por
  * TermuxActivity, así que interceptarlas exigiría tocar código protegido — fuera de alcance
- * sin permiso explícito del usuario (mismo criterio que
- * .claude/rules/kairos-protected-modules-no-touch.md aplica a modulos/, por analogía).
+ * sin permiso explícito del usuario (mismo criterio de "no tocar sin permiso explícito"
+ * que ya aplica a modulos/, por analogía).
  *
  * Persistencia por sesión (clave = TerminalSession.mSessionName, o "default" para sesiones
  * sin nombre) en SharedPreferences con un único JSON {sessionKey: [cmd, ...]} — mismo patrón
- * sin cifrar que TerminalCustomCommandsManager (no son secretos, ver
- * .claude/rules/kairos-secrets-never-revealed.md, que no aplica acá).
+ * sin cifrar que TerminalCustomCommandsManager (no son secretos, distinto del caso de
+ * credenciales — eso no aplica acá).
  */
 class TerminalCommandHistoryManager(context: Context) {
 

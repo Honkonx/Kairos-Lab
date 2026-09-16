@@ -4,8 +4,8 @@
 #  Go — paquete nativo de Termux (pkg install golang).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/lang/golang/install.sh
-#  (mismo comando real: pkg install golang) — ver ronda "paquetes adicionales
-#  core-termux" en docs/humano/.
+#  (mismo comando real: pkg install golang) — parte de la ronda de incorporación
+#  de paquetes adicionales de core-termux.
 #
 #  USO DESDE APP (KairosApp):
 #    bash golang.sh --silent

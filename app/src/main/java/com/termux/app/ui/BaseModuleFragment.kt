@@ -22,6 +22,7 @@ import com.google.android.material.tabs.TabLayout
 import com.termux.R
 import java.io.File
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.kairosThemeColorAlpha
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -152,8 +153,8 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * Fila compacta de modelo/ítem (2026-08-23 — mockup aprobado, "no es quitar opciones es
-     * reorganizarlas [...] toca organizar bien y bonito").
+     * Fila compacta de modelo/ítem (2026-08-23 — mockup aprobado por el
+     * usuario, "no es quitar opciones es reorganizarlas [...] toca organizar bien y bonito").
      * Reemplaza el patrón viejo de una card entera de solo-lectura por ítem — un swatch
      * (ícono/color de estado), nombre + subtítulo en una sola fila, y contenido final opcional
      * (pill/botón chico) a la derecha. Pensado para listas de modelos (Ollama/IA Local) pero
@@ -273,7 +274,49 @@ abstract class BaseModuleFragment : Fragment() {
             }
         }
         header.addView(name)
+        header.addView(buildFavoriteStar())
         container.addView(header)
+    }
+
+    /**
+     * Estrella de favorito (☆/★) en el header de TODOS los Fragments de detalle de módulo —
+     * agregada acá (clase base) en vez de en cada Fragment individual, mismo criterio que
+     * [addMaintenanceCard]/[terminalStatusPill]: los ~35 módulos con pantalla propia la ganan
+     * gratis, sin reimplementarla uno por uno. Marca/desmarca el módulo actual en
+     * [com.termux.app.util.QuickAccessPrefs] (hasta [com.termux.app.util.QuickAccessPrefs.MAX_FAVORITES]
+     * favoritos, re-publicados como App Shortcuts dinámicos del ícono del launcher — ver KDoc de
+     * esa clase). v1: solo módulos con pantalla de detalle real pueden favoritearse desde acá —
+     * pedido explícito de la ronda 2026-09-15 ("un ítem ⭐ Marcar como favorito en
+     * BaseModuleFragment/GenericModuleFragment parece más natural que un picker centralizado").
+     */
+    private fun buildFavoriteStar(): View {
+        val ctx = requireContext()
+        val id = getModuleId()
+        val star = TextView(ctx).apply {
+            textSize = 20f
+            setPadding(dp(8), dp(2), dp(4), dp(2))
+        }
+        fun render() {
+            val favorite = com.termux.app.util.QuickAccessPrefs.isFavorite(ctx, id)
+            star.text = if (favorite) "★" else "☆" // ★ / ☆
+            star.setTextColor(
+                if (favorite) ctx.kairosThemeColor(R.attr.kairosGreen)
+                else ctx.kairosThemeColor(R.attr.kairosText3)
+            )
+        }
+        render()
+        star.setOnClickListener {
+            when (com.termux.app.util.QuickAccessPrefs.toggleFavorite(ctx, id)) {
+                com.termux.app.util.QuickAccessPrefs.FavoriteToggleResult.ADDED ->
+                    toast(getString(R.string.base_module_favorite_added, getModuleName()))
+                com.termux.app.util.QuickAccessPrefs.FavoriteToggleResult.REMOVED ->
+                    toast(getString(R.string.base_module_favorite_removed, getModuleName()))
+                com.termux.app.util.QuickAccessPrefs.FavoriteToggleResult.LIMIT_REACHED ->
+                    toast(getString(R.string.base_module_favorite_limit, com.termux.app.util.QuickAccessPrefs.MAX_FAVORITES))
+            }
+            render()
+        }
+        return star
     }
 
     /**
@@ -501,8 +544,8 @@ abstract class BaseModuleFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
             when (style) {
                 ButtonStyle.PRIMARY -> {
-                    // Dirección acordada en mockup /design, sección "Mockup
-                    // de componentes": el botón primario "escandilaba" con relleno sólido verde
+                    // Dirección acordada con el usuario (mockup /design, sección "Mockup
+                    // de componentes"): el botón primario "escandilaba" con relleno sólido verde
                     // saturado (#22C55E) + texto negro. Reemplazado por relleno azul tenue
                     // (14% opacidad de kairosBlue) + borde, con ripple/elevación reales — el
                     // verde neón queda reservado como acento fino (pill(), switches), nunca como
@@ -527,7 +570,10 @@ abstract class BaseModuleFragment : Fragment() {
                     setTypeface(typeface, android.graphics.Typeface.BOLD)
                 }
                 ButtonStyle.DANGER -> {
-                    setBackgroundColor(Color.parseColor("#26EF4444"))
+                    // Auditoría de temas 2026-09-15: era Color.parseColor("#26EF4444") fijo
+                    // (hex del tema Oscuro) — roto en Señal/Claro, donde kairosRed tiene otro
+                    // valor (ver colors_kairos_senal.xml/colors_kairos_claro.xml).
+                    setBackgroundColor(ctx.kairosThemeColorAlpha(R.attr.kairosRed, 38))
                     setTextColor(ctx.kairosThemeColor(R.attr.kairosRed))
                 }
                 ButtonStyle.GHOST -> {
@@ -555,7 +601,9 @@ abstract class BaseModuleFragment : Fragment() {
             gravity = android.view.Gravity.CENTER_VERTICAL
             setPadding(dp(8), dp(3), dp(8), dp(3))
             if (isActive) {
-                setBackgroundColor(Color.parseColor("#1A22C55E"))
+                // Auditoría de temas 2026-09-15: era Color.parseColor("#1A22C55E") fijo — mismo
+                // bug que el botón DANGER de arriba, ver kairosThemeColorAlpha().
+                setBackgroundColor(ctx.kairosThemeColorAlpha(R.attr.kairosGreen, 26))
             } else {
                 setBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg3))
             }
@@ -581,8 +629,8 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * Fila "dropdown + switch bloqueado" — pedido explícito (2026-08-22): reemplaza el
-     * antipatrón de N botones para una sola decisión
+     * Fila "dropdown + switch bloqueado" — pedido explícito del usuario (2026-08-22):
+     * reemplaza el antipatrón de N botones para una sola decisión
      * excluyente (ej. OpenCode tenía 2 botones de puerto + un switch aparte; Entornos de
      * Prueba tenía 3 botones de destino + Iniciar/Detener separados). Un solo dropdown para
      * elegir la opción + un switch que la bloquea mientras está encendido — no se puede
@@ -840,7 +888,7 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Re-habilita [button] (texto + estado) apenas [moduleId] deja de estar instalando —
      * ver comentario de [showNotInstalled]. Guard de Fragment-adjunto (`isAdded`) igual que el
-     * resto del proyecto (patrón estándar de Kairos para callbacks async): si el usuario
+     * resto del proyecto: si el usuario
      * navega a otra pantalla mientras esto sigue reintentando, la cadena de `postDelayed()` se
      * corta acá en vez de seguir agendando callbacks contra un Fragment ya desadjuntado.
      */
@@ -1068,8 +1116,8 @@ abstract class BaseModuleFragment : Fragment() {
 
     /**
      * [startModuleService] con polling corto (2-3s) mientras se espera el callback final —
-     * hallazgo de UX homelab pendiente de adoptar (2026-08-22, patrón Umbrel): un arranque que
-     * puede tardar 5-60s (Ollama cargando el
+     * hallazgo de UX homelab pendiente de adoptar (2026-08-22, patrón Umbrel): un arranque
+     * que puede tardar 5-60s (Ollama cargando el
      * modelo, servicios con health-check propio) se sentía "colgado" mientras la UI solo
      * esperaba el único callback final, sin ninguna señal intermedia de que sigue trabajando.
      * [onPoll] corre cada [intervalMs] mientras la instalación/arranque sigue en curso — un

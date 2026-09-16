@@ -32,9 +32,9 @@
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
 #  VERSIÓN: 1.2.0 | Agosto 2026 — mitigación real para el límite conocido
-#  documentado en docs/humano272.md ("hf_xet build de extensión Rust sin
-#  wheel prebuilt para Termux/Android, mismo patrón que mistralvibe pero sin
-#  investigar una mitigación real"). Confirmado por WebFetch a
+#  ("hf_xet build de extensión Rust sin wheel prebuilt para Termux/Android,
+#  mismo patrón que mistralvibe pero sin investigar una mitigación real
+#  hasta esta versión"). Confirmado por WebFetch a
 #  pypi.org/pypi/hf_xet/json y pypi.org/pypi/huggingface_hub/json: hf-xet es
 #  dependencia base (no opcional) de huggingface_hub en aarch64
 #  ("platform_machine == aarch64"), y PyPI solo publica wheels
@@ -52,8 +52,8 @@
 #  toolchain rust/clang (antes AUSENTE del todo en este script, a diferencia
 #  de mistralvibe.sh que sí lo tenía — sin esto el pip install del PASO 2
 #  intentaba compilar hf_xet sin cargo disponible y fallaba/colgaba sin pista
-#  de la causa real, igual que el bug ya documentado de mistralvibe en
-#  docs/humano215.md). Ver docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md
+#  de la causa real, igual que el bug ya documentado de mistralvibe).
+#  Ver docs/arquitectura/HF_XET_PREBUILD_PLAN_2026-08-28.md
 #  para el plan completo de cross-compile en CI (bloqueado en esta ronda por
 #  falta de toolchain Rust en la PC de desarrollo — necesita go-ahead del
 #  dueño del proyecto antes de agregarlo a build-app.yml, ver esa nota).
@@ -68,7 +68,7 @@
 #  agrega "$HOME/.local/bin" al PATH global en el bootstrap de kairos.sh
 #  (bloque BASHRC_BLOCK), así que sería una adopción redundante.
 #  VERSIÓN previa: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux
-#  v4.25.0, ver docs/humano/humano123.md)
+#  v4.25.0)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -194,7 +194,7 @@ _hf_try_prebuilt_xet_wheel() {
     mkdir -p "$(dirname "$_venv_dir")"
     "$_system_python" -m venv "$_venv_dir" >/dev/null 2>&1 || return 1
     # pip_install() (lib.sh) en vez de "$_venv_python" -m pip directo — bug real de
-    # instalación concurrente confirmado por ADB (docs/humano281.md): los wrappers bash
+    # instalación concurrente confirmado por ADB: los wrappers bash
     # python3()/pip() de lib.sh solo interceptan el nombre pelado, nunca una ruta absoluta
     # resuelta como $_venv_python, así que este call-site quedaba sin el lock de pip
     # compartido entre módulos (mismo site-packages/pip cache global) pese a que
@@ -202,7 +202,7 @@ _hf_try_prebuilt_xet_wheel() {
     # pip_install() (lib.sh) ya antepone "-m pip install" internamente — pasarle "install" acá
     # de nuevo duplicaba el argumento y pip lo interpretaba como un requirement literal llamado
     # "install", fallando siempre. Mismo bug confirmado en hermes.sh (ronda 2026-08-29),
-    # introducido en el mismo cambio 2026-08-28 (docs/humano281.md).
+    # introducido en el mismo cambio 2026-08-28.
     pip_install "$_venv_python" --upgrade pip >/dev/null 2>&1
   fi
 
@@ -315,7 +315,7 @@ fi
 # ningún wheel compatible con Bionic — pip SIEMPRE cae a compilar el sdist
 # (maturin + Rust) si llega hasta acá. Sin este toolchain el PASO 2 fallaba
 # sin pista de la causa real (mismo bug ya documentado para mistral-vibe/
-# rpds-py en docs/humano215.md, nunca aplicado acá hasta ahora).
+# rpds-py, nunca aplicado acá hasta ahora).
 step "PASO 1.6 — Toolchain de compilación (rust, clang, make) — fallback si no hubo wheel prebuilt"
 if check_done "xet_toolchain"; then
   log "Toolchain de compilación no requerido (wheel prebuilt) o ya verificado [checkpoint]"
@@ -331,11 +331,11 @@ else
   log "Toolchain de compilación listo (hf_xet se compilará desde fuente)"
 fi
 
-# ANDROID_API_LEVEL/CARGO_BUILD_JOBS (2026-09-11, confirmado por ADB en dispositivo real, ver
-# docs/humano330.md): sin ANDROID_API_LEVEL, maturin falla siempre al compilar hf_xet con
+# ANDROID_API_LEVEL/CARGO_BUILD_JOBS (2026-09-11, confirmado por ADB en dispositivo real):
+# sin ANDROID_API_LEVEL, maturin falla siempre al compilar hf_xet con
 # "Failed to determine Android API level. Please set the ANDROID_API_LEVEL environment
-# variable." — mismo patrón exacto ya confirmado y arreglado en mistralvibe.sh (2026-08-29,
-# docs/humano286.md), nunca portado acá pese a que ambos compilan una dependencia Rust/pyo3
+# variable." — mismo patrón exacto ya confirmado y arreglado en mistralvibe.sh (2026-08-29),
+# nunca portado acá pese a que ambos compilan una dependencia Rust/pyo3
 # con maturin en Termux/Bionic. CARGO_BUILD_JOBS=1 se agrega por el mismo motivo que en
 # mistralvibe.sh: reduce la presión de memoria/CPU de compilar Rust en el dispositivo — este
 # script y mistralvibe.sh corriendo su propio cargo en paralelo (instalación masiva real,
@@ -354,7 +354,7 @@ else
   [ ${PIPESTATUS[0]} -eq 0 ] || error "Instalador de Hugging Face falló"
   # El instalador deja el binario en ~/.local/bin — asegurar que quede en PATH.
   export PATH="$HOME/.local/bin:$PATH"
-  # Chequeo funcional real, no solo "existe en PATH" — ver docs/humano/humano194.md,
+  # Chequeo funcional real, no solo "existe en PATH" —
   # verify_binary_installed() en lib.sh.
   verify_binary_installed hf || error "hf no ejecuta tras la instalación (revisá manualmente: hf --version)"
   log "Hugging Face CLI instalado: $(hf --version 2>/dev/null | head -1)"

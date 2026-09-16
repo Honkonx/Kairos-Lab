@@ -16,9 +16,9 @@ name: Build firecrawl-anydoc prebuilt wheel (aarch64-linux-android)
 # produce ese asset.
 #
 # A DIFERENCIA de build-hf-xet.yml, este workflow NO fue disparado/verificado
-# todavía (ver .claude/rules/empirical-verification-before-fix.md — no se corrió CI
-# real para esto en la ronda que lo creó, siguiendo la regla dura de no consumir
-# minutos de Actions sin necesidad; el usuario decide cuándo dispararlo). La
+# todavía — no se corrió CI real para esto en la ronda que lo creó, siguiendo el
+# criterio de no consumir minutos de Actions sin necesidad; el usuario decide
+# cuándo dispararlo. La
 # confianza en que el mismo recipe funciona acá es alta (mismo target
 # aarch64-linux-android, mismo NDK r29, mismo maturin+PyO3 abi3, mismo tipo de crate
 # cdylib sin más dependencias nativas que libc) pero NO está confirmada
@@ -34,8 +34,8 @@ name: Build firecrawl-anydoc prebuilt wheel (aarch64-linux-android)
 # planeado, ver modulos/hermes.sh HERMES_FIRECRAWL_PREBUILT_REPO) YA EXISTE como repo
 # público desde 2026-08-29, pero publicar ahí (o simplemente copiar el asset una vez
 # compilado) requiere el pedido explícito del dueño del proyecto nombrando
-# "Kairos-Lab" — ver .claude/rules/kairos-lab-batching.md y
-# .claude/rules/kairos-public-repo.md. No se agrega unilateralmente un
+# "Kairos-Lab" (el repo público se actualiza en tandas ya probadas, no automáticamente
+# desde CI). No se agrega unilateralmente un
 # `repository: Honkonx/kairos-lab` + secret nuevo acá sin esa confirmación.
 
 on:
@@ -184,7 +184,7 @@ jobs:
             ⚠️ A diferencia del wheel de hf_xet, este NO fue verificado todavía en un
             dispositivo real (importa `anydoc` de verdad en el Python de Termux) —
             confirmarlo por ADB antes de considerar cerrado el límite conocido de
-            Hermes (ver .claude/rules/empirical-verification-before-fix.md).
+            Hermes.
           files: |
             anydoc/python/dist/firecrawl_anydoc-*.whl
           draft: false

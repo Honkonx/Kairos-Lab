@@ -106,9 +106,10 @@ CHECKPOINT="$HOME/.install_claude_checkpoint"
 CLAUDE_VERSION_LEGACY="2.1.111"
 
 # Pin de respaldo, SOLO usado si la consulta real a "latest" falla (ver
-# _install_native_clean() más abajo) — versión confirmada estable en uso
-# real (2026-08-27), preferida sobre refrescar el pin a ciegas a cada rato
-# con la última que devuelva la API (que puede no estar tan probada todavía).
+# _install_native_clean() más abajo) — pedido explícito del usuario
+# (2026-08-27): versión confirmada estable en uso real,
+# preferida sobre refrescar el pin a ciegas a cada rato con la última que
+# devuelva la API (que puede no estar tan probada todavía).
 #
 # Actualizado 2026-09-15 (auditoría de seguridad de esta sesión): el pin
 # anterior, 2.1.152, caía dentro del rango vulnerable de 2 CVE reales
@@ -178,7 +179,7 @@ _detect_version() {
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Reemplaza el manifest a mano modulos/manifests/claude.json (borrado como
-# código muerto en humano165 — nunca escalaba a los ~55 módulos, ver diseño
+# código muerto — nunca escalaba a los ~55 módulos, ver diseño
 # completo en docs/arquitectura/MODULEDEB_GENERICO.md). Contenido migrado
 # 1:1 del manifest piloto original (git show 838544d^:modulos/manifests/claude.json)
 # — solo cambia DÓNDE vive el JSON, de un archivo estático a la salida de
@@ -378,8 +379,8 @@ _ensure_nodejs() {
     fi
   fi
   info "Instalando Node.js..."
-  # Bug real, mismo patrón que bug #21 (VNC): pkg update puede fallar de
-  # forma transitoria, hay que reintentar con fallback antes de instalar.
+  # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
+  # por índices de paquetes desactualizados (mirror con problemas).
   pkg_update_with_fallback
   pkg install nodejs-lts -y -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" || error "Error instalando nodejs-lts"
@@ -398,8 +399,8 @@ _ensure_glibc() {
   [ ! -f "$PATCHELF" ] && NEED_INSTALL=true
   if $NEED_INSTALL; then
     info "Instalando glibc-runner + patchelf-glibc..."
-    # Bug real, mismo patrón que bug #21 (VNC): pkg update puede fallar de
-    # forma transitoria, hay que reintentar con fallback antes de instalar.
+    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
+    # por índices de paquetes desactualizados (mirror con problemas).
     pkg_update_with_fallback
     pkg install -y glibc-repo || true
     pkg update -y -o Dpkg::Options::="--force-confdef" \
@@ -456,8 +457,8 @@ _validate_legacy_cli() {
 # Descarga + verifica SHA256 + parchea el binario de una versión concreta.
 # Devuelve 0/1 en vez de abortar con error() — así _install_native_clean()
 # puede reintentar con el pin viejo conocido-bueno cuando la versión "latest"
-# falla, en vez de matar la instalación entera (pedido explícito: "si da
-# error que instale la version vieja").
+# falla, en vez de matar la instalación entera (pedido explícito del usuario:
+# "si da error que instale la version vieja").
 _download_and_patch_native() {
   local VERSION="$1"
   local DL="https://downloads.claude.ai/claude-code-releases/${VERSION}"
@@ -525,9 +526,9 @@ _download_and_patch_native() {
 #  error() — _install_native_clean() cae al mecanismo viejo COMPLETO (pin +
 #  reintento a "latest" oficial + legacy npm de fondo) si esto falla por
 #  cualquier motivo. Verificación de POST-CONDICIÓN real (no solo que el
-#  archivo exista) antes de devolver éxito — mismo patrón que otros casos
-#  conocidos: si "--version" no responde, se hace rollback y se devuelve 1
-#  para que el caller no lo dé por instalado.
+#  archivo exista) antes de devolver éxito: si "--version" no
+#  responde, se hace rollback y se devuelve 1 para que el caller no lo dé por
+#  instalado.
 # ════════════════════════════════════════════════════════════
 _download_wallentx_native() {
   local INSTALL_DIR; INSTALL_DIR="$(dirname "$NATIVE_BINARY")"
@@ -737,8 +738,9 @@ SETTINGS
   # mark_done() sin condición — registry_install() (lib.sh) escribe
   # "installed=true" incondicionalmente, así que un wrapper que NO EJECUTA de
   # verdad (patchelf con interprete equivocado, glibc-runner roto, etc.)
-  # quedaba marcado como instalado igual. Mismo patrón de bug ya documentado
-  # en otros casos conocidos (#28/#29/#30).
+  # quedaba marcado como instalado igual. Mismo patrón de bug visto en otros
+  # módulos (verificar solo que el binario existe en PATH no confirma que
+  # corre de verdad).
   if [ -n "$ver_check" ]; then
     _update_registry "$VERSION" "native"
     mark_done "claude_install"
