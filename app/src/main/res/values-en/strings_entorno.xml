@@ -136,6 +136,21 @@
     <string name="entorno_tile_configuracion_x11">X11\nsettings</string>
     <string name="entorno_tile_detener_servidor_x11">Stop\nX11 server</string>
 
+    <!-- Wine (Hangover) — X11 tab (docs/mini-pc/WINE_HANGOVER.md, FUTURO.md §9) -->
+    <string name="entorno_seccion_wine">WINE — WINDOWS (.EXE)</string>
+    <string name="entorno_subtitulo_wine">Hangover (Wine + WoW64 + FEX/Box64) on this same X11 server — third-party package, some .exe files may fail (known bug, see Wine module)</string>
+    <string name="entorno_tile_instalar_wine">Install Wine\n(Hangover)</string>
+    <string name="entorno_tile_ejecutar_exe">Run\n.exe</string>
+    <string name="entorno_dialog_instalar_wine_mensaje">Installs Hangover (native ARM64 Wine + FEX/Box64) via the TUR repository. It is a third-party package with a known unresolved bug: some Windows installers may fail. DXVK is not included. Continue?</string>
+    <string name="entorno_progreso_instalando_wine_titulo">Installing Wine (Hangover)</string>
+    <string name="entorno_progreso_instalando_wine_detalle">Enabling tur-multilib + installing hangover-wine…</string>
+    <string name="entorno_toast_wine_ya_instalado">Wine (Hangover) is already installed</string>
+    <string name="entorno_toast_wine_no_instalado">Install Wine (Hangover) first</string>
+    <string name="entorno_toast_wine_instalado">Wine (Hangover) installed</string>
+    <string name="entorno_error_no_pudo_instalar_wine">Could not install Wine (Hangover)</string>
+    <string name="entorno_error_no_pudo_leer_exe">Could not read the chosen file</string>
+    <string name="entorno_wine_ejecutando">Running…</string>
+
     <!-- Tiles — Distros tab -->
     <string name="entorno_tile_instalar_distro">Install\ndistro</string>
     <string name="entorno_tile_login_distro">Log in to distro\n(terminal)</string>
@@ -306,7 +321,7 @@
     <string name="entorno_depth_24bit">24 bit (full color)</string>
     <string name="entorno_depth_16bit">16 bit (lighter)</string>
     <string name="entorno_toast_iniciando_vnc">Starting VNC…</string>
-    <!-- Orientation (explicit request: horizontal/vertical was missing) — real swap of width/height in the "WxH" geometry sent to vncStartWithConfig(), not a cosmetic toggle. -->
+    <!-- Orientation (explicit request: horizontal/vertical was missing) — real swap of width/height in the "WxH" geometry sent to vncStartWithConfig, not a cosmetic toggle. -->
     <string name="entorno_label_orientacion">Orientation</string>
     <string name="entorno_orientacion_horizontal">Horizontal</string>
     <string name="entorno_orientacion_vertical">Vertical (swaps width/height)</string>

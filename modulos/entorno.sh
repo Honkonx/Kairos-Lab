@@ -13,8 +13,8 @@
 #    - Drivers GPU según hardware (Adreno/Mali/Xclipse/genérico)
 #    - Tools de escritorio en el HOST (best-effort): xfce4 xfce4-goodies
 #      tigervnc x11vnc pavucontrol — dbus-launch ya viene con el paquete "dbus"
-#      en Termux, "dbus-x11" (nombre de Debian/Ubuntu) no existe acá
-#      (checkpoint entorno_desktop_tools)
+#      en Termux, "dbus-x11" (nombre de Debian/Ubuntu) no existe acá, ver
+# (checkpoint entorno_desktop_tools)
 #    - Base para CLIs de IA en el HOST (best-effort): python nodejs-lts git
 #      curl (checkpoint entorno_ai_tools)
 #    - Crea ~/scripts/entorno/ (scripts de gestión): tx11_start/stop,
@@ -25,7 +25,7 @@
 #      distros, socket visible dentro de la distro, GPU y pulseaudio — para
 #      entender por qué NO se renderiza la GUI dentro de una distro proot
 #
-#  NOTA X11 (ronda 2026-08-13): Kairos ya NO usa la
+# NOTA X11 (ronda 2026-08-13,): Kairos ya NO usa la
 #  app externa Termux:X11 (com.termux.x11). El servidor X11 va embebido en el APK
 #  (Xlorie, proceso ":xserver" vía X11Service, ver docs/x11/X11_EMBEBIDO.md).
 #  Este instalador solo registra el modo embebido en el registry; los scripts
@@ -65,7 +65,7 @@
 #  VERSIÓN: 1.4.0 | Agosto 2026 (agrega webapp_launchers.sh — lanzadores
 #  .desktop para las WebUIs de otros módulos de Kairos ya instalados
 #  (n8n/Ollama/OpenClaw/OpenCode/IA Local), patrón url_to_app.sh de RDeX
-#  (referencia/termux/RDeX-main))
+# (referencia/termux/RDeX-main),)
 #
 #  VERSIÓN ANTERIOR: 1.3.0 (adaptado de install_entorno.sh v1.1.0;
 #  añade diagnose, scripts gui_* / x11_setup_env / distro_setup_gui /
@@ -154,8 +154,8 @@ ENTORNO_SCRIPTS="$TERMUX_HOME/scripts/entorno"
 
 # ── Helpers compartidas (log/warn/error/info/step/titulo/check_done/mark_done/
 #    notify_event/registry_write/mirrors) ──
-# Fuenteado en lugar de copiado: antes este script definía
-# log/warn/error/check_done/mark_done y copiaba notify_event()
+# Fuenteado en lugar de copiado: antes (bug,)
+# este script definía log/warn/error/check_done/mark_done y copiaba notify_event()
 # inline, con SILENT=0/1 mientras lib.sh espera true/false — causaba
 # "notify_event: command not found" al final de TODA instalación. Desde el refactor
 # de la ronda 2026-08-13 se alinea el flag y se sourcea lib.sh como
@@ -165,7 +165,18 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 update_registry() {
   local version="$1"
   local _gpu="${GPU_TYPE:-$(_check_gpu)}"
-  registry_install entorno "$version" "gpu=$_gpu" "gpu_method=${GPU_METHOD:-auto}" "x11_mode=embedded" "x11_display=:1"
+  # Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): si "entorno_gpu" ya
+  # estaba marcado de una corrida anterior (ej. --force reinstalando el resto), el checkpoint
+  # saltea _install_gpu_native() y GPU_METHOD se queda en su default "auto" — esta función
+  # entonces pisaba el método que el usuario ya había elegido a mano (setGpuMethod(), vía
+  # EntornoSistemaTab.kt) con "auto" sin querer. Si GPU_METHOD sigue en "auto" acá, se
+  # respeta lo que YA esté guardado en el registry en vez de sobreescribirlo a ciegas.
+  local _method="${GPU_METHOD:-auto}"
+  if [ "$_method" = "auto" ]; then
+    local _saved; _saved=$(grep "^entorno\.gpu_method=" "$REGISTRY" 2>/dev/null | cut -d= -f2)
+    [ -n "$_saved" ] && _method="$_saved"
+  fi
+  registry_install entorno "$version" "gpu=$_gpu" "gpu_method=$_method" "x11_mode=embedded" "x11_display=:1"
   log "Registry actualizado — $REGISTRY"
 }
 
@@ -173,7 +184,7 @@ update_registry() {
 _check_gpu() {
   local gpu
   gpu=$(getprop ro.board.platform 2>/dev/null)
-  # Codenames Adreno ampliados (2026-08-06) — la
+  # Codenames Adreno ampliados (2026-08-06,) — la
   # lista original no cubría "cape" (Snapdragon 7+ Gen 2 / SM7475, chip real
   # del POCO F5 usado para probar esta sesión, confirmado "GPU: unknown" en
   # log real) ni otros codenames Qualcomm recientes.
@@ -198,7 +209,7 @@ _check_gpu() {
 _install_proot_distro() {
   titulo "proot-distro"
   command -v proot-distro &>/dev/null && { log "proot-distro ya instalado"; return 0; }
-  # pkg_update_with_fallback() acá: esta función corre
+  # Bug real, mismo patrón que bug #21 (VNC),: esta función corre
   # después de check_done "entorno_pkg_update" (gate de una sola vez por checkpoint) — en
   # una reinstalación parcial (checkpoint ya marcado en una corrida previa) el mirror puede
   # haberse roto entretanto y este "pkg install" fallaría sin pista útil.
@@ -243,7 +254,7 @@ _install_pulseaudio() {
   if command -v pulseaudio &>/dev/null; then
     log "PulseAudio ya instalado"
   else
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y pulseaudio || error "No se pudo instalar pulseaudio"
     log "PulseAudio instalado"
@@ -255,8 +266,13 @@ _install_pulseaudio() {
     # equipos aunque pulseaudio arranque OK. Patrón tomado de
     # referencia/termux/Moded-Debian-main/setup.sh (fix de audio ya validado
     # en la comunidad termux-desktop). Cargar antes que el TCP module.
+    # sink_name explícito (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): sin
+    # nombre fijo, PulseAudio le pone un nombre auto-generado que pulse_start.sh no puede
+    # referenciar de forma confiable para fijarlo como salida por defecto — mismo bug real
+    # que documenta referencia/contenedores/trierarch-main/CHANGELOG.md ("silencio con Null
+    # Output", resuelto fijando un sink_name propio y haciendo set-default-sink explícito).
     grep -q "load-module module-aaudio-sink" "$PA_CONF" 2>/dev/null || {
-      echo "load-module module-aaudio-sink" >> "$PA_CONF"
+      echo "load-module module-aaudio-sink sink_name=entorno_aaudio_sink" >> "$PA_CONF"
       log "PulseAudio module-aaudio-sink configurado (fix de audio silencioso)"
     }
     grep -q "load-module module-native-protocol-tcp" "$PA_CONF" 2>/dev/null || {
@@ -264,7 +280,7 @@ _install_pulseaudio() {
       log "PulseAudio TCP configurado (127.0.0.1)"
     }
     # module-sles-source: passthrough de micrófono Android→proot (ronda 2026-09-09,
-    # hallazgo real de referencia/ciberseguridad/proot-distro-kali/
+    #, hallazgo real de referencia/ciberseguridad/proot-distro-kali/
     # desktop.sh:36-37) — módulo PulseAudio que captura audio real vía OpenSL ES de
     # Android (AAudio no tiene fuente de captura equivalente, por eso es un módulo
     # separado del "sink" de arriba). Sin esto, cualquier app dentro de una distro/DE que
@@ -299,7 +315,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s vulkan-loader-generic &>/dev/null; then
         log "GPU Adreno: mesa + vulkan-loader-generic ya instalados"
       else
-        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
+        # Bug real, mismo patrón que bug #21 (VNC),.
         pkg_update_with_fallback
         pkg install -y mesa vulkan-loader-generic || \
           warn "GPU Adreno: algunos paquetes fallaron (puede que ya estén)"
@@ -319,7 +335,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s virglrenderer-android &>/dev/null && dpkg -s angle-android &>/dev/null; then
         log "GPU Mali: mesa + virglrenderer-android + angle-android ya instalados"
       else
-        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
+        # Bug real, mismo patrón que bug #21 (VNC),.
         pkg_update_with_fallback
         pkg install -y mesa virglrenderer-android angle-android || \
           warn "GPU Mali: algunos paquetes fallaron (puede que ya estén)"
@@ -340,7 +356,7 @@ _install_gpu_native() {
       if dpkg -s mesa &>/dev/null && dpkg -s virglrenderer-android &>/dev/null && dpkg -s angle-android &>/dev/null; then
         log "GPU Xclipse: mesa + virglrenderer-android ya instalados"
       else
-        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
+        # Bug real, mismo patrón que bug #21 (VNC),.
         pkg_update_with_fallback
         pkg install -y mesa virglrenderer-android angle-android || \
           warn "GPU Xclipse: algunos paquetes fallaron"
@@ -353,7 +369,7 @@ _install_gpu_native() {
         log "mesa (softGPU llvmpipe) ya instalado"
       else
         warn "GPU no detectada — instalando mesa (softGPU llvmpipe)"
-        # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
+        # Bug real, mismo patrón que bug #21 (VNC),.
         pkg_update_with_fallback
         pkg install -y mesa || true
       fi
@@ -552,7 +568,7 @@ TX11STOP
   cat > "$ENTORNO_SCRIPTS/vnc_start.sh" << 'VNCSTART'
 #!/data/data/com.termux/files/usr/bin/bash
 export DISPLAY=:1
-# Fix real (bug reportado "al darle iniciar da error"): TigerVNC exige contraseña
+# Fix real (bug 3 "al darle iniciar da error"): TigerVNC exige contraseña
 # interactiva (vncpasswd) en el primer uso — vncInstall() solo deja un aviso pero
 # nada la fuerza. Con stdin sin tty (este script corre vía ProcessBuilder desde
 # EntornoNative.vncStart(), sin stdin interactivo), vncserver/tigervncserver no
@@ -624,6 +640,13 @@ for _i in 1 2 3 4 5; do
 done
 
 if $_ready; then
+  # Fija el sink AAudio (sink_name=entorno_aaudio_sink, ver _install_pulseaudio arriba) como
+  # salida por defecto — sin esto, PulseAudio arranca "bien" (--check pasa) pero ningún
+  # audio suena si el sink que queda por defecto no es el que de verdad llega al altavoz
+  # (bug real documentado en referencia/contenedores/trierarch-main/CHANGELOG.md, "silencio
+  # con Null Output"). best-effort: si el módulo no cargó por algún motivo, no bloquea el
+  # arranque, solo queda sin fijar.
+  pactl set-default-sink entorno_aaudio_sink 2>/dev/null || true
   echo "PulseAudio iniciado"
 else
   echo "[WARN] PulseAudio no confirmó estar arriba tras 5s — revisá 'pulseaudio --check' a mano" >&2
@@ -643,6 +666,16 @@ PULSESTOP
 #!/data/data/com.termux/files/usr/bin/bash
 # Cargar variables de entorno para aceleración GPU
 # USO: source ~/scripts/entorno/gpu_env.sh
+# Bug real encontrado 2026-10-31 (auditoría profunda de Mini PC, docs/mini-pc/
+# AUDITORIA_PROFUNDA_2026-10-31.md): este archivo usa $TERMUX_PREFIX más abajo (turnip,
+# wrapper, y ahora el servidor VirGL) pero nunca lo definía — cuando se llama desde
+# entorno.sh (que sí define TERMUX_PREFIX en su línea 84) funcionaba por casualidad, pero
+# EntornoNative.kt::startDesktop() sourcea este archivo DIRECTO desde su propio bash -c
+# (ProcessBuilder.applyTermuxEnv() solo define $PREFIX, nunca $TERMUX_PREFIX) — en ese
+# camino la variable quedaba vacía y los paths de VK_ICD_FILENAMES resolvían rotos
+# ("/share/vulkan/icd.d/..." sin el prefijo real). Autocontenido ahora, mismo fallback que
+# ya usa entorno.sh para no depender de quién lo sourcea.
+: "${TERMUX_PREFIX:=${PREFIX:-/data/data/com.termux/files/usr}}"
 export MESA_NO_ERROR=1
 export vblank_mode=0
 GPU_TYPE=$(grep "^entorno\.gpu=" ~/.android_server_registry 2>/dev/null | cut -d= -f2)
@@ -671,9 +704,37 @@ case "$GPU_METHOD" in
     export GALLIUM_DRIVER=virpipe
     export MESA_GL_VERSION_OVERRIDE=4.3COMPAT
     export MESA_GLES_VERSION_OVERRIDE=3.2
-    export LIBGL_DRI3_DISABLE=1 ;;
+    export LIBGL_DRI3_DISABLE=1
+    # Fix real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): virpipe es un
+    # driver CLIENTE — necesita un servidor VirGL real escuchando en un socket Unix para
+    # funcionar. Confirmado por grep que este archivo NUNCA lo arrancaba: exportaba
+    # GALLIUM_DRIVER=virpipe y nada más, así que Mesa caía en silencio a software rendering
+    # (llvmpipe) — mismo bug que documentan referencia/termux/Termux-Desktops-DeadKnox/
+    # Documentation/known-issues.md ("X server already running"/"usando llvmpipe en vez de
+    # virgl porque el servidor no arrancó") y que referencia/contenedores/trierarch-main
+    # resuelve de la misma forma (trierarch-native/src/android/virgl_host.rs:190-194):
+    # --use-egl-surfaceless --use-gles --socket-path <ruta>. El binario real
+    # "virgl_test_server_android" lo instala el paquete Termux "virglrenderer-android" (ya
+    # instalado por _install_gpu_native más abajo en este mismo script para los casos
+    # Mali/Xclipse). Idempotente: si ya está corriendo, no se relanza. No verificado en
+    # dispositivo real todavía (empirical-verification-before-fix.md).
+    VIRGL_SOCKET_DIR="$TERMUX_PREFIX/tmp"
+    mkdir -p "$VIRGL_SOCKET_DIR" 2>/dev/null
+    export VTEST_SOCKET_NAME="$VIRGL_SOCKET_DIR/.virgl_test"
+    if command -v virgl_test_server_android >/dev/null 2>&1; then
+      if ! pgrep -f "virgl_test_server_android" >/dev/null 2>&1; then
+        rm -f "$VTEST_SOCKET_NAME" 2>/dev/null
+        nohup virgl_test_server_android --use-egl-surfaceless --use-gles \
+          --socket-path "$VTEST_SOCKET_NAME" \
+          > "$HOME/.entorno_virgl_server.log" 2>&1 &
+        disown
+        sleep 1
+      fi
+    else
+      echo "[gpu_env] AVISO: virgl_test_server_android no encontrado (paquete virglrenderer-android no instalado) — VirGL caerá a software rendering" >&2
+    fi ;;
   turnip)
-    # Fix real (roadmap Mini PC item 1, bug reportado "en gpu falta
+    # Fix real (roadmap Mini PC item 1, bug 5 "en gpu falta
     # wrapper, zink, turnip o panfrot" — nunca cerrado del todo: setGpuMethod("turnip")
     # ya instalaba paquetes desde 2026-08-xx pero este case nunca existió, así que la
     # variable real que activa el driver freedreno nativo (paquete apt
@@ -687,7 +748,13 @@ case "$GPU_METHOD" in
     # empirical-verification-before-fix.md), mismo estado "experimental" que ya
     # declara gpuMethodOptions() para este método.
     export MESA_LOADER_DRIVER_OVERRIDE=zink
-    export TU_DEBUG=noconform
+    # TU_DEBUG=noconform,sysmem (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md):
+    # "sysmem" agregado tras encontrarlo en 2 proyectos de referencia independientes usando
+    # Turnip en Android (referencia/contenedores/Droidspaces-gnome-ubuntu-main/final.sh y
+    # referencia/emuladores/MiceWine-Application-master/.../GeneralSettingsActivity.java:182)
+    # — fuerza memoria del sistema en vez de memoria de GPU dedicada para ciertos buffers,
+    # relevante en GPUs móviles sin VRAM separada. No verificado en dispositivo real todavía.
+    export TU_DEBUG=noconform,sysmem
     # Ampliado (ronda 2026-09-09, hallazgo cruzado de
     # referencia/herramientas/App-Installer/domain/installers/gpu_proot.sh:8-52 +
     # referencia/emuladores/xow64-wine-ar37rs/xow64:377-398): el bug original de
@@ -723,7 +790,7 @@ case "$GPU_METHOD" in
   llvmpipe)
     export GALLIUM_DRIVER=llvmpipe ;;
   wrapper)
-    # "Wrapper" real (corregido 2026-08-28 — el usuario aclaró
+    # "Wrapper" real (corregido 2026-08-28, — el usuario aclaró
     # explícitamente que NO es ANGLE/OpenGL/EGL, es Vulkan puro, una capa ENCIMA del driver
     # Vulkan nativo del propio dispositivo, y SOLO funciona en modo nativo, nunca dentro de
     # proot-distro). Identificado en referencia/termux/termux-desktop-main/docs/
@@ -750,8 +817,8 @@ GPUENVEOF
   # loguearse a mano (portado de "pdrun"/packinstall.sh de termux-desktop-main, ver
   # referencia/termux/termux-desktop-main/distro-container-setup). Usado por los
   # lanzadores .desktop que EntornoNative.distroAppInstall()/generateDesktopLaunchers()
-  # generan para apps instaladas dentro de una distro (catálogo de apps).
-  # DISPLAY fijo :1 — el X11 embebido de Kairos (Xlorie,
+  # generan para apps instaladas dentro de una distro (catálogo de apps, ver
+  #). DISPLAY fijo:1 — el X11 embebido de Kairos (Xlorie,
   # X11Service), NUNCA :0 (Termux:X11 externo, no se usa en Kairos).
   cat > "$ENTORNO_SCRIPTS/pdrun" << 'PDRUNEOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -902,9 +969,48 @@ session_cmd() {
     lxqt)       echo "lxqt-session" ;;
     openbox)    echo "openbox-session" ;;
     i3|i3wm)    echo "i3" ;;
+    # Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): KDE caía en el
+    # default "$1-session" -> "kde-session", un binario que no existe — distro_setup_gui.sh
+    # (_SESSION_BIN, más abajo en este archivo) instala y espera "startplasma-x11", nunca
+    # arrancaba y el mensaje de error de EntornoNative.kt ("¿corriste distro_setup_gui.sh
+    # antes?") era engañoso: la instalación sí había corrido bien.
+    kde)        echo "startplasma-x11" ;;
     *)          echo "$1-session" ;;
   esac
 }
+
+# Almacenamiento visible desde el escritorio, nativo o de distro (pedido del usuario 2026-10-08,
+#): "desde los entornos de interfaz debe poder ver el almacenamiento interno del
+# dispositivo y el de Termux". Tres cosas, todas idempotentes y sin romper nada si falta permiso:
+#  1) ~/storage/{shared,downloads,dcim,...}: lo mismo que crea termux-setup-storage (nunca se habia
+#     ejecutado en el dispositivo de pruebas: ~/storage no existia). Solo si /storage/emulated/0 es legible.
+#  2) Marcadores de GTK (Thunar, PCManFM, Caja, Nautilus) "Almacenamiento interno" y "Termux (home)".
+#     HOME es el mismo directorio en el escritorio nativo y en el de la distro (--shared-home), asi que
+#     un solo archivo sirve a los dos.
+#  3) STORAGE_BIND_ARGS: en modo distro monta /storage/emulated/0 dentro del proot en la misma ruta, para
+#     que el marcador funcione ahi tambien (si la distro ya lo montaba, el segundo bind es inocuo).
+STORAGE_BIND_ARGS=""
+_setup_storage_access() {
+  local _shared="/storage/emulated/0"
+  if [ -r "$_shared" ]; then
+    if [ ! -e "$HOME/storage/shared" ]; then
+      mkdir -p "$HOME/storage"
+      ln -sfn "$_shared" "$HOME/storage/shared"
+      local _pair
+      for _pair in Download:downloads DCIM:dcim Pictures:pictures Music:music Movies:movies; do
+        [ -d "$_shared/${_pair%%:*}" ] && ln -sfn "$_shared/${_pair%%:*}" "$HOME/storage/${_pair##*:}"
+      done
+    fi
+    STORAGE_BIND_ARGS="--bind $_shared:$_shared"
+  fi
+  local _bm="$HOME/.config/gtk-3.0/bookmarks"
+  mkdir -p "$HOME/.config/gtk-3.0" 2>/dev/null
+  local _line
+  for _line in "file://$_shared Almacenamiento interno" "file://$HOME Termux (home)"; do
+    grep -qxF "$_line" "$_bm" 2>/dev/null || echo "$_line" >> "$_bm"
+  done
+}
+_setup_storage_access
 
 # Sincronización de portapapeles Android↔X11 (ronda 2026-09-09, hallazgo
 # de referencia/termux/Termux_XFCE/domain/termux_env.sh:738-759) — polling cada 800ms
@@ -917,6 +1023,18 @@ _setup_clipboard_sync() {
   local _get_x11="$1"  # comando para leer el clipboard X11 (nativo: "xclip -o -selection clipboard"; distro: vía pdrun)
   local _set_x11="$2"  # comando para escribir al clipboard X11
   command -v termux-clipboard-get >/dev/null 2>&1 || return 0
+  # Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): este loop en
+  # background nunca lo mataba nadie — gui_stop.sh no lo tocaba, y en modo distro cada
+  # iteración hace un "proot-distro login" nuevo vía pdrun (~1.25 por segundo mientras dura
+  # la sesión); si la sesión se reinicia sin matar el loop viejo, se van acumulando. Se
+  # guarda el PID del subshell en un archivo propio para que gui_stop.sh pueda matarlo de
+  # verdad — y se mata cualquier PID viejo de una corrida anterior antes de arrancar uno
+  # nuevo (idempotente, evita acumular huérfanos).
+  local _pidfile="$HOME/.entorno_clipboard_sync.pid"
+  if [ -f "$_pidfile" ]; then
+    local _old_pid; _old_pid=$(cat "$_pidfile" 2>/dev/null)
+    [ -n "$_old_pid" ] && kill "$_old_pid" 2>/dev/null
+  fi
   # xclip puede vivir en el HOST (modo nativo) o DENTRO de la distro (modo --distro, vía
   # pdrun) — no se puede chequear con "command -v xclip" a secas en ambos casos desde acá.
   # Si falta en cualquiera de los dos lados, $_get_x11/$_set_x11 simplemente fallan en
@@ -939,6 +1057,7 @@ _setup_clipboard_sync() {
       sleep 0.8
     done
   ) &
+  echo "$!" > "$_pidfile"
 }
 
 # Aviso phantom process killer (Android 12+, SDK >= 31) — best-effort, patrón termux-desktop.
@@ -991,7 +1110,7 @@ if [ "$MODE" = "native" ]; then
   _setup_clipboard_sync "xclip -o -selection clipboard" "xclip -selection clipboard"
   SESSION_CMD=$(session_cmd "$DE")
   # dbus-run-session en vez de dbus-launch --exit-with-session (ronda 2026-09-09,
-  # hallazgo de referencia/termux/linux-on-android/scripts/
+  #, hallazgo de referencia/termux/linux-on-android/scripts/
   # 04-start-desktop.sh, causa raíz documentada explícitamente ahí): dbus-launch arranca
   # el daemon y el comando en paralelo, SIN garantía de que el bus esté listo antes de que
   # la DE intente hablar con él — carrera real, no solo teórica, que coincide con la
@@ -1072,7 +1191,7 @@ if ! $USE_GPU; then
   INNER="export LIBGL_ALWAYS_SOFTWARE=1 MESA_LOADER_DRIVER_OVERRIDE=llvmpipe GALLIUM_DRIVER=llvmpipe; $INNER"
 fi
 
-# Fix real (bug reportado "en gpu falta wrapper, zink, turnip o panfrot"): las variables
+# Fix real (bug 5 "en gpu falta wrapper, zink, turnip o panfrot"): las variables
 # GPU aceleradas (GALLIUM_DRIVER=zink/virpipe/etc., seteadas por gpu_env.sh según lo elegido
 # en "⚙ Configurar método GPU" → EntornoNative.setGpuMethod()) se sourceaban en ESTE shell
 # (host) más arriba pero nunca se pasaban al `env` explícito de `proot-distro login ... --
@@ -1085,7 +1204,7 @@ fi
 # Panfrost puro (sin VirGL) siguen sin soporte real en gpu_env.sh — eso sí es feature
 # faltante, no se inventa acá.
 #
-# Bug real confirmado 2026-08-27 (reporte de usuario: fondo NEGRO al
+# Bug real confirmado 2026-08-27 (ver reporte de usuario: fondo NEGRO al
 # abrir un entorno gráfico en distro, pero el panel/resto sí carga): el fix de arriba
 # construía GPU_ENV_ARGS leyendo $GALLIUM_DRIVER/$MESA_GL_VERSION_OVERRIDE/etc DIRECTO del shell
 # actual — pero este bloque "modo distro" nunca sourcea gpu_env.sh (a diferencia del modo nativo,
@@ -1142,8 +1261,30 @@ _setup_clipboard_sync \
   "\"$HOME/scripts/entorno/pdrun\" \"$DISTRO\" xclip -selection clipboard"
 
 echo "[OK] Iniciando $DE en la distro $DISTRO (DISPLAY=$DISPLAY_VAL, --shared-tmp --shared-home)..."
-exec proot-distro login "$DISTRO" --shared-tmp --shared-home -- \
-  env DISPLAY="$DISPLAY_VAL" XDG_RUNTIME_DIR=/tmp/xdg-runtime PULSE_SERVER=127.0.0.1 $GPU_ENV_ARGS \
+# shellcheck disable=SC2086
+# KAIROS_GUI_SESSION=1 (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): marca
+# propia para que gui_stop.sh pueda matar SOLO la sesión gráfica, nunca una sesión de
+# terminal plana que el usuario haya abierto a mano con el botón "Login"
+# (EntornoDistrosTab.kt) — ambas corren "proot-distro login <misma distro>", así que
+# distinguirlas por el nombre de la distro no alcanza. "login" desaparece del cmdline tras
+# el execvpe() real de proot-distro (confirmado en EntornoNative.kt, comentario de
+# startDistroDesktop()), pero los argumentos de "env NOMBRE=VALOR ..." SÍ sobreviven —
+# gui_stop.sh puede matar por este marcador de forma confiable.
+# GLYCIN_DISABLE_SANDBOX=1 (hallazgo real, docs/mini-pc/QA_MINIPC_2026-09-14.md +
+# "Fase C.1"): GTK moderno (xfce4-session y cualquier app GTK3/4
+# dentro de la distro) carga íconos SVG vía glycin, que sandboxea cada carga con `bwrap`
+# (bubblewrap) -- ese bwrap falla al crear namespaces anidados (Android → proot → bwrap) y
+# GTK trata el fallo como fatal ("Bail out!"), tumbando la sesión entera. La ronda de
+# investigó downgradear gdk-pixbuf2 (descartado: sin.deb viejo confirmado
+# accesible para Kali, riesgo de romper el XFCE4 ya instalado sin plan de reversión) y dejó
+# pendiente "deshabilitar el sandboxing de glycin por variable de entorno". Esta variable es
+# NO DESTRUCTIVA (si glycin la ignora en la versión instalada, el comportamiento queda
+# exactamente igual que antes -- no hay riesgo real de empeorar nada) pero **no verificado
+# en dispositivo real todavía** (investigación externa 2026-11-05 encontró reportes de
+# terceros, no oficiales, de que algunas versiones de glycin la ignoran) -- confirmar en el
+# próximo QA de Mini PC si de verdad evita el crash.
+exec proot-distro login "$DISTRO" --shared-tmp --shared-home $STORAGE_BIND_ARGS -- \
+  env DISPLAY="$DISPLAY_VAL" XDG_RUNTIME_DIR=/tmp/xdg-runtime PULSE_SERVER=127.0.0.1 KAIROS_GUI_SESSION=1 GLYCIN_DISABLE_SANDBOX=1 $GPU_ENV_ARGS \
   bash -c "$INNER"
 GUISTARTEOF
   chmod +x "$ENTORNO_SCRIPTS/gui_start.sh"
@@ -1168,12 +1309,32 @@ pkill -f 'xfce4-session' 2>/dev/null
 pkill -f 'startxfce4' 2>/dev/null
 pkill -f 'lxqt-session' 2>/dev/null
 pkill -f 'openbox-session' 2>/dev/null
+pkill -f 'mate-session' 2>/dev/null
+pkill -f 'startplasma-x11' 2>/dev/null
 pkill -f 'dbus-launch --exit-with-session' 2>/dev/null
 pkill -f 'dbus-run-session' 2>/dev/null
-pkill -f 'proot-distro login' 2>/dev/null
+# Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): "pkill -f 'proot-distro
+# login'" mataba CUALQUIER sesión de distro, incluida una terminal plana abierta a mano con el
+# botón "Login" (EntornoDistrosTab.kt) sin ninguna relación con el escritorio gráfico — y
+# además, por el mismo motivo que activeDesktopMode() quedó roto (ver EntornoNative.kt), el
+# patrón "login" casi nunca matchea el proceso real tras el execvpe() de proot-distro, así que
+# en la práctica esta línea ya era mayormente inefectiva para su propio propósito. Ahora mata
+# por el marcador real que solo lleva la sesión gráfica (KAIROS_GUI_SESSION=1, agregado en
+# gui_start.sh --distro) — sobrevive al exec porque es un argumento literal de "env NOMBRE=VALOR".
+pkill -f 'KAIROS_GUI_SESSION=1' 2>/dev/null
 pkill -f 'tigervncserver' 2>/dev/null
 
-# Fix real (bug reportado "instalo nativo y luego abrir con distro da error"): pkill
+# Bucle de sincronización de portapapeles (ver _setup_clipboard_sync en este mismo archivo) —
+# nunca lo mataba nadie hasta esta ronda (2026-10-31, docs/mini-pc/
+# AUDITORIA_PROFUNDA_2026-10-31.md).
+_CLIP_PIDFILE="$HOME/.entorno_clipboard_sync.pid"
+if [ -f "$_CLIP_PIDFILE" ]; then
+  _CLIP_PID=$(cat "$_CLIP_PIDFILE" 2>/dev/null)
+  [ -n "$_CLIP_PID" ] && kill "$_CLIP_PID" 2>/dev/null
+  rm -f "$_CLIP_PIDFILE"
+fi
+
+# Fix real (bug 6 "instalo nativo y luego abrir con distro da error"): pkill
 # solo manda SIGTERM y retorna al toque, sin esperar a que el proceso termine de verdad —
 # xfce4-session/proot-distro login pueden tardar >0s en apagarse limpio. showConflictDialog()
 # (EntornoFragment.kt) reintenta el arranque del OTRO modo apenas stopDesktopSession()
@@ -1183,7 +1344,7 @@ pkill -f 'tigervncserver' 2>/dev/null
 # realmente murieron antes de reportar éxito, mismo patrón ya usado por pulse_start.sh en
 # este mismo archivo.
 for _i in 1 2 3; do
-  pgrep -f 'xfce4-session|startxfce4|lxqt-session|openbox-session|dbus-launch --exit-with-session|dbus-run-session|proot-distro login' >/dev/null 2>&1 || break
+  pgrep -f 'xfce4-session|startxfce4|lxqt-session|openbox-session|mate-session|startplasma-x11|dbus-launch --exit-with-session|dbus-run-session|KAIROS_GUI_SESSION=1' >/dev/null 2>&1 || break
   sleep 1
 done
 echo "[OK] Sesiones de escritorio detenidas"
@@ -1281,7 +1442,10 @@ echo "[STEP] Configurando GUI en la distro: $DISTRO (dbus-x11 + $DE${LITE:+ [lit
 pkill -9 -f "proot-distro login $DISTRO" 2>/dev/null
 pkill -9 -f "proot-distro/containers/$DISTRO/" 2>/dev/null
 pkill -9 -f "proot-distro/installed-rootfs/$DISTRO" 2>/dev/null
-setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home -- \
+# Tope subido de 900 a 2700 s (2026-10-08): una DE grande en un telefono tarda mas de 15 min aunque se
+# evite el cuello de botella del cache de iconos (ver abajo); el corte a mitad de dpkg dejaba ~200 paquetes
+# sin configurar. NO escribir comillas simples dentro del bloque bash -c que sigue (cierran la comilla externa).
+setsid timeout -k 10 2700 proot-distro login "$DISTRO" --shared-tmp --shared-home -- \
   bash -c '
     DE="$1"
     LITE="$2"
@@ -1294,7 +1458,7 @@ setsid timeout -k 10 900 proot-distro login "$DISTRO" --shared-tmp --shared-home
       mate)  _SESSION_BIN=mate-session ;;
       kde)   _SESSION_BIN=startplasma-x11 ;;
     esac
-    # Fix real (bug reportado "da error al instalar entorno gráfico en la distro"):
+    # Fix real (bug 1 "da error al instalar entorno gráfico en la distro"):
     # antes toda la salida de apt-get iba a /dev/null — si la instalación fallaba (mirror
     # caído, sin red dentro del proot, paquete no encontrado, disco lleno), el único rastro
     # era el "[ERROR] La instalación de la DE falló..." genérico de más abajo, sin ninguna
@@ -1329,6 +1493,21 @@ $(apt-get install -y "$@" 2>&1)"; rc=$?
       printf '%s' "$out"
       return $rc
     }
+    # Bug real reproducido en dispositivo (2026-10-08, Ubuntu 26.04 + xfce4): el postinst de
+    # elementary-xfce-icon-theme corre gtk-update-icon-cache --force sobre temas con miles de iconos
+    # y bajo proot no terminaba en mas de 9 minutos; dpkg --configure esperaba ese paso, el tope de
+    # tiempo mataba todo y quedaban ~200 paquetes sin configurar (la DE nunca arrancaba). Se desvia
+    # gtk-update-icon-cache a un stub que sale con 0 mientras dpkg configura, y se restaura al
+    # terminar. Efecto: los temas de iconos no traen cache precalculado (GTK los lee igual, solo
+    # la primera carga es mas lenta). Una corrida anterior cortada puede haber dejado el desvio
+    # puesto: se detecta y se reutiliza.
+    _GTK_CACHE=/usr/bin/gtk-update-icon-cache
+    _GTK_STUBBED=0
+    if command -v dpkg-divert >/dev/null 2>&1; then
+      if dpkg-divert --list "$_GTK_CACHE" 2>/dev/null | grep -q "$_GTK_CACHE" || dpkg-divert --local --rename --add "$_GTK_CACHE" >/dev/null 2>&1; then
+        printf "#!/bin/sh\nexit 0\n" > "$_GTK_CACHE" 2>/dev/null && chmod 755 "$_GTK_CACHE" && _GTK_STUBBED=1
+      fi
+    fi
     if command -v apt-get >/dev/null 2>&1; then
       # dpkg --configure -a self-heal (mismo patrón ya usado en ciberseguridad.sh PASO 7b,
       # ver comentario ahí): bug real confirmado por ADB — si un paso
@@ -1340,7 +1519,7 @@ $(apt-get install -y "$@" 2>&1)"; rc=$?
       # dpkg --configure -a" (bug real confirmado: un apostrofe literal en este comentario,
       # dentro del bloque bash -c de comillas simples de mas abajo, cortaba la comilla externa
       # antes de tiempo y truncaba el script real ejecutado dentro del proot (error real:
-      # unexpected end of file from if command) — sin este self-heal,
+      # unexpected end of file from if command,) — sin este self-heal,
       # ese estado roto se propagaba de
       # ciberseguridad.sh (Kali headless) a este script (GUI), haciendo fallar la GUI aunque
       # el motivo real no tuviera nada que ver con dbus-x11/xfce4/tigervnc.
@@ -1476,8 +1655,12 @@ $(_apt_install_repair dbus-x11 task-mate-desktop tigervnc-standalone-server)"
     else
       echo "[WARN] gestor de paquetes desconocido — instalá la DE manualmente dentro de la distro"
     fi
-    # dbus-run-session preferido (mismo motivo que gui_start.sh, ronda 2026-09-09)
-    # — chequeo real dentro de la propia distro en runtime, no del host.
+    if [ "$_GTK_STUBBED" = "1" ]; then
+      rm -f "$_GTK_CACHE"
+      dpkg-divert --local --rename --remove "$_GTK_CACHE" >/dev/null 2>&1
+    fi
+    # dbus-run-session preferido (mismo motivo que gui_start.sh, ronda 2026-09-09,
+    #) — chequeo real dentro de la propia distro en runtime, no del host.
     # Bug real confirmado por ADB (2026-09-14, bash -x trace en
     # dispositivo real): esta línea vivía con el formato de printf entre comillas simples,
     # pero está anidada dentro del bloque bash -c de comillas simples de más arriba — en
@@ -1630,7 +1813,7 @@ _install_desktop_tools() {
     warn "Android SDK $_sdk: desactivá 'Disable phantom process killer' en Opciones de desarrollador para que la DE no muera sola (patrón termux-desktop)"
   fi
   if command -v pkg &>/dev/null; then
-    # Bug #21 arreglado (auditoría ADB): faltaba pkg_update_with_fallback()
+    # Bug #21 arreglado (auditoría ADB,): faltaba pkg_update_with_fallback
     # antes de este "pkg install" — el fix del bug de mirror roto (2026-08-12) nunca se propagó
     # a esta función específica, así que "Visor VNC (:5901)" fallaba siempre con
     # "No mirror or mirror group selected" + "curl: command not found" sin ningún indicio real.
@@ -1642,9 +1825,9 @@ _install_desktop_tools() {
     # gemela). Sin "x11-repo" habilitado, el "pkg install" de abajo fallaba para estos 3
     # paquetes específicos, silenciado por el "|| warn" (mismo patrón exacto que ya escondió
     # el bug de "dbus-x11" documentado abajo, y el mismo patrón que rompió mesa-zink/
-    # mesa-vulkan-icd-freedreno-dri3 en _install_gpu_native()).
+    # mesa-vulkan-icd-freedreno-dri3 en _install_gpu_native,).
     pkg install -y x11-repo || true
-    # Bug real encontrado 2026-08-24 (pruebas funcionales reales por
+    # Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por
     # ADB): "dbus-x11" NO es un paquete real de Termux (confirmado con `pkg search dbus` — solo
     # existen "dbus"/"dbus-glib"/etc., ninguno "dbus-x11"; ese nombre es la convención de
     # Debian/Ubuntu, que sí separa dbus-launch en un paquete aparte). Con un nombre de paquete
@@ -1665,15 +1848,15 @@ _install_desktop_tools() {
 _install_ai_tools() {
   titulo "Base CLIs de IA en HOST (best-effort)"
   if command -v pkg &>/dev/null; then
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso por indices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     # Bug real confirmado contra el índice apt real de Termux (2026-09-15,
     # packages.termux.dev/apt/termux-main Packages, aarch64): "python3" NUNCA existió
     # como nombre de paquete — el paquete real se llama "python" (provee el binario
     # /usr/bin/python3, ver stacks.sh native_package_for_preset() que ya distinguía esto
     # bien: "python" para pkg install, "python3" solo como nombre de binario a chequear).
-    # Mismo patrón exacto que mesa-zink/dbus-x11/mesa-vulkan-icd-freedreno-dri3:
-    # con un nombre de paquete inválido en la lista, "pkg install"
+    # Mismo patrón exacto que mesa-zink/dbus-x11/mesa-vulkan-icd-freedreno-dri3 (ver
+    #): con un nombre de paquete inválido en la lista, "pkg install"
     # falla de forma atómica para TODOS los paquetes (ni nodejs-lts/git/curl se instalaban
     # nunca), silenciado sin distinción por el "|| warn" de abajo.
     pkg install -y python nodejs-lts git curl || \
@@ -1746,7 +1929,17 @@ check_done "entorno_pulse" || {
 
 check_done "entorno_gpu" || {
   _install_gpu_native
-  mark_done "entorno_gpu"
+  # Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): _install_gpu_native
+  # usa "warn" (no "error") a propósito cuando un paquete GPU falla — instalar aceleración no
+  # debe bloquear el resto de Entorno. Pero mark_done corría SIEMPRE, warn o no — si "mesa"
+  # (el paquete común a todas las ramas de GPU_TYPE) nunca llegó a instalarse, el checkpoint
+  # quedaba marcado igual, y una corrida futura (ej. con el mirror ya arreglado) nunca
+  # reintentaba. Ahora solo se marca si "mesa" quedó realmente instalado.
+  if dpkg -s mesa &>/dev/null; then
+    mark_done "entorno_gpu"
+  else
+    warn "GPU: 'mesa' no quedó instalado — este paso se reintentará en la próxima corrida del instalador"
+  fi
 }
 
 check_done "entorno_dirs" || {
@@ -1765,7 +1958,9 @@ check_done "entorno_ai_tools" || {
 }
 
 check_done "entorno_registry" || {
-  update_registry "1.2.0"
+  # Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): escribía "1.2.0" en
+  # el registry pese a que el encabezado de este archivo dice VERSIÓN 1.4.0.
+  update_registry "1.4.0"
   mark_done "entorno_registry"
 }
 

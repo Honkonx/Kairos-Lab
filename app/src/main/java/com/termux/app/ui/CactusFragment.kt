@@ -107,8 +107,7 @@ class CactusFragment : BaseModuleFragment() {
     }
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla muestra el token
-    // HTTP del servidor (showServerTokenDialog()) — un secreto guardado nunca se vuelve a
-    // mostrar en claro sin protección adicional una vez guardado.
+    // HTTP del servidor (showServerTokenDialog()) — ver .claude/rules/kairos-secrets-never-revealed.md.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -135,8 +134,10 @@ class CactusFragment : BaseModuleFragment() {
     override fun buildContent() {
         if (!isModuleInstalled()) {
             showNotInstalled(getModuleName()) {
-                installModuleInBackground(null) { ok ->
-                    toast(if (ok) getString(R.string.cactus_installed) else getString(R.string.cactus_install_failed))
+                chooseEngine { engine ->
+                    installModuleInBackground(engine) { ok ->
+                        toast(if (ok) getString(R.string.cactus_installed) else getString(R.string.cactus_install_failed))
+                    }
                 }
             }
             return
@@ -171,8 +172,41 @@ class CactusFragment : BaseModuleFragment() {
     // Estado — ¿Ollama / llama-server corriendo? (backend del razonador de `cactus ai`)
     // ────────────────────────────────────────────────────────────
 
+    /**
+     * Motor de Needle a instalar: nativo (binario Android, recomendado) o proot (Ubuntu). El script prueba el otro si el
+     * elegido falla. Se pasa como variante (`--variant native|proot`),.
+     */
+    private fun chooseEngine(onChosen: (String) -> Unit) {
+        val engines = listOf("native", "proot")
+        val labels = arrayOf(
+            getString(R.string.cactus_engine_native_title) + "\n" + getString(R.string.cactus_engine_native_desc),
+            getString(R.string.cactus_engine_proot_title) + "\n" + getString(R.string.cactus_engine_proot_desc),
+        )
+        AlertDialog.Builder(requireContext())
+            .setTitle(R.string.cactus_engine_choose)
+            .setItems(labels) { _, which ->
+                toast(getString(R.string.cactus_engine_fallback_note))
+                onChosen(engines[which])
+            }
+            .show()
+    }
+
+    private fun engineLabel(): String = when (ManagerNativeUtils.readRegistry()["cactus.runtime"]) {
+        "proot" -> getString(R.string.cactus_engine_proot)
+        else -> getString(R.string.cactus_engine_native)
+    }
+
     private fun buildEstadoCard() {
         addCard(getString(R.string.cactus_card_estado)) {
+            val (engineRow, _) = valueRow(getString(R.string.cactus_engine_label), engineLabel())
+            addView(engineRow)
+            addView(createActionButton(getString(R.string.cactus_engine_change)) {
+                chooseEngine { engine ->
+                    installModuleInBackground(engine) { ok ->
+                        toast(if (ok) getString(R.string.cactus_installed) else getString(R.string.cactus_install_failed))
+                    }
+                }
+            })
             val (ollamaRow, ollamaValue) = valueRow(getString(R.string.cactus_ollama_label), getString(R.string.cactus_verificando))
             addView(ollamaRow)
             val (llamaRow, llamaValue) = valueRow(getString(R.string.cactus_llama_label), getString(R.string.cactus_verificando))
@@ -604,6 +638,7 @@ class CactusFragment : BaseModuleFragment() {
             })
             addView(TextView(ctx).apply {
                 text = "🗑"
+                contentDescription = ctx.getString(R.string.a11y_delete)
                 textSize = 16f
                 setPadding(dp(10), dp(6), dp(10), dp(6))
                 setOnClickListener { confirmDeleteTask(task) }

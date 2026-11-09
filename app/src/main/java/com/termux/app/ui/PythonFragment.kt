@@ -39,7 +39,7 @@ class PythonFragment : BaseModuleFragment() {
     override fun buildContent() {
         if (!isModuleInstalled()) { showNotInstalled(getModuleName()); return }
         // Info card
-        // Bug real (2026-08-07): "Versión"/"pip"
+        // Bug real (2026-08-07,): "Versión"/"pip"
         // quedaban en "—" para siempre — buildInfoJson() SÍ trae los datos reales (y
         // "Ver versión e info" SÍ los pide), pero runPythonAction() nunca los volvía a
         // pintar en la card, solo guardaba pythonInfo sin usarlo. Ahora se cargan solos al
@@ -52,7 +52,7 @@ class PythonFragment : BaseModuleFragment() {
         actionButton(getString(R.string.python_btn_info), GHOST) { runPythonAction("info") }
         actionButton(getString(R.string.python_btn_repl), GHOST) { openRepl() }
         actionButton(getString(R.string.python_btn_pip_install), GHOST) { promptAndRun("pip-install") }
-        // 2026-08-11 (pedido explícito del usuario): submenú de paquetes por categoría
+        // 2026-08-11 ( R2 — pedido usuario): submenú de paquetes por categoría
         // (algoritmos / IA / datos / web / ciencia / herramientas). Recopila paquetes Python
         // normal (PyPI) Y los que tienen binarios para Termux. Ver showPackageCategories().
         actionButton(getString(R.string.python_btn_categories), GHOST) { showPackageCategories() }
@@ -61,7 +61,7 @@ class PythonFragment : BaseModuleFragment() {
         // de pip sin ningún equivalente en la app hasta ahora. Antes "pip-list" ya traía el
         // JSON completo de paquetes instalados (buildPipListJson()) pero runPythonAction()
         // lo descartaba en un Snackbar "OK" genérico sin mostrar el contenido — mismo patrón
-        // de bug que "info" ya tenía (JSON armado, nunca pintado). Ahora ambos
+        // de bug que "info" tenía en (JSON armado, nunca pintado). Ahora ambos
         // ("pip-list" y "pip-outdated") se renderizan en un diálogo nativo con la lista real.
         actionButton(getString(R.string.python_btn_pip_outdated), GHOST) { runPythonAction("pip-outdated") }
         actionButton(getString(R.string.python_btn_run_script), GHOST) { pickAndRunScript() }
@@ -74,7 +74,7 @@ class PythonFragment : BaseModuleFragment() {
         // para varios de ellos), así que el venv hereda esos paquetes del sistema y solo
         // aísla lo que el proyecto instale con pip.
         actionButton(getString(R.string.python_btn_venv), GHOST) { pickProjectForVenv() }
-        // Bug real (auditoría 2026-08-05): ningún módulo sin
+        // Bug real (auditoría 2026-08-05,): ningún módulo sin
         // CLI dedicada (Python/Ollama/n8n/Expo/Remote) tenía forma de actualizar desde la app.
         actionButton(getString(R.string.python_btn_update), GHOST) {
             toast(getString(R.string.python_toast_updating))
@@ -364,7 +364,7 @@ class PythonFragment : BaseModuleFragment() {
             .show()
     }
 
-    // 2026-08-11 (pedido explícito del usuario): "los demás paquetes que se instalaban como
+    // 2026-08-11 ( R2 — pedido usuario): "los demás paquetes que se instalaban como
     // pandas etc debe estar en su propia pantalla u opción dentro del submenú de python, ejemplo
     // poner paquetes de algoritmos, paquetes de IA, de datos etc, así el usuario elige.
     // Recopilar bastantes paquetes Python normales y para termux, además de los que tenemos."
@@ -600,7 +600,7 @@ class PythonFragment : BaseModuleFragment() {
             val process = pb.start()
             val stdout = StringBuilder()
             val stderr = StringBuilder()
-            // Bug real confirmado por ADB (2026-08-24): sin try/catch
+            // Bug real confirmado por ADB (2026-08-24,): sin try/catch
             // acá, destroyForcibly() de abajo cierra los streams mientras este Thread está
             // bloqueado en readText() — la excepción sin capturar mata TODO el proceso de la
             // app (mismo patrón real confirmado en ModuleController.startModule()).

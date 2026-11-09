@@ -6,8 +6,8 @@
     <string name="nube_msg_no_se_pudo_iniciar_puerto">Could not start (is port %1$d busy?)</string>
     <string name="nube_msg_servidor_detenido">Server stopped</string>
 
-    <string name="nube_status_activo_puerto">● server active · port %1$d</string>
-    <string name="nube_status_detenido">○ server stopped</string>
+    <string name="nube_status_activo_puerto">Server active · port %1$d</string>
+    <string name="nube_status_detenido">Server stopped</string>
 
     <string name="nube_msg_iniciando_tunel">Starting tunnel (%1$s)…</string>
     <string name="nube_error_fmt">Error: %1$s</string>
@@ -22,6 +22,8 @@
 
     <string name="nube_file_menu_renombrar">Rename</string>
     <string name="nube_file_menu_eliminar">Delete</string>
+    <string name="nube_file_menu_open">Open with</string>
+    <string name="nube_file_menu_share">Share file</string>
 
     <string name="nube_dialog_title_renombrar">Rename</string>
     <string name="nube_btn_renombrar">Rename</string>
@@ -38,5 +40,53 @@
     <string name="nube_file_meta_carpeta">folder</string>
     <string name="nube_file_meta_size_date">%1$s · %2$s</string>
     <string name="nube_file_click_info">%1$s · %2$s</string>
+
+    <!-- 2026-09-16 redesign, based on ver/nube/nube_personal_web.html -->
+    <string name="nube_title">Personal Cloud</string>
+    <string name="nube_version_badge">Local</string>
+    <string name="nube_subtitle">Your phone is your personal cloud</string>
+
+    <string name="nube_hero_badge">☁ Local server</string>
+    <string name="nube_hero_title">$HOME/nube exposed as web storage</string>
+    <string name="nube_hero_desc">Only what is inside that folder is visible — never the rest of the phone.</string>
+    <string name="nube_disk_usage_label">Disk usage</string>
+    <string name="nube_disk_usage_value_fmt">%1$s / %2$s</string>
+    <string name="nube_disk_free_fmt">%1$s free</string>
+    <string name="nube_legend_fmt">● %1$s: %2$s</string>
+    <string name="nube_legend_imagenes_label">Images</string>
+    <string name="nube_legend_archivos_label">Files</string>
+    <string name="nube_legend_otros_label">Other</string>
+
+    <string name="nube_server_card_title">Server and access</string>
+    <string name="nube_local_url_label">Local URL (same network / active tunnel):</string>
+    <string name="nube_public_url_label">Public URL (tunnel):</string>
+    <string name="nube_btn_abrir_navegador">🌐 Open in browser</string>
+    <string name="nube_msg_no_hay_navegador">No browser app was found to open the link</string>
+    <string name="nube_msg_iniciar_servidor_primero">Start the server first</string>
+
+    <string name="nube_encryption_reminder_title">🔒 AES-256 encryption</string>
+    <string name="nube_encryption_reminder_desc">Files uploaded with a password are encrypted before being saved on the phone.</string>
+
+    <string name="nube_explorer_title">Files on the server</string>
+    <string name="nube_search_hint">Search file…</string>
+    <string name="nube_add_files">＋ Add files</string>
+    <string name="nube_new_folder">＋ New folder</string>
+    <string name="nube_new_folder_title">Create folder in Cloud</string>
+    <string name="nube_folder_name_hint">Folder name</string>
+    <string name="nube_new_folder_create">Create</string>
+    <string name="nube_folder_invalid_name">Use a valid name without path separators.</string>
+    <string name="nube_folder_already_exists">“%1$s” already exists.</string>
+    <string name="nube_folder_created">Folder created: %1$s</string>
+    <string name="nube_folder_create_failed">Could not create the folder.</string>
+    <string name="nube_folder_outside_root">That folder is no longer inside Cloud.</string>
+    <string name="nube_import_result">Added: %1$d · errors: %2$d</string>
+    <string name="nube_import_title">Copying files to Cloud</string>
+    <string name="nube_import_started">Copying into the current folder…</string>
+    <string name="nube_filter_todos">All</string>
+    <string name="nube_filter_imagenes">Images</string>
+    <string name="nube_filter_documentos">Documents</string>
+    <string name="nube_filter_cifrados">Encrypted</string>
+    <string name="nube_badge_cifrado">🔒 Encrypted</string>
+    <string name="nube_msg_filtro_sin_resultados">No results for this filter or search</string>
 
 </resources>

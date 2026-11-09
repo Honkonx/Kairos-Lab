@@ -7,8 +7,9 @@ import java.util.concurrent.TimeUnit
  * Helper centralizado para acceso root opcional/oportunista — MVP implementado 2026-08-25 a
  * partir de la investigación real en `docs/arquitectura/INVESTIGACION_MODO_ROOT_2026-08-25.md`
  * (luz verde explícita del usuario). Mismo patrón que ya usaba en solitario
- * `MonitorFragment.disablePhantomProcessKiller()` (único uso real de `su -c` en toda la app
- * antes de este archivo) — se centraliza acá para que cualquier otro módulo lo reuse sin
+ * `disablePhantomProcessKiller()` (único uso real de `su -c` en toda la app antes de este
+ * archivo — vivía en el ex-`MonitorFragment.kt`, fusionado en Config/Homelab 2026-10-30) — se
+ * centraliza acá para que cualquier otro módulo lo reuse sin
  * duplicar la detección ni el manejo de proceso.
  *
  * Reglas del patrón, deliberadas (ver la investigación para el porqué de cada una):
@@ -34,7 +35,7 @@ object RootAccess {
      * dispositivo no se rootea/desrootea en caliente mientras la app corre). Mismo one-liner ya
      * usado en `modulos/docker.sh` (`command -v su && su -c "id"`), portado a `ProcessBuilder`.
      *
-     * Bug real corregido 2026-09-14: un timeout (el gestor de root
+     * Bug real corregido 2026-09-14 (ver ``): un timeout (el gestor de root
      * mostrando su diálogo de confirmación mientras el usuario todavía no respondió) se
      * cacheaba como `false` para siempre, sin distinguirlo de "el usuario denegó" — un usuario
      * que otorgaba el permiso DESPUÉS de ese primer timeout seguía viendo "sin root" en Kairos
@@ -85,8 +86,22 @@ object RootAccess {
     /**
      * Corre un comando vía `su -c` — oportunista, nunca bloquea el flujo del caller: si no hay
      * root o el comando falla, devuelve `ok=false` con el detalle real en `stderr`, nunca lanza.
-     * Mismo timeout/patrón de captura que `MonitorFragment.disablePhantomProcessKiller()`.
+     * Mismo timeout/patrón de captura que el `disablePhantomProcessKiller()` original (ex-`MonitorFragment.kt`).
      */
+    /**
+     * Escapa un valor para interpolarlo de forma segura dentro de un comando que `runAsRoot`
+     * corre vía `su -c "<command>"` (shell real, a diferencia de [ManagerNativeUtils.runExec]).
+     * Hallazgo de seguridad real (2026-10-31, `CiberseguridadFragment.kt`): varios scans
+     * interpolaban texto libre del usuario ("objetivo") directo entre comillas simples sin
+     * escapar — un objetivo con una comilla simple rompía la instrucción y permitía ejecutar
+     * cualquier comando adicional con la identidad con la que corre `su`. Método estándar POSIX:
+     * envolver en comillas simples, reemplazando cada comilla simple interna por `'"'"'`
+     * (cierra la comilla, abre una doble con la comilla simple literal, cierra la doble, reabre
+     * la simple) — nunca falla sin importar el contenido, a diferencia de intentar excluir
+     * caracteres peligrosos con una lista negra.
+     */
+    fun shellQuote(value: String): String = "'" + value.replace("'", "'\"'\"'") + "'"
+
     fun runAsRoot(command: String, timeoutSeconds: Long = 10): RootResult {
         if (!hasRoot()) return RootResult(false, "", "sin acceso root")
         return try {

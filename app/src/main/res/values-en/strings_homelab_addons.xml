@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Homelab add-ons (Syncthing, Restic) — formerly their own modules. See AddonEngine/HomelabAddons. -->
+    <string name="homelab_section_complementos">ADD-ONS</string>
+    <string name="homelab_addon_syncthing_name">Syncthing</string>
+    <string name="homelab_addon_syncthing_desc">Syncs folders between your devices without a cloud. Its web interface only runs on this phone (127.0.0.1:8384) and has NO password by default: set one in Syncthing settings (GUI section) before pairing devices.</string>
+    <string name="homelab_addon_restic_name">Restic</string>
+    <string name="homelab_addon_restic_desc">Encrypted backups with history. You choose the folder and the repository; the password is not saved.</string>
+    <string name="homelab_addon_status_loading">Checking…</string>
+    <string name="homelab_addon_status_not_installed">Not installed</string>
+    <string name="homelab_addon_status_installed">Installed</string>
+    <string name="homelab_addon_status_installed_version">Installed · %1$s</string>
+    <string name="homelab_addon_status_running">Running · %1$s</string>
+    <string name="homelab_addon_btn_install">Install</string>
+    <string name="homelab_addon_btn_start">Start</string>
+    <string name="homelab_addon_btn_stop">Stop</string>
+    <string name="homelab_addon_btn_backup">Back up a folder…</string>
+    <string name="homelab_addon_btn_snapshots">View backups…</string>
+    <string name="homelab_addon_toast_installing">Installing %1$s… this can take a few minutes</string>
+    <string name="homelab_addon_toast_install_ok">%1$s installed</string>
+    <string name="homelab_addon_toast_install_failed">Could not install %1$s: %2$s</string>
+    <string name="homelab_addon_toast_start_ok">%1$s started</string>
+    <string name="homelab_addon_toast_start_failed">Could not start %1$s: %2$s</string>
+    <string name="homelab_addon_toast_stop_ok">%1$s stopped</string>
+    <string name="homelab_addon_toast_stop_failed">Could not stop %1$s: %2$s</string>
+    <string name="homelab_restic_dialog_title_backup">Back up with Restic</string>
+    <string name="homelab_restic_dialog_title_snapshots">Repository backups</string>
+    <string name="homelab_restic_hint_folder">Folder to back up (absolute path)</string>
+    <string name="homelab_restic_hint_repo">Repository folder (absolute path)</string>
+    <string name="homelab_restic_hint_password">Repository password (not saved)</string>
+    <string name="homelab_restic_btn_run">Run</string>
+    <string name="homelab_restic_toast_running">Restic is working… this can take a while depending on size</string>
+    <string name="homelab_restic_result_title">Result</string>
+    <string name="homelab_restic_error_title">Restic failed</string>
+    <string name="homelab_restic_btn_close">Close</string>
+
+    <!-- Service status text and automation groups (Homelab redesign, 2026-10-08) -->
+    <string name="homelab_service_status_checking">Checking…</string>
+    <string name="homelab_service_status_online">Online</string>
+    <string name="homelab_service_status_offline">No response</string>
+    <string name="automations_group_boot">AT STARTUP</string>
+    <string name="automations_group_schedule">AT A FIXED TIME</string>
+    <string name="automations_group_battery">BY BATTERY LEVEL</string>
+
+    <!-- Syncthing: web UI username and password (2026-10-08) -->
+    <string name="homelab_syncthing_btn_credentials">User and password</string>
+    <string name="homelab_syncthing_dialog_title">Syncthing access</string>
+    <string name="homelab_syncthing_dialog_message_unset">Its web interface has no password. Choose a user and password: the password is stored only inside Syncthing (hashed) and is never shown again.</string>
+    <string name="homelab_syncthing_dialog_message_set">A password is already saved and cannot be viewed. Type a new one to replace it.</string>
+    <string name="homelab_syncthing_hint_user">User</string>
+    <string name="homelab_syncthing_hint_password">Password (at least 8 characters)</string>
+    <string name="homelab_syncthing_hint_password_replace">New password (replaces the saved one)</string>
+    <string name="homelab_syncthing_btn_save">Save</string>
+    <string name="homelab_syncthing_toast_ok">Syncthing credentials applied</string>
+    <string name="homelab_syncthing_toast_failed">Could not apply them: %1$s</string>
+</resources>

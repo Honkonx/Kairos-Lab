@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "Kairos Agent" screen (2026-10-08) -->
+    <string name="nav_agent">Agent</string>
+    <string name="more_sheet_agent">Agent</string>
+    <string name="agent_title">Kairos Agent</string>
+    <string name="agent_subtitle">Your assistant: checks status and, with your confirmation, installs, starts or stops modules.</string>
+    <string name="agent_welcome">Hi. Ask me about the status of your modules, processes or my history. To install, start or stop a module write, for example, \"start n8n\"; I always ask for confirmation first.</string>
+    <string name="agent_setup_message">The agent engine is not enabled on this device yet (~1 MB).</string>
+    <string name="agent_setup_button">Enable agent</string>
+    <string name="agent_setup_working">Enabling…</string>
+    <string name="agent_setup_done">Agent enabled. You can ask me things now.</string>
+    <string name="agent_setup_failed">Could not enable the agent: %1$s</string>
+    <string name="agent_need_engine">Enable the agent first with the button above.</string>
+    <string name="agent_input_hint">Type a request…</string>
+    <string name="agent_send">Send</string>
+    <string name="agent_chip_status">Status</string>
+    <string name="agent_chip_processes">Processes</string>
+    <string name="agent_chip_history">History</string>
+    <string name="agent_busy">Still on the previous one; hold on.</string>
+    <string name="agent_working">Working…</string>
+    <string name="agent_thinking">Thinking…</string>
+    <string name="agent_no_answer">The engine did not answer.</string>
+    <string name="agent_not_understood">I did not understand that. Try \"status\", \"processes\", \"history\", \"start n8n\" or \"stop n8n\". Free-form sentences need a local model (llama-server or Ollama) running.</string>
+    <string name="agent_router_chose">I read it as: %1$s %2$s</string>
+    <string name="agent_verb_install">Install</string>
+    <string name="agent_verb_start">Start</string>
+    <string name="agent_verb_stop">Stop</string>
+    <string name="agent_confirm_title">Run this action?</string>
+    <string name="agent_confirm_message">%1$s: %2$s</string>
+    <string name="agent_confirm_yes">Yes, do it</string>
+    <string name="agent_confirm_no">No</string>
+    <string name="agent_cancelled">Cancelled, I did nothing.</string>
+    <string name="agent_ai_settings_button">Configure external AI</string>
+    <string name="agent_ai_settings_title">External AI for "interpret"</string>
+    <string name="agent_ai_url_hint">URL (OpenAI-compatible)</string>
+    <string name="agent_ai_model_hint">Model</string>
+    <string name="agent_ai_key_hint">API key</string>
+    <string name="agent_ai_key_hint_local">No key needed (local model)</string>
+    <string name="agent_ai_custom_base_url_hint">Base URL (e.g. https://my-server.com/v1)</string>
+    <string name="agent_ai_custom_model_hint">Model name (e.g. llama-3.1-8b)</string>
+    <string name="agent_ai_custom_fields_required">Fill in the base URL and the model name</string>
+    <string name="agent_ai_key_help">The key is never shown again once saved: you can only replace or remove it.</string>
+    <string name="agent_ai_company_label">COMPANY</string>
+    <string name="agent_ai_model_label">MODEL</string>
+    <string name="agent_ai_refresh_models">Refresh models</string>
+    <string name="agent_ai_save">Save</string>
+    <string name="agent_ai_remove_key">Remove key</string>
+    <string name="agent_ai_saved">AI configuration updated.</string>
+    <string name="agent_ai_save_failed">Could not save the AI configuration.</string>
+
+    <!-- Agent floating avatar (AgentAvatarService.kt, 2026-10-10) -->
+    <string name="agent_avatar_toggle">Agent floating avatar</string>
+    <string name="agent_avatar_toggle_hint">A minimal face floats in a corner and occasionally says something. Tap it to talk to the Agent.</string>
+    <string name="agent_avatar_need_overlay">Kairos: missing the overlay permission for the Agent avatar</string>
+    <string name="agent_avatar_overlay_failed">Could not show the Agent avatar: %1$s</string>
+    <string name="agent_voice_toggle">Agent voice</string>
+    <string name="agent_voice_toggle_hint">The avatar also speaks out loud what it shows in the text bubble (system TextToSpeech). Off by default.</string>
+    <string name="agent_avatar_kind_label">Avatar</string>
+    <string name="agent_avatar_kind_cara">Kairos (minimal face)</string>
+    <string name="agent_avatar_kind_kari">Kari (girl)</string>
+    <string name="agent_avatar_kind_kairo">Kairo (boy)</string>
+    <string name="agent_settings_button">Configure Agent</string>
+    <string name="agent_settings_dialog_title">Configure Agent</string>
+    <string-array name="agent_avatar_phrases">
+        <item>How can I help?</item>
+        <item>I\'m here if you need me.</item>
+        <item>I can check your modules\' status.</item>
+        <item>Ask me about my history anytime.</item>
+        <item>Tell me which module to start or stop.</item>
+        <item>Still here, paying attention.</item>
+    </string-array>
+</resources>

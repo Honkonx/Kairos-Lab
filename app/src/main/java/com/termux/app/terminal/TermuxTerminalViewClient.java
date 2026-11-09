@@ -242,6 +242,17 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
     @SuppressLint("RtlHardcoded")
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent e, TerminalSession currentSession) {
+        if (keyCode == KeyEvent.KEYCODE_ENTER && currentSession.isRunning()) {
+            // Modo Simple de la terminal adaptada (ver terminal/simple/TerminalSimpleRenderer.kt)
+            // — heurística de "turno nuevo": el eco local del comando recién tipeado ya está en
+            // pantalla (el PTY lo refleja tecla por tecla, antes de que Enter llegue acá), así que
+            // se captura ANTES de que el '\n' real se escriba a la sesión más abajo en este
+            // mismo flujo (el resto del método no intercepta Enter con sesión corriendo, cae a
+            // `return false` y TerminalView procesa la tecla normal). No-op si Simple nunca se
+            // activó para esta sesión.
+            mActivity.notifyTerminalSimpleEnterPressed(currentSession);
+        }
+
         if (handleVirtualKeys(keyCode, e, true)) return true;
 
         if (keyCode == KeyEvent.KEYCODE_ENTER && !currentSession.isRunning()) {
@@ -592,7 +603,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
             if (isStartup && mActivity.isOnResumeAfterOnCreate())
                 mShowSoftKeyboardWithDelayOnce = true;
         } else {
-            // Bug real, 4to intento (2026-08-07): un fix anterior quitó
+            // Bug real, 4to intento (2026-08-07,): quitó
             // esta llamada razonando que competía con el modelo de edge-to-edge manual que se
             // estaba construyendo en TermuxActivity.java — pero esta línea es EXACTAMENTE el
             // mecanismo real que usa termux-app (confirmado leyendo

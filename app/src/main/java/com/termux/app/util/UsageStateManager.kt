@@ -11,7 +11,7 @@ import java.io.File
 
 /**
  * Snapshot JSON del ESTADO REAL del sistema de módulos en el dispositivo — pedido en la ronda
- * 2026-08-14 (humano123, C2). Escribe `~/kairos_logs/usage_state.json` (el mismo directorio que
+ * 2026-08-14 (C2). Escribe `~/kairos_logs/usage_state.json` (el mismo directorio que
  * los install_<modulo>.log) con:
  *
  * - **metadata** — timestamp, versión de la app, Android SDK/ABI (contexto de dispositivo).

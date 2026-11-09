@@ -83,7 +83,7 @@ object ConfigExportManager {
     private const val LAST_CF_URL_FILE = ".last_cf_url"
 
     // Flag de existencia (sin contenido relevante) — ver N8nFragment.localOnlyFlagFile().
-    private const val N8N_LOCAL_ONLY_FILE = ".n8n_local_only"
+    private const val N8N_TUNNEL_FLAG_FILE = ".n8n_tunnel_mode"
 
     // ────────────────────────────────────────────────────────────
     // Export
@@ -150,7 +150,7 @@ object ConfigExportManager {
         }
 
         val flags = JSONObject().apply {
-            put(N8N_LOCAL_ONLY_FILE, File(home, N8N_LOCAL_ONLY_FILE).exists())
+            put(N8N_TUNNEL_FLAG_FILE, File(home, N8N_TUNNEL_FLAG_FILE).exists())
         }
 
         val export = JSONObject().apply {
@@ -244,16 +244,16 @@ object ConfigExportManager {
 
         root.optJSONObject("flags")?.let { flagsJson ->
             try {
-                val n8nLocalOnly = flagsJson.optBoolean(N8N_LOCAL_ONLY_FILE, false)
-                val flagFile = File(home, N8N_LOCAL_ONLY_FILE)
-                if (n8nLocalOnly) {
+                val n8nTunnelMode = flagsJson.optBoolean(N8N_TUNNEL_FLAG_FILE, false)
+                val flagFile = File(home, N8N_TUNNEL_FLAG_FILE)
+                if (n8nTunnelMode) {
                     if (!flagFile.exists()) flagFile.createNewFile()
                 } else {
                     flagFile.delete()
                 }
-                applied.put("flags.$N8N_LOCAL_ONLY_FILE")
+                applied.put("flags.$N8N_TUNNEL_FLAG_FILE")
             } catch (e: Exception) {
-                errors.put("flags.$N8N_LOCAL_ONLY_FILE: ${e.message}")
+                errors.put("flags.$N8N_TUNNEL_FLAG_FILE: ${e.message}")
             }
         }
 

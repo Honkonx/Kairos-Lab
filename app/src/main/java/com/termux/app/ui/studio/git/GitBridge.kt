@@ -31,7 +31,11 @@ object GitBridge {
         val indexStatus: Char,
         val worktreeStatus: Char,
         val path: String,
-        val statusLabel: String
+        val statusLabel: String,
+        /** true cuando el combo index+worktree es uno de los "unmerged" reales de
+         * `git status --porcelain` (ver [conflictCombos]) -- controla si [GitPanelActivity]
+         * ofrece la acción "Resolver conflicto" para este archivo. */
+        val isConflict: Boolean
     )
 
     data class StatusResult(
@@ -153,7 +157,7 @@ object GitBridge {
 
     /** `git stash push` — guarda cambios locales (staged + unstaged, no untracked) en la pila
      * de stash y limpia el working tree. Hallazgo real de la auditoría de `referencia/ides/`
-     * (2026-08-31): GitBridge cubría status/log/diff/commit/push/pull pero
+     * (2026-08-31, ver `docs/humano/`): GitBridge cubría status/log/diff/commit/push/pull pero
      * no stash — hueco real, bajo riesgo, mismo patrón `runGit` que el resto del archivo. */
     fun stashSave(projectPath: String, callback: (GitResult<String>) -> Unit) {
         val command = "git -C ${quote(projectPath)} stash push"
@@ -177,6 +181,54 @@ object GitBridge {
         val command = "git -C ${quote(projectPath)} stash list"
         runGit(command) { raw ->
             callback(raw.map { output -> output.lineSequence().filter { it.isNotBlank() }.toList() })
+        }
+    }
+
+    /**
+     * Resolución de conflictos v1 (auditoría de `ver/vibeworks`, commit `ec9818f` —
+     * "Resolver conflictos de merge en el navegador" — ver
+     * `docs/referencias/herramientas/REFERENCIA_VIBEWORKS.md`). VibeWorks resuelve con un panel
+     * de 3 columnas (conflicto/común/destino) + validación de sintaxis en el navegador; acá se
+     * adopta solo el patrón conceptual (tomar mío/tomar el otro/editar a mano), no el código --
+     * Kairos IDE ya tiene un editor real (Sora-Editor, vía [StudioFragment]) donde el usuario
+     * puede editar el archivo con los marcadores `<<<<<<<`/`=======`/`>>>>>>>` a mano; estas 3
+     * funciones cubren los casos que NO necesitan abrir el editor.
+     *
+     * `git checkout --ours`/`--theirs` solo tiene sentido durante un merge real (no durante un
+     * rebase, donde el significado se invierte) -- coherente con que [pull] nunca usa `--rebase`.
+     */
+    fun resolveConflictTakingOurs(projectPath: String, file: String, callback: (GitResult<String>) -> Unit) {
+        resolveConflict(projectPath, file, side = "--ours", callback)
+    }
+
+    fun resolveConflictTakingTheirs(projectPath: String, file: String, callback: (GitResult<String>) -> Unit) {
+        resolveConflict(projectPath, file, side = "--theirs", callback)
+    }
+
+    private fun resolveConflict(projectPath: String, file: String, side: String, callback: (GitResult<String>) -> Unit) {
+        val command = "git -C ${quote(projectPath)} checkout $side -- ${quote(file)} && " +
+            "git -C ${quote(projectPath)} add -- ${quote(file)}"
+        runGit(command) { raw ->
+            callback(raw.map { output -> output.ifBlank { "Conflicto resuelto para $file." } })
+        }
+    }
+
+    /** Para cuando el usuario ya editó el archivo a mano en el editor y sacó los marcadores de
+     * conflicto -- solo hace `git add`, no toca el contenido. */
+    fun markConflictResolved(projectPath: String, file: String, callback: (GitResult<String>) -> Unit) {
+        val command = "git -C ${quote(projectPath)} add -- ${quote(file)}"
+        runGit(command) { raw ->
+            callback(raw.map { output -> output.ifBlank { "$file marcado como resuelto." } })
+        }
+    }
+
+    /** `git merge --abort` -- red de seguridad cuando [pull] deja un merge a medio resolver y el
+     * usuario prefiere descartarlo entero en vez de resolver archivo por archivo. Solo válido
+     * durante un merge real (falla con un mensaje honesto de git si no hay uno en curso). */
+    fun abortMerge(projectPath: String, callback: (GitResult<String>) -> Unit) {
+        val command = "git -C ${quote(projectPath)} merge --abort"
+        runGit(command) { raw ->
+            callback(raw.map { output -> output.ifBlank { "Merge abortado." } })
         }
     }
 
@@ -242,7 +294,8 @@ object GitBridge {
         // Renombres: "old -> new" -- nos quedamos con el destino, que es lo que existe hoy.
         val path = if (rawPath.contains(" -> ")) rawPath.substringAfter(" -> ") else rawPath
         val label = statusLabelFor(indexStatus, worktreeStatus)
-        return FileChange(indexStatus, worktreeStatus, path, label)
+        val isConflict = "$indexStatus$worktreeStatus" in conflictCombos
+        return FileChange(indexStatus, worktreeStatus, path, label, isConflict)
     }
 
     // Combos de "unmerged" que `git status --porcelain=v1` puede reportar durante un merge/rebase

@@ -27,8 +27,8 @@ class ModelsFragment : BaseModuleFragment() {
     override fun getModuleName() = getString(R.string.models_module_name)
 
     /** Categoría real del modelo — determina en qué pestaña del catálogo aparece (2026-08-28,
-     * tabs para no tener que scrollear un catálogo de 21 modelos como una sola lista plana).
-     * TEXT/VISION nada más — Ollama no
+     * ver `.claude/rules/kairos-product-philosophy.md`: tabs para no tener que scrollear un
+     * catálogo de 21 modelos como una sola lista plana). TEXT/VISION nada más — Ollama no
      * tiene una categoría real de "archivos"/embeddings navegable desde este catálogo curado
      * (los embedding models existen pero no encajan en el flujo de Chat IA de esta pantalla). */
     private enum class CatalogCategory { TEXT, VISION }
@@ -46,8 +46,8 @@ class ModelsFragment : BaseModuleFragment() {
     )
 
     companion object {
-        // Catálogo curado de modelos de Ollama (pedido explícito del usuario, 2026-08-01:
-        // "debes poner modelos para descargar como en llama.cpp, tipo
+        // Catálogo curado de modelos de Ollama (pedido explícito del usuario, 2026-08-01,
+        //: "debes poner modelos para descargar como en llama.cpp, tipo
         // qwen, gemma etc, asi es mas facil") — mismo patrón que LocalAIFragment.CATALOG para
         // GGUF, pero acá el "id" es el tag real de Ollama (no una URL de descarga directa,
         // Ollama resuelve el archivo real internamente al hacer `pullModel(tag)`). Tags y
@@ -290,7 +290,7 @@ class ModelsFragment : BaseModuleFragment() {
                     setTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
                 })
                 if (exceedsRam) {
-                    // No bloquea la descarga (pedido explícito del usuario) — solo
+                    // No bloquea la descarga (pedido explícito,) — solo
                     // avisa antes de que el usuario se encuentre con un OOM-kill a mitad de
                     // generación sin haber tenido forma de anticiparlo.
                     addView(TextView(requireContext()).apply {

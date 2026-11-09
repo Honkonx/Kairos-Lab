@@ -12,14 +12,18 @@ import java.io.FileOutputStream
 
 /**
  * Instalación de PLUGINS LOCALES desde la Tienda (pedido explícito del usuario, ronda
- * 2026-08-13): agregar una opción en la tienda de plugins para instalar paquetes locales,
- * por ejemplo tar.gz o .deb — los mismos plugins pero en paquetes creados por el usuario.
+ * 2026-08-13,): "agregar una opcion en la tienda de plugins
+ * para instalar paquetes locales, por ejemplo tar.gz o .deb — seran los mismos plugins
+ * pero en paquetes que yo creare".
  *
  * DOS formatos soportados (elegidos por extensión del archivo elegido en el SAF picker):
  *
- * 1. **.deb** — un paquete Termux (apt/dpkg) real: se copia a $HOME/tmp/ y se instala
- *    con `pkg install -y <archivo>`. Es un plugin como los de modules.json pero
- *    distribuido como paquete de paquetes Termux (apt) en vez de por el catálogo remoto.
+ * 1. **.deb** — un paquete de módulo de Kairos (formato v2, ver docs/paquetes_deb/). Ya NO se
+ *    instala con `pkg install`: pasa por el mismo sistema que los de GitHub
+ *    ([ModuleDebInstaller.installFromDeb]) — primero se leen manifest.json + SHA256SUMS.txt, se
+ *    muestra el resumen y se pide confirmación (un archivo local no tiene hash externo), se
+ *    comprueban los requisitos contra el sistema y recién entonces se instala. Un .deb sin esos
+ * dos archivos se rechaza (orden explícita del usuario).
  *
  * 2. **.tar.gz** — paquete "hecho a mano" con este formato (documentado acá):
  *      - `manifest.json`  → mismo schema que una entrada de modules.json (ModuleInfo).
@@ -66,19 +70,20 @@ object LocalPluginManager {
           EOF
           tar -czf mi_plugin.tar.gz manifest.json mimodulo.sh
 
-        Los .deb se instalan directo con apt/pkg.
+        Los .deb deben ser paquetes de módulo de Kairos (formato v2: manifest.json + SHA256SUMS.txt
+        dentro del .deb, ver docs/paquetes_deb/); un .deb sin esos archivos no se instala.
     """.trimIndent()
 
     /**
      * Instala un paquete local elegido en la Tienda. Corre en el hilo que lo llame
      * (los callers usan background thread). Devuelve JSONObject con ok/error/output.
      */
-    fun install(context: Context, uri: Uri): JSONObject {
+    fun install(context: Context, uri: Uri, confirm: (ModuleDebInstaller.PackageReport) -> Boolean = { false }): JSONObject {
         return try {
             val name = uri.lastPathSegment?.substringAfterLast("/")?.ifEmpty { "paquete" } ?: "paquete"
             val ext = name.substringAfterLast('.', "").lowercase()
             when (ext) {
-                "deb" -> installDeb(context, uri, name)
+                "deb" -> installDeb(context, uri, name, confirm)
                 "gz", "tgz", "tar" -> installTarGz(context, uri, name)
                 else -> JSONObject().put("ok", false).put("error", "Formato no soportado (.deb o .tar.gz) — recibido: .$ext")
             }
@@ -88,28 +93,21 @@ object LocalPluginManager {
         }
     }
 
-    // ── .deb → apt ────────────────────────────────────────────────────
-    private fun installDeb(context: Context, uri: Uri, name: String): JSONObject {
-        val tmp = File(home, "tmp")
-        tmp.mkdirs()
+    // ── .deb → sistema de paquetes de Kairos (v2) ─────────────────────
+    private fun installDeb(context: Context, uri: Uri, name: String, confirm: (ModuleDebInstaller.PackageReport) -> Boolean): JSONObject {
+        val dir = File(home, "kairos_local/module_deb_downloads")
+        dir.mkdirs()
         val safe = name.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        val dest = File(tmp, safe)
+        val dest = File(dir, safe)
         copyUriToFile(context, uri, dest)
         if (!dest.exists() || dest.length() == 0L) {
             return JSONObject().put("ok", false).put("error", "No se pudo copiar el paquete .deb")
         }
-        val (rc, out, err) = ManagerNativeUtils.runShell(
-            "$TERMUX_PKG_PATH install -y ${shellQuote(dest.absolutePath)} 2>&1 | tail -30", 180
-        )
-        val output = out.ifEmpty { err }
-        Log.i(TAG, "installDeb: rc=$rc output=${output.takeLast(400)}")
-        if (rc != 0) {
-            return JSONObject().put("ok", false).put("error", "No se pudo instalar el paquete .deb")
-                .put("output", output.takeLast(400))
-        }
-        return JSONObject().put("ok", true)
-            .put("message", "Paquete .deb instalado con apt")
-            .put("output", output.takeLast(400))
+        val result = ModuleDebInstaller.installFromDeb(dest, expectedSha256 = null, confirm = confirm)
+        Log.i(TAG, "installDeb: ok=${result.ok} ${result.message.takeLast(300)}")
+        dest.delete()
+        return if (result.ok) JSONObject().put("ok", true).put("message", result.message)
+        else JSONObject().put("ok", false).put("error", result.message)
     }
 
     // ── .tar.gz → manifest.json + script ──────────────────────────────
@@ -187,9 +185,9 @@ object LocalPluginManager {
     fun localIds(): Set<String> = readLocalCatalog().keys
 
     /**
-     * Quita un plugin del catálogo local — pedido explícito del usuario: los plugins instalados
-     * vía .tar.gz quedaban permanentemente en la Tienda sin forma de sacarlos desde la UI.
-     * Borra su entrada del catálogo local
+     * Quita un plugin del catálogo local — pedido explícito del usuario (
+     *): los plugins instalados vía.tar.gz quedaban permanentemente
+     * en la Tienda sin forma de sacarlos desde la UI. Borra su entrada del catálogo local
      * persistente y su script (~/scripts/install/<id>.sh) — NO toca paquetes instalados por
      * apt (un .deb se gestiona con "Desinstalar" normal vía ModuleController). Devuelve true
      * si había algo que quitar.
@@ -248,7 +246,7 @@ object LocalPluginManager {
     /**
      * Mismo parseo que ModuleCatalog.parseOne() para un solo objeto — reusado por el
      * catálogo local (manifest.json de un .tar.gz usa el mismo schema que modules.json).
-     * Deduplicado en la ronda 2026-08-14 (humano123): antes era una copia literal del
+     * Deduplicado en la ronda 2026-08-14: antes era una copia literal del
      * parseo de ModuleCatalog.parse() — cualquier cambio de campo había que replicarlo
      * en dos lugares. ModuleCatalog está en data/ (capa de datos) y no depende de util/,
      * así que no hay ciclo data<->util (la dependencia original "a propósito para evitar

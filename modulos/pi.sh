@@ -171,8 +171,7 @@ else
   command -v fd &>/dev/null || _MISSING_DEPS+=("fd")
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
-    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-    # "pkg install" no lo tiene disponible.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
@@ -193,7 +192,8 @@ else
   # OpenClaw/Cursor CLI. Debe ir ANTES de verify_binary_installed (el
   # symlink roto no ejecuta "--version" todavía).
   fix_npm_shebang_wrapper pi "${PI_PKG%@latest}"
-  # Chequeo funcional real, no solo "existe en PATH" — ver verify_binary_installed() en lib.sh.
+  # Chequeo funcional real, no solo "existe en PATH" —,
+  # verify_binary_installed() en lib.sh.
   verify_binary_installed pi || error "pi no ejecuta tras la instalación (revisá manualmente: pi --version)"
   log "Pi Coding Agent instalado"
   mark_done "npm_install"

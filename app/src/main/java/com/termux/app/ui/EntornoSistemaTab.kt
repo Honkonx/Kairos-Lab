@@ -18,17 +18,26 @@ import java.io.File
  */
 internal class EntornoSistemaTab(private val fragment: EntornoFragment) {
 
-    /** Pestaña "Sistema" — mapeo 1:1 con las acciones que antes vivían bajo el sectionLabel "AUDIO + GPU". */
+    /**
+     * Pestaña "Sistema" — filas con descripción (rediseño aprobado 2026-10-08,
+     * mensaje 6): PulseAudio pasa de tile "encender/apagar" a interruptor con su estado real.
+     * Mismas acciones que antes bajo "AUDIO + GPU", ninguna agregada.
+     */
     fun render(parent: LinearLayout) {
         val ctx = fragment.requireContext()
         sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_audio_gpu))
-        tileGrid(ctx, parent, listOf(
-            TileAction(fragment.getString(R.string.entorno_tile_pulseaudio_toggle), R.drawable.ic_audio, running = { fragment.pulseRunning }) { fragment.runEntornoAction("pulse-toggle") },
-            TileAction(fragment.getString(R.string.entorno_tile_diagnostico_gpu), R.drawable.ic_gpu) { showGpuDiagnostic() },
-            TileAction(fragment.getString(R.string.entorno_tile_benchmark_gpu), R.drawable.ic_gpu) { showGpuBenchmark() },
-            TileAction(fragment.getString(R.string.entorno_tile_configurar_metodo_gpu), R.drawable.ic_settings) { promptGpuMethod() },
-            TileAction(fragment.getString(R.string.entorno_tile_recursos_sesion), R.drawable.ic_gpu) { showSessionResources() },
-            TileAction(fragment.getString(R.string.entorno_tile_editar_script), R.drawable.ic_terminal) { promptEditScript() }
+        rowList(ctx, parent, listOf(
+            switchRow(
+                ctx, R.drawable.ic_audio,
+                fragment.getString(R.string.entorno_row_pulseaudio),
+                fragment.getString(R.string.entorno_row_desc_pulseaudio),
+                fragment.pulseRunning
+            ) { fragment.runEntornoAction("pulse-toggle") },
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_diagnostico_gpu), fragment.getString(R.string.entorno_row_desc_gpu_diagnostico), R.drawable.ic_gpu) { showGpuDiagnostic() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_benchmark_gpu), fragment.getString(R.string.entorno_row_desc_gpu_benchmark), R.drawable.ic_gpu) { showGpuBenchmark() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_configurar_metodo_gpu), fragment.getString(R.string.entorno_row_desc_gpu_metodo), R.drawable.ic_settings) { promptGpuMethod() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_recursos_sesion), fragment.getString(R.string.entorno_row_desc_recursos), R.drawable.ic_gpu) { showSessionResources() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_editar_script), fragment.getString(R.string.entorno_row_desc_script), R.drawable.ic_terminal) { promptEditScript() })
         ))
     }
 
@@ -74,7 +83,8 @@ internal class EntornoSistemaTab(private val fragment: EntornoFragment) {
     /**
      * Benchmark GPU (glxgears) — "Diagnóstico GPU" dice QUÉ driver está activo pero nunca un
      * número comparable de rendimiento real; este botón corre EntornoNative.gpuBenchmark()
-     * (glxgears, ya viene con mesa-utils que setGpuMethod() instala para todos los métodos) y
+     * (glxgears, ya viene con mesa-demos — nombre real del paquete Termux, corregido
+     * 2026-10-31; "mesa-utils" nunca existió — que setGpuMethod() instala para todos los métodos) y
      * muestra el FPS resultante.
      */
     private fun showGpuBenchmark() {
@@ -101,8 +111,8 @@ internal class EntornoSistemaTab(private val fragment: EntornoFragment) {
 
     /**
      * Memoria (RSS) de la sesión de escritorio activa — Kairos solo mostraba recursos
-     * agregados del sistema completo (MonitorFragment), nunca cuánto consume la sesión Mini PC
-     * en sí.
+     * agregados del sistema completo (Homelab, antes MonitorFragment), nunca cuánto consume la
+     * sesión Mini PC en sí.
      */
     private fun showSessionResources() {
         Thread {
@@ -117,6 +127,7 @@ internal class EntornoSistemaTab(private val fragment: EntornoFragment) {
                     ).show()
                     return@runOnUiThread
                 }
+                val cpuLabel = if (json.isNull("cpu_percent")) "?" else "${json.optInt("cpu_percent")}%"
                 AlertDialog.Builder(fragment.requireContext())
                     .setTitle(fragment.getString(R.string.entorno_dialog_recursos_sesion_titulo))
                     .setMessage(
@@ -124,7 +135,8 @@ internal class EntornoSistemaTab(private val fragment: EntornoFragment) {
                             R.string.entorno_recursos_sesion_mensaje,
                             json.optString("process"),
                             json.optInt("pid"),
-                            json.optString("rss_mb")
+                            json.optString("rss_mb"),
+                            cpuLabel
                         )
                     )
                     .setPositiveButton(fragment.getString(R.string.entorno_cerrar), null)

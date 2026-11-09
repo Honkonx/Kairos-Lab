@@ -93,7 +93,7 @@ OMP_REPO="can1357/oh-my-pi"
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Ver docs/arquitectura/MODULEDEB_GENERICO.md. NOTA REAL (2026-08-23, ver
-# docs/estructura/ESTRUCTURA_MODULOS.md): modules.json marcaba
+# /docs/estructura/ESTRUCTURA_MODULOS.md): modules.json marcaba
 # ohmypi con arch:"bionic", pero la cabecera de este script (líneas 4/9-11) confirma
 # que es un binario GLIBC (omp-linux-arm64, corrido vía loader glibc — mismo patrón
 # que claude native, arch:"glibc"). Corregido 2026-08-25 en modules.json
@@ -174,8 +174,7 @@ if check_done "deps"; then
 else
   if [ ! -f "$TERMUX_PREFIX/etc/apt/sources.list.d/glibc.list" ]; then
     info "Instalando glibc-repo..."
-    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-    # "pkg install" no lo tiene disponible.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y glibc-repo || error "No se pudo instalar glibc-repo"
     info "Actualizando índices de paquetes (repo glibc recién agregado)..."
@@ -184,8 +183,7 @@ else
 
   if [ ! -f "$TERMUX_PREFIX/glibc/lib/libc.so.6" ]; then
     info "Instalando glibc..."
-    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-    # "pkg install" no lo tiene disponible.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y glibc || error "No se pudo instalar glibc"
   fi
@@ -198,8 +196,7 @@ else
   command -v clang &>/dev/null || _MISSING_DEPS+=("clang")
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
-    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-    # "pkg install" no lo tiene disponible.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" || error "No se pudieron instalar dependencias: ${_MISSING_DEPS[*]}"
   fi
@@ -286,7 +283,8 @@ CSRC
   fi
   chmod +x "$TERMUX_PREFIX/bin/omp"
   rm -f "$_HELPER_SRC"
-  # Chequeo funcional real, no solo "existe en PATH" — ver verify_binary_installed() en lib.sh.
+  # Chequeo funcional real, no solo "existe en PATH" —,
+  # verify_binary_installed() en lib.sh.
   verify_binary_installed omp || error "omp no ejecuta tras compilar el helper (revisá manualmente: omp --version)"
   mark_done "helper"
   log "Helper compilado en $TERMUX_PREFIX/bin/omp"

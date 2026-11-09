@@ -32,7 +32,7 @@
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
 #  VERSIÓN: 1.0.0 | Agosto 2026 (pedido 2026-08-13: "en core-termux tiene
-#  un IDE que es directo en termux podemos ponerlo" — ver humano101)
+# un IDE que es directo en termux podemos ponerlo" —)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -138,7 +138,7 @@ if check_done "neovim" && command -v nvim &>/dev/null; then
 else
   info "Instalando: git neovim nodejs-lts python perl curl wget lua-language-server ripgrep stylua tree-sitter"
   pkg_update_with_fallback
-  # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): un fix anterior
+  # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): el fix de
   # (2026-08-27) silenciaba TODO el output ("&>/dev/null") para evitar
   # un log de 1.7MB — pero eso deja el error real invisible si "pkg install" falla, dejando
   # solo el mensaje genérico de abajo sin ninguna pista de la causa (mismo antipatrón ya
@@ -176,7 +176,8 @@ else
   nvim --headless "+Lazy! clean nvim-treesitter" +qa
   nvim --headless "+Lazy! install nvim-treesitter" +qa
 
-  # Post-condición real (2026-08-29, mismo bug ya confirmado en codegraph #28): "nvim
+  # Post-condición real (2026-08-29, mismo bug ya confirmado en codegraph #28 — ver
+  #,.claude/rules/empirical-verification-before-fix.md): "nvim
   # --headless" sale con exit 0 aunque el "git clone" interno de Lazy para un plugin
   # falle (sin red, GitHub con rate-limit, etc.) — sin este chequeo, un sync fallido
   # marcaba mark_done igual y Kairos nunca reintentaba. Se verifica que Lazy realmente

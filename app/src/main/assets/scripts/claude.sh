@@ -20,7 +20,7 @@
 #                           _install_legacy_clean(): npm no puede instalar
 #                           nada más nuevo que @2.1.111 en Termux desde que
 #                           Anthropic pasó a distribuir binarios glibc sin
-#                           parchear vía npm)
+# parchear vía npm)
 #    --source <fuente>     clean (default) | github (restore backup)
 #    --version latest      Usar versión más reciente (solo native, default en
 #                           modo silencioso — ver "$SILENT && USE_LATEST=true")
@@ -36,10 +36,10 @@
 #  conocido-bueno + reintento a "latest" de downloads.claude.ai + legacy npm
 #  como red de seguridad de fondo — ver _download_and_patch_native() y
 #  "INSTALACIÓN LEGACY" más abajo). VERSIÓN 4.2.0 (Agosto 2026): deprecado
-#  "legacy" como opción real de instalación, modules.json
+# "legacy" como opción real de instalación, modules.json
 #  ya no la ofrece. Fallback real: si la descarga/verificación de la versión
 #  "latest" falla, reintenta con el pin viejo conocido-bueno (variante
-#  native, no legacy) en vez de abortar.
+# native, no legacy) en vez de abortar.
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -179,7 +179,7 @@ _detect_version() {
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Reemplaza el manifest a mano modulos/manifests/claude.json (borrado como
-# código muerto — nunca escalaba a los ~55 módulos, ver diseño
+# código muerto en — nunca escalaba a los ~55 módulos, ver diseño
 # completo en docs/arquitectura/MODULEDEB_GENERICO.md). Contenido migrado
 # 1:1 del manifest piloto original (git show 838544d^:modulos/manifests/claude.json)
 # — solo cambia DÓNDE vive el JSON, de un archivo estático a la salida de
@@ -379,12 +379,11 @@ _ensure_nodejs() {
     fi
   fi
   info "Instalando Node.js..."
-  # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-  # por índices de paquetes desactualizados (mirror con problemas).
+  # Bug real, mismo patrón que bug #21 (VNC),.
   pkg_update_with_fallback
   pkg install nodejs-lts -y -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" || error "Error instalando nodejs-lts"
-  # Bug real (auditoría 2026-08-05): "npm install -g
+  # Bug real (auditoría 2026-08-05,): "npm install -g
   # npm" sobreescribe el npm parcheado para Termux (shebang sin /usr/bin/env, que acá
   # no existe) con uno genérico del registry — "bad interpreter" en cualquier npm
   # posterior. El npm que trae nodejs-lts ya alcanza.
@@ -399,8 +398,7 @@ _ensure_glibc() {
   [ ! -f "$PATCHELF" ] && NEED_INSTALL=true
   if $NEED_INSTALL; then
     info "Instalando glibc-runner + patchelf-glibc..."
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y glibc-repo || true
     pkg update -y -o Dpkg::Options::="--force-confdef" \
@@ -457,8 +455,8 @@ _validate_legacy_cli() {
 # Descarga + verifica SHA256 + parchea el binario de una versión concreta.
 # Devuelve 0/1 en vez de abortar con error() — así _install_native_clean()
 # puede reintentar con el pin viejo conocido-bueno cuando la versión "latest"
-# falla, en vez de matar la instalación entera (pedido explícito del usuario:
-# "si da error que instale la version vieja").
+# falla, en vez de matar la instalación entera (pedido explícito del usuario,
+#: "si da error que instale la version vieja").
 _download_and_patch_native() {
   local VERSION="$1"
   local DL="https://downloads.claude.ai/claude-code-releases/${VERSION}"
@@ -526,7 +524,8 @@ _download_and_patch_native() {
 #  error() — _install_native_clean() cae al mecanismo viejo COMPLETO (pin +
 #  reintento a "latest" oficial + legacy npm de fondo) si esto falla por
 #  cualquier motivo. Verificación de POST-CONDICIÓN real (no solo que el
-#  archivo exista) antes de devolver éxito: si "--version" no
+#  archivo exista) antes de devolver éxito — ver
+#  .claude/rules/empirical-verification-before-fix.md: si "--version" no
 #  responde, se hace rollback y se devuelve 1 para que el caller no lo dé por
 #  instalado.
 # ════════════════════════════════════════════════════════════
@@ -738,9 +737,8 @@ SETTINGS
   # mark_done() sin condición — registry_install() (lib.sh) escribe
   # "installed=true" incondicionalmente, así que un wrapper que NO EJECUTA de
   # verdad (patchelf con interprete equivocado, glibc-runner roto, etc.)
-  # quedaba marcado como instalado igual. Mismo patrón de bug visto en otros
-  # módulos (verificar solo que el binario existe en PATH no confirma que
-  # corre de verdad).
+  # quedaba marcado como instalado igual. Mismo patrón de bug ya documentado
+  # en .claude/rules/empirical-verification-before-fix.md (#28/#29/#30).
   if [ -n "$ver_check" ]; then
     _update_registry "$VERSION" "native"
     mark_done "claude_install"
@@ -774,7 +772,7 @@ _install_native_github() {
 # ════════════════════════════════════════════════════════════
 #  INSTALACIÓN LEGACY — limpia (npm multi-estrategia)
 #
-#  LIMITACIÓN REAL CONFIRMADA (2026-08-27): Anthropic
+# LIMITACIÓN REAL CONFIRMADA (2026-08-27): Anthropic
 #  cambió el modelo de distribución del paquete npm @anthropic-ai/claude-code
 #  a partir de una versión posterior a 2.1.111 — pasó de un CLI en JS puro
 #  (bin: cli.js, corrido con node) a un binario nativo compilado por

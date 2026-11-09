@@ -36,7 +36,7 @@
 #
 #  REPO: https://github.com/Honkonx/termux-ai-stack
 #  VERSIÓN: 2.2.0 | Agosto 2026 (agrega mosh-server best-effort — auditoría de
-#  referencia/interfaz/Haven-main/)
+# referencia/interfaz/Haven-main/,)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -142,6 +142,12 @@ CF_INSTALLED=false
 
 command -v cloudflared &>/dev/null && CF_INSTALLED=true
 
+# Sin ssh_start.sh/ssh_stop.sh el módulo no se puede arrancar desde la app aunque el registro diga "instalado"
+# (visto en el teléfono, /359: ~/scripts/remote vacío). Se exige que existan para saltarse la instalación.
+if [ ! -f "$HOME/scripts/remote/ssh_start.sh" ] || [ ! -f "$HOME/scripts/remote/ssh_stop.sh" ]; then
+  SSH_CONFIGURED=false
+fi
+
 if $SSH_CONFIGURED && $CF_INSTALLED && ! $FORCE; then
   log "Remote ya instalado completamente (SSH + Cloudflared)"
   # Bug real (fix 2026-08-01): esta salida temprana nunca llamaba a
@@ -222,7 +228,7 @@ else
 
   if [ ${#DEPS_TO_INSTALL[@]} -gt 0 ]; then
     info "Instalando: ${DEPS_TO_INSTALL[*]}..."
-    # Bug real, mismo patrón ya visto en el módulo VNC.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y \
       -o Dpkg::Options::="--force-confdef" \
@@ -389,7 +395,7 @@ if ! check_done "mosh_install"; then
     mark_done "mosh_install"
   else
     info "Instalando mosh (sesiones resilientes a cambios de red)..."
-    # Bug real, mismo patrón ya visto en el módulo VNC.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y mosh && command -v mosh-server &>/dev/null && {
       log "mosh-server instalado"

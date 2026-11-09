@@ -136,6 +136,7 @@
     <string name="monitor_hint_pairing_port">Pairing port (e.g. 39555)</string>
     <string name="monitor_hint_code">6-digit code</string>
     <string name="monitor_hint_connect_port">Connection port (e.g. 35541)</string>
+    <string name="monitor_hint_connect_port_optional">Connection port (optional — auto-detected)</string>
     <string name="monitor_guided_step2_message">Inside \"Wireless debugging\": the connection port is at the top of the main screen, next to the IP. The pairing port and the 6-digit code appear when you tap \"Pair device with pairing code\".</string>
     <string name="monitor_guided_step2_title">Step 2 of 3 — Pairing info</string>
     <string name="monitor_apply_fix">Apply fix</string>

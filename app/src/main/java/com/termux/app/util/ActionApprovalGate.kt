@@ -103,9 +103,9 @@ object ActionApprovalGate {
          * `ModuleController.installModule/startModule/stopModule`), nunca un string armado en
          * runtime a partir de una decisión de un LLM. Se deja preparado y documentado para el día
          * que eso deje de ser cierto (ej. una tool de "Agente Kairos" que corra un comando que el
-         * usuario tipeó) — no se fuerza un caso de uso que no existe todavía (YAGNI). Ver
-         * [HardlineShellGuard] — el piso de bloqueo incondicional que corre ANTES de siquiera
-         * llegar a pedir esta aprobación.
+         * usuario tipeó) — no se fuerza un caso de uso que no existe todavía (YAGNI, ver
+         * `.claude/rules/clean-code-principles.md`). Ver [HardlineShellGuard] — el piso de
+         * bloqueo incondicional que corre ANTES de siquiera llegar a pedir esta aprobación.
          */
         RUN_ARBITRARY_SHELL_COMMAND(ApprovalPolicy.ALWAYS_ASK),
     }

@@ -139,6 +139,21 @@
     <string name="entorno_tile_configuracion_x11">Configuración\nde X11</string>
     <string name="entorno_tile_detener_servidor_x11">Detener\nservidor X11</string>
 
+    <!-- Wine (Hangover) — pestaña X11 (docs/mini-pc/WINE_HANGOVER.md, FUTURO.md §9) -->
+    <string name="entorno_seccion_wine">WINE — WINDOWS (.EXE)</string>
+    <string name="entorno_subtitulo_wine">Hangover (Wine + WoW64 + FEX/Box64) sobre este mismo X11 — paquete de terceros, algunos .exe pueden fallar (bug conocido, ver módulo Wine)</string>
+    <string name="entorno_tile_instalar_wine">Instalar Wine\n(Hangover)</string>
+    <string name="entorno_tile_ejecutar_exe">Ejecutar\n.exe</string>
+    <string name="entorno_dialog_instalar_wine_mensaje">Instala Hangover (Wine ARM64 nativo + FEX/Box64) vía el repositorio TUR. Es un paquete de terceros con un bug conocido sin resolver: algunos instaladores Windows pueden fallar. DXVK no viene incluido. ¿Continuar?</string>
+    <string name="entorno_progreso_instalando_wine_titulo">Instalando Wine (Hangover)</string>
+    <string name="entorno_progreso_instalando_wine_detalle">Habilitando tur-multilib + instalando hangover-wine…</string>
+    <string name="entorno_toast_wine_ya_instalado">Wine (Hangover) ya está instalado</string>
+    <string name="entorno_toast_wine_no_instalado">Instalá Wine (Hangover) primero</string>
+    <string name="entorno_toast_wine_instalado">Wine (Hangover) instalado</string>
+    <string name="entorno_error_no_pudo_instalar_wine">No se pudo instalar Wine (Hangover)</string>
+    <string name="entorno_error_no_pudo_leer_exe">No se pudo leer el archivo elegido</string>
+    <string name="entorno_wine_ejecutando">Ejecutando…</string>
+
     <!-- Tiles — pestaña Distros -->
     <string name="entorno_tile_instalar_distro">Instalar\ndistro</string>
     <string name="entorno_tile_login_distro">Login a distro\n(terminal)</string>
@@ -190,7 +205,7 @@
          agregado del sistema completo que ya muestra el tab Monitor. -->
     <string name="entorno_tile_recursos_sesion">Recursos de\nla sesión</string>
     <string name="entorno_dialog_recursos_sesion_titulo">Recursos de la sesión</string>
-    <string name="entorno_recursos_sesion_mensaje">Proceso: %1$s (PID %2$d)\nMemoria (RSS): %3$s MB\n\nSolo memoria — el CPU%% real necesita /proc/&lt;pid&gt;/stat, no confirmado legible en todos los dispositivos.</string>
+    <string name="entorno_recursos_sesion_mensaje">Proceso: %1$s (PID %2$d)\nMemoria (RSS): %3$s MB\nCPU: %4$s</string>
     <string name="entorno_error_no_pudo_leer_recursos">No se pudo leer los recursos de la sesión</string>
 
     <!-- Editor de scripts de arranque (auditoría referencia/contenedores/trierarch-main,
@@ -334,7 +349,7 @@
     <string name="entorno_depth_24bit">24 bit (color completo)</string>
     <string name="entorno_depth_16bit">16 bit (más liviano)</string>
     <string name="entorno_toast_iniciando_vnc">Iniciando VNC…</string>
-    <!-- Orientación (pedido explícito: faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig(), no un toggle cosmético. -->
+    <!-- Orientación (pedido explícito: faltaba horizontal/vertical) — swap real de ancho/alto en el geometry "WxH" que llega a vncStartWithConfig, no un toggle cosmético. -->
     <string name="entorno_label_orientacion">Orientación</string>
     <string name="entorno_orientacion_horizontal">Horizontal</string>
     <string name="entorno_orientacion_vertical">Vertical (invierte ancho/alto)</string>

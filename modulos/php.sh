@@ -4,7 +4,8 @@
 #  PHP — paquete nativo de Termux (pkg install php).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/lang/php/install.sh
-#  (mismo comando real: pkg install php).
+#  (mismo comando real: pkg install php) — ver ronda "paquetes adicionales
+#  core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash php.sh --silent

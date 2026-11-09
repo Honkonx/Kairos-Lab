@@ -28,7 +28,7 @@ const val TERMUX_PGREP_PATH = "$TERMUX_PREFIX_PATH/bin/pgrep"
 // gatewayStart/gatewayStop). Mismo fix, misma causa.
 const val TERMUX_PKILL_PATH = "$TERMUX_PREFIX_PATH/bin/pkill"
 const val TERMUX_MKFIFO_PATH = "$TERMUX_PREFIX_PATH/bin/mkfifo"
-// Bug real (2026-08-06): mismo patrón de arriba, nunca
+// Bug real (2026-08-06,): mismo patrón de arriba, nunca
 // aplicado a EntornoNative.kt — "Cannot run program 'proot-distro'"/"Cannot run program
 // 'pkg'" en dispositivo real (log real: distroInstall(debian) e installDesktop(xfce4)),
 // pese a que isTermuxBinaryAvailable() (bash -c "command -v ...") confirma que el binario
@@ -36,7 +36,7 @@ const val TERMUX_MKFIFO_PATH = "$TERMUX_PREFIX_PATH/bin/mkfifo"
 // ProcessBuilder-resuelve-mal que motivó las constantes de arriba.
 const val TERMUX_PROOT_DISTRO_PATH = "$TERMUX_PREFIX_PATH/bin/proot-distro"
 const val TERMUX_PKG_PATH = "$TERMUX_PREFIX_PATH/bin/pkg"
-// Bug real (2026-08-07): mismo patrón de arriba, nunca
+// Bug real (2026-08-07,): mismo patrón de arriba, nunca
 // aplicado a MonitorFragment.kt — "pkg"/"python3" invocados por nombre relativo (aun con
 // applyTermuxEnv() ya seteando PATH) dejaban las casillas de "Paquetes de Termux"/
 // "Paquetes de Python" del tab Monitor sin funcionar de forma confiable.
@@ -60,7 +60,7 @@ const val TERMUX_UDOCKER_PATH = "$TERMUX_PREFIX_PATH/bin/udocker"
 // como "cactus no está instalado", contradiciendo lo que la propia pantalla ya había mostrado.
 // Ruta absoluta = mismo fix que udocker/proot-distro/pkg/python3.
 const val TERMUX_CACTUS_PATH = "$TERMUX_PREFIX_PATH/bin/cactus"
-// Bug real confirmado por ADB en dispositivo (2026-08-23,
+// Bug real confirmado por ADB en dispositivo (2026-08-23,,
 // probando "Configurar proveedor IA local" de Hermes con Ollama realmente corriendo): toast
 // real "Error: Cannot run program "hermes": error=2, No such file or directory" — misma
 // asimetría bash-resuelve-bien/ProcessBuilder-resuelve-mal de arriba (ver TERMUX_CACTUS_PATH).
@@ -69,7 +69,7 @@ const val TERMUX_CACTUS_PATH = "$TERMUX_PREFIX_PATH/bin/cactus"
 // "$TERMUX_PREFIX_PATH/bin/hermes" (instalación nativa estándar, no venv/TUR en este caso).
 // Ruta absoluta = mismo fix que udocker/cactus/proot-distro/pkg/python3.
 const val TERMUX_HERMES_PATH = "$TERMUX_PREFIX_PATH/bin/hermes"
-// Bug real confirmado por ADB en dispositivo (2026-08-24): mismo patrón
+// Bug real confirmado por ADB en dispositivo (2026-08-24,): mismo patrón
 // que TERMUX_HERMES_PATH — EntornoNative.kt invocaba ManagerNativeUtils.runExec(listOf(
 // "vncserver"/"tigervncserver"/"vncpasswd", ...)) por nombre relativo. Confirmado instalando
 // tigervnc de verdad en el dispositivo: el paquete real (1.16.2) solo provee "vncserver" y
@@ -78,7 +78,7 @@ const val TERMUX_HERMES_PATH = "$TERMUX_PREFIX_PATH/bin/hermes"
 // como código muerto inofensivo, no se tocan — fuera del alcance de este fix puntual).
 const val TERMUX_VNCSERVER_PATH = "$TERMUX_PREFIX_PATH/bin/vncserver"
 const val TERMUX_VNCPASSWD_PATH = "$TERMUX_PREFIX_PATH/bin/vncpasswd"
-// Bug real confirmado por ADB (2026-08-24): OpenCodeNative.kt::info()
+// Bug real confirmado por ADB (2026-08-24,): OpenCodeNative.kt::info
 // invocaba "opencode" por nombre relativo como fallback cuando el registry no tiene la versión
 // cacheada. Ruta confirmada instalando opencode.sh de verdad en el dispositivo (paquete nativo
 // .pkg.tar.xz, no npm): "$TERMUX_PREFIX_PATH/bin/opencode" — no se asumió sin confirmar primero
@@ -97,7 +97,7 @@ fun ProcessBuilder.applyTermuxEnv() {
     val env = environment()
     env["HOME"] = TermuxConstants.TERMUX_HOME_DIR_PATH
     env["PREFIX"] = TERMUX_PREFIX_PATH
-    // Bug real confirmado por ADB en dispositivo (2026-08-21): Claude
+    // Bug real confirmado por ADB en dispositivo (2026-08-21,): Claude
     // Code (claude.sh, método "native") instala su wrapper real en $HOME/.local/bin/claude,
     // NUNCA en $TERMUX_PREFIX_PATH/bin (el comentario viejo de ModuleInstalled.BINARY_FALLBACK
     // que decía "wrapper en $HOME/.local/bin y $TERMUX_PREFIX_PATH/bin" era falso — confirmado
@@ -108,7 +108,7 @@ fun ProcessBuilder.applyTermuxEnv() {
     // ModuleInstalled/verificar.sh lo reportaban como fallando. Mismo patrón de convención que
     // otros instaladores nativos (hf.sh, mimocode.sh, etc.) — agregar $HOME/.local/bin acá
     // arregla el chequeo para TODOS los módulos con ese patrón, no solo claude.
-    // Bug real encontrado 2026-08-24 (pruebas funcionales reales por
+    // Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por
     // ADB): openclaw.sh corre "npm config set prefix ~/.npm-global" en su primera instalación,
     // que muta ~/.npmrc de forma GLOBAL (afecta a TODOS los "npm install -g" siguientes, de
     // cualquier módulo, no solo OpenClaw) — confirmado en dispositivo: openclaw, copilotcli,
@@ -121,7 +121,7 @@ fun ProcessBuilder.applyTermuxEnv() {
     // por bash) los reportaban como instalados y funcionando.
     env["PATH"] = "${TermuxConstants.TERMUX_HOME_DIR_PATH}/.local/bin:${TermuxConstants.TERMUX_HOME_DIR_PATH}/.npm-global/bin:$TERMUX_PREFIX_PATH/bin:$TERMUX_PREFIX_PATH/sbin"
     env["LD_LIBRARY_PATH"] = "$TERMUX_PREFIX_PATH/lib"
-    // Bug real (2026-08-07): faltaba TMPDIR — TermuxShellEnvironment
+    // Bug real (2026-08-07,): faltaba TMPDIR — TermuxShellEnvironment
     // (el builder de entorno real de una sesión de terminal interactiva) SÍ lo setea a
     // "$PREFIX/tmp" (ver TermuxShellEnvironment.java, ENV_TMPDIR), pero acá nunca se replicó. Sin
     // esto, cualquier binario que resuelva su directorio temporal vía os.tmpdir()/getenv("TMPDIR")
@@ -144,7 +144,7 @@ fun ProcessBuilder.applyTermuxEnv() {
     // Termux (ej. "/bin/sh" — Termux no tiene /bin, todo vive bajo $PREFIX). Setearlo acá
     // cubre los ~9 call sites que ya comparten este helper de una sola vez.
     env["SHELL"] = TERMUX_BASH_PATH
-    // Bug real encontrado 2026-08-24 (pruebas funcionales reales por
+    // Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por
     // ADB): "agy" (binario real del módulo "antigravity", mapeado en ModuleVersionChecker.kt)
     // detecta si corre en Termux nativo leyendo $TERMUX_VERSION — sin ella, imprime "This
     // standalone port is only for native Termux. PRoot environments can use Google's official

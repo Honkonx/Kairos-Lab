@@ -151,9 +151,9 @@ UDOCKER_TARBALL_MIRRORS=(
 # instalación aunque el binario real siga siendo el código sin parchear. Chequeo real en vez de
 # confiar en el marcador: HostInfo().osversion() en el Python de Termux SIEMPRE devuelve
 # "android" (platform.system() sin parchear) — si el patch del fork está activo, el método lo
-# mapea a "linux" antes de devolverlo; si no, devuelve "android" tal cual. Se verifica la
-# post-condición real, no el exit code de la instalación ni un marcador que solo prueba que un
-# comando corrió una vez.
+# mapea a "linux" antes de devolverlo; si no, devuelve "android" tal cual. Mismo principio que
+# .claude/rules/empirical-verification-before-fix.md: verificar la post-condición real, no el
+# exit code de la instalación ni un marcador que solo prueba que un comando corrió una vez.
 udocker_fork_patch_active() {
   command -v udocker &>/dev/null || return 1
   "$TERMUX_PREFIX/bin/python3" -c '
@@ -164,7 +164,7 @@ sys.exit(0 if HostInfo().osversion() != "android" else 1)
 }
 
 # ── Ya instalado ────────────────────────────────────────────
-# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # el binario "udocker" y "$HOME/.udocker/lib/VERSION" pueden existir SIN que este módulo haya
 # corrido nunca — n8n.sh (variante --variant udocker) instala el mismo binario/runtime base
 # como paso interno (PASO 0), pero NUNCA genera los wrappers $HOME/scripts/udocker/*.sh (son
@@ -174,8 +174,8 @@ sys.exit(0 if HostInfo().osversion() != "android" else 1)
 # rm.sh (más abajo) — dejando la pantalla del módulo sin ningún wrapper funcional pese a decir
 # instalado. Se agrega el chequeo de que los 4 wrappers ya existan al corto-circuito.
 #
-# Bug real #2 encontrado 2026-08-28 (auditoría de un agente de investigación):
-# cualquier dispositivo que ya tuviera "udocker" instalado ANTES de
+# Bug real #2 encontrado 2026-08-28 (auditoría de un agente de investigación, ver
+#): cualquier dispositivo que ya tuviera "udocker" instalado ANTES de
 # adoptar el fork github.com/Honkonx/udocker (línea ~207 más abajo) — sea porque corrió este
 # módulo antes del 2026-08-27, o porque n8n.sh --variant udocker lo instaló como paso interno —
 # quedaba con el udocker oficial de PyPI (sin el fix de HostInfo.osversion() "android"->"linux")
@@ -232,8 +232,8 @@ step "1/2 Instalando udocker"
 
 export UDOCKER_USE_PROOT_EXECUTABLE=$(which proot 2>/dev/null || echo "$TERMUX_PREFIX/bin/proot")
 
-# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real,
-# mismo fix ya confirmado y aplicado en n8n.sh --variant udocker): sin esto,
+# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real, ver
+#, mismo fix ya confirmado y aplicado en n8n.sh --variant udocker): sin esto,
 # la resolución interna de udocker del binario "curl" (shutil.which(), cacheada en frío justo
 # después de instalar udockertools) puede fallar y "udocker pull" termina con "Error: in
 # download: %s" / X-ND-CURLSTATUS=1, aunque el mismo "curl" funcione perfecto para cualquier
@@ -276,7 +276,7 @@ else
     # clonación vieja del fork (de antes de que el patch se subiera ahí) en vez de volver a
     # clonar y reconstruir contra el HEAD real — ver comentario largo de
     # udocker_fork_patch_active() arriba, causa raíz confirmada en dispositivo real.
-    # Sin --quiet ni 2>/dev/null (2026-09-03): silenciar TODO el
+    # Sin --quiet ni 2>/dev/null (2026-09-03,): silenciar TODO el
     # output de pip acá dejaba, ante un doble fallo (fork y PyPI), un único mensaje genérico
     # sin ninguna pista real de la causa (red, dependencia faltante, timeout). El output real
     # de pip ya llega tal cual al log de instalación (ModuleController.kt captura stdout+stderr
@@ -351,7 +351,7 @@ cat > "$UDOCKER_SCRIPTS/pull.sh" << 'SCRIPT'
 #!/data/data/com.termux/files/usr/bin/bash
 # USO: pull.sh <imagen>   (ej: pull.sh alpine:latest)
 export UDOCKER_USE_PROOT_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/bin/proot"
-# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # sin TMPDIR, udocker (Python) cae al fallback "/tmp" para archivos temporales que genera para
 # el bind-mount de un contenedor (ej. un "passwd" sintético) — "/tmp" no existe como filesystem
 # real en Termux, y udocker revienta con "Error: invalid host volume path: /tmp/udocker-...".
@@ -360,7 +360,7 @@ export UDOCKER_USE_PROOT_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/
 # app — un login shell de Termux tampoco exporta TMPDIR por defecto.
 export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
 mkdir -p "$TMPDIR"
-# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11): mismo fix que arriba con
+# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11,): mismo fix que arriba con
 # TMPDIR — sin ruta absoluta fija, la resolución interna de udocker del binario "curl" puede
 # fallar en frío y "udocker pull" termina con "Error: in download: %s".
 export UDOCKER_USE_CURL_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/bin/curl"
@@ -377,7 +377,7 @@ cat > "$UDOCKER_SCRIPTS/run.sh" << 'SCRIPT'
 # forzando execmode P2. Args tras "--" se pasan como comando dentro del
 # contenedor; sin ellos corre el ENTRYPOINT/CMD de la imagen.
 export UDOCKER_USE_PROOT_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/bin/proot"
-# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # sin TMPDIR, udocker (Python) cae al fallback "/tmp" para archivos temporales que genera para
 # el bind-mount de un contenedor (ej. un "passwd" sintético) — "/tmp" no existe como filesystem
 # real en Termux, y udocker revienta con "Error: invalid host volume path: /tmp/udocker-...".
@@ -386,7 +386,7 @@ export UDOCKER_USE_PROOT_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/
 # app — un login shell de Termux tampoco exporta TMPDIR por defecto.
 export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
 mkdir -p "$TMPDIR"
-# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11) — este wrapper puede
+# UDOCKER_USE_CURL_EXECUTABLE (2026-09-11,) — este wrapper puede
 # disparar un "udocker pull" interno (línea de abajo) si la imagen no está cacheada todavía.
 export UDOCKER_USE_CURL_EXECUTABLE="${PREFIX:-/data/data/com.termux/files/usr}/bin/curl"
 NAME="$1"; IMG="$2"; shift 2 2>/dev/null
@@ -407,7 +407,7 @@ echo "── Imágenes ──"
 udocker images
 echo ""
 echo "── Contenedores ──"
-# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # "udocker ps -a" — "-a" NO es un flag real de este udocker (confirmado con "udocker ps --help":
 # solo admite -m/-s/-p) — Docker CLI sí tiene "-a" (mostrar contenedores parados también), pero
 # udocker no lo replica; con un flag inválido, "udocker ps" fallaba con "Error: syntax error at:

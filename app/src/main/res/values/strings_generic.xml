@@ -86,11 +86,25 @@
     <string name="file_manager_action_compress">Comprimir</string>
     <string name="file_manager_toast_compress_done">Comprimido: %1$s</string>
     <string name="file_manager_error_compress_failed">No se pudo comprimir</string>
+    <string name="file_manager_archive_compress_title">Comprimir elementos seleccionados</string>
+    <string name="file_manager_archive_name_hint">Nombre del archivo (sin extensión)</string>
+    <string name="file_manager_archive_format_zip">ZIP — compatible</string>
+    <string name="file_manager_archive_format_7z">7-Zip — alta compresión</string>
+    <string name="file_manager_archive_format_tar_zstd">TAR + Zstandard — rápido</string>
+    <string name="file_manager_archive_view_contents">Ver contenido</string>
+    <string name="file_manager_archive_extract_here">Extraer aquí</string>
+    <string name="file_manager_archive_extract_to">Elegir carpeta para extraer</string>
+    <string name="file_manager_archive_destination_title">Destino: %1$s</string>
+    <string name="file_manager_archive_entry_count">%1$d elementos</string>
+    <string name="file_manager_archive_more_entries">y %1$d más</string>
+    <string name="file_manager_archive_extracted">Extraído en: %1$s</string>
+    <string name="file_manager_error_archive_read">No se pudo leer el archivo</string>
+    <string name="file_manager_error_archive_extract">No se pudo extraer el archivo</string>
     <string name="file_manager_clipboard_multi">%1$d archivos</string>
     <string name="file_manager_toast_batch_result">%1$d listo(s), %2$d con error</string>
     <string name="file_manager_dialog_msg_delete_batch">¿Eliminar %1$d elementos? Esta acción no se puede deshacer.</string>
-    <!-- Barra persistente de portapapeles + confirmación real al pegar (fix UX 2026-09-14
-         — antes solo había un Snackbar fugaz de ~2.75s como única señal). -->
+    <!-- Barra persistente de portapapeles + confirmación real al pegar (fix UX 2026-09-14,
+          — antes solo había un Snackbar fugaz de ~2.75s como única señal). -->
     <string name="file_manager_clipboard_bar_cancel">Cancelar</string>
     <string name="file_manager_dialog_msg_paste">¿Pegar %1$s en esta carpeta?</string>
     <!-- Marcadores + historial de navegación (esfuerzo bajo #2) -->
@@ -210,4 +224,49 @@
     <string name="webview_error_title">No se pudo conectar</string>
     <string name="webview_error_desc">El módulo no respondió. Puede estar todavía iniciando o haberse detenido — revisá su estado y volvé a intentar.</string>
     <string name="webview_error_retry">Reintentar</string>
+    <string name="media_downloader_title">Descargar video o audio</string>
+    <string name="media_downloader_subtitle">Una sola herramienta con yt-dlp y FFmpeg. Los archivos se guardan en Movies, salvo que elijas otra carpeta.</string>
+    <string name="media_downloader_url_label">URL del contenido</string>
+    <string name="media_downloader_url_hint">https://…</string>
+    <string name="media_downloader_url_required">Introduce una URL http o https</string>
+    <string name="media_downloader_format_label">Formato</string>
+    <string name="media_downloader_video_with_audio">Video con sonido · MP4</string>
+    <string name="media_downloader_video_silent">Video sin sonido</string>
+    <string name="media_downloader_audio_only">Solo audio · MP3</string>
+    <string name="media_downloader_quality">Resolución máxima</string>
+    <string name="media_downloader_destination_label">Carpeta de destino</string>
+    <string name="media_downloader_change">Cambiar</string>
+    <string name="media_downloader_download">Descargar</string>
+    <string name="media_downloader_custom_folder">Carpeta elegida</string>
+    <string name="media_downloader_working">Descargando… puede tardar según el tamaño y la red.</string>
+    <string name="media_downloader_success">Descarga completada</string>
+    <string name="media_downloader_error">No se pudo completar la descarga</string>
+    <string name="media_downloader_saved_to">Archivo guardado en %1$s</string>
+    <string name="media_downloader_no_output">yt-dlp terminó sin generar un archivo.</string>
+    <string name="media_downloader_copy_failed">No se pudo copiar el archivo a la carpeta elegida.</string>
+    <string name="media_downloader_folder_unavailable">No se pudo escribir en la carpeta elegida.</string>
+    <string-array name="media_downloader_qualities">
+        <item>480p</item>
+        <item>720p</item>
+        <item>1080p</item>
+        <item>1440p · 2K</item>
+    </string-array>
+    <string name="udocker_option_create_container_from_image">Crear un contenedor y usar esta imagen</string>
+    <string name="udocker_option_install_packages">Instalar paquetes en este contenedor</string>
+    <string name="udocker_option_run_command">Ejecutar comando en este contenedor</string>
+    <string name="udocker_package_manager_title">Gestor de paquetes</string>
+    <string name="udocker_package_manager_apk">Alpine · apk</string>
+    <string name="udocker_package_manager_apt">Debian / Ubuntu · apt</string>
+    <string name="udocker_package_names_hint">Ej.: curl git python3</string>
+    <string name="udocker_install_packages_title">Instalar en %1$s</string>
+    <string name="udocker_install_packages_alpine">Los cambios se aplican al contenedor seleccionado. Se ejecutará apk add --no-cache.</string>
+    <string name="udocker_install_packages_debian">Los cambios se aplican al contenedor seleccionado. Se actualizará apt y se instalarán los paquetes solicitados.</string>
+    <string name="udocker_invalid_package_names">Escribe entre 1 y 12 nombres de paquete válidos, separados por espacios.</string>
+    <string name="udocker_command_hint">Ej.: python3 --version</string>
+    <string name="udocker_run_command_title">Ejecutar en %1$s</string>
+    <string name="udocker_run_command_message">Comando no interactivo. Para shells, editores y programas interactivos, usa “Abrir terminal”.</string>
+    <string name="udocker_button_run">Ejecutar</string>
+    <string name="udocker_running_action">Trabajando dentro del contenedor…</string>
+    <string name="udocker_action_complete">La acción terminó correctamente.</string>
+    <string name="udocker_action_failed">Falló la acción dentro del contenedor.</string>
 </resources>

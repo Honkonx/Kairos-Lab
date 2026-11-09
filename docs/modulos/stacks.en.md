@@ -1,171 +1,153 @@
-# Stacks / Test Environments
+# Stacks / Test Environments — Kairos Module
 
-**Kairos module** — managed from the UI ("Test Environments" screen). Unlike the rest of `modulos/*.sh`, `stacks.sh` **does not install a package of its own** — it's a catalog that reuses existing modules (`python.sh`, `db.sh`) and adds Node.js/PHP directly via `pkg`.
-
----
-
-**Script:** `modulos/stacks.sh`
-**Fragments:** `app/src/main/java/com/termux/app/ui/StacksFragment.kt` (fixed presets) + `StacksProjectFragment.kt` (real project)
-**`id` in `modules.json`:** `stacks` — no central switch (each preset/action invokes the script directly, without going through the standard module install lifecycle)
+**Kairos module** — managed through the Kairos UI (Modules tab, "Test Environments" screen). Unlike the rest of `modulos/*.sh`, `stacks.sh` **does not install a package of its own** — it is a catalog that reuses already-existing modules (`python.sh`, `db.sh`) and adds Node.js/PHP/Go/Rust/Java directly through `pkg`.
 
 ---
 
-## 1. Overview
+**Project:** Kairos
+**Script:** `modulos/stacks.sh` (v1.5.0) — identical to `app/src/main/assets/scripts/stacks.sh`
+**Fragments:** `app/src/main/java/com/termux/app/ui/StacksFragment.kt` (real projects, routed from `ModuleDetailNavigator.kt:38`) + `StacksPackagesFragment.kt` ("📦 Required packages", presets)
+**`id` in `modules.json`:** `stacks` — `category: dev`, `installMethods: [pkg, proot-distro]`, `port: ""`, `hasSwitch: false`, `catalogVersion: 1.1.0`. No central switch: each preset/action invokes the script directly through `ProcessBuilder`, it does not go through `ModuleController.installModule()`.
 
-Stacks (the "Test Environments" screen) has two completely different modes, each with its own Fragment:
+> Based on reading `app/src/main/assets/modules.json`, `modulos/stacks.sh` (1122 lines), `StacksFragment.kt` (1014), `StacksPackagesFragment.kt` (336) and `ModuleController.kt`.
 
-1. **Fixed presets** (`StacksFragment.kt`) — prebuilt recipes: pick a known stack (Python+PostgreSQL, PHP+MySQL, React+Vite, plain HTML, or a full Linux distro) and install it in a couple of taps, either native in Termux or inside a proot distro.
-2. **Real project** (`StacksProjectFragment.kt`) — operates on a project folder the user has already picked: detects the stack from the files present, installs real dependencies (`npm install` / `venv+pip`), and starts/monitors the process in the background (tmux), with the option to expose it via a Cloudflare Tunnel.
+---
 
-## 2. Permissions
+## 1. What it is and what it is for
 
-None of its own — uses the same permissions already granted by Kairos's setup wizard (storage for Project mode's folder browser). Doesn't open any ports of its own (the processes it starts do, depending on whatever the user sets as the command).
+A "Test Environments" catalog for development inside the phone, with two modes:
 
-## 3. Fixed presets (`StacksFragment.kt` + `modulos/stacks.sh --preset`)
+1. **Presets** (ready-made recipes that install a language/stack, native in Termux or inside a proot distro) — they live in `StacksPackagesFragment`, reachable from a project's detail ("📦 Required packages").
+2. **Real projects** — user folders for which the stack is detected from the files present, real dependencies are installed (`npm install` / `venv+pip`) and which are run in the background (tmux) on 3 targets (native / proot distro / udocker container), with the option of exposing them through Cloudflare Tunnel.
 
-`stacks.sh` accepts `--silent --preset <id> [--distro <name>] [--flavor debian|ubuntu] [--force] [--describe]`.
+## 2. Classification: FUNCTIONAL MODULE
 
-| Preset | Native pieces (Termux, `pkg`) | Distro pieces (`apt-get` inside proot) |
+It is not just "install and open terminal": it has its own UI with persistent state (SharedPreferences `kairos_stacks_prefs`: `project_paths`, `project_states`, `project_subdirs`), multi-project management, monorepos, background execution with a switch, live logs and a tunnel. Approximate UI options: **~20** (project list with add/remove; detect subprojects; "Start all" with delay; Required packages; target dropdown; distro selector; udocker simple/full mode; install dependencies; command field; background switch; view logs (+ full terminal); expose with Cloudflare; and in `StacksPackagesFragment` 9 preset rows with a native button, a distro button, an extras selector and a flavor selector). Since it has no `hasSwitch` or module process of its own, `ModuleController` has no `"stacks"` entry: the "state" lives per project, not per module.
+
+## 3. Permissions
+
+None of its own — it uses the permissions already granted by the Kairos wizard (storage for the folder browser). It opens no ports of its own (the processes it starts do, depending on the user's command).
+
+## 4. Installation (`modulos/stacks.sh`)
+
+- `stacks.sh --silent` without `--preset` is a no-op that only writes the registry with `presets=python-postgres,php-mysql,react-vite,html,go,rust,java,dotnet,linux-completo` (`stacks.sh:723-731`).
+- Flags (`stacks.sh:149-162`): `--silent --force --describe --describe-files --preset --distro --flavor --extra --project-path --project-action --project-target --project-distro --project-cmd --project-udocker-mode`.
+- The `catalogVersion` in `modules.json` (1.1.0) lags behind the script (1.5.0); the script's interactive banner still says `v1.1.0`.
+
+### Presets (`VALID_PRESETS`, `stacks.sh:723`) — 9
+
+| Preset | Native (Termux, `pkg`) | Distro (`apt-get` inside proot) |
 |---|---|---|
-| `python-postgres` | `pkg python` + PostgreSQL chained via `db.sh` | `python3 python3-pip postgresql` |
-| `php-mysql` | `pkg php` + MySQL/MariaDB chained via `db.sh` | `php php-mysql mysql-server` |
-| `react-vite` | `pkg nodejs` (covers React/Vite/TypeScript/JavaScript) | `nodejs npm` |
-| `html` | `pkg python` (no build step, `python3 -m http.server`) | `python3` |
-| `linux-completo` | — (always proot-distro, never native) — installs a full real Linux distro (Debian Bookworm by default, or Ubuntu with `--flavor ubuntu`) | — |
+| `python-postgres` | `python` + PostgreSQL through chained `db.sh` | `python3 python3-pip postgresql` |
+| `php-mysql` | `php` + MySQL/MariaDB through chained `db.sh` | `php php-mysql mysql-server` |
+| `react-vite` | `nodejs` (includes npm — covers React/Vite/TypeScript/JavaScript) | `nodejs npm` |
+| `html` | `python` (no build, `python3 -m http.server`) | `python3` |
+| `go` | `golang` → `go` binary | `golang-go` |
+| `rust` | `rust` → `cargo` binary | `rustc cargo` |
+| `java` | `openjdk-21` → `java`/`javac` | `default-jdk` |
+| `dotnet` | **No native package** (the .NET SDK is only packaged for real Ubuntu/Debian through apt, not for Bionic/Termux) — error if `TARGET != distro` (`stacks.sh:747`) | `dotnet-sdk-8.0` (LTS). Compiling may fail on some devices due to a known `csc.dll` SIGSEGV on ARM64/proot, a .NET limitation in this environment |
+| `linux-completo` | — (ALWAYS proot-distro) installs a full real Linux distro (Debian Bookworm by default, or Ubuntu with `--flavor ubuntu`); asks for a debian/ubuntu flavor | — |
 
-**Script/UI discrepancy**: the script supports all 5 presets (including `linux-completo`), but `StacksFragment.kt` only exposes 4 cards. To install a full Linux distro from the app, use the **Entorno** module ("Install distro"), which covers the same use case with its own flow — `stacks.sh --preset linux-completo` remains available only via CLI/script, with no button on this screen.
+- **Target** (`--distro <name>`): if passed, it installs INSIDE an already-installed proot distro (`proot-distro login <name> -- apt-get install`) instead of natively. The UI disables the "install in distro" button if no distro is installed (`EntornoNative.distroList()`). `modulos/stacks.sh` also has real guards: "proot-distro is not installed — install the Entorno module first" and "udocker is not installed — install the udocker module first".
+- **Chained database**: native `python-postgres`/`php-mysql` run `bash db.sh --silent` (`ensure_db_native`); `db.sh` is idempotent. If it is not available next to `stacks.sh`, it only warns and continues.
+- **Final summary**: each preset prints `[RESUMEN]` lines with the real commands to start each piece (e.g. `python3 your_app.py`, `bash ~/scripts/db/postgres_start.sh`); the UI filters them and shows them in the success dialog (`ProgressDialogController.success()`).
+- **Verification**: `install_native_preset` runs `command -v <binary>` after `pkg install` (`stacks.sh:~890-893`); it does not use `verify_binary_installed()` (it does not run `--version`). In a distro it does not verify the resulting binary, only `apt-get`'s exit code.
+- **`--extra`** (catalog `extra_packages_catalog`): `pip install --user` / `npm install -g` (or `pip3 --break-system-packages` / `npm -g` inside the distro). Extras: `python-postgres`: fastapi, django, flask, uvicorn, sqlalchemy, requests, numpy, pandas; `react-vite`: express, next, vue, axios; `php-mysql`: laravel (installs Composer only in a distro).
 
-**Destination** (`--distro <name>`, applies only to the 4 lightweight presets): if passed, installs inside an already-installed proot distro instead of natively. The UI disables the "Install in distro…" button if no distro is installed.
+## 5. Real Project mode (`--project-path`)
 
-**Chained database**: the `python-postgres`/`php-mysql` presets run `bash db.sh --silent` instead of just warning — `db.sh` is idempotent (checks binaries before installing).
+Flags: `--project-path <folder> --project-action detect|install|start|stop|status|logs [--project-target native|distro|udocker] [--project-distro <name>] [--project-cmd <command>] [--project-udocker-mode simple|full] --silent`.
 
-**Final summary**: each preset ends by printing the real commands to start each piece — the UI filters and shows them in the success dialog.
+### 5.1 Stack detection
 
-## 4. Real Project mode (`StacksProjectFragment.kt` + `modulos/stacks.sh --project-path`)
-
-Flags: `--project-path <folder> --project-action detect|install|start|stop|status|logs [--project-target native|distro|udocker] [--project-distro <name>] [--project-cmd <command>] --silent`.
-
-### 4.1 Stack detection
-
-A simple, deliberately non-exhaustive file-based detector, implemented identically in the script and in Kotlin — same logic on both sides:
+A simple detector based on the files present (deliberately not exhaustive), implemented in duplicate for performance (it avoids spawning a process to check 4-5 files): `project_detect()` in `stacks.sh` and `detectProjectStack()` in the Fragment.
 
 | Signal in the folder | Tag |
 |---|---|
 | `package.json` | `node` |
-| `requirements.txt` or some `*.py` | `python` |
+| `requirements.txt` or any `*.py` | `python` |
 | `*.db`/`*.sqlite`/`*.sqlite3` | `sqlite` |
-| `composer.json` | `php` |
-| `index.html` with no `package.json` | `html` |
+| `composer.json` (or a broad PHP marker) | `php` |
+| `index.html` without `package.json` | `html` |
 
-### 4.2 Install destinations (`--project-target`)
+### 5.2 Targets (`--project-target`)
 
-| Destination | What it actually does | Automation level |
-|---|---|---|
-| `native` (default) | `npm install` if there's a `package.json`; `python3 -m venv venv` + `pip install -r requirements.txt` if there's Python | Full — installs Node/Python if missing |
-| `distro` | Copies the project inside the distro's real rootfs, installs whatever system dependencies are missing (`nodejs npm`, `python3 python3-pip`, `php`) via `apt-get`, and runs `npm install`/`pip3 install -r requirements.txt` inside the distro | Full — automates just as much as `native`/`udocker`, with the honest caveat documented in the script itself that `apt-get`/`npm`/`pip` over proot are slower |
-| `udocker` | The project isn't copied — it's bind-mounted directly onto an official Docker Hub image matching the detected stack (`node:20` / `python:3.12` / `php:8.3-cli`, `html` falls back to `python:3.12`) | Full — same level as `native`, without copying anything |
+| Target | What it really does |
+|---|---|
+| `native` (default) | `npm install` if there is a `package.json`; `python3 -m venv venv` + `pip install -r requirements.txt` if there is Python. Installs Node/Python if missing |
+| `distro` | Installs Debian automatically if missing (`_ensure_distro_installed`), copies the project INSIDE the rootfs (`$PREFIX/var/lib/proot-distro/installed-rootfs/<distro>/root/<name>`; it **first deletes** `rm -rf $rootfs/root/$name`), runs `_install_essentials` (apt set `_ESSENTIAL_APT_PACKAGES`: build-essential, cmake, python3 +pip/venv, sqlite3, postgresql, mariadb-server, nodejs, npm, php...; plus the cloudflared `.deb`) with a prior `dpkg --configure -a` as self-heal, and runs `npm install`/`pip3 install -r requirements.txt` INSIDE the distro (`proot-distro login <distro> -- ...`). `apt-get`/`npm`/`pip` over proot are slower |
+| `udocker` | The project is NOT copied — it is mounted with a **bind-mount** (`udocker run --volume=<host>:/app`) over an official Docker Hub image: `simple` mode (`node:20` / `python:3.12` / `php:8.3-cli`; `html` falls back to `python:3.12`) or `full` mode (`debian:bookworm` + essentials). Container name `kairos-proj-<hash>` |
 
-`composer.json` (PHP) is detected across all 3 destinations, but Composer is not automated in any of them — it just warns that `composer install` needs to be run by hand.
+`composer.json` (PHP) is detected on all 3 targets but **Composer is not automated** — it only warns (`warn`) that `composer install` must be run by hand.
 
-### 4.3 Start / stop / status / logs
+### 5.3 Start / stop / status / logs
 
-- **`start`**: requires `--project-cmd`. Starts in its own tmux session (MD5 hash of the path as the identifier), with the command wrapped according to the destination. Persistent log at `~/kairos_logs/stacks_project_<hash>.log`.
-- **`stop`**: kills the project's tmux session.
-- **`status`**: reports whether the session is still alive.
+- **`start`**: requires `--project-cmd`. Starts in `tmux new-session -d -s proj-<md5[:10] of the path> "<cmd> 2>&1 | tee ~/kairos_logs/stacks_project_<hash>.log"` (`stacks.sh:666`), with the command wrapped according to the target: native `cd '<p>' && <cmd>`; distro `proot-distro login <d> -- bash -c "cd '<p>' && <cmd>"`; udocker `udocker run --volume='<p>':/app ... sh -c "cd /app && <cmd>"`.
+- **`stop`**: `tmux kill-session -t proj-<hash>`.
+- **`status`**: `tmux has-session` → `[RESUMEN] running=true|false session=... log=...`.
 - **`logs`**: `tail -n 200` of the persistent log.
+- The UI calls the script with timeouts: install 900 s, start 30 s, stop/status 15 s.
 
-### 4.4 `StacksProjectFragment.kt` screen
+## 6. Real app screen
 
-Cards: **PROJECT** (choose folder) → **DETECTION** (tags + a text recommendation: PHP recommends distro due to heavier system dependencies, everything else recommends native) → **EXECUTION DESTINATION** (Native/Distro/udocker; the Distro option opens a selector of installed distros) → **DEPENDENCIES** (install button) → **EXECUTION AND MONITORING** (editable command field, pre-filled with a suggestion based on the stack — `npm run dev -- --host` / `python3 app.py` / `python3 -m http.server 8080` —, start/stop, a status pill, "View live logs") → **EXPOSE** (button that asks for a port and reuses the same Cloudflare Tunnel mechanism as the rest of the app).
+### `StacksFragment.kt` — projects
 
-## 4.5 Monorepos — sub-project detection
+- **Project list** (`buildProjectListState`): row = name + detected stack + state; tapping the chip activates that folder; "✕" removes it from the list (it does not delete from disk). "+ Add project folder" (`pickProjectFolder`: root Termux Home or internal storage, browses real folders with direct File I/O, shows the detection as confirmation).
+- **Project detail** (`buildProjectDetailState`):
+  - "DETECTION" card (read-only): detected stack + target recommendation (PHP recommends a distro; the rest, native).
+  - "📦 Required packages" → `StacksPackagesFragment`.
+  - "Detect subprojects" (monorepo): first-level subprojects with a stack signal, each behaves as an independent project; "Start all" (`startAllSubProjects`) with an optional delay.
+  - "Target" dropdown (Native/Distro/udocker): "Distro" opens `pickDistroTarget()` (offers to install Debian if there is no distro); udocker simple/full mode.
+  - "⬇ Install real dependencies" → `stacks.sh --project-action install`; the confirmation message changes according to the target.
+  - "Command to run" field, prefilled with a suggestion by stack (`suggestedRunCommand()`): `npm run dev -- --host` / `python3 app.py` / `php -S 0.0.0.0:8080 -t .` / `python3 -m http.server 8080`.
+  - "Background process" switch → `startProject()`/`stopProject()` (tmux); it reverts to `false` if validation fails (empty command, no distro chosen).
+  - "📋 View live logs": native panel polling `tail -n 150` every 2 s; the "Full terminal" button opens `tail -f` in the terminal. The poll stops when the dialog is closed.
+  - "🌐 Expose with Cloudflare (tunnel)": asks for the port and calls `TunnelManager.start(port, "cloudflared", null)`.
 
-When a folder added to Real Project mode contains several independent sub-projects (for
-example `frontend/` and `backend/` inside the same repo), Kairos can detect them and manage
-each one separately instead of forcing the whole folder to be treated as a single stack:
+### `StacksPackagesFragment.kt` — presets
 
-- When adding a new folder (or by manually requesting it on an already-saved project with
-  "Detect sub-projects"), Kairos scans first-level subfolders for their own stack signal (the
-  same files normal detection already uses — `package.json`, `requirements.txt`,
-  `composer.json`, etc.), skipping typical dependency/build folders (`node_modules`, `.git`,
-  `venv`, `dist`, `build`, and similar) to avoid false positives. The scan is single-level, with
-  no recursion — a sub-project is never scanned again looking for sub-sub-projects.
-- If more than one sub-project is found, a dialog lets you pick which ones to treat as
-  independent sub-projects (all checked by default) or dismiss the detection and keep treating
-  the folder as a single-stack project.
-- Each confirmed sub-project then behaves exactly like a regular, complete project — its own
-  detection, its own install destination (native/distro/udocker), its own command, and its own
-  background session — the only new piece is the visual grouping under the parent project and a
-  **"Start all"** button.
-- **"Start all"** launches each sub-project in the order they appear in the list, with an
-  optional delay between one and the next (useful, for example, to give a backend time to come
-  up before starting the frontend that depends on it) — there's no automatic dependency
-  resolution between sub-projects; it's up to the user to order the list or set the delay as
-  needed.
-- A "Detect again" button inside a monorepo's view adds any newly-appeared sub-projects without
-  touching the already-saved configuration of the ones already there.
+9 preset rows with a "⚙ Install native (Termux)" button and a "📦 Install in distro…" button (picks a distro if more than one is installed; disabled if there is none). `dotnet` offers no native installation: tapping it opens the distro selector directly. Everything is translated into `stacks.sh --preset ... [--distro|--flavor|--extra]` with a 900 s timeout. There is no dedicated "Open in terminal" button; only `launchTerminalCommand` for the logs.
 
-## 5. State detection
+## 7. State detection
 
-- **Installation**: registry (`stacks.installed`) — gets written as `true` even without any preset having been run.
-- **"Running"**: not applicable at the module level — each individual Real Project has its own state via a tmux session.
+- **Installation**: registry (`stacks.installed`) — written as `true` even if no preset has been run.
+- **"Running"**: does not apply at module level; each project has its own state via `tmux has-session`.
 
-## 6. Registry (`~/.android_server_registry`)
+## 8. Registry (`~/.android_server_registry`)
 
 ```
 stacks.installed=true
-stacks.version=1.4.0
-stacks.presets=python-postgres,php-mysql,react-vite,html,linux-completo   # only if run without --preset
+stacks.version=1.5.0
+stacks.presets=python-postgres,php-mysql,react-vite,html,go,rust,java,dotnet,linux-completo   # only if run without --preset
 stacks.last_preset=<preset>       # after running a preset with --preset
 stacks.last_target=native|distro|fulldistro
 stacks.last_distro=<name or empty>
 stacks.last_flavor=debian|ubuntu
+stacks.last_extra=<extras>
 ```
 
-## 7. Design notes
+## 9. Files and paths it creates
 
-- **`linux-completo` has no button in `StacksFragment.kt`** — not a bug (the Entorno module covers the same use case), but it can confuse anyone who only reads the script and expects to see all 5 options in the UI.
-- **udocker does not expand `$HOME` in `--volume`** — it requires an absolute path, which is already what comes from the project's path via the app's folder browser.
-- **Real Docker is not an option** — without root, the Docker daemon (kernel namespaces/cgroups) isn't possible on Android; udocker (via PRoot) is the real "container" alternative in this environment.
+`~/kairos_logs/stacks_project_<hash>.log` (execution) and `..._install.log` (installation); `<rootfs>/root/<project-name>/` inside the distro (copy); udocker containers `kairos-proj-<hash>`; tmux sessions `proj-<hash>`; `venv/` and `node_modules/` inside the project folder (native); SharedPreferences `kairos_stacks_prefs`; module registry. The UI invokes the script from `~/scripts/install/stacks.sh`.
 
-## Screen controls
+## 10. Security
 
-### `StacksFragment.kt` — main screen ("Test Environments")
+- Secrets: the module stores none. Cloudflare Tunnel exposes the port publicly without authentication of its own (the user's decision on tapping).
+- **Arbitrary command execution by design**: the text of the command field goes as is inside `bash -c`/tmux; the **project path is interpolated between single quotes** (`cd '$p'`): a folder with a `'` in its name would break the command (robustness, not privilege escalation, because the user already controls the command).
+- `curl -sS https://getcomposer.org/installer | php` (`stacks.sh:1003`) is a curl|interpreter pattern with no hash; the cloudflared `.deb` is downloaded through `releases/latest/download` without a hash (`stacks.sh:392,429`). No sha256 for anything it downloads outside apt/pkg.
+- `--extra` installs pip/npm packages with the name received without validating against the catalog (the UI only sends those in the catalog, but the script accepts any value).
+- Permissions: it does no `chmod`; it uses the storage permissions already granted by the wizard.
 
-| Control | What it does |
-|---|---|
-| "Project (real folder)" | Navigates to `StacksProjectFragment` |
-| "Install native (Termux)" (per preset) | Runs `stacks.sh --preset <id> --silent` |
-| "Install in distro…" (per preset) | Picks a distro if more than one is installed, runs with `--distro <name>` — disabled if no proot distro is installed |
+## 11. Design notes and limitations
 
-### `StacksProjectFragment.kt` — "Project" (its own screen)
+- `linux-completo` can also be installed from the **Entorno** module ("📦 Install distro"), which covers the same case with its own flow.
+- **udocker does NOT expand `$HOME` in `--volume`** (see `UDOCKER.md`) — it requires an absolute path, which is what `$PROJECT_PATH` already carries from the folder browser.
+- **`udocker cp` deliberately discarded**: bind-mount (`--volume`) was preferred, confirmed in production (udocker variant of `n8n.sh`).
+- **Real Docker is not an option**: without root, `dockerd` (kernel namespaces/cgroups) is not possible on Android; udocker (via PRoot) is the "containers" alternative in this environment (see the header of `modulos/docker.sh`).
+- **`project_start` with `target=distro`** does `cd '$p'` with the **host** path, while `project_install_distro` copied the project to `/root/<name>` inside the rootfs (`stacks.sh:459-466` vs `656`). Unless proot exposes that host path inside the distro (not verified), the distro launch would point to a different folder from the installed one. This is a code fact; the effect on a device is not verified.
+- Composer is not automated in projects (only a `warn`), and `--extra laravel` only works in a distro.
+- Inferences (not verified): that the full `cp -r` of large projects (with `node_modules`) into the distro is slow; that the cloudflared `.deb` fails on non-Debian-based distros (apt is assumed).
 
-| Control | What it does |
-|---|---|
-| "PROJECTS" card: row per folder | Multiple folder selection — the backend supports concurrent projects (session/log/hash per path) |
-| "Add project folder" | Choose root (Termux Home / internal storage), browse real folders |
-| "DETECTION" card (read-only) | Detected stack + destination recommendation |
-| "Destination" dropdown (Native/Distro/udocker) | Changes the install destination — "Distro" opens a sub-dialog before confirming |
-| "Install real dependencies" | Real `npm install`/`venv+pip install`, not simulated — the confirmation message changes based on the chosen destination |
-| "Command to run" text field | Editable, pre-filled with a suggestion based on the detected stack |
-| "Background process" switch | Starts/stops the project in tmux |
-| "View live logs" | Native panel polling the project's log every 2s |
-| "Full terminal" (inside the logs dialog) | For very long logs where scrolling/searching in the real overlay is more convenient |
-| "Expose with Cloudflare (tunnel)" | Asks for the port, reuses the same tunnel mechanism as the rest of the app |
+## 12. Added on
 
-## Additional presets (go/rust/java/dotnet)
-
-Note: these presets live in `StacksPackagesFragment.kt` ("Required packages", accessible from a project's detail view), not in `StacksFragment.kt`.
-
-4 additional presets, confirmed against real Termux and Debian/Ubuntu packages:
-
-| Preset | Native (Termux) | Distro (Debian/Ubuntu via apt) |
-|---|---|---|
-| `go` | `pkg install golang` → `go` binary | `golang-go` (this is how Debian packages Go) |
-| `rust` | `pkg install rust` → `cargo` binary | `rustc cargo` (Debian splits them into 2 packages) |
-| `java` | `pkg install openjdk-21` → `java`/`javac` binaries | `default-jdk` (real metapackage that resolves to the available JDK) |
-| `dotnet` | No native package — the .NET SDK is only packaged for real Ubuntu/Debian via apt, it doesn't exist for Termux's libc | `dotnet-sdk-8.0` (LTS) — real note added to the post-install summary: compiling can fail on some devices due to a known `csc.dll` issue on ARM64/proot, a real limitation of .NET in this environment |
-
-`dotnet` is a special case in the UI: since it has no native install, its row doesn't offer the usual "install native" button — tapping it opens the distro selector directly.
-
-**proot-distro/udocker detection**: `modulos/stacks.sh` has real guards that clearly warn the user if `proot-distro` or `udocker` aren't installed, pointing to which module to install first. The UI also disables the "install in distro" button when no distro is installed, with the same message.
+`modulos/stacks.sh`: **2026-08-13**.

@@ -4,7 +4,8 @@
 #  TypeScript — npm install -g typescript (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/typescript/install.sh
-#  (mismo comando real: npm install -g typescript).
+#  (mismo comando real: npm install -g typescript) — ver ronda "paquetes
+#  adicionales core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash typescript.sh --silent
@@ -84,7 +85,7 @@ REGISTRY="$HOME/.android_server_registry"
 CHECKPOINT="$HOME/.install_typescript_checkpoint"
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
-# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # antes esto era "install_npm_global typescript typescript tsc" seguido del fix de plataforma
 # de abajo — pero install_npm_global() YA verifica "tsc --version" internamente (lib.sh,
 # verify_binary_installed) ANTES de devolver el control acá, y esa verificación SIEMPRE falla

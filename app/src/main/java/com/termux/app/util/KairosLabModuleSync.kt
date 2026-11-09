@@ -10,10 +10,11 @@ import java.net.URL
 /**
  * "Verificar actualizaciones de módulos" contra el repo público Kairos-Lab
  * (https://github.com/Honkonx/Kairos-Lab), que desde 2026-08-29 hospeda una copia real de
- * `modulos/` — se actualiza por lotes probados, no en cada
- * commit de kairos-dev, así que es una fuente "periódicamente refrescada", no bleeding-edge.
+ * `modulos/` (ver `.claude/rules/kairos-lab-batching.md` — se actualiza por lotes, no en cada
+ * commit de kairos-dev, así que es una fuente "periódicamente refrescada", no bleeding-edge).
  *
- * Bug real que este archivo resuelve: los scripts de `modulos/<id>.sh` se copian UNA sola vez de los assets del APK al HOME real de
+ * Bug real que este archivo resuelve (confirmado esta sesión, ver docs/humanoN.md de la ronda):
+ * los scripts de `modulos/<id>.sh` se copian UNA sola vez de los assets del APK al HOME real de
  * Termux (`~/scripts/install/<id>.sh`, ver [KairosBootstrap.doExtract]) — la re-extracción solo
  * se dispara si `versionCode` cambió (`KairosBootstrap.isAlreadyExtracted`), así que un rebuild
  * local sin bump de versión (el caso normal de un build debug de desarrollo) NUNCA vuelve a
@@ -108,23 +109,58 @@ object KairosLabModuleSync {
         return CheckResult(true, updatable = updatable, upToDate = upToDate, newlyTracked = newlyTracked)
     }
 
-    /** Descarga el script real desde `raw.githubusercontent.com`, lo escribe en la misma ruta
-     * que usa el resto de la app para ejecutar módulos (`~/scripts/install/<id>.sh` — ver
-     * [ModuleController.installModule], que arma la ruta con este mismo directorio), lo marca
-     * ejecutable y guarda el sha nuevo como "último sincronizado". Bloqueante. */
+    /** Descarga el script real desde `raw.githubusercontent.com`, lo valida con `bash -n` en un
+     * archivo temporal ANTES de tocar el script real (`~/scripts/install/<id>.sh`, ver
+     * [ModuleController.installModule]), y solo lo reemplaza si la validación pasó — patrón de
+     * "health-check antes de aplicar, nunca dejar el módulo en un estado roto" adaptado del
+     * self-update de `referencia/herramientas/` (`vibeworks`, `scripts/vibeworks-update.sh`:
+     * health-check + rollback automático tras un self-update — ver
+     * `docs/referencias/herramientas/REFERENCIA_VIBEWORKS.md`). Simplificado respecto al
+     * original: en vez de backup+restore explícito, el script real nunca se toca hasta que la
+     * validación de sintaxis del nuevo contenido ya pasó — un fallo a mitad de descarga o un
+     * script remoto corrupto nunca deja `dest` en un estado peor que el que tenía antes de
+     * llamar a esta función. Se guarda además una copia `.bak` del script anterior (si existía)
+     * para recuperación manual, sin que la app dependa de leerla. Bloqueante. */
     fun applyUpdate(context: Context, remote: RemoteScript): ApplyResult {
         val raw = httpGet("$RAW_BASE_URL/${remote.fileName}", acceptJson = false)
             ?: return ApplyResult(remote.moduleId, false, "No se pudo descargar ${remote.fileName}")
+        if (raw.isBlank()) {
+            return ApplyResult(remote.moduleId, false, "Descarga vacía de ${remote.fileName} — descartada, no se tocó el script actual")
+        }
         return try {
-            val dest = File(installDir(), remote.fileName)
-            dest.writeText(raw)
+            val dir = installDir()
+            val dest = File(dir, remote.fileName)
+            val tmp = File(dir, "${remote.fileName}.tmp-update")
+            tmp.writeText(raw)
+
+            // Health-check: el nuevo contenido debe ser bash sintácticamente válido antes de
+            // reemplazar nada — mismo espíritu que `verify_binary_installed()` en `modulos/
+            // lib.sh` (.claude/rules/empirical-verification-before-fix.md): no confiar en que
+            // "la descarga terminó con HTTP 200" sea suficiente post-condición.
+            val (rc, _, err) = ManagerNativeUtils.runShell("bash -n '${tmp.absolutePath}'", 10)
+            if (rc != 0) {
+                tmp.delete()
+                return ApplyResult(
+                    remote.moduleId, false,
+                    "El script descargado de Kairos-Lab no pasó bash -n (sintaxis inválida) — no se aplicó, el módulo sigue con la versión anterior. Detalle: $err"
+                )
+            }
+
+            if (dest.exists()) {
+                dest.copyTo(File(dir, "${remote.fileName}.bak"), overwrite = true)
+            }
+            if (!tmp.renameTo(dest)) {
+                // Fallback si renameTo cruza filesystems o falla por otro motivo — copia+borra.
+                dest.writeText(tmp.readText())
+                tmp.delete()
+            }
             // chmod +x vía shell (mismo patrón que TunnelManager.kt/RemoteManager.kt para
             // marcar binarios/scripts descargados como ejecutables) en vez de
             // File.setExecutable() — consistente con el resto de escrituras de archivos
             // ejecutables descargados de la red en este proyecto.
-            val (rc, _, err) = ManagerNativeUtils.runShell("chmod +x '${dest.absolutePath}'", 10)
-            if (rc != 0) {
-                return ApplyResult(remote.moduleId, false, "Descargado pero chmod +x falló: $err")
+            val (chmodRc, _, chmodErr) = ManagerNativeUtils.runShell("chmod +x '${dest.absolutePath}'", 10)
+            if (chmodRc != 0) {
+                return ApplyResult(remote.moduleId, false, "Aplicado pero chmod +x falló: $chmodErr")
             }
             storeSha(context, remote.moduleId, remote.sha)
             ApplyResult(remote.moduleId, true)

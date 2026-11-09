@@ -18,6 +18,7 @@
     <color name="kairos_green">#22C55E</color>
     <color name="kairos_red">#EF4444</color>
     <color name="kairos_amber">#F59E0B</color>
+    <color name="kairos_purple">#6366F1</color>
 
     <!-- Bordes -->
     <color name="kairos_border">#1F1F1F</color>

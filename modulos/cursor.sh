@@ -35,7 +35,7 @@
 #    [OK]/[WARN]/[ERROR] mensaje
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux v4.25.0)
+#  VERSIÓN: 1.0.0 | Agosto 2026 (nuevo módulo, candidato core-termux v4.25.0,
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -161,8 +161,7 @@ else
 
   if $_GLIBC_MISSING; then
     info "glibc no detectado — instalando glibc-repo..."
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y glibc-repo \
       -o Dpkg::Options::="--force-confdef" \
@@ -180,8 +179,7 @@ else
 
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
@@ -241,7 +239,7 @@ else
       fi
     fi
   fi
-  # verify_binary_installed() en vez de command -v a secas (2026-08-22)
+  # verify_binary_installed en vez de command -v a secas (2026-08-22,)
   # — corre DESPUÉS del fix de shebang/patchelf de arriba (antes de eso, "cursor-agent --version"
   # está garantizado a fallar, sería un falso negativo).
   verify_binary_installed cursor-agent || error "cursor-agent no ejecuta tras la instalación (ni con el fix de shebang/patchelf aplicado) — revisá manualmente: $_CURSOR_BIN --version"

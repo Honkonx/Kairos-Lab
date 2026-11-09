@@ -2,7 +2,7 @@
 # ============================================================
 #  kairos-app · stacks.sh (silent mode)
 #  Módulo Entornos de Prueba: catálogo de recetas de desarrollo
-#  (pedido explícito del usuario)
+# (pedido explícito del usuario,)
 #
 #  A diferencia del resto de modulos/*.sh, este NO instala un paquete
 #  propio — es un catálogo que reutiliza módulos ya existentes
@@ -46,7 +46,7 @@
 #                     distro: nodejs npm
 #    html             nativo: pkg python (sin build, `python3 -m http.server`)
 #                     distro: python3
-#                     (pedido explícito: "python,php,reac,
+# (pedido explícito,: "python,php,reac,
 #                     vite,html,tyscript,javascript" — TS/JS ya cubiertos por react-vite,
 #                     este preset cierra el caso "solo HTML/CSS/JS vanilla sin Node")
 #    linux-completo   SIEMPRE vía proot-distro (nunca nativo) — instala una distro Linux
@@ -77,8 +77,8 @@
 #                            para arrancar cada pieza) — la UI filtra
 #                            estas líneas para mostrar el resultado.
 #
-#  MODO PROYECTO REAL (--project-path, agregado en v1.2.0, a pedido de
-#  "tengo un proyecto que usa python y sqlite en
+#  MODO PROYECTO REAL (--project-path, agregado en v1.2.0, ver
+#  docs/humano/ del pedido "tengo un proyecto que usa python y sqlite en
 #  backend y react+vite o html/javascript en frontend"):
 #    bash stacks.sh --project-path <carpeta> --project-action detect --silent
 #    bash stacks.sh --project-path <carpeta> --project-action install [--project-target native|distro|udocker] [--project-distro <nombre>] --silent
@@ -313,7 +313,7 @@ project_install_native() {
 # de proot-distro), en vez de solo chequear la ruta legacy a secas.
 _distro_is_installed() {
   local name="$1"
-  # Bug real de layout dual (ronda 2026-09-09 — mismo hallazgo ya
+  # Bug real de layout dual (ronda 2026-09-09, — mismo hallazgo ya
   # corregido en entorno.sh/_proot_distros() y en ciberseguridad.sh/cactus.sh): proot-distro
   # v5.x moderno usa containers/<name>/rootfs, "list-installed" ya no existe como
   # subcomando (error real a stderr) — "list -q" es el fallback confiable en cualquier
@@ -432,7 +432,7 @@ _install_essentials() {
 }
 
 # Instalación REAL dentro de la distro (ya no es un MVP de "copiar y sugerir"
-# — a pedido de "automatizalo de verdad, al mismo nivel
+# — ver docs/humano/ de este pedido: "automatizalo de verdad, al mismo nivel
 # que nativo/udocker"). Copia el proyecto dentro del rootfs real de la distro
 # (resuelto vía _distro_rootfs_dir(), layout dual — ver ese comentario para el
 # bug real que esto reemplazó) y después instala el set completo de paquetes
@@ -954,7 +954,7 @@ install_full_distro_preset() {
 }
 
 # ============================================================
-#  Paquetes extra por preset (2026-08-23, pedido
+# Paquetes extra por preset (2026-08-23,, pedido
 #  explícito: "en entorno faltan muchas configuracion o lenjuagesm tipo
 #  fash api de python, entre muchos mas, investiga y agregalos") — el
 #  preset instala el runtime base (python3/nodejs/php), --extra agrega

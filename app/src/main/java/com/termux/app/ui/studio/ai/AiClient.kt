@@ -1,5 +1,8 @@
 package com.termux.app.ui.studio.ai
 
+import com.termux.app.util.AiCompany
+import com.termux.app.util.AiProviders
+import com.termux.app.util.LocalAiEndpoints
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.ConnectException
@@ -39,6 +42,17 @@ object AiClient {
      *  AiProviderSettingsActivity y despacha al backend correcto. */
     fun askWithPrefs(prefs: AiProviderPrefs, prompt: String): AiResult {
         val provider = prefs.getSelectedProvider()
+        if (provider == AiCompany.CUSTOM) {
+            val baseUrl = prefs.getCustomBaseUrl()
+            val model = prefs.getCustomModel()
+            if (baseUrl.isBlank() || model.isBlank()) {
+                return AiResult.Error(
+                    "Falta la URL base o el modelo del proveedor Personalizado — configuralos en " +
+                        "Proveedor de IA antes de preguntar."
+                )
+            }
+            return ask(provider, prefs.getApiKey(provider), prompt, customUrl = baseUrl, customModel = model)
+        }
         if (provider.requiresApiKey) {
             val apiKey = prefs.getApiKey(provider)
             if (apiKey.isBlank()) {
@@ -52,22 +66,24 @@ object AiClient {
         return ask(provider, "", prompt)
     }
 
-    fun ask(provider: AiProvider, apiKey: String, prompt: String): AiResult {
+    /** [customUrl]/[customModel] solo aplican (y son obligatorios) para [AiCompany.CUSTOM] —
+     *  ver [askWithPrefs]. */
+    fun ask(
+        provider: AiCompany,
+        apiKey: String,
+        prompt: String,
+        customUrl: String? = null,
+        customModel: String? = null
+    ): AiResult {
         return try {
-            if (provider == AiProvider.LOCAL) askLocal(prompt) else askCloud(provider, apiKey, prompt)
+            if (provider == AiCompany.LOCAL) askLocal(prompt)
+            else askCloud(provider, apiKey, prompt, customUrl, customModel)
         } catch (e: Exception) {
             AiResult.Error(e.message ?: e.toString())
         }
     }
 
-    private fun providerDisplayName(provider: AiProvider) = when (provider) {
-        AiProvider.GEMINI -> "Gemini"
-        AiProvider.DEEPSEEK -> "DeepSeek"
-        AiProvider.OPENAI -> "OpenAI"
-        AiProvider.ANTHROPIC -> "Anthropic"
-        AiProvider.GROK -> "Grok"
-        AiProvider.LOCAL -> "Ollama/llama.cpp local"
-    }
+    private fun providerDisplayName(provider: AiCompany) = provider.label
 
     // ── Proveedores cloud (BYO API key) ────────────────────────────────────────────────
 
@@ -79,45 +95,38 @@ object AiClient {
     )
 
     /**
-     * Spec de request por proveedor — mismos endpoints reales que
-     * ChatFragment.cloudRequestSpec() en Kairos:
-     *   - Gemini:    POST generativelanguage.googleapis.com/.../generateContent?key=KEY
-     *   - DeepSeek:  POST api.deepseek.com/chat/completions        (Bearer)
-     *   - OpenAI:    POST api.openai.com/v1/chat/completions       (Bearer)
-     *   - Anthropic: POST api.anthropic.com/v1/messages            (x-api-key + anthropic-version)
-     *   - Grok:      POST api.x.ai/v1/chat/completions             (Bearer)
+     * Spec de request por proveedor — URL y modelo por defecto vienen de `AiProviders`
+     * (unificado con el Agente Kairos, 2026-10-31, ver KDoc de `AiCompany`). Anthropic queda
+     * con su formato nativo propio (`/v1/messages`, headers `x-api-key`/`anthropic-version`);
+     * el resto (OpenAI/Google/OpenRouter/Ollama Cloud/DeepSeek/Grok) son compatibles-OpenAI —
+     * mismo `openAiBody()` + header `Authorization: Bearer`. Google antes usaba acá el formato
+     * NATIVO de Gemini (`generateContent`) — se unificó al endpoint compatible-OpenAI real que
+     * ya usa `AiProviders.chatUrl()` para que ambas pantallas (IDE y Agente) hablen el mismo
+     * formato con Google.
      */
-    private fun cloudRequestSpec(provider: AiProvider, apiKey: String, prompt: String): CloudSpec {
-        return when (provider) {
-            AiProvider.GEMINI -> CloudSpec(
-                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey",
-                headers = emptyMap(),
-                body = JSONObject().apply {
-                    put("contents", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("parts", JSONArray().apply { put(JSONObject().apply { put("text", prompt) }) })
-                        })
-                    })
-                },
-                contentPath = "candidates[0].content.parts[0].text"
-            )
-            AiProvider.DEEPSEEK -> CloudSpec(
-                url = "https://api.deepseek.com/chat/completions",
-                headers = mapOf("Authorization" to "Bearer $apiKey"),
-                body = openAiBody("deepseek-chat", prompt),
+    private fun cloudRequestSpec(
+        provider: AiCompany,
+        apiKey: String,
+        prompt: String,
+        customUrl: String?,
+        customModel: String?
+    ): CloudSpec {
+        if (provider == AiCompany.CUSTOM) {
+            // Mismo formato OpenAI-compatible que el resto (openAiBody + Authorization: Bearer) —
+            // la única diferencia real es que la URL/modelo vienen del usuario, no de AiProviders.
+            return CloudSpec(
+                url = AiProviders.customCompletionsUrl(customUrl.orEmpty()),
+                headers = if (apiKey.isBlank()) emptyMap() else mapOf("Authorization" to "Bearer $apiKey"),
+                body = openAiBody(customModel.orEmpty(), prompt),
                 contentPath = "choices[0].message.content"
             )
-            AiProvider.OPENAI -> CloudSpec(
-                url = "https://api.openai.com/v1/chat/completions",
-                headers = mapOf("Authorization" to "Bearer $apiKey"),
-                body = openAiBody("gpt-4o-mini", prompt),
-                contentPath = "choices[0].message.content"
-            )
-            AiProvider.ANTHROPIC -> CloudSpec(
-                url = "https://api.anthropic.com/v1/messages",
+        }
+        if (provider == AiCompany.ANTHROPIC) {
+            return CloudSpec(
+                url = AiProviders.chatUrl(provider),
                 headers = mapOf("x-api-key" to apiKey, "anthropic-version" to "2023-06-01"),
                 body = JSONObject().apply {
-                    put("model", "claude-3-5-haiku-latest")
+                    put("model", AiProviders.fallbackModel(provider))
                     put("max_tokens", 1024)
                     put("messages", JSONArray().apply {
                         put(JSONObject().apply { put("role", "user"); put("content", prompt) })
@@ -125,14 +134,13 @@ object AiClient {
                 },
                 contentPath = "content[0].text"
             )
-            AiProvider.GROK -> CloudSpec(
-                url = "https://api.x.ai/v1/chat/completions",
-                headers = mapOf("Authorization" to "Bearer $apiKey"),
-                body = openAiBody("grok-2-latest", prompt),
-                contentPath = "choices[0].message.content"
-            )
-            AiProvider.LOCAL -> throw IllegalArgumentException("LOCAL no usa cloudRequestSpec — ver askLocal()")
         }
+        return CloudSpec(
+            url = AiProviders.chatUrl(provider),
+            headers = mapOf("Authorization" to "Bearer $apiKey"),
+            body = openAiBody(AiProviders.fallbackModel(provider), prompt),
+            contentPath = "choices[0].message.content"
+        )
     }
 
     /** Body OpenAI-compatible (deepseek/openai/grok comparten /chat/completions). */
@@ -143,8 +151,14 @@ object AiClient {
         })
     }
 
-    private fun askCloud(provider: AiProvider, apiKey: String, prompt: String): AiResult {
-        val spec = cloudRequestSpec(provider, apiKey, prompt)
+    private fun askCloud(
+        provider: AiCompany,
+        apiKey: String,
+        prompt: String,
+        customUrl: String? = null,
+        customModel: String? = null
+    ): AiResult {
+        val spec = cloudRequestSpec(provider, apiKey, prompt, customUrl, customModel)
         val conn = URL(spec.url).openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "POST"

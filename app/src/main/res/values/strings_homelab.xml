@@ -3,15 +3,86 @@
     <!-- HomelabFragment.kt — strings visibles al usuario (español) -->
 
     <string name="homelab_title">Homelab</string>
-    <string name="homelab_subtitle">Panel de tu red — este dispositivo y tus servicios self-hosted</string>
+    <string name="homelab_subtitle">Panel de control y monitoreo del dispositivo — para acceso por terminal, ver Remote (SSH)</string>
 
     <string name="more_sheet_homelab">Homelab</string>
+
+    <!-- Pestañas (rediseño 2026-09-16, ver docs/modulos/HOMELAB.md). "Panel" se partió en
+         "Principal"+"Gateway" el 2026-10-30: MonitorFragment.kt se
+         eliminó, su contenido se adaptó acá. -->
+    <string name="homelab_tab_principal">Principal</string>
+    <string name="homelab_tab_gateway">Gateway</string>
+    <string name="homelab_tab_modulos">Módulos</string>
+    <string name="homelab_tab_servicios">Servicios</string>
+    <string name="homelab_tab_automatizaciones">Automatizaciones</string>
+
+    <!-- Pestaña "Principal" — info de dispositivo + módulos por categoría (portado de
+         MonitorFragment.kt, 2026-10-30) -->
+    <string name="homelab_panel_section_dispositivo">DISPOSITIVO</string>
+    <string name="homelab_gateway_quick_label">GATEWAY (RÁPIDO)</string>
+    <string name="homelab_gateway_status_running_short">Encendido</string>
+    <string name="homelab_section_ai_engines">MOTORES DE IA</string>
+    <string name="homelab_section_cli_tools">HERRAMIENTAS CLI</string>
+    <string name="homelab_section_databases">BASES DE DATOS</string>
+    <string name="homelab_section_desktop">ESCRITORIO</string>
+    <string name="homelab_section_pm2">PROCESOS (PM2)</string>
+
+    <!-- Pestaña "Panel" — métricas del sistema -->
+    <string name="homelab_panel_cpu">CPU</string>
+    <string name="homelab_panel_ram">RAM</string>
+    <string name="homelab_panel_storage">Almacenamiento</string>
+    <string name="homelab_panel_temp">Temperatura</string>
+    <string name="homelab_panel_battery">Batería</string>
+    <string name="homelab_panel_network">Red</string>
+    <string name="homelab_panel_ip">IP local</string>
+    <string name="homelab_panel_ram_value">%1$d / %2$d MB (%3$d%%)</string>
+    <string name="homelab_panel_storage_value">%1$.1f / %2$.1f GB (%3$d%%)</string>
+    <string name="homelab_panel_temp_value">%1$.1f°C</string>
+    <string name="homelab_panel_battery_value">%1$d%%</string>
+    <string name="homelab_panel_network_wifi">Wi-Fi</string>
+    <string name="homelab_panel_network_datos_moviles">Datos móviles</string>
+    <string name="homelab_panel_network_ethernet">Ethernet</string>
+    <string name="homelab_panel_network_otro">Otra</string>
+    <string name="homelab_panel_network_sin_conexion">Sin conexión</string>
+    <string name="homelab_panel_network_con_internet"> · con internet</string>
+    <string name="homelab_panel_network_sin_internet"> · sin internet</string>
+    <string name="homelab_panel_section_tendencia">TENDENCIA (ÚLTIMOS ~2 MIN)</string>
+    <string name="homelab_panel_section_modulos">MÓDULOS CORRIENDO</string>
+    <string name="homelab_panel_modulos_vacio">Ningún módulo con proceso propio está corriendo ahora mismo</string>
+
+    <!-- Pestaña "Panel" — panel web de control -->
+    <string name="homelab_section_panel_web">PANEL WEB (VPS/HOMELAB)</string>
+    <string name="homelab_panel_web_desc">Controlá este dispositivo desde cualquier navegador — métricas en vivo, iniciar/detener módulos y ver tus automatizaciones.</string>
+    <string name="homelab_webpanel_status_activo">Activo — puerto %1$d</string>
+    <string name="homelab_webpanel_status_detenido">Detenido</string>
+    <string name="homelab_webpanel_btn_iniciar">Iniciar</string>
+    <string name="homelab_webpanel_btn_detener">Detener</string>
+    <string name="homelab_webpanel_btn_cloudflare">Túnel Cloudflare</string>
+    <string name="homelab_webpanel_btn_detener_tunel">Detener túnel</string>
+    <string name="homelab_webpanel_btn_copiar">Copiar enlace</string>
+    <string name="homelab_webpanel_url_local">URL local</string>
+    <string name="homelab_webpanel_url_publica">URL pública (túnel)</string>
+    <string name="homelab_msg_servidor_iniciado">Panel web iniciado</string>
+    <string name="homelab_msg_no_se_pudo_iniciar_puerto">No se pudo iniciar el panel web en el puerto %1$d</string>
+    <string name="homelab_webpanel_autostart_label">Iniciar panel web al encender el teléfono</string>
+    <string name="homelab_tile_label">Homelab</string>
+    <string name="homelab_msg_servidor_detenido">Panel web detenido</string>
+    <string name="homelab_msg_iniciando_tunel">Iniciando túnel (%1$s)…</string>
+    <string name="homelab_msg_tunel_detenido">Túnel detenido</string>
+    <string name="homelab_msg_tunel_sin_url">El túnel tardó demasiado en dar una URL — revisá Ajustes o probá de nuevo</string>
+    <string name="homelab_error_fmt">Error: %1$s</string>
+    <string name="homelab_msg_url_copiada">Enlace copiado</string>
 
     <!-- Sección "Este dispositivo" -->
     <string name="homelab_section_este_dispositivo">ESTE DISPOSITIVO</string>
     <string name="homelab_device_remote">Remote (SSH)</string>
     <string name="homelab_device_sin_modulos_http">Ningún módulo con servicio HTTP corriendo ahora mismo</string>
     <string name="homelab_status_activo">Activo</string>
+    <string name="homelab_btn_detener">Detener</string>
+    <string name="homelab_stop_module_title">Detener %1$s?</string>
+    <string name="homelab_stop_module_message">Se ejecutará la acción de parada definida para este módulo.</string>
+    <string name="homelab_stop_module_done">%1$s detenido.</string>
+    <string name="homelab_stop_module_failed">No se pudo detener %1$s.</string>
 
     <!-- Sección "Servicios" -->
     <string name="homelab_section_servicios">SERVICIOS</string>
@@ -23,9 +94,16 @@
     <string name="homelab_btn_cancelar">Cancelar</string>
 
     <!-- Tipos de servicio -->
-    <string name="homelab_type_docker">Docker / Portainer</string>
+    <string name="homelab_type_docker">Docker</string>
     <string name="homelab_type_pihole">Pi-hole</string>
     <string name="homelab_type_proxmox">Proxmox</string>
+    <!-- Agregados 2026-11-05, checklist de la app "Homelab" de F-Droid (34+ servicios
+         reconocidos de fábrica), ver HomelabManager.ServiceType -->
+    <string name="homelab_type_portainer">Portainer</string>
+    <string name="homelab_type_adguard">AdGuard Home</string>
+    <string name="homelab_type_gitea">Gitea</string>
+    <string name="homelab_type_plex">Plex</string>
+    <string name="homelab_type_beszel">Beszel</string>
     <string name="homelab_type_http">HTTP genérico</string>
     <string name="homelab_type_otro">Otro</string>
 
@@ -49,4 +127,72 @@
     <string name="homelab_dialog_title_eliminar_servicio">Eliminar servicio</string>
     <string name="homelab_dialog_msg_eliminar_servicio">¿Eliminar \"%1$s\"? Esta acción no se puede deshacer.</string>
     <string name="homelab_dialog_msg_borrar_token">¿Borrar el token/contraseña guardado de \"%1$s\"?</string>
+
+    <string name="homelab_fab_agregar">+ Agregar servicio</string>
+
+    <!-- Acceso SSH a Termux desde Homelab (2026-10-08) -->
+    <string name="homelab_ssh_section">ACCESO SSH A TERMUX</string>
+    <string name="homelab_ssh_desc">Entra a la terminal de Termux desde otro equipo de tu red con SSH. La contraseña y las claves se gestionan en Opciones.</string>
+    <string name="homelab_ssh_status_on">SSH activo · puerto %1$d · %2$d conexiones</string>
+    <string name="homelab_ssh_status_off">SSH detenido</string>
+    <string name="homelab_ssh_btn_start">Iniciar SSH</string>
+    <string name="homelab_ssh_btn_stop">Detener SSH</string>
+    <string name="homelab_ssh_btn_copy">Copiar comando</string>
+    <string name="homelab_ssh_btn_options">Opciones</string>
+    <string name="homelab_ssh_toast_starting">Iniciando SSH…</string>
+    <string name="homelab_ssh_toast_started">SSH iniciado</string>
+    <string name="homelab_ssh_toast_start_failed">No se pudo iniciar SSH: %1$s</string>
+    <string name="homelab_ssh_toast_stopped">SSH detenido</string>
+    <string name="homelab_ssh_toast_stop_failed">No se pudo detener SSH</string>
+    <string name="homelab_ssh_toast_copied">Comando copiado</string>
+    <string name="homelab_panel_cpu_cores">%1$d núcleos</string>
+
+    <!-- Gateway -->
+    <string name="homelab_gateway_label">GATEWAY</string>
+    <string name="homelab_gateway_desc">Puerta con permisos para el Agente y otros clientes.</string>
+    <string name="homelab_gateway_status_running">Activo · puerto %1$d · %2$s</string>
+    <string name="homelab_gateway_status_stopped">Detenido</string>
+    <string name="homelab_gateway_btn_start">Iniciar</string>
+    <string name="homelab_gateway_btn_stop">Detener</string>
+    <string name="homelab_gateway_btn_permissions">Permisos</string>
+    <string name="homelab_gateway_access_localhost">Solo este teléfono</string>
+    <string name="homelab_gateway_access_lan">Red local</string>
+    <string name="homelab_gateway_lan_warning">Sin cifrar: úsalo solo en una red de confianza o con un túnel.</string>
+    <string name="homelab_gateway_btn_open">Abrir en el navegador</string>
+    <string name="homelab_gateway_btn_copy_link">Copiar enlace</string>
+    <string name="homelab_gateway_btn_tunnel">Túnel</string>
+    <string name="homelab_gateway_btn_address">IP o dirección</string>
+    <string name="homelab_gateway_address_hint">192.168.1.20 o https://mi.dominio.com</string>
+    <string name="homelab_gateway_link">Enlace: %1$s</string>
+    <string name="homelab_gateway_no_browser">No hay navegador para abrir el enlace</string>
+    <string name="homelab_gateway_ngrok_needs_token">Configura primero el token de ngrok en Túnel</string>
+    <string name="homelab_gateway_toast_started">Gateway iniciado</string>
+    <string name="homelab_gateway_toast_failed">No se pudo iniciar: %1$s</string>
+    <string name="homelab_gateway_toast_stopped">Gateway detenido</string>
+    <string name="gateway_perm_title">Permisos del gateway</string>
+    <string name="gateway_perm_max">Nivel máximo permitido</string>
+    <string name="gateway_level_read">Lectura</string>
+    <string name="gateway_level_read_desc">Solo consulta.</string>
+    <string name="gateway_level_ask">Pregunta</string>
+    <string name="gateway_level_ask_desc">Todo, pero lo que cambia algo se confirma contigo.</string>
+    <string name="gateway_level_semi">Semi-total</string>
+    <string name="gateway_level_semi_desc">Sin preguntar, salvo lo peligroso.</string>
+    <string name="gateway_level_full">Total</string>
+    <string name="gateway_level_full_desc">Todo sin preguntar.</string>
+    <string name="gateway_perm_responsible">Soy responsable de lo que pase al dar estos permisos</string>
+    <string name="gateway_perm_needs_responsible">Marca la casilla de responsabilidad para usar Semi-total o Total.</string>
+    <string name="gateway_perm_saved">Permisos guardados</string>
+    <string name="gateway_perm_save_failed">No se pudo guardar</string>
+    <string name="gateway_perm_unreachable">El gateway no responde. Inícialo primero.</string>
+    <string name="gateway_tokens_title">Tokens</string>
+    <string name="gateway_tokens_empty">Sin tokens</string>
+    <string name="gateway_token_new">Crear token</string>
+    <string name="gateway_token_name_hint">Nombre (ej. agente)</string>
+    <string name="gateway_token_revoke">Revocar</string>
+    <string name="gateway_token_created_title">Token creado</string>
+    <string name="gateway_token_created_msg">Cópialo ahora: no se vuelve a mostrar.</string>
+    <string name="gateway_token_copy">Copiar</string>
+    <string name="gateway_token_copied">Token copiado</string>
+    <string name="gateway_save">Guardar</string>
+    <string name="gateway_close">Cerrar</string>
 </resources>

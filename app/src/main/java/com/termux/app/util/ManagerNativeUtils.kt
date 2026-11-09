@@ -41,9 +41,9 @@ object ManagerNativeUtils {
      *  contra el mismo lock, no uno por manager (consolidación 2026-08-13, ver auditoría). */
     val registryLockFile: File get() = File(home, ".android_server_registry.lock")
 
-    // Rutas absolutas en vez de nombre relativo — bug real confirmado, usado por
-    // EntornoNative.kt entre otros, ya con bugs reales confirmados y parcheados con
-    // timeouts en rondas previas.
+    // Rutas absolutas en vez de nombre relativo — bug real confirmado esta sesión (ver
+    //), usado por EntornoNative.kt entre otros, ya con bugs reales
+    // confirmados y parcheados con timeouts en rondas previas.
     fun tmuxHas(session: String): Boolean =
         runExec(listOf(TERMUX_TMUX_PATH, "has-session", "-t", session), 5).first == 0
 
@@ -103,8 +103,8 @@ object ManagerNativeUtils {
      * cómo se arma el [ProcessBuilder] y si hay [stdin] que escribir; el resto (lectura de
      * stdout/stderr en threads separados, orden waitFor→destroyForcibly→join, manejo de
      * timeout) era código idéntico copiado 3 veces. Ya causó un bug real de divergencia: el
-     * fix de orden destroyForcibly()-antes-de-join() (2026-08-24, "claude doctor" colgado
-     * ~2min pese al timeout de 30s) se aplicó a runExec()/runShell()
+     * fix de orden destroyForcibly-antes-de-join (2026-08-24,,
+     * "claude doctor" colgado ~2min pese al timeout de 30s) se aplicó a runExec()/runShell()
      * pero se había olvidado en runExecWithStdin() en la ronda siguiente — con un solo helper,
      * el próximo fix de este tipo solo hace falta aplicarlo una vez.
      *
@@ -154,10 +154,21 @@ object ManagerNativeUtils {
     /**
      * Igual que [runExec] pero escribe [stdin] al proceso y cierra su stream de entrada antes
      * de esperar la salida — para binarios como `vncpasswd` que solo aceptan la contraseña de
-     * forma interactiva por stdin, nunca por argv (ver EntornoNative.vncSetPassword(), humano202).
+     * forma interactiva por stdin, nunca por argv (ver EntornoNative.vncSetPassword).
      */
     fun runExecWithStdin(args: List<String>, stdin: String, timeoutSeconds: Long = 15): Triple<Int, String, String> =
         runProcessWithTimeout(ProcessBuilder(args), timeoutSeconds, stdin)
+
+    /**
+     * Igual que [runExec] pero con variables de entorno extra solo para ESE proceso — para
+     * binarios que reciben un secreto por entorno y no por argv (ej. `restic` con RESTIC_PASSWORD,
+     * ver HomelabAddons.kt): el valor nunca queda en la línea de comandos visible ni se guarda.
+     */
+    fun runExecWithEnv(args: List<String>, env: Map<String, String>, timeoutSeconds: Long = 30): Triple<Int, String, String> {
+        val pb = ProcessBuilder(args)
+        pb.environment().putAll(env)
+        return runProcessWithTimeout(pb, timeoutSeconds)
+    }
 
     /**
      * Corre un comando vía `bash -c` — solo para los pocos casos que de verdad

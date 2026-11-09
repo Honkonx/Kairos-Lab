@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Descripciones de accesibilidad (TalkBack) para botones que solo muestran un ícono/emoji
+         (auditoría 2026-10-07). -->
+    <string name="a11y_close">Cerrar</string>
+    <string name="a11y_settings">Configuración</string>
+    <string name="a11y_more_options">Más opciones</string>
+    <string name="a11y_delete">Eliminar</string>
+    <string name="a11y_back">Atrás</string>
+    <string name="a11y_forward">Adelante</string>
+    <string name="a11y_reload">Recargar</string>
+</resources>

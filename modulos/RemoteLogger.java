@@ -1,7 +1,7 @@
 // RemoteLogger.java — API Java inyectada por la instrumentación "sin root" de
 // compil-apk-termux (ver modulos/apk.sh, cmd_instrument). Fuente:
 // VictorH028/no-root-logger (https://github.com/VictorH028/no-root-logger),
-// portado tal cual salvo el paquete (com.deadnote -> com.kairos.logger).
+// portado tal cual salvo el paquete (com.deadnote -> com.kairos.logger). Ver
 package com.kairos.logger;
 
 public final class RemoteLogger {

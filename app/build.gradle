@@ -116,9 +116,10 @@ android {
         // Versionado propio de Kairos desde acá (antes seguía el contador heredado de
         // termux-app, "0.126.0" — sin relación real con la madurez del proyecto). versionCode
         // se mantiene monotónico (Android lo exige para cualquier mecanismo de actualización),
-        // versionName pasa a reflejar el estado real: beta temprana.
-        versionCode 127
-        versionName "0.1.0"
+        // versionName pasa a reflejar el estado real: beta temprana. 2026-10-09: beta 0.2.0 (el usuario lo
+        // fijó así: release normal, no pre-release, pero sigue siendo beta, mensaje 7).
+        versionCode 128
+        versionName "0.2.0"
 
         if (appVersionCodeOverride) versionCode = appVersionCodeOverride.toInteger()
         if (appVersionName) versionName = appVersionName
@@ -129,9 +130,9 @@ android {
         // última Release de GitHub, resuelto vía el link "latest/download" (no depende de saber
         // el tag exacto). Apunta a Honkonx/kairos-lab (repo PÚBLICO), NUNCA a kairos-dev
         // (privado) — mismo criterio ya fijado para el rootfs embebido más abajo en este archivo
-        // (ver rootfsRepoName/comentario "Apunta al futuro repo PÚBLICO kairos-lab" —
-        // decisión explícita: ningún link de descarga (rootfs, paquetes, update) debe apuntar al
-        // repo privado kairos-dev). Consecuencia real HOY, aceptada a propósito (mismo trade-off
+        // (ver rootfsRepoName/comentario "Apunta al futuro repo PÚBLICO kairos-lab" y
+        //: "ningún link de descarga (rootfs, paquetes, update) debe apuntar al
+        // repo privado kairos-dev"). Consecuencia real HOY, aceptada a propósito (mismo trade-off
         // que el rootfs): este chequeo falla (404) hasta que kairos-lab tenga una Release real
         // con este asset publicado — AppUpdater.check() debe tratar ese 404 como "sin
         // actualización disponible todavía", no como un crash.
@@ -265,11 +266,17 @@ android {
         // com.termux.databinding.ActivityStudio*Binding a partir de los layouts studio_*.xml.
         // Ver docs/ide/IDE_INTEGRADO.md.
         viewBinding true
+        // AIDL para IKairosPrivilegedService (Alcance B, 2026-10-31, docs/arquitectura/
+        // PLAN_ADB_USB_GATEWAY_2026-10-31.md) — mismo buildFeature que ya usa x11-server para
+        // su propio .aidl.
+        aidl true
     }
 }
 
 dependencies {
     testImplementation "junit:junit:4.13.2"
+    // org.json real para probar parsers JSON en tests unitarios (el de android.jar es un stub que lanza excepción).
+    testImplementation "org.json:json:20240303"
     testImplementation "org.robolectric:robolectric:4.16"
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:1.1.5"
 
@@ -278,6 +285,8 @@ dependencies {
     // par de librerías que usan ellos para su formato .rat, ver docs/bootstrap/ROOTFS_EMBEBIDO.md).
     implementation "org.apache.commons:commons-compress:1.27.1"
     implementation "org.tukaani:xz:1.9"
+    // Commons Compress delega Zstandard a esta biblioteca opcional (BSD-2-Clause).
+    implementation "com.github.luben:zstd-jni:1.5.6-4@aar"
 
     // Parseo HTML para WebSearchService.kt (búsqueda web sin API key, scraping del endpoint
     // HTML de DuckDuckGo) — librería chica y madura, patrón adoptado de RikkaHub Agent (ver
@@ -378,7 +387,11 @@ task downloadBootstraps() {
 // variable de entorno KAIROS_EMBED_ROOTFS — build-app.yml no la setea (APK
 // liviano, el wizard descarga el rootfs en runtime), build-app-rootfs.yml sí
 // (APK con el rootfs ya adentro, el wizard solo lo extrae, sin red).
-def rootfsReleaseTag = System.getenv("KAIROS_ROOTFS_RELEASE_TAG") ?: "rootfs-2026.07.28"
+// Corregido 2026-11-02 (auditoría de documentación): el default decía
+// "rootfs-2026.07.28" (formato de tag con puntos, nunca coincidió con el formato real
+// "rootfs-YYYY-MM-DD" con guiones) — confirmado con `gh release list -R Honkonx/kairos-lab`
+// que el único Release real es "rootfs-2026-08-29".
+def rootfsReleaseTag = System.getenv("KAIROS_ROOTFS_RELEASE_TAG") ?: "rootfs-2026-08-29"
 // Apunta al futuro repo PÚBLICO kairos-lab (todavía no creado) a propósito — pedido
 // explícito del usuario: ningún link de descarga (rootfs, paquetes,
 // update) debe apuntar al repo privado kairos-dev, ni siquiera hoy que kairos-lab no

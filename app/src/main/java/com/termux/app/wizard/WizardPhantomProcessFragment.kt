@@ -25,8 +25,8 @@ import com.termux.app.util.kairosThemeColor
 
 /**
  * Pantalla 2 del wizard — quitar el límite de procesos fantasma (Android 12+), con
- * pantalla propia en vez de escondido en el tab Monitor (pedido explícito del usuario).
- * Reordena los 3 métodos que ya existían en
+ * pantalla propia en vez de escondido en el tab Monitor (pedido explícito del usuario, ver
+ *). Reordena los 3 métodos que ya existían en
  * PhantomProcessKillerHelper.kt/MonitorFragment.kt: auto-detección beta PRIMERO (recomendada,
  * menos datos manuales), guiado con código+puerto segundo (fallback si falla la beta),
  * tutorial 100% manual tercero. La lógica real vive en PhantomProcessKillerHelper — este
@@ -37,7 +37,7 @@ class WizardPhantomProcessFragment : Fragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         // Pantalla 3 del wizard (contando desde 1, como la nombra el usuario) — punto donde
-        // arranca el log persistente pedido explícitamente.
+        // arranca el log persistente pedido explícitamente,.
         WizardDebugLog.resetForNewRun()
         WizardDebugLog.log("WizardPhantomProcessFragment", "onCreateView()")
         val ctx = requireContext()
@@ -168,7 +168,7 @@ class WizardPhantomProcessFragment : Fragment() {
      * Los 2 métodos automáticos corren `pkg install`/`adb` reales, que necesitan el bootstrap
      * crudo de Termux ya extraído (bash/pkg/apt) — esta pantalla es la 2, ANTES de la 4
      * (instalación completa), así que ese bootstrap recién se dispara en segundo plano al
-     * salir de Permisos (`WizardInstallFragment.ensureTermuxBootstrapReady()`).
+     * salir de Permisos (`WizardInstallFragment.ensureTermuxBootstrapReady()`, ver
      *
      * Bug real reportado dos rondas seguidas: la
      * v1 de este guard avisaba una sola vez con un Toast; la v2 (sondeo ciego, 20 intentos de
@@ -176,13 +176,13 @@ class WizardPhantomProcessFragment : Fragment() {
      * una señal PROXY (`isTermuxBinaryAvailable`) con un timeout inventado, en vez de
      * engancharse a la señal REAL de "el bootstrap ya terminó". Ahora se engancha directo al
      * callback de `TermuxInstaller.setupBootstrapIfNeeded()` (la misma función que ya dispara
-     * `WizardInstallFragment`, con su propio guard de concurrencia) — si el bootstrap
+     * `WizardInstallFragment`, con el guard de concurrencia de) — si el bootstrap
      * ya está listo (caso normal, ya lo disparó Permisos) el callback llega casi al instante;
      * si es la primera vez de verdad y todavía no existe, corre la extracción real y el
      * callback llega EXACTAMENTE cuando termina, sin importar cuánto tarde — sin timeout
      * arbitrario que pueda quedarse corto. El único costo: en ese caso raro (primera vez
      * genuina) puede aparecer brevemente el diálogo nativo de progreso de Termux — aceptado a
-     * propósito por el usuario en humano59.md ("dejalo para cuando toquemos el bootstrap en
+     * propósito por el usuario en ("dejalo para cuando toquemos el bootstrap en
      * serio").
      */
     private fun ensureTermuxReadyThen(onReady: () -> Unit) {
@@ -440,7 +440,7 @@ class WizardPhantomProcessFragment : Fragment() {
 
     // ── (c) desactivar el toggle nativo, o ADB como respaldo ─────────────────
     // Delega en PhantomProcessKillerHelper.showManualTutorialDialog() (compartido con
-    // MonitorFragment) — prioriza el toggle nativo "Desactivar
+    // MonitorFragment,) — prioriza el toggle nativo "Desactivar
     // restricciones de procesos secundarios" (un solo toque, sin ADB, confirmado presente en
     // el dispositivo del usuario) sobre los comandos ADB, que quedan como respaldo.
 

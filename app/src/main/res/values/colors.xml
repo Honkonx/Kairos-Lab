@@ -1,3 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Widget de home screen "Homelab" (HomelabWidgetProvider.kt, ronda 2026-09-16
+         "comunicación externa con Android") — colores FIJOS a propósito, no ligados al sistema
+         de temas ?attr/kairos* (KairosThemeColors.kt): un AppWidgetProvider renderiza su
+         RemoteViews en el proceso del launcher, no en el contexto themeado de la propia app —
+         resolver un ?attr custom ahí no es confiable entre distintos launchers en minSdk 26 (el
+         soporte real de RemoteViews.setColorAttr() recién llega en API 31). Mismo patrón que
+         usan la mayoría de los widgets informativos de terceros: una tarjeta oscura fija,
+         legible sobre cualquier fondo de home screen, en vez de intentar seguir el tema
+         claro/oscuro del sistema. -->
+    <color name="widget_homelab_bg">#DD1A1A1A</color>
+    <color name="widget_homelab_text_primary">#FFFFFFFF</color>
+    <color name="widget_homelab_text_secondary">#B3FFFFFF</color>
+    <color name="widget_homelab_accent">#FF4CAF50</color>
 </resources>

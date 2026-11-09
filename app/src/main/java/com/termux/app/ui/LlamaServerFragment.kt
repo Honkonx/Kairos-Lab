@@ -15,8 +15,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Pantalla principal de IA Local — llama.cpp, rediseño visual real (2026-08-23,
- * misma corrección que Ollama: "quedo horrible todo [...] hicite copia y
+ * Pantalla principal de IA Local — llama.cpp, rediseño visual real (2026-08-23, ver
+ *, misma corrección que Ollama: "quedo horrible todo [...] hicite copia y
  * paste no organizaste bien las cosas"). Compacta a `compactStatusRow()` + `modelRow()`; TODOS
  * los parámetros del motor/servidor (antes en `buildParamsCard()`, esta misma clase) viven ahora
  * en `LlamaServerConfigFragment` — un solo ícono "⚙" acá, nada repartido en la pantalla
@@ -56,6 +56,7 @@ class LlamaServerFragment : BaseModuleFragment() {
             addView(compactStatusRow(statusText = ":8085", isActive = false) {
                 addView(TextView(requireContext()).apply {
                     text = "⚙"
+                    contentDescription = requireContext().getString(R.string.a11y_settings)
                     textSize = 17f
                     setTextColor(requireContext().kairosThemeColor(R.attr.kairosText2))
                     setPadding(dp(6), dp(4), dp(10), dp(4))
@@ -130,7 +131,8 @@ class LlamaServerFragment : BaseModuleFragment() {
         subtitle = subtitle,
     )
 
-    /** Estado real vía /health — "activo" solo cuando el modelo terminó de cargar, no apenas arranca el proceso. */
+    /** Estado real vía /health (ver docs/humano/humano cita original en el historial de este
+     * archivo) — "activo" solo cuando el modelo terminó de cargar, no apenas arranca el proceso. */
     private fun refreshStatus() {
         Thread {
             val running = isModuleRunning()

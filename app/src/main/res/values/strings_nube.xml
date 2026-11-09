@@ -6,8 +6,8 @@
     <string name="nube_msg_no_se_pudo_iniciar_puerto">No se pudo iniciar (¿puerto %1$d ocupado?)</string>
     <string name="nube_msg_servidor_detenido">Servidor detenido</string>
 
-    <string name="nube_status_activo_puerto">● servidor activo · puerto %1$d</string>
-    <string name="nube_status_detenido">○ servidor detenido</string>
+    <string name="nube_status_activo_puerto">Servidor activo · puerto %1$d</string>
+    <string name="nube_status_detenido">Servidor detenido</string>
 
     <string name="nube_msg_iniciando_tunel">Iniciando túnel (%1$s)…</string>
     <string name="nube_error_fmt">Error: %1$s</string>
@@ -22,6 +22,8 @@
 
     <string name="nube_file_menu_renombrar">Renombrar</string>
     <string name="nube_file_menu_eliminar">Eliminar</string>
+    <string name="nube_file_menu_open">Abrir con</string>
+    <string name="nube_file_menu_share">Compartir archivo</string>
 
     <string name="nube_dialog_title_renombrar">Renombrar</string>
     <string name="nube_btn_renombrar">Renombrar</string>
@@ -38,5 +40,54 @@
     <string name="nube_file_meta_carpeta">carpeta</string>
     <string name="nube_file_meta_size_date">%1$s · %2$s</string>
     <string name="nube_file_click_info">%1$s · %2$s</string>
+
+    <!-- Rediseño 2026-09-16 sobre ver/nube/nube_personal_web.html — header, tarjeta de
+         almacenamiento, buscador/filtros y grilla de archivos. -->
+    <string name="nube_title">Nube Personal</string>
+    <string name="nube_version_badge">Local</string>
+    <string name="nube_subtitle">Tu teléfono es tu nube personal</string>
+
+    <string name="nube_hero_badge">☁ Servidor local</string>
+    <string name="nube_hero_title">$HOME/nube expuesta como almacenamiento web</string>
+    <string name="nube_hero_desc">Solo se ve lo que hay dentro de esa carpeta — nunca el resto del teléfono.</string>
+    <string name="nube_disk_usage_label">Uso de disco</string>
+    <string name="nube_disk_usage_value_fmt">%1$s / %2$s</string>
+    <string name="nube_disk_free_fmt">%1$s libres</string>
+    <string name="nube_legend_fmt">● %1$s: %2$s</string>
+    <string name="nube_legend_imagenes_label">Imágenes</string>
+    <string name="nube_legend_archivos_label">Archivos</string>
+    <string name="nube_legend_otros_label">Otros</string>
+
+    <string name="nube_server_card_title">Servidor y acceso</string>
+    <string name="nube_local_url_label">URL local (misma red / túnel activo):</string>
+    <string name="nube_public_url_label">URL pública (túnel):</string>
+    <string name="nube_btn_abrir_navegador">🌐 Abrir en el navegador</string>
+    <string name="nube_msg_no_hay_navegador">No se encontró una app de navegador para abrir el link</string>
+    <string name="nube_msg_iniciar_servidor_primero">Iniciá el servidor primero</string>
+
+    <string name="nube_encryption_reminder_title">🔒 Cifrado AES-256</string>
+    <string name="nube_encryption_reminder_desc">Los archivos subidos con contraseña se cifran antes de guardarse en el teléfono.</string>
+
+    <string name="nube_explorer_title">Archivos en el servidor</string>
+    <string name="nube_search_hint">Buscar archivo…</string>
+    <string name="nube_add_files">＋ Añadir archivos</string>
+    <string name="nube_new_folder">＋ Nueva carpeta</string>
+    <string name="nube_new_folder_title">Crear carpeta en Nube</string>
+    <string name="nube_folder_name_hint">Nombre de la carpeta</string>
+    <string name="nube_new_folder_create">Crear</string>
+    <string name="nube_folder_invalid_name">Usa un nombre válido, sin rutas ni separadores.</string>
+    <string name="nube_folder_already_exists">Ya existe «%1$s».</string>
+    <string name="nube_folder_created">Carpeta creada: %1$s</string>
+    <string name="nube_folder_create_failed">No se pudo crear la carpeta.</string>
+    <string name="nube_folder_outside_root">La carpeta ya no está dentro de Nube.</string>
+    <string name="nube_import_result">Añadidos: %1$d · errores: %2$d</string>
+    <string name="nube_import_title">Copiando archivos a Nube</string>
+    <string name="nube_import_started">Copiando a la carpeta actual…</string>
+    <string name="nube_filter_todos">Todos</string>
+    <string name="nube_filter_imagenes">Imágenes</string>
+    <string name="nube_filter_documentos">Documentos</string>
+    <string name="nube_filter_cifrados">Cifrados</string>
+    <string name="nube_badge_cifrado">🔒 Cifrado</string>
+    <string name="nube_msg_filtro_sin_resultados">Sin resultados con este filtro o búsqueda</string>
 
 </resources>

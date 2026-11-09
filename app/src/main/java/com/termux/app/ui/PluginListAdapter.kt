@@ -32,7 +32,7 @@ import com.termux.app.util.kairosThemeColor
  *   cuando difieren muestra "actualización disponible" en ámbar.
  * - **Acciones** (2026-08-10, rediseño de pantallas — la Tienda NO navega al detalle/submenú):
  *   Instalar (no instalado), Desactivar/Activar (instalado — oculta/restaura en la pantalla
- *   Módulos SIN desinstalar, humano97 punto 4), Desinstalar (instalado, dentro del diálogo
+ * Módulos SIN desinstalar, punto 4), Desinstalar (instalado, dentro del diálogo
  *   manage). El click de la tarjeta de un módulo instalado muestra un diálogo con
  *   Desactivar/Activar / Cambiar método / Desinstalar.
  */
@@ -143,7 +143,7 @@ class PluginListAdapter(
                     val hiddenTag = if (isHidden) ctx.getString(R.string.plugin_adapter_hidden_suffix) else ""
                     statusLine.text = "$state$update${if (verText.isNotEmpty()) " · $verText" else ""}$hiddenTag"
                     statusLine.setTextColor(ctx.kairosThemeColor(stateColor))
-                    // 2026-08-11 (humano97 punto 4): Desactivar/Activar oculta/restaura el
+                    // 2026-08-11 ( punto 4): Desactivar/Activar oculta/restaura el
                     // módulo en la pantalla Módulos SIN desinstalarlo (registry <id>.hidden).
                     // Desinstalar vive en el diálogo de manage (card click).
                     actionBtn.text = if (isHidden) ctx.getString(R.string.plugin_adapter_btn_activate) else ctx.getString(R.string.plugin_adapter_btn_deactivate)

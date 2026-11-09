@@ -30,11 +30,20 @@ internal class EntornoX11Tab(private val fragment: EntornoFragment) {
         val ctx = fragment.requireContext()
         sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_servidor_x11))
         parent.addView(inventorySubLabel(ctx, fragment.getString(R.string.entorno_subtitulo_display_x11)))
-        tileGrid(ctx, parent, listOf(
-            TileAction(fragment.getString(R.string.entorno_tile_entrar_x11), R.drawable.ic_x11, running = { fragment.x11Running }) { fragment.launchX11() },
-            TileAction(fragment.getString(R.string.entorno_tile_configuracion_x11), R.drawable.ic_settings) { openX11Settings() },
-            TileAction(fragment.getString(R.string.entorno_tile_detener_servidor_x11), R.drawable.ic_stop, running = { fragment.x11Running }) { stopEmbeddedX11() }
+        rowList(ctx, parent, listOf(
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_entrar_x11), fragment.getString(R.string.entorno_row_desc_x11_entrar), R.drawable.ic_x11, running = { fragment.x11Running }) { fragment.launchX11() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_configuracion_x11), fragment.getString(R.string.entorno_row_desc_x11_config), R.drawable.ic_settings) { openX11Settings() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_detener_servidor_x11), fragment.getString(R.string.entorno_row_desc_x11_detener), R.drawable.ic_stop, running = { fragment.x11Running }) { stopEmbeddedX11() })
         ))
+        // Wine (Hangover) quitado de la interfaz 2026-09-22 (orden explícita del usuario, ver
+        //) — Wine/Box64/FEX queda diferido para una ronda futura, no se
+        // muestra en la UI mientras tanto. Corrección 2026-11-02 (auditoría Mini PC,
+        // docs/mini-pc/PLAN_MEJORAS_MINIPC_AUDITORIA_REFERENCIA_2026-11-02.md §9): el
+        // comentario anterior decía que "modulos/wine.sh y ModuleController siguen intactos" —
+        // eso ya no es cierto, modulos/wine.sh no existe en disco y "wine" está en
+        // ModuleCatalog.RETIRED_IDS. El código muerto que dependía de él
+        // (EntornoFragment.pickWineExe/copyUriToWineExeFile/applyPickedExe,
+        // EntornoNative.wineInstalled/wineRunExe) se eliminó la misma ronda.
     }
 
     /**

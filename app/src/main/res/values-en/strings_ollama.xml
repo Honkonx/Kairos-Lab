@@ -132,12 +132,22 @@
     <string name="llamaserver_config_label_threads">CPU threads</string>
     <string name="llamaserver_config_label_ngl">GPU layers (-ngl)</string>
     <string name="llamaserver_config_desc_gpu_vulkan">Vulkan GPU — 0 = everything on CPU, a high value (e.g. 99) tries to load the whole model onto the GPU.</string>
+    <string name="llamaserver_config_label_mmproj">Vision projector (images): %1$s</string>
+    <string name="llamaserver_config_mmproj_ninguno">none</string>
+    <string name="llamaserver_config_mmproj_sin_importar">Import an mmproj-*.gguf file from Local AI to enable images here</string>
+    <string name="llamaserver_config_label_mmproj_dialog_titulo">Pick the vision projector</string>
+    <string name="llamaserver_config_mmproj_cancelar">Cancel</string>
     <string name="llamaserver_config_card_servidor">SERVER</string>
     <string name="llamaserver_config_label_api_key">API key (optional)</string>
+    <string name="llamaserver_config_hint_api_key_saved">API key saved — leave empty to keep it</string>
     <string name="llamaserver_config_label_parallel">Concurrent slots (--parallel)</string>
     <string name="llamaserver_config_label_embeddings">Embeddings mode (--embeddings)</string>
     <string name="llamaserver_config_label_lan">Listen on LAN (0.0.0.0)</string>
     <string name="llamaserver_config_desc_api_key">Without an API key, the server stays unauthenticated — it\'s recommended to set one before enabling LAN.</string>
+    <string name="llamaserver_config_lan_warning_title">Unauthenticated server on your local network</string>
+    <string name="llamaserver_config_lan_warning_message">You don\'t have an API key configured. Any device on your local network (WiFi/LAN) will be able to use this AI server without any password. Only enable this if you trust your network.</string>
+    <string name="llamaserver_config_lan_warning_continue">Enable anyway</string>
+    <string name="llamaserver_config_lan_warning_cancel">Cancel</string>
     <string name="llamaserver_config_btn_guardar_parametros">Save parameters</string>
     <string name="llamaserver_config_toast_valores_invalidos">Invalid values — use integers ≥ 0</string>
     <string name="llamaserver_config_toast_guardado">Saved — applies the next time you start the service</string>

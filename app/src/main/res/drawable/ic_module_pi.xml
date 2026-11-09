@@ -1,12 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de módulo 'pi' (2026-10-08, generado por tools/gen_icons_modulos.py): glifo propio de trazo, no un logo de marca. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="800"
-    android:viewportHeight="800">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 165.29 165.29 H 517.36 V 400 H 400 V 517.36 H 282.65 V 634.72 H 165.29 Z M 282.65 282.65 V 400 H 400 V 282.65 Z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M 517.36 400 H 634.72 V 634.72 H 517.36 Z"/>
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M4 6h16M8 6v13M16 6v10a3 3 0 0 0 3 3" />
 </vector>

@@ -77,25 +77,155 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
      */
     fun render(parent: LinearLayout) {
         val ctx = fragment.requireContext()
-        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_lanzar))
-        tileGrid(ctx, parent, listOf(
-            TileAction(fragment.getString(R.string.entorno_tile_perfil_recomendado), R.drawable.ic_gpu) { promptRecommendedProfile() },
-            TileAction(fragment.getString(R.string.entorno_tile_instalar_distro), R.drawable.ic_install) { promptDistroInstall() },
-            TileAction(fragment.getString(R.string.entorno_tile_instalar_escritorio_distro), R.drawable.ic_desktop) { promptDistroInstallDesktop() },
-            TileAction(fragment.getString(R.string.entorno_tile_login_distro), R.drawable.ic_terminal) { promptDistroLogin() },
-            TileAction(fragment.getString(R.string.entorno_tile_iniciar_escritorio_distro), R.drawable.ic_start) { promptDistroDesktopStart() }
+        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_distros_seccion))
+        val cards = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        parent.addView(cards)
+        loadDistroCards(cards)
+        // Lo que NO pertenece a una distro concreta: instalar una nueva o el perfil recomendado.
+        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_distros_seccion_nueva))
+        rowList(ctx, parent, listOf(
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_instalar_distro), fragment.getString(R.string.entorno_distro_row_desc_instalar), R.drawable.ic_install) { promptDistroInstall() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_perfil_recomendado), fragment.getString(R.string.entorno_distro_row_desc_perfil), R.drawable.ic_gpu) { promptRecommendedProfile() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_detener_distro_dual), fragment.getString(R.string.entorno_distro_row_desc_detener_dual), R.drawable.ic_stop) { stopDistroDesktopDualAction() })
         ))
-        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_mantenimiento))
-        tileGrid(ctx, parent, listOf(
-            TileAction(fragment.getString(R.string.entorno_tile_backup_distro), R.drawable.ic_backup) { promptDistroAction("distro-backup", fragment.getString(R.string.entorno_titulo_backup_distro)) },
-            TileAction(fragment.getString(R.string.entorno_tile_restaurar_distro), R.drawable.ic_backup) { promptDistroRestore() },
-            TileAction(fragment.getString(R.string.entorno_tile_reiniciar_distro), R.drawable.ic_install) { promptDistroReset() },
-            TileAction(fragment.getString(R.string.entorno_tile_eliminar_distro), R.drawable.ic_uninstall) { promptDistroRemove() },
-            TileAction(fragment.getString(R.string.entorno_tile_vincular_carpetas), R.drawable.ic_bridge) { promptDistroAction("bridge-mount", fragment.getString(R.string.entorno_titulo_vincular_carpetas)) },
-            TileAction(fragment.getString(R.string.entorno_tile_instalar_app_distro), R.drawable.ic_install) { promptDistroAppInstall() },
-            TileAction(fragment.getString(R.string.entorno_tile_eliminar_app_distro), R.drawable.ic_uninstall) { promptDistroAppRemove() },
-            TileAction(fragment.getString(R.string.entorno_tile_cambiar_fondo), R.drawable.studio_ic_file_image) { promptChangeWallpaperDistro() }
-        ))
+    }
+
+    /** Detiene el escritorio de la 2da instancia X11 (distro) -- ver EntornoNative.stopDistroDesktopDual(). */
+    private fun stopDistroDesktopDualAction() {
+        Thread {
+            val json = EntornoNative.stopDistroDesktopDual()
+            if (!fragment.isAdded) return@Thread
+            fragment.requireActivity().runOnUiThread {
+                val ok = json.optBoolean("ok", false)
+                val msg = if (ok) json.optString("message", fragment.getString(R.string.entorno_ok)) else fragment.getString(R.string.entorno_error_prefix, json.optString("error", fragment.getString(R.string.entorno_desconocido)))
+                Snackbar.make(fragment.requireView(), msg, Snackbar.LENGTH_LONG).show()
+                fragment.refreshStatus()
+            }
+        }.start()
+    }
+
+    /**
+     * Una tarjeta por distro instalada (rediseño aprobado 2026-10-08, mensaje 6:
+     * "Distros — una tarjeta por distro"). Antes las 13 acciones eran tiles genéricos que pedían
+     * elegir la distro en un diálogo cada vez; ahora la acción vive en la distro.
+     */
+    private fun loadDistroCards(holder: LinearLayout) {
+        Thread {
+            val installed = EntornoNative.distroList().optJSONArray("installed")
+            val names = (0 until (installed?.length() ?: 0)).map { installed!!.optString(it) }
+            if (!fragment.isAdded) return@Thread
+            fragment.requireActivity().runOnUiThread {
+                if (!fragment.isAdded) return@runOnUiThread
+                holder.removeAllViews()
+                if (names.isEmpty()) {
+                    holder.addView(android.widget.TextView(holder.context).apply {
+                        text = fragment.getString(R.string.entorno_distros_vacio)
+                        textSize = 12f
+                        setTextColor(holder.context.kairosThemeColor(R.attr.kairosText3))
+                        setPadding(dp(holder.context, 4), dp(holder.context, 8), dp(holder.context, 4), dp(holder.context, 8))
+                    })
+                    return@runOnUiThread
+                }
+                val sessions = fragment.activeDistroSessions()
+                names.forEach { name -> holder.addView(distroCard(holder.context, name, sessions.firstOrNull { it.second == name }?.first)) }
+            }
+        }.start()
+    }
+
+    private fun distroCard(ctx: android.content.Context, name: String, sessionName: String?): android.view.View {
+        val card = com.google.android.material.card.MaterialCardView(ctx).apply {
+            radius = dp(ctx, 12).toFloat()
+            cardElevation = 0f
+            strokeWidth = dp(ctx, 1)
+            strokeColor = ctx.kairosThemeColor(R.attr.kairosBorder)
+            setCardBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg2))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(dp(ctx, 2), dp(ctx, 4), dp(ctx, 2), dp(ctx, 8))
+            }
+        }
+        val body = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(ctx, 14), dp(ctx, 12), dp(ctx, 14), dp(ctx, 10))
+        }
+        val header = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
+        header.addView(distroIconView(ctx, name, 36), LinearLayout.LayoutParams(dp(ctx, 36), dp(ctx, 36)).apply { marginEnd = dp(ctx, 12) })
+        header.addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            addView(android.widget.TextView(ctx).apply {
+                text = name
+                textSize = 14f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+            })
+            addView(android.widget.TextView(ctx).apply {
+                text = fragment.getString(if (sessionName != null) R.string.entorno_distro_estado_sesion else R.string.entorno_distro_estado_sin_sesion)
+                textSize = 11f
+                setTextColor(ctx.kairosThemeColor(if (sessionName != null) R.attr.kairosGreen else R.attr.kairosText3))
+            })
+        })
+        val menuButton = android.widget.TextView(ctx).apply {
+            text = "⋮"
+            textSize = 20f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
+            contentDescription = fragment.getString(R.string.entorno_distro_menu_descripcion, name)
+            minimumWidth = dp(ctx, 40)
+            minimumHeight = dp(ctx, 40)
+        }
+        menuButton.setOnClickListener { showDistroMenu(menuButton, name) }
+        header.addView(menuButton)
+        body.addView(header)
+
+        val actions = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(ctx, 8), 0, 0)
+        }
+        fun addAction(label: String, color: Int, onClick: () -> Unit) {
+            actions.addView(android.widget.TextView(ctx).apply {
+                text = label
+                textSize = 12f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(color)
+                setPadding(dp(ctx, 10), dp(ctx, 8), dp(ctx, 10), dp(ctx, 8))
+                setOnClickListener { onClick() }
+            })
+        }
+        val blue = ctx.kairosThemeColor(R.attr.kairosBlue)
+        addAction(fragment.getString(R.string.entorno_distro_btn_login), blue) { promptDistroLogin(name) }
+        addAction(fragment.getString(R.string.entorno_distro_btn_escritorio), blue) { promptDistroDesktopStart(name) }
+        addAction(fragment.getString(R.string.entorno_distro_btn_instalar_escritorio), blue) { promptDistroInstallDesktop(name) }
+        if (sessionName != null) {
+            addAction(fragment.getString(R.string.entorno_distro_btn_cerrar_sesion), ctx.kairosThemeColor(R.attr.kairosRed)) {
+                (fragment.activity as? com.termux.app.TermuxActivity)?.stopSessionByName(sessionName)
+                fragment.toastMsg(fragment.getString(R.string.base_module_terminal_closed, sessionName))
+                fragment.refreshStatus()
+            }
+        }
+        val scroller = android.widget.HorizontalScrollView(ctx).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(actions)
+        }
+        body.addView(scroller)
+        card.addView(body)
+        return card
+    }
+
+    /** Menú ⋮ de una distro: mantenimiento y apps, todo sobre ESA distro. */
+    private fun showDistroMenu(anchor: android.view.View, distro: String) {
+        val menu = android.widget.PopupMenu(anchor.context, anchor)
+        val entries: List<Pair<Int, () -> Unit>> = listOf(
+            R.string.entorno_tile_instalar_app_distro to { promptAppCatalog(distro) },
+            R.string.entorno_tile_eliminar_app_distro to { promptDistroAppRemove(distro) },
+            R.string.entorno_tile_vincular_carpetas to { fragment.runEntornoAction("bridge-mount", distro) },
+            R.string.entorno_tile_backup_distro to { fragment.runEntornoAction("distro-backup", distro) },
+            R.string.entorno_tile_restaurar_distro to { promptDistroRestore(distro) },
+            R.string.entorno_tile_cambiar_fondo to { promptChangeWallpaperDistroDesktop(distro) },
+            R.string.entorno_tile_reiniciar_distro to { promptDistroReset(distro) },
+            R.string.entorno_tile_eliminar_distro to { promptDistroRemove(distro) }
+        )
+        entries.forEachIndexed { index, (titleRes, _) -> menu.menu.add(0, index, index, fragment.getString(titleRes)) }
+        menu.setOnMenuItemClickListener { item -> entries[item.itemId].second(); true }
+        menu.show()
     }
 
     /**
@@ -192,45 +322,27 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
         return card
     }
 
-    private fun promptDistroRemove() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_eliminar_distro_titulo))
-                    .setItems(names) { _, which ->
-                        AlertDialog.Builder(fragment.requireContext())
-                            .setTitle(fragment.getString(R.string.entorno_dialog_confirmar_eliminar_distro, names[which]))
-                            .setMessage(fragment.getString(R.string.entorno_mensaje_eliminar_distro_irreversible))
-                            .setPositiveButton(fragment.getString(R.string.entorno_eliminar)) { _, _ -> fragment.runEntornoAction("distro-remove", names[which], opKey = "distro:${names[which]}") }
-                            .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                            .show()
-                    }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
+    private fun promptDistroRemove(distro: String) {
+        AlertDialog.Builder(fragment.requireContext())
+            .setTitle(fragment.getString(R.string.entorno_dialog_confirmar_eliminar_distro, distro))
+            .setMessage(fragment.getString(R.string.entorno_mensaje_eliminar_distro_irreversible))
+            .setPositiveButton(fragment.getString(R.string.entorno_eliminar)) { _, _ -> fragment.runEntornoAction("distro-remove", distro, opKey = "distro:$distro") }
+            .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
+            .show()
     }
 
     /**
-     * Restaurar distro desde un backup .tar.gz de ~/ (ronda 2026-09-09 — completa el par
-     * backup/restore, antes solo existía backup). Los nombres reales que genera
+     * Restaurar distro desde un backup.tar.gz de ~/ (ronda 2026-09-09, —
+     * completa el par backup/restore, antes solo existía backup). Los nombres reales que genera
      * distroBackup() son "<distro>_backup_<fecha>.tar.gz" — se usa el prefijo antes de
      * "_backup_" como nombre de distro real a pasar a distroRestore().
      */
-    private fun promptDistroRestore() {
+    private fun promptDistroRestore(distro: String) {
         val home = com.termux.app.util.ManagerNativeUtils.home
-        val backups = java.io.File(home).listFiles { f -> f.isFile && f.name.contains("_backup_") && f.name.endsWith(".tar.gz") }
+        val backups = java.io.File(home).listFiles { f -> f.isFile && f.name.startsWith("${distro}_backup_") && f.name.endsWith(".tar.gz") }
             ?.sortedByDescending { it.lastModified() } ?: emptyList()
         if (backups.isEmpty()) {
-            fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_backups))
+            fragment.toastMsg(fragment.getString(R.string.entorno_distro_toast_sin_backups_de, distro))
             return
         }
         val labels = backups.map { it.name }.toTypedArray()
@@ -238,12 +350,11 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
             .setTitle(fragment.getString(R.string.entorno_dialog_restaurar_distro_titulo))
             .setItems(labels) { _, which ->
                 val file = backups[which]
-                val distroName = file.name.substringBefore("_backup_")
                 AlertDialog.Builder(fragment.requireContext())
                     .setTitle(fragment.getString(R.string.entorno_dialog_restaurar_distro_titulo))
-                    .setMessage(fragment.getString(R.string.entorno_dialog_confirmar_restaurar, distroName))
+                    .setMessage(fragment.getString(R.string.entorno_dialog_confirmar_restaurar, distro))
                     .setPositiveButton(fragment.getString(R.string.entorno_restaurar)) { _, _ ->
-                        fragment.runEntornoAction("distro-restore", distroName, file.absolutePath, opKey = "distro:$distroName")
+                        fragment.runEntornoAction("distro-restore", distro, file.absolutePath, opKey = "distro:$distro")
                     }
                     .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
                     .show()
@@ -253,97 +364,23 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
     }
 
     /** `proot-distro reset <name>` — reinstala la distro desde cero sin eliminar+reinstalar a mano (ronda 2026-09-09). */
-    private fun promptDistroReset() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_reiniciar_distro_titulo))
-                    .setItems(names) { _, which ->
-                        AlertDialog.Builder(fragment.requireContext())
-                            .setTitle(fragment.getString(R.string.entorno_dialog_reiniciar_distro_titulo))
-                            .setMessage(fragment.getString(R.string.entorno_dialog_confirmar_reiniciar, names[which]))
-                            .setPositiveButton(fragment.getString(R.string.entorno_reiniciar)) { _, _ -> fragment.runEntornoAction("distro-reset", names[which], opKey = "distro:${names[which]}") }
-                            .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                            .show()
-                    }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
+    private fun promptDistroReset(distro: String) {
+        AlertDialog.Builder(fragment.requireContext())
+            .setTitle(fragment.getString(R.string.entorno_dialog_reiniciar_distro_titulo))
+            .setMessage(fragment.getString(R.string.entorno_dialog_confirmar_reiniciar, distro))
+            .setPositiveButton(fragment.getString(R.string.entorno_reiniciar)) { _, _ -> fragment.runEntornoAction("distro-reset", distro, opKey = "distro:$distro") }
+            .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
+            .show()
     }
 
     /** Lista distros instaladas y abre una consola real dentro del proot elegido — mismo comando que la opción [2] de submenu_terminal. */
-    private fun promptDistroLogin() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros_instala))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_login_distro_titulo))
-                    .setItems(names) { _, which ->
-                        fragment.launchTerminal(EntornoNative.distroLoginCommand(names[which]), fragment.getString(R.string.entorno_titulo_sesion_terminal, names[which]))
-                    }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
+    private fun promptDistroLogin(distro: String) {
+        fragment.launchTerminal(EntornoNative.distroLoginCommand(distro), fragment.getString(R.string.entorno_titulo_sesion_terminal, distro))
     }
 
     /** Lista distros instaladas y corre `action` sobre la elegida — reusado por backup y bridge-mount. */
-    private fun promptDistroAction(action: String, title: String) {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros_instala))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(title)
-                    .setItems(names) { _, which -> fragment.runEntornoAction(action, names[which]) }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
-    }
 
     /** Elige una distro instalada y pide el nombre del paquete apt a instalar. */
-    private fun promptDistroAppInstall() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros_instala))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_en_que_distro_instalar))
-                    .setItems(names) { _, which -> promptAppCatalog(names[which]) }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
-    }
 
     /**
      * Catálogo curado agrupado por categoría + "Otro" al final para texto libre. Primer paso:
@@ -425,26 +462,23 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
     }
 
     /** Lista todas las apps de distro ya instaladas (todas las distros) y confirma antes de desinstalar. */
-    private fun promptDistroAppRemove() {
+    private fun promptDistroAppRemove(distro: String) {
         Thread {
-            val json = EntornoNative.distroAppsInstalled()
+            val apps = EntornoNative.distroAppsInstalled().optJSONArray("apps")
+            val pkgs = (0 until (apps?.length() ?: 0))
+                .mapNotNull { apps?.optJSONObject(it) }
+                .filter { it.optString("distro") == distro }
+                .map { it.optString("pkg") }
             if (!fragment.isAdded) return@Thread
             fragment.requireActivity().runOnUiThread {
-                val apps = json.optJSONArray("apps")
-                if (apps == null || apps.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_apps_distro))
+                if (pkgs.isEmpty()) {
+                    fragment.toastMsg(fragment.getString(R.string.entorno_distro_toast_sin_apps, distro))
                     return@runOnUiThread
-                }
-                val labels = Array(apps.length()) {
-                    val entry = apps.optJSONObject(it)
-                    "${entry?.optString("pkg")} (${entry?.optString("distro")})"
                 }
                 AlertDialog.Builder(fragment.requireContext())
                     .setTitle(fragment.getString(R.string.entorno_dialog_eliminar_app_titulo))
-                    .setItems(labels) { _, which ->
-                        val entry = apps.optJSONObject(which) ?: return@setItems
-                        val distro = entry.optString("distro")
-                        val pkg = entry.optString("pkg")
+                    .setItems(pkgs.toTypedArray()) { _, which ->
+                        val pkg = pkgs[which]
                         AlertDialog.Builder(fragment.requireContext())
                             .setTitle(fragment.getString(R.string.entorno_dialog_confirmar_eliminar_app, pkg, distro))
                             .setPositiveButton(fragment.getString(R.string.entorno_eliminar)) { _, _ -> fragment.runEntornoAction("distro-app-remove", distro, pkg) }
@@ -458,24 +492,8 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
     }
 
     /** Lista distros instaladas y pide el paquete apt (dbus + DE elegido) — DENTRO de la distro (EntornoNative.distroInstallDesktop()). */
-    private fun promptDistroInstallDesktop() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros_instala))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_en_que_distro_instalar_escritorio))
-                    .setItems(names) { _, which -> promptDesktopChoiceForDistro(names[which]) }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
+    private fun promptDistroInstallDesktop(distro: String) {
+        promptDesktopChoiceForDistro(distro)
     }
 
     /**
@@ -646,52 +664,44 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
     }
 
     /** Lista distros instaladas y arranca el escritorio DENTRO de la elegida (camino "CON DISTRO") — análogo a EntornoNativoTab.promptStartDesktop() pero para proot-distro. */
-    private fun promptDistroDesktopStart() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros_instala))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_en_que_distro_iniciar_escritorio))
-                    .setItems(names) { _, which ->
-                        val distro = names[which]
-                        // Filtrado a lo realmente instalado (ver EntornoNative.distroInstallDesktop()) —
-                        // ofrecer los 3 KNOWN_DESKTOPS a secas dejaba elegir un DE que nunca se instaló
-                        // en ESTA distro, el arranque fallaba con "Couldn't exec <de>-session".
-                        val des = EntornoNative.installedDesktopsForDistro(distro)
-                        if (des.isEmpty()) {
-                            AlertDialog.Builder(fragment.requireContext())
-                                .setTitle(distro)
-                                .setMessage(fragment.getString(R.string.entorno_mensaje_sin_escritorio_en_distro, distro))
-                                .setPositiveButton(fragment.getString(R.string.entorno_entendido), null)
-                                .show()
-                            return@setItems
-                        }
-                        val labels = des.map { EntornoNative.desktopLabel(it) }.toTypedArray()
-                        AlertDialog.Builder(fragment.requireContext())
-                            .setTitle(fragment.getString(R.string.entorno_dialog_cual_escritorio_iniciar_en_distro, distro))
-                            .setItems(labels) { _, deWhich -> startDistroDesktopOnEmbeddedX11(distro, des[deWhich]) }
-                            .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                            .show()
-                    }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
+    private fun promptDistroDesktopStart(distro: String) {
+        // Filtrado a lo realmente instalado (ver EntornoNative.distroInstallDesktop()) —
+        // ofrecer los 3 KNOWN_DESKTOPS a secas dejaba elegir un DE que nunca se instaló
+        // en ESTA distro, el arranque fallaba con "Couldn't exec <de>-session".
+        val des = EntornoNative.installedDesktopsForDistro(distro)
+        if (des.isEmpty()) {
+            AlertDialog.Builder(fragment.requireContext())
+                .setTitle(distro)
+                .setMessage(fragment.getString(R.string.entorno_mensaje_sin_escritorio_en_distro, distro))
+                .setPositiveButton(fragment.getString(R.string.entorno_entendido), null)
+                .show()
+            return
+        }
+        if (des.size == 1) {
+            startDistroDesktopOnEmbeddedX11(distro, des[0])
+            return
+        }
+        val labels = des.map { EntornoNative.desktopLabel(it) }.toTypedArray()
+        AlertDialog.Builder(fragment.requireContext())
+            .setTitle(fragment.getString(R.string.entorno_dialog_cual_escritorio_iniciar_en_distro, distro))
+            .setItems(labels) { _, deWhich -> startDistroDesktopOnEmbeddedX11(distro, des[deWhich]) }
+            .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
+            .show()
     }
 
-    /** Mismo contrato que EntornoNativoTab.startDesktopOnEmbeddedX11() pero para el DE DENTRO de una distro proot (EntornoNative.startDistroDesktop()). */
+    /**
+     * Mismo contrato que EntornoNativoTab.startDesktopOnEmbeddedX11() pero para el DE DENTRO de
+     * una distro proot. Usa [EntornoNative.startDistroDesktopDual] ("2 instancias X11
+     * conmutables", ver ese doc) -- corre en la 2da instancia X11 (X11Service2, display ":2"),
+     * así nunca entra en conflicto con un escritorio nativo que ya esté corriendo en la 1ra
+     * instancia ("sin que se vean al mismo tiempo", pero sin que uno tenga que cerrarse para
+     * abrir el otro). SIN VERIFICAR EN DISPOSITIVO REAL todavía.
+     */
     private fun startDistroDesktopOnEmbeddedX11(distro: String, de: String = "xfce4") {
         fragment.toastMsg(fragment.getString(R.string.entorno_toast_iniciando_dentro_distro, EntornoNative.desktopLabel(de), distro))
-        X11Service.start(fragment.requireContext())
+        com.termux.app.X11Service2.start(fragment.requireContext())
         Thread {
-            val json = EntornoNative.startDistroDesktop(distro, de)
+            val json = EntornoNative.startDistroDesktopDual(distro, de)
             if (!fragment.isAdded) return@Thread
             fragment.requireActivity().runOnUiThread {
                 if (json.optBoolean("conflict", false)) {
@@ -701,7 +711,7 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
                 val ok = json.optBoolean("ok", false)
                 val msg = if (ok) json.optString("message", fragment.getString(R.string.entorno_ok)) else fragment.getString(R.string.entorno_error_prefix, json.optString("error", fragment.getString(R.string.entorno_desconocido)))
                 val snackbar = Snackbar.make(fragment.requireView(), msg, Snackbar.LENGTH_LONG)
-                if (ok) snackbar.setAction(fragment.getString(R.string.entorno_snackbar_accion_abrir_x11)) { fragment.launchX11() }
+                if (ok) snackbar.setAction(fragment.getString(R.string.entorno_snackbar_accion_abrir_x11)) { fragment.launchX11(com.termux.app.X11Service2.DISPLAY) }
                 snackbar.show()
                 fragment.refreshStatus()
             }
@@ -709,25 +719,6 @@ internal class EntornoDistrosTab(private val fragment: EntornoFragment) {
     }
 
     /** Distro — elige distro instalada, después el DE realmente instalado ahí. */
-    private fun promptChangeWallpaperDistro() {
-        Thread {
-            val json = EntornoNative.distroList()
-            if (!fragment.isAdded) return@Thread
-            fragment.requireActivity().runOnUiThread {
-                val installed = json.optJSONArray("installed")
-                if (installed == null || installed.length() == 0) {
-                    fragment.toastMsg(fragment.getString(R.string.entorno_toast_no_hay_distros))
-                    return@runOnUiThread
-                }
-                val names = Array(installed.length()) { installed.optString(it) }
-                AlertDialog.Builder(fragment.requireContext())
-                    .setTitle(fragment.getString(R.string.entorno_dialog_en_que_distro))
-                    .setItems(names) { _, which -> promptChangeWallpaperDistroDesktop(names[which]) }
-                    .setNegativeButton(fragment.getString(R.string.entorno_cancelar), null)
-                    .show()
-            }
-        }.start()
-    }
 
     private fun promptChangeWallpaperDistroDesktop(distro: String) {
         val des = EntornoNative.installedDesktopsForDistro(distro)

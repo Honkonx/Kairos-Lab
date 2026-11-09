@@ -80,6 +80,12 @@
     <string name="editor_word_wrap_label">Ajuste de línea (word wrap)</string>
     <string name="editor_line_numbers_label">Mostrar números de línea</string>
     <string name="editor_highlight_current_line_label">Resaltar línea actual</string>
+    <string name="editor_sticky_scroll_label">Fijar encabezado de función/bloque al hacer scroll</string>
+    <string name="editor_pinch_zoom_label">Zoom con dos dedos</string>
+    <string name="editor_pin_line_number_label">Fijar números de línea al desplazar horizontal</string>
+    <string name="editor_cursor_animation_label">Animación suave del cursor</string>
+    <string name="editor_show_invisible_chars_label">Mostrar espacios y tabs invisibles</string>
+    <string name="editor_auto_close_symbols_label">Autocompletar símbolos de cierre ( [ { &quot; \'</string>
     <string name="editor_theme_label">Tema de color</string>
     <string name="editor_theme_kairos_ink">Kairos Ink (oscuro)</string>
     <string name="editor_theme_kairos_paper">Kairos Paper (claro)</string>
@@ -100,6 +106,7 @@
     <string name="ai_provider_label">Proveedor</string>
     <string name="ai_api_key_label">API key propia (BYO)</string>
     <string name="ai_api_key_hint">Pegá tu API key aquí</string>
+    <string name="ai_api_key_hint_saved">Ya hay una clave guardada — dejá vacío para conservarla</string>
     <string name="ai_save">Guardar</string>
     <string name="ai_saved_confirmation">Configuración guardada</string>
 
@@ -111,6 +118,11 @@
     <string name="ai_provider_local">Ollama / llama.cpp local</string>
 
     <string name="ai_local_warning">Necesitás tener Ollama o llama-server corriendo en este dispositivo antes de usar esta opción — configuralo desde Kairos si todavía no lo hiciste.\n\nPuertos esperados: Ollama en 127.0.0.1:11434, llama-server en 127.0.0.1:8085 (mismos puertos que usa Kairos).</string>
+    <string name="ai_custom_base_url_label">URL base del servidor (OpenAI-compatible)</string>
+    <string name="ai_custom_base_url_hint">https://mi-servidor.com/v1</string>
+    <string name="ai_custom_model_label">Nombre del modelo</string>
+    <string name="ai_custom_model_hint">ej. llama-3.1-8b</string>
+    <string name="ai_custom_fields_required">Completá la URL base y el nombre del modelo</string>
 
     <string name="ai_ask_title">Preguntar a la IA</string>
     <string name="ai_ask_hint">¿Qué querés saber sobre este código?</string>
@@ -165,6 +177,9 @@
     <string name="git_branch_placeholder">Rama: —</string>
     <string name="git_branch_label">Rama: %1$s</string>
     <string name="git_changes_title">Cambios</string>
+    <string name="git_view_diff_button">Ver diff</string>
+    <string name="git_diff_dialog_title">Diff</string>
+    <string name="git_diff_empty">No hay cambios para mostrar</string>
     <string name="git_log_title">Últimos commits</string>
     <string name="git_loading">Cargando…</string>
     <string name="git_no_changes">Sin cambios pendientes — working tree limpio.</string>
@@ -190,6 +205,21 @@
     <string name="git_stash_pop_confirm_title">¿Aplicar el último stash?</string>
     <string name="git_stash_pop_confirm_message">Esto aplica la entrada más reciente del stash sobre el working tree actual y la saca de la pila. Puede generar conflictos si hubo cambios nuevos desde que se guardó.</string>
     <string name="git_stash_empty">No hay nada guardado en el stash.</string>
+
+    <!-- Resolución de conflictos v1 (auditoría ver/vibeworks 2026-09-16, commit ec9818f — ver
+         docs/referencias/herramientas/REFERENCIA_VIBEWORKS.md). Patrón adoptado: tomar mío/tomar
+         el otro/editar a mano en el editor de Estudio, sin panel de 3 columnas nuevo. -->
+    <string name="git_resolve_conflicts_button">⚠️ Resolver conflictos (%1$d)</string>
+    <string name="git_resolve_conflicts_dialog_title">Archivos en conflicto</string>
+    <string name="git_resolve_conflict_file_dialog_title">Resolver: %1$s</string>
+    <string name="git_resolve_take_ours">Usar mi versión</string>
+    <string name="git_resolve_take_theirs">Usar la versión entrante</string>
+    <string name="git_resolve_edit_manually">Editar a mano en el editor</string>
+    <string name="git_resolve_mark_resolved">Ya edité a mano — marcar como resuelto</string>
+    <string name="git_resolve_abort_merge">Abortar el merge (descartar todo)</string>
+    <string name="git_resolve_edit_manually_hint">Volvé a Estudio, abrí \"%1$s\" desde el explorador de archivos, sacá los marcadores &lt;&lt;&lt;&lt;&lt;&lt;&lt;/=======/&gt;&gt;&gt;&gt;&gt;&gt;&gt; a mano, guardá, y volvé acá para elegir "Ya edité a mano".</string>
+    <string name="git_abort_merge_confirm_title">¿Abortar el merge?</string>
+    <string name="git_abort_merge_confirm_message">Esto descarta TODOS los cambios del merge en curso (no solo un archivo) y vuelve el working tree al estado de antes del pull. No se puede deshacer.</string>
 
     <string name="git_github_connect_button">Conectar GitHub</string>
     <string name="git_github_disconnect_button">Desconectar</string>

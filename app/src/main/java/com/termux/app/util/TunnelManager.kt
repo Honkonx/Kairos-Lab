@@ -9,8 +9,8 @@ import java.io.File
  * Lógica de `cmd_tunnel` (+ helpers `_ensure_ngrok`/`_ensure_cloudflared`/`_tunnel_session`)
  * de modulos/kairos_manager.py portada a Kotlin (ronda 2026-07-31). TunnelFragment dependía
  * de `python3 kairos_manager.py tunnel ...` para TODO — mismo bug sistémico "Cannot run
- * program python3" con evidencia real de dispositivo que ya rompió Procesos/Monitor.
- * Mecanismo genérico (cloudflared/ngrok quick-tunnel por
+ * program python3" con evidencia real de dispositivo que ya rompió Procesos/Monitor (ver
+ * de esa ronda). Mecanismo genérico (cloudflared/ngrok quick-tunnel por
  * puerto) separado de los túneles bespoke de n8n (N8nFragment) y Remote/SSH (RemoteManager)
  * — no los reemplaza, sigue siendo un camino nuevo y único para CUALQUIER puerto.
  */
@@ -27,8 +27,8 @@ object TunnelManager {
     /**
      * Configuración persistente de un proveedor de túnel (Cloudflare / ngrok) guardada
      * en el registry ~/.android_server_registry (claves tunnel.cloudflare.* y
-     * tunnel.ngrok.*). Pedido explícito del usuario (ronda 2026-08-13):
-     * poder agregar/cambiar/eliminar dominios y tokens desde
+     * tunnel.ngrok.*). Pedido explícito del usuario (ronda 2026-08-13, ver
+     *): poder agregar/cambiar/eliminar dominios y tokens desde
      * la pantalla de Túnel, y que los botones rápidos reutilicen lo guardado.
      */
     data class ProviderConfig(val token: String = "", val domain: String = "") {
@@ -78,6 +78,9 @@ object TunnelManager {
     // dashboard (que ya funciona hoy sin cambios — ver rama `effectiveToken` de start()).
     val TCP_ONLY_MODULES = setOf("remote")
 
+    /** Proveedores de túnel reales soportados por [start]/[getConfig]/[saveConfig]/[clearConfig]. */
+    val KNOWN_PROVIDERS = setOf("cloudflared", "ngrok", "frp")
+
     private fun isTcpOnly(moduleId: String): Boolean = moduleId in TCP_ONLY_MODULES
 
     // Los 4 patrones combinados en un único regex de alternancia — igual que el
@@ -113,17 +116,17 @@ object TunnelManager {
     // Fix acotado (auditoría 2026-08-19, ver
     // docs/arquitectura/AUDITORIA_NUBE_CODIGO_2026-08-19.md § 2): n8n.sh arranca su
     // PROPIO `cloudflared tunnel` dentro de su propia sesión tmux ("n8n-udocker" o
-    // "n8n-server", ventana "tunnel") cada vez que arranca n8n, salvo que exista
-    // ~/.n8n_local_only — completamente por fuera de este objeto. Sin esta detección,
+    // "n8n-server", ventana "tunnel") cada vez que arranca n8n, solo si existe
+    // ~/.n8n_tunnel_mode (modo túnel; por defecto n8n es local) — completamente por fuera de este objeto. Sin esta detección,
     // `start()` podía arrancar un SEGUNDO cloudflared para el mismo puerto 5678 sin que
     // el usuario lo supiera. No se migra el túnel de n8n a este mecanismo (romperia el
     // flujo standalone/TUI de termux-ai-stack-dev) — solo se detecta y se avisa.
     private val N8N_OWN_TUNNEL_SESSIONS = listOf("n8n-udocker", "n8n-server")
-    private val N8N_LOCAL_ONLY_FLAG get() = File(HOME, ".n8n_local_only")
+    private val N8N_TUNNEL_FLAG get() = File(HOME, ".n8n_tunnel_mode")
     private val N8N_LAST_URL_FILE get() = File(HOME, ".last_cf_url")
 
     private fun n8nOwnTunnelActive(): Boolean {
-        if (N8N_LOCAL_ONLY_FLAG.exists()) return false
+        if (!N8N_TUNNEL_FLAG.exists()) return false
         return N8N_OWN_TUNNEL_SESSIONS.any { ManagerNativeUtils.tmuxHas(it) }
     }
 
@@ -136,7 +139,7 @@ object TunnelManager {
         ""
     }
 
-    // Patrón confirmado en core-termux-main: ngrok se instala
+    // Patrón confirmado en core-termux-main ( punto 3): ngrok se instala
     // vía su paquete npm oficial, que baja su propio binario real en el postinstall —
     // mucho más simple que cloudflared (sin build ARM64 propio).
     private fun ensureNgrok(): ActionResult {
@@ -206,12 +209,52 @@ object TunnelManager {
         return ActionResult(true)
     }
 
+    // frp (fatedier/frp, Apache-2.0) -- sin paquete en el repo de Termux (confirmado: ningún
+    // "pkg install frp"/"frpc" real), así que se descarga el release oficial para linux_arm64
+    // igual que cloudflared de fallback. A diferencia de cloudflared/ngrok (quick-tunnel de un
+    // proveedor en la nube), frp necesita un servidor frps PROPIO ya corriendo en algún lado
+    // (un VPS, otro Kairos actuando de servidor, etc.) -- esa es la razón de ser real de la
+    // opción: una alternativa self-hosted, sin depender de la infraestructura de un tercero.
+    private fun ensureFrp(): ActionResult {
+        if (runCmd("command -v frpc", 5).exitCode == 0 && runCmd("frpc --version", 5).exitCode == 0) {
+            return ActionResult(true)
+        }
+        val arch = runCmd("uname -m", 5).stdout.trim()
+        val frpArch = if (arch == "aarch64" || arch == "arm64") "linux_arm64" else "linux_amd64"
+        val version = "0.61.1" // fatedier/frp -- última versión estable confirmada al escribir esto
+        val tarName = "frp_${version}_$frpArch"
+        val url = "https://github.com/fatedier/frp/releases/download/v$version/$tarName.tar.gz"
+        val tmpDir = "$HOME/.tunnel_logs/frp_install"
+        val download = runCmd(
+            "mkdir -p '$tmpDir' && cd '$tmpDir' && wget -q -O frp.tar.gz '$url' " +
+                "&& tar -xzf frp.tar.gz && cp '$tarName/frpc' '$PREFIX/bin/frpc' && chmod +x '$PREFIX/bin/frpc' " +
+                "&& cd / && rm -rf '$tmpDir'",
+            90
+        )
+        if (download.exitCode != 0) return ActionResult(false, error = download.stderr.ifBlank { "descarga de frp falló" })
+        val verify = runCmd("frpc --version", 5)
+        if (verify.exitCode != 0) {
+            runCmd("rm -f '$PREFIX/bin/frpc'", 5)
+            return ActionResult(false, error = "frpc descargado pero no ejecuta (incompatible con esta arquitectura/Bionic)")
+        }
+        return ActionResult(true)
+    }
+
+    /** "host:puerto" guardado en el campo domain de la config de frp -- 7000 (default real de
+     *  frps) si el usuario solo puso el host. */
+    private fun frpServerAddrPort(domain: String): Pair<String, Int> {
+        val parts = domain.trim().split(":", limit = 2)
+        val host = parts.getOrNull(0)?.trim().orEmpty()
+        val port = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 7000
+        return host to port
+    }
+
     // domain: dominio propio/reservado (ngrok: "--domain", uno gratis por cuenta con
     // authtoken configurado; cloudflared: no aplica acá — con --token el dominio ya
     // quedó atado del lado del dashboard de Cloudflare al crear el named tunnel, así
     // que pedirlo de nuevo en la app sería redundante). Pedido explícito del usuario,
-    // 2026-08-12: agregar una opción en túnel para
-    // agregar los dominios y tokens, sea de cloudflare o ngrok — cloudflare con token
+    // 2026-08-12: "agregar una opcion en tunel para
+    // agregar los dominios y tokens, sea de cloudflare o ngrok" — cloudflare con token
     // ya existía (promptTokenAndStart en TunnelFragment); lo que faltaba de verdad era
     // el authtoken de ngrok, sin el cual ngrok solo da URLs efímeras al azar y no deja
     // usar un dominio propio en absoluto.
@@ -225,7 +268,7 @@ object TunnelManager {
     // ese path por instalación, no se puede hardcodear. null (default) preserva el
     // comportamiento previo a esta ronda para cualquier caller que no lo pase todavía.
     fun start(port: Int, provider: String, token: String?, domain: String? = null, moduleId: String = "", nativeLibDir: String? = null): ActionResult {
-        if (provider != "cloudflared" && provider != "ngrok") {
+        if (provider !in KNOWN_PROVIDERS) {
             return ActionResult(false, error = "Provider desconocido: $provider")
         }
         // n8n.sh ya arranca su propio cloudflared al iniciar n8n (salvo
@@ -238,7 +281,7 @@ object TunnelManager {
                 error = if (url.isNotEmpty())
                     "n8n ya tiene su propio túnel activo: $url — no hace falta arrancar otro."
                 else
-                    "n8n ya tiene su propio túnel activo (aún sin URL detectada — revisá el log de n8n) — no hace falta arrancar otro. Para desactivarlo, creá ~/.n8n_local_only y reiniciá n8n."
+                    "n8n ya tiene su propio túnel activo (aún sin URL detectada — revisá el log de n8n) — no hace falta arrancar otro. Para desactivarlo, cambiá n8n a modo local y reiniciá n8n."
             )
         }
         var effectiveToken = token
@@ -255,7 +298,45 @@ object TunnelManager {
 
         val tcpOnly = isTcpOnly(moduleId)
         val cmd: String
-        if (provider == "ngrok") {
+        if (provider == "frp") {
+            val ensure = ensureFrp()
+            if (!ensure.ok) return ActionResult(false, error = "frp no disponible: ${ensure.error}")
+            if (effectiveDomain.isNullOrBlank()) {
+                return ActionResult(false, error = "frp necesita la dirección de tu servidor frps propio (host:puerto) -- configuralo primero en 'Dominios guardados'.")
+            }
+            val (serverAddr, serverPort) = frpServerAddrPort(effectiveDomain)
+            if (serverAddr.isBlank()) return ActionResult(false, error = "Dirección de servidor frps inválida: $effectiveDomain")
+            val tomlPath = File(TUNNEL_LOG_DIR, "frpc_$port.toml").absolutePath
+            // Formato TOML moderno de frp (>=0.52) -- auth.token en vez del viejo [common]+token
+            // de versiones <0.52, confirmado contra el release 0.61.1 que descarga ensureFrp().
+            val toml = buildString {
+                appendLine("serverAddr = \"$serverAddr\"")
+                appendLine("serverPort = $serverPort")
+                if (!effectiveToken.isNullOrBlank()) {
+                    appendLine("auth.method = \"token\"")
+                    appendLine("auth.token = \"${effectiveToken.replace("\"", "\\\"")}\"")
+                }
+                appendLine()
+                appendLine("[[proxies]]")
+                appendLine("name = \"kairos-$port\"")
+                appendLine("type = \"tcp\"")
+                appendLine("localIP = \"127.0.0.1\"")
+                appendLine("localPort = $port")
+                // remotePort = mismo número que el local -- simplificación real (YAGNI): frp no
+                // tiene un mecanismo "quick tunnel" con puerto aleatorio como cloudflared/ngrok,
+                // así que alguien con 2 módulos en el mismo puerto remoto en el MISMO frps
+                // tendría un choque -- documentado como limitación conocida, no se resuelve acá
+                // (un selector de remotePort manual queda para cuando alguien lo necesite de
+                // verdad, ver kairos-native-before-module.md "consultar antes de actuar").
+                appendLine("remotePort = $port")
+            }
+            try {
+                File(tomlPath).writeText(toml)
+            } catch (e: Exception) {
+                return ActionResult(false, error = "No se pudo escribir la config de frp: ${e.message}")
+            }
+            cmd = "frpc -c ${shellQuote(tomlPath)}"
+        } else if (provider == "ngrok") {
             val ensure = ensureNgrok()
             if (!ensure.ok) return ActionResult(false, error = "ngrok no disponible: ${ensure.error}")
             if (!effectiveToken.isNullOrEmpty()) {
@@ -303,7 +384,7 @@ object TunnelManager {
                 cmd = "$cfBin tunnel --no-autoupdate run --token ${shellQuote(effectiveToken)}"
             }
         }
-        // Bug real confirmado (auditoría ADB 2026-08-21):
+        // Bug real confirmado (auditoría ADB 2026-08-21,):
         // tanto cloudflared como ngrok (ambos binarios Go oficiales, CGO_ENABLED=0) fallan en
         // este dispositivo con "lookup ... on [::1]:53: read: connection refused" — el resolver
         // DNS puro de Go busca /etc/resolv.conf real de Android (no existe, solo lectura) en vez
@@ -315,6 +396,10 @@ object TunnelManager {
         // binario nativo (cfBin de nativeCloudflaredPath) — ese SÍ tiene cgo real compilado y
         // usa getaddrinfo() de Bionic correctamente; forzar GODEBUG=netdns=go ahí revertiría al
         // mismo resolver puro de Go que causa el bug, anulando el punto de compilarlo nativo.
+        // frp (frpc oficial, release binario Go sin CGO -- mismo bug potencial de DNS que
+        // ngrok/cloudflared no-nativo si el server_addr es un hostname en vez de una IP
+        // literal) recibe el mismo prefijo defensivo que esos dos, no el camino nativo (no
+        // existe un frpc compilado con CGO en este proyecto, a diferencia de cloudflared).
         val usingNativeCf = provider == "cloudflared" && nativeCloudflaredPath(nativeLibDir) != null
         val envPrefix = if (usingNativeCf) "" else "GODEBUG=netdns=go "
         runCmd("tmux new-session -d -s $session \"$envPrefix$cmd 2>&1 | tee '$log'\"", 10)
@@ -335,7 +420,7 @@ object TunnelManager {
             if (moduleId == "n8n" && n8nOwnTunnelActive()) {
                 return ActionResult(
                     false,
-                    error = "Ese es el túnel propio de n8n (no uno arrancado desde acá) — no se puede detener desde este botón. Para apagarlo: detené n8n, o creá ~/.n8n_local_only y reiniciá n8n para que no lo vuelva a arrancar."
+                    error = "Ese es el túnel propio de n8n (no uno arrancado desde acá) — no se puede detener desde este botón. Para apagarlo: detené n8n, o cambiá n8n a modo local y reinicialo para que no lo vuelva a arrancar."
                 )
             }
             return ActionResult(false, error = "No hay túnel activo en :$port")
@@ -351,8 +436,8 @@ object TunnelManager {
         val log = File(TUNNEL_LOG_DIR, "$port.log")
         if (running && log.exists()) {
             try {
-                // Bug real confirmado (auditoría ADB 2026-08-21,
-                // "falso positivo de éxito" — el hallazgo más grave del día):
+                // Bug real confirmado (auditoría ADB 2026-08-21, ver /
+                //, "falso positivo de éxito" — el hallazgo más grave del día):
                 // cuando cloudflared falla, su propio mensaje de error contiene el literal
                 // "https://api.trycloudflare.com/tunnel":" (la URL del endpoint de la API que
                 // intentó llamar, con las comillas/dos puntos del texto de error) — el regex
@@ -403,10 +488,10 @@ object TunnelManager {
     // del proyecto, ver docs/arquitectura/REGISTRO.md si existe). Claves:
     //   tunnel.cloudflare.token / tunnel.cloudflare.domain
     //   tunnel.ngrok.token      / tunnel.ngrok.domain
-    // Pedido explícito del usuario, 2026-08-13: agregar
-    // opciones de cloudflare, agregar dominio y token para cloudflare y ngrok, poder
+    // Pedido explícito del usuario, 2026-08-13: "agregar
+    // opciones de cloudflare, agregar dominio y token para cloudflare y ngrok... poder
     // agregar los dominios que quieran, los token, poder cambiarlos, modificarlos,
-    // eliminarlos, configurar cloudflare y ngrok desde la pantalla de túnel.
+    // eliminarlos, configurar cloudflare y ngrok desde la pantalla de tunel".
     private fun registryFile() = File(HOME, ".android_server_registry")
 
     private fun registryValues(): Map<String, String> {
@@ -468,6 +553,12 @@ object TunnelManager {
         return when (provider) {
             "cloudflared" -> "$prefix.cloudflare.token" to "$prefix.cloudflare.domain"
             "ngrok" -> "$prefix.ngrok.token" to "$prefix.ngrok.domain"
+            // frp (hallazgo real: "frp -- alternativa de tunnel self-hosted a Cloudflare/ngrok,
+            // sin depender de un servicio en la nube de terceros") -- reusa el mismo par
+            // token/domain que los otros 2 proveedores, pero con otro significado: token = el
+            // auth.token del servidor frps propio, domain = "host:puerto" de ESE servidor (NO
+            // un dominio público de Cloudflare/ngrok) -- ver frpServerAddrPort()/start().
+            "frp" -> "$prefix.frp.token" to "$prefix.frp.domain"
             else -> "$prefix.unknown.token" to "$prefix.unknown.domain"
         }
     }
@@ -478,7 +569,7 @@ object TunnelManager {
      * un id de módulo (ej. "n8n", "remote") lee la config propia de ese módulo.
      */
     fun getConfig(provider: String, moduleId: String = ""): ProviderConfig {
-        if (provider != "cloudflared" && provider != "ngrok") return ProviderConfig()
+        if (provider !in KNOWN_PROVIDERS) return ProviderConfig()
         val (tokenKey, domainKey) = configKeys(provider, moduleId)
         val reg = registryValues()
         return ProviderConfig(reg[tokenKey].orEmpty(), reg[domainKey].orEmpty())
@@ -487,7 +578,7 @@ object TunnelManager {
     /** Guarda (o actualiza) token/dominio de un proveedor en el registry, opcionalmente
      *  asociado a un [moduleId] propio (ver [getConfig]). */
     fun saveConfig(provider: String, token: String, domain: String, moduleId: String = ""): ActionResult {
-        if (provider != "cloudflared" && provider != "ngrok") {
+        if (provider !in KNOWN_PROVIDERS) {
             return ActionResult(false, error = "Provider desconocido: $provider")
         }
         val (tokenKey, domainKey) = configKeys(provider, moduleId)
@@ -500,7 +591,7 @@ object TunnelManager {
     /** Elimina token/dominio guardados de un proveedor, opcionalmente de un [moduleId]
      *  propio (ver [getConfig]). */
     fun clearConfig(provider: String, moduleId: String = ""): ActionResult {
-        if (provider != "cloudflared" && provider != "ngrok") {
+        if (provider !in KNOWN_PROVIDERS) {
             return ActionResult(false, error = "Provider desconocido: $provider")
         }
         val (tokenKey, domainKey) = configKeys(provider, moduleId)
@@ -640,9 +731,9 @@ object TunnelManager {
     //  VERIFICAR — consistencia real registry ↔ archivo ↔ proceso
     // ═══════════════════════════════════════════════════════════
     // Pedido explícito del usuario: chequeo real, no solo "el registry dice que está
-    // configurado" — mismo principio de verificación empírica que rige el resto del
-    // proyecto: verificar la post-condición real, no confiar solo en que se escribió un
-    // valor. Por cada módulo con config propia asignada: (a) confirma que el registry
+    // configurado" (ver .claude/rules/empirical-verification-before-fix.md — mismo
+    // principio: verificar la post-condición real, no confiar solo en que se escribió un
+    // valor). Por cada módulo con config propia asignada: (a) confirma que el registry
     // sigue teniendo token/dominio, (b) para n8n, que ~/.cf_token existe Y coincide con el
     // token del registry (el bug real que originó todo este fix), (c) si el túnel de ese
     // módulo está corriendo, confirma con pgrep que el PROCESO cloudflared/ngrok sigue vivo

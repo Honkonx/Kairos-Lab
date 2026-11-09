@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- English versions of the Kairos-specific strings of values/strings.xml (the upstream Termux
+         strings there are already English and fall back to the default resources). Added
+         2026-10-07,. -->
+
+    <!-- Custom terminal commands (regular sidebar) -->
+    <string name="title_custom_terminal_commands">Custom commands</string>
+    <string name="action_add_custom_command">+ Add command</string>
+    <string name="title_add_custom_command">New command</string>
+    <string name="title_edit_custom_command">Edit command</string>
+    <string name="hint_custom_command_label">Short name (e.g. \"Update\")</string>
+    <string name="hint_custom_command_value">Actual command (e.g. \"pkg update -y &amp;&amp; pkg upgrade -y\")</string>
+    <string name="action_save_custom_command">Save</string>
+    <string name="action_delete_custom_command">Delete</string>
+    <string name="msg_custom_command_limit_reached">Limit of %1$d custom commands reached</string>
+    <string name="msg_custom_command_no_active_session">There is no active terminal session</string>
+    <string name="msg_custom_command_fields_required">Fill in the name and the command</string>
+    <string name="label_font_size">Font size</string>
+    <string name="label_terminal_theme">Theme</string>
+    <string name="label_terminal_theme_default">Default</string>
+    <string name="action_change_terminal_theme">Change theme →</string>
+    <string name="title_terminal_theme_picker">Choose theme</string>
+    <string name="error_terminal_theme_write_failed">Could not apply the theme</string>
+
+    <!-- Adapted terminal -->
+    <string name="action_terminal_adapted_minimize">Minimize</string>
+    <string name="action_terminal_adapted_close">Close</string>
+    <string name="action_terminal_adapted_menu">More options</string>
+
+    <!-- Simple mode of the adapted terminal -->
+    <string name="action_terminal_simple_toggle">Switch between Adapted and Simple mode</string>
+    <string name="terminal_simple_fallback_banner">This session cannot be simplified, showing the raw view</string>
+    <string name="terminal_simple_raw_chip_format">● real process · %1$s · show raw output</string>
+    <string name="terminal_simple_mode_label">Mode: %1$s</string>
+    <string name="terminal_simple_mode_adapted">Adapted</string>
+    <string name="terminal_simple_mode_simple">Simple</string>
+
+    <!-- Embedded panel (file manager / browser) of the adapted terminal -->
+    <string name="terminal_adapted_panel_files_title">File manager</string>
+    <string name="terminal_adapted_panel_browser_title">Browser</string>
+    <string name="terminal_adapted_tab_files">📁 Files</string>
+    <string name="terminal_adapted_tab_browser">🌐 Browser</string>
+    <string name="hint_terminal_adapted_browser_url">https://example.com or a search</string>
+
+    <!-- Accessibility of the adapted panel/sidebar -->
+    <string name="title_terminal_adapted_accessibility">Accessibility</string>
+    <string name="terminal_adapted_accessibility_tab_mode_label">Open Files/Browser as a tab</string>
+    <string name="msg_terminal_transcript_copied">Transcript copied to the clipboard</string>
+    <string name="title_terminal_ai_review">AI review</string>
+    <string name="msg_terminal_ai_review_no_command">There\'s no typed command to review</string>
+    <string name="msg_terminal_ai_review_loading">Asking the AI…</string>
+    <string name="msg_terminal_ai_review_session_changed">The session changed while you were waiting -- nothing was applied</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_use_suggestion">Use suggestion</string>
+
+    <!-- Windows (split view) -->
+    <string name="title_terminal_adapted_split_mode">Windows</string>
+    <string name="terminal_adapted_split_mode_label">Split: session + panel at once</string>
+    <string name="terminal_adapted_split_mode_explain">Splits the screen in two: the terminal session on top, Files or Browser below (choose which with the usual tabs). Drag the divider to resize.</string>
+    <string name="terminal_adapted_split_divider_content_description">Resize the split</string>
+
+    <!-- Homelab home-screen widget -->
+    <string name="widget_homelab_description">CPU, RAM and running modules — tap to open Homelab.</string>
+    <string name="widget_homelab_updated_at">Updated %1$s</string>
+    <plurals name="widget_homelab_modules_running">
+        <item quantity="one">%d module running</item>
+        <item quantity="other">%d modules running</item>
+    </plurals>
+
+    <!-- Local .deb package (v2 format): summary before installing (2026-10-08) -->
+    <string name="plugins_deb_confirm_title">Install %1$s %2$s</string>
+    <string name="plugins_deb_confirm_files">The package contains %1$d files, all listed with their hash in SHA256SUMS.txt.</string>
+    <string name="plugins_deb_confirm_requires_ok">All of its requirements are already on the system.</string>
+    <string name="plugins_deb_confirm_requires_missing">Missing requirements will be downloaded: %1$s</string>
+    <string name="plugins_deb_confirm_runs_commands">After copying the files it runs the verification and repair commands declared in its manifest.json.</string>
+    <string name="plugins_deb_confirm_no_hash">This is a local file: no hash published through a trusted channel backs it. Install it only if you trust whoever created it.</string>
+    <string name="plugins_deb_confirm_verify_cmd_text">Verification command:\n%1$s</string>
+    <string name="plugins_deb_confirm_patch_cmd_text">Repair command:\n%1$s</string>
+
+    <!-- Alcance B: privileged-server consent (KairosPrivilegedConsentActivity) -->
+    <string name="privileged_consent_title">Kairos elevated privilege</string>
+    <string name="privileged_consent_message">\"%1$s\" (%2$s) wants to run commands with Kairos\'s elevated privilege — shell identity (or root, if the device has it), never more than that. Allow?</string>
+    <string name="privileged_consent_allow">Always allow</string>
+    <string name="privileged_consent_allow_once">Just this once</string>
+    <string name="privileged_consent_deny">Deny</string>
+    <string name="plugins_deb_confirm_install">Install</string>
+</resources>

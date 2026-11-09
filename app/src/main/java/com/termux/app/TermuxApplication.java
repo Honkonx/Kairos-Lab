@@ -35,8 +35,8 @@ public class TermuxApplication extends Application {
 
         Logger.logDebug("Starting Application");
 
-        // Log interno de Kairos (nivel OFF/NORMAL/FULL, ver ConfigFragment "Log Kairos")
-        // — instala el handler de excepciones no capturadas ANTES de
+        // Log interno de Kairos (nivel OFF/NORMAL/FULL, ver ConfigFragment "Log Kairos" —
+        //) — instala el handler de excepciones no capturadas ANTES de
         // cualquier otra inicialización que pueda fallar, envolviendo al handler de
         // TermuxCrashUtils.setDefaultCrashHandler() de arriba (no lo reemplaza).
         com.termux.app.util.KairosLogger.installUncaughtExceptionHandler(context);
@@ -96,12 +96,19 @@ public class TermuxApplication extends Application {
         com.termux.app.util.RootfsUpdateScheduler.maybeCheckPeriodically(context);
 
         // Default horizontal para el visor X11 embebido — bug real reportado por el usuario
-        // (arrancaba vertical, esperaba 1280x720 horizontal). Corre en
+        // (arrancaba vertical, esperaba 1280x720 horizontal,). Corre en
         // TODOS los procesos de la app (incluido ":xserver", donde vive com.termux.x11.MainActivity)
         // porque Application.onCreate() se invoca una vez por proceso — barato e idempotente
         // (solo escribe si la preferencia nunca se seteó). Ver KDoc de
         // EntornoNative.ensureX11LandscapeDefault() para la causa raíz completa.
         com.termux.app.util.EntornoNative.INSTANCE.ensureX11LandscapeDefault(context);
+
+        // Trigger BATTERY_LEVEL de Automatizaciones (docs/modulos/AUTOMATIZACIONES.md +
+        // docs/arquitectura/FUTURO.md sección "Automatizaciones — triggers diferidos") —
+        // ACTION_BATTERY_CHANGED es una de las "broadcast exceptions" de Android 8+, no se puede
+        // declarar estático en el manifest, se registra dinámicamente acá. Ver KDoc de
+        // AutomationBatteryReceiver.kt para el diseño completo.
+        AutomationBatteryReceiver.Companion.register(context);
     }
 
     public static void setLogConfig(Context context) {

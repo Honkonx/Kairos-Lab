@@ -4,7 +4,8 @@
 #  Rust — paquete nativo de Termux (pkg install rust).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/lang/rust/install.sh
-#  (mismo comando real: pkg install rust).
+#  (mismo comando real: pkg install rust) — ver ronda "paquetes adicionales
+#  core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash rust.sh --silent

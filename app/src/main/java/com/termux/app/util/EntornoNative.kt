@@ -22,8 +22,8 @@ import java.io.File
 object EntornoNative {
 
     // "kali" agregada 2026-08-26 (pedido explícito del usuario: "en Mini PC nunca sale
-    // disponible la distro Kali y debería salir" — faltaba del catálogo por completo).
-    // A diferencia del resto de esta lista, "kali" NO es un alias
+    // disponible la distro Kali y debería salir" — faltaba del catálogo por completo, ver
+    //). A diferencia del resto de esta lista, "kali" NO es un alias
     // oficial de proot-distro (confirmado en modulos/ciberseguridad.sh PASO 7: proot-distro
     // v5.6.0+ ya no tiene un alias curado "kali" — hay que instalar la imagen OCI completa
     // "kalilinux/kali-rolling" con "-n kali" para que quede con ese nombre de contenedor). Se
@@ -61,7 +61,7 @@ object EntornoNative {
     private val CONFIRMED = listOf("ubuntu", "debian", "alpine")
     private val EXPERIMENTAL = listOf("archlinux", "fedora", "void", "kali", "manjaro", "rockylinux", "opensuse-tumbleweed")
 
-    // Bug real reportado (2026-08-13): "plasma" quedó en esta
+    // Bug real reportado (2026-08-13,): "plasma" quedó en esta
     // lista pero NUNCA puede instalarse — KDE Plasma está fuera de alcance del repo nativo
     // termux/x11-packages (confirmado: solo se ofrece vía proot-distro con pacman/apt, no
     // existe como paquete pkg de Termux) — installDesktop("plasma") fallaba siempre con
@@ -106,7 +106,6 @@ object EntornoNative {
         GenericCliLauncher("copilotcli", "GitHub Copilot CLI", "copilot", "ai"),
         GenericCliLauncher("minimaxcli", "MiniMax CLI", "mmx", "ai"),
         GenericCliLauncher("mimocode", "MimoCode", "mimo", "ai"),
-        GenericCliLauncher("mistralvibe", "Mistral Vibe", "vibe", "ai"),
         GenericCliLauncher("qwencode", "Qwen Code", "qwen", "ai"),
         GenericCliLauncher("ciberseguridad", "Ciberseguridad (nmap)", "nmap", "seguridad"),
         GenericCliLauncher("cactus", "Cactus", "cactus", "ai"),
@@ -170,8 +169,17 @@ object EntornoNative {
         val mode = reg["entorno.desktop_mode"]?.takeIf { it.isNotBlank() } ?: return ""
         val stillAlive = when (mode) {
             MODE_NATIVE -> KNOWN_DESKTOPS.any { desktopExecCmd(it)?.let(::processRunning) == true }
-            MODE_PROOT -> processRunning("proot-distro login") &&
-                (processRunning("dbus-launch --exit-with-session") || KNOWN_DESKTOPS.any { desktopExecCmd(it)?.let(::processRunning) == true })
+            // Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): este
+            // chequeo seguía exigiendo processRunning("proot-distro login") — el MISMO patrón
+            // que un comentario de otra función de esta clase (ver startDistroDesktop() más
+            // abajo) ya documentó como roto de forma sistemática: proot-distro hace
+            // execvpe() y "login" nunca vuelve a aparecer en el cmdline real, así que esta
+            // rama daba FALSO siempre (desktopModeConflict() nunca detectaba un conflicto
+            // real de modo proot). Se reemplaza por el marcador real que gui_start.sh
+            // --distro agrega a su propio exec (KAIROS_GUI_SESSION=1, mismo marcador que
+            // ahora usa gui_stop.sh para no matar una sesión de terminal plana abierta a
+            // mano) — sobrevive al exec porque es un argumento literal de "env NOMBRE=VALOR".
+            MODE_PROOT -> processRunning("KAIROS_GUI_SESSION=1")
             else -> false
         }
         if (!stillAlive) {
@@ -234,8 +242,8 @@ object EntornoNative {
 
     /**
      * Mismo mapeo que _check_gpu() en menu_entorno.sh/entorno.sh — getprop, no dmesg
-     * (Android 15 pide root para dmesg). Codenames Adreno ampliados (2026-08-06) —
-     * 3ra copia del mismo bug ya arreglado en modulos/ollama.sh
+     * (Android 15 pide root para dmesg). Codenames Adreno ampliados (2026-08-06, ver
+     *) — 3ra copia del mismo bug ya arreglado en modulos/ollama.sh
      * y modulos/entorno.sh (bash): faltaba "cape" (Snapdragon 7+ Gen2, dispositivo real de
      * prueba de esta sesión) y otros codenames Qualcomm recientes.
      *
@@ -263,7 +271,7 @@ object EntornoNative {
         }
     }
 
-    // Bug real (2026-08-06): installDesktop() (y las demás
+    // Bug real (2026-08-06,): installDesktop (y las demás
     // llamadas a "pkg update" de este archivo) usan ManagerNativeUtils.runExec() —
     // ProcessBuilder directo, SIN pasar por bash — así que nunca se benefician de
     // pkg_update_with_fallback() (modulos/lib.sh), el reintento-con-otro-mirror que sí
@@ -274,7 +282,7 @@ object EntornoNative {
     // por algún motivo, cae a un "pkg update -y" plano (comportamiento anterior), nunca
     // deja el update sin intentar.
     //
-    // Bug real #2 (auditoría 2026-08-12): el patrón de "$out"
+    // Bug real #2 (auditoría 2026-08-12,): el patrón de "$out"
     // que dispara el reintento de mirror en pkg_update_with_fallback() (modulos/lib.sh) no
     // incluía "No mirror or mirror group selected" — el mensaje real que devuelve `pkg`
     // (scripts/pkg.in, select_mirror()) cuando el dispositivo nunca corrió el
@@ -292,7 +300,7 @@ object EntornoNative {
         return ManagerNativeUtils.runShell(cmd, timeoutSeconds)
     }
 
-    // Bug real #3 (auditoría 2026-08-12): xfce4/lxqt/mate/plasma
+    // Bug real #3 (auditoría 2026-08-12,): xfce4/lxqt/mate/plasma
     // viven en el repo separado de Termux "x11-repo" (termux/termux-packages,
     // x11-packages/) — NUNCA se habilita en ningún flujo de Kairos (ni modulos/entorno.sh,
     // ni EntornoNative.kt), así que "pkg install xfce4" fallaba con "unable to locate
@@ -330,6 +338,51 @@ object EntornoNative {
 
     private fun processRunning(pattern: String) =
         ManagerNativeUtils.runExec(listOf("pgrep", "-f", pattern), 5).first == 0
+
+    // Hallazgo real de auditoría 2026-08-31 (referencia/contenedores/LXC-Manager-main, ver
+    // MEJORAS_PENDIENTES.md "Pendiente — Recursos por sesión de escritorio (Mini PC), patrón
+    // LXC-Manager"): ContainerStatusMonitor.kt usa delta de jiffies de /proc/<pid>/stat --
+    // mismo patrón que SystemMetrics.sampleCpu()/cpuPercent() ya usa para el CPU% DEL SISTEMA
+    // ENTERO (/proc/stat), extendido acá a UN proceso puntual. [sessionResourceUsage] más abajo
+    // ya resolvía PID+RAM (RSS) de la sesión activa -- faltaba CPU%, que es lo que agregan
+    // [sampleProcessCpu]/[processCpuPercent].
+    private data class ProcCpuSample(val pid: Int, val utimeStimeJiffies: Long, val wallNanos: Long)
+
+    private fun sampleProcessCpu(pid: Int): ProcCpuSample? {
+        return try {
+            val fields = File("/proc/$pid/stat").readText().trim()
+                // El 2do campo (comm, entre paréntesis) puede contener espacios -- se corta todo
+                // hasta el último ')' antes de dividir por espacios, mismo criterio que proc(5)
+                // recomienda para parsear este archivo con seguridad.
+                .let { it.substringAfter(") ") }
+                .split(Regex("\\s+"))
+            // Tras el substringAfter de arriba, el índice 0 es el campo 3 real (state) --
+            // utime es el campo 14 real = índice 11 acá, stime el campo 15 = índice 12.
+            val utime = fields.getOrNull(11)?.toLongOrNull() ?: return null
+            val stime = fields.getOrNull(12)?.toLongOrNull() ?: return null
+            ProcCpuSample(pid, utime + stime, System.nanoTime())
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun processCpuPercent(prev: ProcCpuSample, current: ProcCpuSample): Int? {
+        if (prev.pid != current.pid) return null
+        val jiffiesDelta = current.utimeStimeJiffies - prev.utimeStimeJiffies
+        val wallNanosDelta = current.wallNanos - prev.wallNanos
+        if (wallNanosDelta <= 0) return null
+        // USER_HZ real de Android/Linux ARM64 es 100 (sysconf(_SC_CLK_TCK), confirmado por
+        // convención estándar del kernel -- cada jiffie = 10ms) -- no hay forma portable de
+        // leerlo sin JNI, se asume el valor estándar (mismo supuesto que la mayoría de
+        // herramientas de /proc en Android/Linux).
+        val userHz = 100.0
+        val wallSeconds = wallNanosDelta / 1_000_000_000.0
+        val cores = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
+        val pct = ((jiffiesDelta / userHz) / wallSeconds / cores) * 100.0
+        return pct.toInt().coerceIn(0, 100)
+    }
+
+    private const val CPU_SAMPLE_GAP_MS = 300L
 
     // Hallazgo #1 de docs/x11/AUDITORIA_INFRAESTRUCTURA_X11_2026-08-26.md: status() solo
     // hacía "pgrep -f :xserver", que confirma que el PROCESO Android (X11Service) existe —
@@ -429,7 +482,7 @@ object EntornoNative {
         // el propio APK (X11Service, proceso ":xserver" — ver docs/arquitectura/
         // X11_EMBEBIDO.md), Entorno usa ese servidor embebido en vez de la app externa
         // (pedido explícito del usuario, "como ya tenemos x11/xlorie en el apk debe abrir
-        // ahi directamente") — el servidor embebido siempre
+        // ahi directamente",) — el servidor embebido siempre
         // está disponible (ships en el APK), y su estado real es si el proceso ":xserver"
         // está vivo, igual que X11Fragment.isXServerProcessAlive() pero vía pgrep (este
         // object no tiene Context para usar ActivityManager).
@@ -493,7 +546,7 @@ object EntornoNative {
     // URL a una futura Release pública de kairos-lab — TODAVÍA NO PUBLICADA (mismo patrón
     // deliberado que RootfsInstaller.ROOTFS_TAR_URL: apunta al repo PÚBLICO kairos-lab, nunca
     // al privado, para que el día que se publique la Release esto funcione sin tocar código
-    // de nuevo). Evaluado a partir de una pregunta
+    // de nuevo —). Evaluado en a partir de una pregunta
     // real del usuario ("¿un .deb de Kali no es más rápido?"): la respuesta real es que un
     // .deb no aplica acá (Kali no vive en la base de dpkg de Termux, vive como rootfs de
     // proot-distro), pero el mismo mecanismo que ya usan distroBackup()/distroRestore()
@@ -583,12 +636,13 @@ object EntornoNative {
         insufficientSpaceError(600)?.let { return it }
         // Puede tardar varios minutos (descarga del rootfs) — timeout generoso; el
         // caller ya corre esto en un Thread propio, no bloquea el hilo de UI. Subido
-        // de 600s a 900s (bug real reportado: "da error
+        // de 600s a 900s (bug real reportado,: "da error
         // al instalar la distro" — en conexiones lentas, un rootfs de varios cientos
         // de MB puede no alcanzar a bajar en 10 minutos; el timeout mataba el proceso
         // a mitad de descarga y se reportaba como error genérico).
         //
-        // Bug de diagnosticabilidad real (auditoría 2026-08-05): esta operación (y el resto de EntornoNative) no dejaba NINGÚN
+        // Bug de diagnosticabilidad real (auditoría 2026-08-05, ver /
+        //): esta operación (y el resto de EntornoNative) no dejaba NINGÚN
         // rastro persistente — a diferencia de ModuleController.installModule(), que
         // escribe a ~/kairos_logs/install_<modulo>.log, un fallo acá solo mostraba un
         // Snackbar genérico ("Instalación de X falló") y el detalle real (json.output)
@@ -657,7 +711,7 @@ object EntornoNative {
     //  Storage compartido automático — portado de usb_bind_args()/--shared-home/
     //  --shared-tmp de termux-desktop-main (ver referencia/termux/termux-desktop-main/
     //  distro-container-setup, funciones usb_bind_args()/usb_mounts()). Pedido explícito
-    //  del usuario (PLAN_EXPANSION_HOMELAB_2026-08-13 §2.7):
+    // del usuario (PLAN_EXPANSION_HOMELAB_2026-08-13 §2.7):
     //  storage compartido SIN que el usuario configure nada, en CUALQUIER
     //  "proot-distro login" que dispare Kairos.
     // ═══════════════════════════════════════════════════════════
@@ -761,11 +815,18 @@ object EntornoNative {
     /** Mismo mapeo que session_cmd() en gui_start.sh (modulos/entorno.sh) — el binario real
      *  que el camino "CON DISTRO" ejecuta dentro del proot, distinto del wrapper nativo que usa
      *  desktopExecCmd() arriba (ver comentario real en startDistroDesktop()). */
+    // Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): "kde" caía en el
+    // default "$de-session" -> "kde-session" (binario inexistente) — distro_setup_gui.sh
+    // (_SESSION_BIN) instala y arranca "startplasma-x11" de verdad. Mismo fix aplicado en
+    // modulos/entorno.sh::session_cmd() (gui_start.sh usa esa copia, no esta función — las
+    // dos tenían que coincidir porque esta es la que usa startDistroDesktop() para VERIFICAR
+    // que el proceso real levantó).
     private fun distroSessionCmd(de: String): String = when (de) {
         "xfce4", "xfce" -> "xfce4-session"
         "lxqt" -> "lxqt-session"
         "openbox" -> "openbox-session"
         "i3", "i3wm" -> "i3"
+        "kde" -> "startplasma-x11"
         else -> "$de-session"
     }
 
@@ -783,8 +844,8 @@ object EntornoNative {
      * (termux/termux-packages, x11-packages/) — xfce4/lxqt/mate existen tal cual.
      *
      * Timeout subido de 300s a 900s y `pkg update -y` best-effort antes de instalar (mirrors
-     * caídos causaban "unable to locate package" en vez de un timeout real). NOTA
-     * (2026-08-13): esa misma
+     * caídos causaban "unable to locate package" en vez de un timeout real, ver
+     *). NOTA (2026-08-13,): esa misma
      * ronda diagnosticó mal el caso de `plasma` — el "unable to locate package" ahí NO era
      * por timeout/mirror, era porque KDE Plasma no existe como paquete pkg de Termux (fuera
      * de alcance del repo x11-packages, solo instalable vía proot-distro) — quitado de
@@ -820,7 +881,7 @@ object EntornoNative {
      * Lanza el DE elegido sobre el servidor X11 EMBEBIDO (Xlorie/X11Service, display fijo
      * ":1" — ver docs/x11/X11_EMBEBIDO.md). Reemplaza el flujo anterior que
      * arrancaba Termux:X11 (app externa, tx11_start.sh) sobre DISPLAY=:0 — pedido explícito
-     * del usuario, "como ya tenemos x11/xlorie en el apk debe abrir ahi directamente".
+     * del usuario, "como ya tenemos x11/xlorie en el apk debe abrir ahi directamente" (ver
      *
      * El CALLER (EntornoFragment, que sí tiene Context) es responsable de arrancar
      * X11Service ANTES de invocar esta función — este object no puede arrancar un Service
@@ -852,7 +913,7 @@ object EntornoNative {
             ?: return JSONObject().put("ok", false).put("error", "Escritorio desconocido: $de")
         // Antes de arrancar el DE, no después — xfdesktop escanea ~/Desktop al levantar
         // la sesión, así que los íconos deben existir ya en ese momento (ver
-        // generateDesktopLaunchers() más abajo). Mismo criterio
+        // generateDesktopLaunchers más abajo). Mismo criterio
         // para ~/.config/autostart/ (generateAutostartEntries()) — la sesión (xfce4-session
         // et al.) también lo lee al levantar.
         generateDesktopLaunchers()
@@ -877,12 +938,14 @@ object EntornoNative {
         val socketDir = "$prefix/tmp/.X11-unix"
         val cmd = buildString {
             if (gpuEnvScript.exists()) append("source '${gpuEnvScript.absolutePath}' >/dev/null 2>&1; ")
-            // Sleep subido de 3s a 5s — el servidor X11 embebido arranca en OTRO proceso
-            // Android (":xserver", ver X11Service.onCreate()) que recién termina de
-            // levantar Xlorie/CmdEntryPoint.main() de forma asíncrona; 3s fijos podían no
-            // alcanzar en dispositivos lentos, y $execCmd fallaba con "Can't open display"
-            // sin que nadie lo viera (antes iba a /dev/null).
-            append("sleep 5; ")
+            // Mejora 2026-11-02 (análisis Mini PC, docs/mini-pc/PLAN_MEJORAS_MINIPC_AUDITORIA_REFERENCIA_2026-11-02.md
+            // §3.5): la espera fija de 5s (antes 3s) se reemplaza por sondeo real del socket
+            // — en dispositivos rápidos Xlorie/CmdEntryPoint.main() puede estar listo en
+            // milisegundos y antes se esperaba igual los 5s completos; en dispositivos lentos
+            // sigue teniendo el mismo margen máximo (50 intentos * 0.1s = 5s). El servidor X11
+            // embebido arranca en OTRO proceso Android (":xserver", ver X11Service.onCreate())
+            // de forma asíncrona, por eso hace falta sondear en vez de asumir un tiempo fijo.
+            append("for _i in \$(seq 1 50); do [ -S '$socketDir/X${com.termux.app.X11Service.DISPLAY.removePrefix(":")}' ] && break; sleep 0.1; done; ")
             // Diagnóstico real del socket ANTES de intentar conectar — deja rastro explícito
             // en el log de si el servidor X11 realmente publicó el socket donde el cliente
             // Termux lo espera, para diferenciar "servidor no levantó el socket ahí" de
@@ -947,7 +1010,7 @@ object EntornoNative {
         // ese script) — 27s = 25s del retry loop + margen para dbus/sesión, mismo criterio que
         // el 12s anterior (10s+2s) pero con el presupuesto real que exige un arranque en frío.
         Thread.sleep(27000)
-        // Bug real confirmado 2026-08-27 (reporte de usuario: la app
+        // Bug real confirmado 2026-08-27 (ver reporte de usuario: la app
         // dice "error al abrir" pero el entorno gráfico SÍ abre — falso negativo). Este chequeo
         // exigía `processRunning("proot-distro login")` — pero `proot-distro login` (paquete
         // Python real, confirmado leyendo commands/login/__init__.py del proot-distro instalado
@@ -998,6 +1061,89 @@ object EntornoNative {
     }
 
     /**
+     * Variante de [startDistroDesktop] para "2 instancias X11 conmutables (nativa + distro)" --
+     * pedido explícito del usuario desde 2026-08-18 (ver MEJORAS_PENDIENTES.md): poder tener un
+     * escritorio nativo Y uno con distro a la vez, cambiando entre ellos con un panel/botón,
+     * SIN que uno tenga que cerrarse para abrir el otro. A diferencia de [startDistroDesktop]
+     * (que corre sobre el MISMO servidor X11 que el nativo, por eso [desktopModeConflict] los
+     * bloquea entre sí), esta variante corre sobre una 2da instancia INDEPENDIENTE del
+     * servidor X (X11Service2, display ":2") -- gui_start.sh ya soporta `--display <val>` desde
+     * antes (confirmado leyendo modulos/entorno.sh, línea ~957), así que no hace falta tocar
+     * ese script protegido para esto.
+     *
+     * Registro propio (`entorno.desktop_mode_distro2`), independiente de `entorno.desktop_mode`
+     * (slot nativo) -- así [desktopModeConflict] (que solo mira `entorno.desktop_mode`) nunca
+     * bloquea esta variante, y viceversa. Sigue bloqueando 2 distros a la vez en este MISMO slot
+     * (no tendría sentido -- sería el mismo problema de 2 sesiones peleando el mismo display).
+     *
+     * SIN VERIFICAR EN DISPOSITIVO REAL (ver .claude/rules/kairos-minipc-empirical-verification.md)
+     * -- implementado 2026-11-09 sin dispositivo conectado, permiso explícito del usuario para
+     * avanzar igual. Limitación conocida, sin resolver: `gui_stop.sh` (sin `--display`, mata por
+     * nombre de proceso de sesión -- xfce4-session/lxqt-session/etc.) no puede distinguir CUÁL
+     * de las 2 instancias detener si ambas corren el MISMO DE (ej. xfce4 nativo + xfce4 distro a
+     * la vez) -- resolverlo bien necesitaría tocar `modulos/entorno.sh` (protegido, sin permiso
+     * para esto todavía). Mientras tanto: "Detener escritorio" en este slot mata TODAS las
+     * sesiones de ese nombre, nativo incluido si coincide el DE -- documentado, no silencioso.
+     */
+    fun startDistroDesktopDual(distro: String, de: String = "xfce4"): JSONObject {
+        val active = ManagerNativeUtils.readRegistry()["entorno.desktop_mode_distro2"]?.takeIf { it.isNotBlank() }
+        if (active != null && active != "$distro:$de" && processRunning(distroSessionCmd(de))) {
+            return JSONObject().put("ok", false).put("conflict", true)
+                .put("error", "Ya hay un escritorio con distro corriendo en la 2da instancia X11 ($active) — detenelo primero.")
+        }
+        val guiStart = File(scriptsDir, "gui_start.sh")
+        if (!guiStart.exists()) {
+            return JSONObject().put("ok", false).put("error", "Entorno no instalado todavía")
+        }
+        if (rootfsParentDir(distro) == null) {
+            return JSONObject().put("ok", false).put("error", "$distro no está instalada")
+        }
+        val display2 = com.termux.app.X11Service2.DISPLAY
+        val logDir = File(ManagerNativeUtils.home, "kairos_logs")
+        logDir.mkdirs()
+        val logFile = File(logDir, "desktop_distro2_${distro}_$de.log")
+        val cmd = "bash '${guiStart.absolutePath}' --distro '$distro' --display '$display2' '$de' >'${logFile.absolutePath}' 2>&1 &"
+        val (_, shellOut, _) = ManagerNativeUtils.runShell(cmd, 15)
+        WizardDebugLog.log("EntornoNative", "startDistroDesktopDual($distro,$de): $shellOut")
+        Thread.sleep(27000)
+        val distroRootfsMarker = when (rootfsParentDir(distro)) {
+            containersBase -> "proot-distro/containers/$distro/"
+            rootfsBase -> "proot-distro/installed-rootfs/$distro"
+            else -> "proot-distro/$distro"
+        }
+        val logTail = try { if (logFile.exists()) logFile.readText().takeLast(500) else "" } catch (_: Exception) { "" }
+        val failedToOpenDisplay = logTail.contains("Cannot open display")
+        val alive = !failedToOpenDisplay &&
+            processRunning(distroRootfsMarker) &&
+            processRunning(distroSessionCmd(de))
+        WizardDebugLog.log("EntornoNative", "startDistroDesktopDual($distro,$de): alive=$alive log=$logTail")
+        if (!alive) {
+            return JSONObject().put("ok", false)
+                .put("error", "${desktopLabel(de)} no arrancó dentro de $distro (2da instancia X11) — ¿corriste \"distro_setup_gui.sh $distro\" antes?")
+                .put("output", logTail)
+        }
+        updateRegistryValue("entorno.desktop_mode_distro2", "$distro:$de")
+        return JSONObject().put("ok", true)
+            .put("message", "${desktopLabel(de)} corriendo dentro de $distro sobre la 2da instancia X11 ($display2) — abrí X11 (distro) para verlo")
+    }
+
+    /** Limpia solo el slot de la 2da instancia X11 (distro) -- gui_stop.sh sigue siendo "mata
+     *  por nombre de proceso", ver limitación documentada en [startDistroDesktopDual]. */
+    fun stopDistroDesktopDual(): JSONObject {
+        val script = File(scriptsDir, "gui_stop.sh")
+        updateRegistryValue("entorno.desktop_mode_distro2", "")
+        if (!script.exists()) {
+            return JSONObject().put("ok", false).put("error", "Entorno no instalado todavía")
+        }
+        val (rc, out, err) = ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, script.absolutePath), 20)
+        if (rc != 0) {
+            return JSONObject().put("ok", false).put("error", "No se pudo detener el escritorio (2da instancia X11)")
+                .put("output", out.ifEmpty { err }.takeLast(300))
+        }
+        return JSONObject().put("ok", true).put("message", "Escritorio (2da instancia X11) detenido")
+    }
+
+    /**
      * Instala dbus + el DE elegido DENTRO de la distro (distro_setup_gui.sh <distro> <de>)
      * — paso previo real a startDistroDesktop(), que hasta ahora no tenía ningún caller
      * Kotlin/UI (solo existía como script standalone, ver header de distro_setup_gui.sh en
@@ -1021,7 +1167,9 @@ object EntornoNative {
         val script = File(scriptsDir, "distro_setup_gui.sh")
         if (!script.exists()) return JSONObject().put("ok", false).put("error", "Entorno no instalado todavía")
         val scriptArgs = listOf(TERMUX_BASH_PATH, script.absolutePath, distro, de) + if (lite) listOf("lite") else emptyList()
-        val (rc, out, err) = ManagerNativeUtils.runExec(scriptArgs, 900)
+        // 2800 s (antes 900): debe ser >= al tope de distro_setup_gui.sh (2700 s); con 900 s se mataba la
+        // instalacion a mitad de dpkg (ver comentario de ese script, 2026-10-08).
+        val (rc, out, err) = ManagerNativeUtils.runExec(scriptArgs, 2800)
         val output = out.ifEmpty { err }
         WizardDebugLog.log("EntornoNative", "distroInstallDesktop($distro,$de): rc=$rc output=${output.takeLast(500)}")
         if (rc != 0) {
@@ -1050,8 +1198,8 @@ object EntornoNative {
             ?.split(",")?.filter { it.isNotBlank() && it in KNOWN_DESKTOPS_DISTRO } ?: emptyList()
 
     // ═══════════════════════════════════════════════════════════
-    //  Fondo de pantalla — pedido explícito del usuario
-    //  ("incluso poder cambiar la imagen de fondo etc"). Mecanismo real por DE (confirmado
+    // Fondo de pantalla — pedido explícito del usuario ( ronda,
+    //  "incluso poder cambiar la imagen de fondo etc"). Mecanismo real por DE (confirmado
     //  contra la documentación oficial de cada proyecto — no verificado en vivo dentro de
     //  una sesión gráfica real del dispositivo, ver nota de "pendiente de confirmación
     //  visual" en docs/arquitectura/DEPURACION_COMPLETA_2026-08-26.md):
@@ -1213,8 +1361,8 @@ object EntornoNative {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Lanzadores gráficos (~/Desktop/*.desktop) — pedido explícito del usuario:
-    //  poder abrir los CLIs de Kairos (Claude Code, n8n,
+    //  Lanzadores gráficos (~/Desktop/*.desktop) — pedido explícito del usuario
+    //: poder abrir los CLIs de Kairos (Claude Code, n8n,
     //  OpenCode, Codex) DENTRO del escritorio XFCE4 nativo, no solo desde la terminal
     //  adaptada de la app. XFCE4 ya lee ~/Desktop/*.desktop de fábrica (formato
     //  freedesktop.org estándar, Desktop Entry Specification) — no requiere ningún
@@ -1250,10 +1398,20 @@ object EntornoNative {
         else -> "Development;"
     }
 
-    private fun desktopEntryContent(name: String, command: String, category: String = "dev"): String {
+    /**
+     * `stopPattern` -- "mini menú / biblioteca de módulos dentro del escritorio... falta un
+     * menú propio con opciones" (hallazgo real de MEJORAS_PENDIENTES.md): los lanzadores .desktop
+     * ya existían pero solo tenían UNA acción (abrir). El estándar freedesktop.org ya soporta
+     * "acciones secundarias" por entry (`Actions=`) -- aparecen al click derecho en los
+     * lanzadores de apps que las soportan (xfce4 whisker menu, GNOME, otros; no todos los
+     * gestores de archivos/menús las muestran, es un enhancement "best effort", nunca rompe el
+     * lanzador si no se ve). Se usa acá en vez de construir una app de menú propia desde cero --
+     * mismo mecanismo, cero dependencias nuevas, sin tocar ningún script protegido.
+     */
+    private fun desktopEntryContent(name: String, command: String, category: String = "dev", stopPattern: String? = null): String {
         val safeCommand = command.replace("'", "'\\''")
         val exec = "xfce4-terminal -e \"bash -c '$safeCommand; exec bash'\""
-        return """
+        val base = """
             [Desktop Entry]
             Type=Application
             Name=$name
@@ -1261,6 +1419,16 @@ object EntornoNative {
             Icon=utilities-terminal
             Terminal=false
             Categories=${xdgCategoriesFor(category)}
+        """.trimIndent()
+        if (stopPattern.isNullOrBlank()) return base + "\n"
+        val safePattern = stopPattern.replace("'", "'\\''")
+        return base + "\n" + """
+            Actions=Detener;
+
+            [Desktop Action Detener]
+            Name=Detener $name
+            Exec=xfce4-terminal -e "bash -c 'pkill -f '\''$safePattern'\'' && echo Detenido || echo Nada que detener; sleep 2'"
+            Icon=process-stop
         """.trimIndent() + "\n"
     }
 
@@ -1321,21 +1489,21 @@ object EntornoNative {
         if (reg["claude.installed"] == "true") {
             val cmd = ClaudeNative.openCmd()
             if (cmd.optBoolean("ok", false)) {
-                writeLauncherBoth("kairos-claude.desktop", desktopEntryContent("Claude Code", cmd.getString("command"), "ai"))
+                writeLauncherBoth("kairos-claude.desktop", desktopEntryContent("Claude Code", cmd.getString("command"), "ai", "claude"))
                 created.add("claude")
             }
         }
         if (reg["opencode.installed"] == "true") {
             val cmd = OpenCodeNative.tuiCmd()
-            writeLauncherBoth("kairos-opencode.desktop", desktopEntryContent("OpenCode", cmd.getString("command"), "ai"))
+            writeLauncherBoth("kairos-opencode.desktop", desktopEntryContent("OpenCode", cmd.getString("command"), "ai", "opencode"))
             created.add("opencode")
         }
         if (reg["codex.installed"] == "true") {
-            writeLauncherBoth("kairos-codex.desktop", desktopEntryContent("Codex CLI", "codex", "ai"))
+            writeLauncherBoth("kairos-codex.desktop", desktopEntryContent("Codex CLI", "codex", "ai", "codex"))
             created.add("codex")
         }
         if (reg["n8n.installed"] == "true") {
-            writeLauncherBoth("kairos-n8n.desktop", desktopEntryContent("n8n", n8nStartCommand(), "dev"))
+            writeLauncherBoth("kairos-n8n.desktop", desktopEntryContent("n8n", n8nStartCommand(), "dev", "n8n"))
             created.add("n8n")
         }
         // Resto de los CLIs de Kairos con "terminalCommand" plano en modules.json (ver
@@ -1350,7 +1518,7 @@ object EntornoNative {
         // sync con app/src/main/assets/modules.json si se agrega un CLI nuevo.
         GENERIC_CLI_LAUNCHERS.forEach { spec ->
             if (reg["${spec.id}.installed"] == "true") {
-                writeLauncherBoth("kairos-${spec.id}.desktop", desktopEntryContent(spec.label, spec.command, spec.category))
+                writeLauncherBoth("kairos-${spec.id}.desktop", desktopEntryContent(spec.label, spec.command, spec.category, spec.command.substringBefore(' ')))
                 created.add(spec.id)
             }
         }
@@ -1507,6 +1675,22 @@ object EntornoNative {
     //  VNC — secundario/opcional (submenu_interfaz [4][5][6])
     // ═══════════════════════════════════════════════════════════
 
+    /** Puerto TCP fijo del servidor VNC de Mini PC (display `:1` → 5901, ver `vncStartWithConfig()`
+     *  líneas ~1576-1583) — no es configurable, está atado al mismo display que usa X11 embebido. */
+    const val VNC_PORT = 5901
+
+    /**
+     * `minipc.vnc_status` (gateway, ver
+     * `docs/arquitectura/briefs_2026-10-10/BRIEF_minipc_vnc_x11_gateway.md`) — estado liviano del
+     * servidor VNC solo, sin la detección de GPU activa (`confirmedActiveGpuBackend()`, que lanza
+     * `glxinfo`/`vulkaninfo`) que trae [status] completo: el gateway solo necesita saber si TigerVNC
+     * está instalado/corriendo y en qué puerto, no todo el resto del panorama de Entorno.
+     */
+    fun vncGatewayStatus(): JSONObject = JSONObject()
+        .put("installed", binaryAvailable("tigervncserver"))
+        .put("running", processRunning("Xtightvnc") || processRunning("Xvnc"))
+        .put("port", VNC_PORT)
+
     fun vncInstall(): JSONObject {
         if (binaryAvailable("tigervncserver")) {
             return JSONObject().put("ok", true).put("message", "TigerVNC ya estaba instalado")
@@ -1518,10 +1702,10 @@ object EntornoNative {
         // tigervnc" fallaba con "Unable to locate package" en cualquier dispositivo donde el
         // usuario fuera directo a la pestaña VNC sin haber instalado antes el escritorio
         // nativo (que sí lo habilita de forma incidental). No confirmado en dispositivo
-        // todavía — el fix es mecánicamente idéntico al
+        // todavía (empirical-verification-before-fix.md) — el fix es mecánicamente idéntico al
         // ya verificado en installDesktop(), mismo `ensureX11Repo()` reusado.
         ensureX11Repo()
-        // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop()).
+        // pkg update -y best-effort + timeout subido (mismo criterio que installDesktop(),
         pkgUpdateWithFallback()
         val (rc, out, err) = ManagerNativeUtils.runExec(listOf(TERMUX_PKG_PATH, "install", "-y", "tigervnc"), 300)
         if (rc != 0) {
@@ -1591,7 +1775,7 @@ object EntornoNative {
         if (password.length < 6) return JSONObject().put("ok", false).put("error", "La contraseña debe tener al menos 6 caracteres (límite real de VNC)")
         val vncDir = File(ManagerNativeUtils.home, ".vnc")
         if (!vncDir.exists()) vncDir.mkdirs()
-        // Bug real confirmado por ADB (2026-08-24): runExecWithStdin
+        // Bug real confirmado por ADB (2026-08-24,): runExecWithStdin
         // invocaba el binario por nombre relativo ("vncpasswd"/"tigervncpasswd") — mismo patrón
         // ya confirmado roto para Hermes (ProcessBuilder no resuelve PATH en este entorno).
         // Ruta absoluta = mismo fix que TERMUX_HERMES_PATH/TERMUX_CACTUS_PATH.
@@ -1618,7 +1802,7 @@ object EntornoNative {
         if (stopScript.exists()) ManagerNativeUtils.runExec(listOf(TERMUX_BASH_PATH, stopScript.absolutePath), 15)
 
         // Default 1280x720 (no 1920x1080) — pedido explícito del usuario: "por defecto X11 y
-        // VNC debe estar en horizontal con 1280x720p" (2026-09-03). Solo
+        // VNC debe estar en horizontal con 1280x720p" (2026-09-03,). Solo
         // afecta este fallback (geometry inválido/vacío) y el preseleccionado del Spinner de
         // promptVncConfig() en EntornoFragment.kt — vnc_start.sh (script fijo generado por
         // modulos/entorno.sh, PROTEGIDO, usado por el botón "Iniciar VNC" simple sin diálogo de
@@ -1628,7 +1812,7 @@ object EntornoNative {
         val baseArgs = mutableListOf(":1", "-geometry", safeGeometry, "-depth", safeDepth.toString(), "-localhost")
         if (!requirePassword) baseArgs.addAll(listOf("-SecurityTypes", "None"))
 
-        // Bug real confirmado por ADB (2026-08-24): mismo patrón de
+        // Bug real confirmado por ADB (2026-08-24,): mismo patrón de
         // nombre relativo que vncpasswd arriba — ruta absoluta = mismo fix.
         val (rc1, out1, err1) = ManagerNativeUtils.runExec(listOf(TERMUX_VNCSERVER_PATH) + baseArgs, 30)
         if (rc1 == 0) {
@@ -1754,7 +1938,7 @@ object EntornoNative {
      * (VmRSS) es un archivo DISTINTO, sin evidencia de la misma restricción, pero se degrada
      * igual de forma explícita (mismo criterio defensivo que el resto de este archivo) si
      * tampoco resulta legible en algún dispositivo, en vez de asumir que funciona sin evidencia
-     * real confirmada en este entorno específico.
+     * real (empirical-verification-before-fix.md).
      */
     fun sessionResourceUsage(): JSONObject {
         val mode = activeDesktopMode()
@@ -1778,11 +1962,22 @@ object EntornoNative {
             if (rssKb == null) {
                 JSONObject().put("ok", false).put("error", "No se pudo leer memoria del proceso $pid")
             } else {
+                // CPU% agregado -- hallazgo real de MEJORAS_PENDIENTES.md "Recursos por sesión
+                // de escritorio (Mini PC), patrón LXC-Manager": esta función ya resolvía
+                // PID+RAM, le faltaba CPU% (ver sampleProcessCpu()/processCpuPercent() arriba
+                // en este archivo). 2 muestras con una pausa corta -- null (campo ausente del
+                // JSON) si el proceso murió entre medio, nunca bloquea el resto de la respuesta.
+                val first = sampleProcessCpu(pid)
+                val cpuPct = first?.let {
+                    Thread.sleep(CPU_SAMPLE_GAP_MS)
+                    sampleProcessCpu(pid)?.let { second -> processCpuPercent(it, second) }
+                }
                 JSONObject().apply {
                     put("ok", true)
                     put("process", pattern)
                     put("pid", pid)
                     put("rss_mb", "%.1f".format(rssKb / 1024.0))
+                    put("cpu_percent", cpuPct?.let { it } ?: JSONObject.NULL)
                 }
             }
         } catch (_: Exception) {
@@ -1793,7 +1988,7 @@ object EntornoNative {
     /** Métodos válidos según el tipo de GPU detectado — mismo árbol que el case de submenu_interfaz [0]. */
     fun gpuMethodOptions(): JSONObject {
         val gpuType = detectGpuType()
-        // "wrapper" corregido 2026-08-28 (el usuario aclaró que NO es
+        // "wrapper" corregido 2026-08-28 ( — el usuario aclaró que NO es
         // ANGLE/OpenGL/EGL: es Vulkan puro, una capa ENCIMA del driver Vulkan real del
         // dispositivo, y SOLO funciona en modo nativo, nunca dentro de proot-distro — ver
         // gpu_env.sh case "wrapper" en entorno.sh para el detalle de por qué queda confinado
@@ -1801,7 +1996,7 @@ object EntornoNative {
         // (referencia/termux/termux-desktop-main/docs/hw-acceleration.md +
         // enable-hw-acceleration, release real en github.com/sabamdarif/termux-desktop) —
         // agregado como opción universal en las 3 ramas, cierre real del pedido original
-        // del usuario ("en gpu falta wrapper, zink, turnip o panfrot").
+        // ( "en gpu falta wrapper, zink, turnip o panfrot").
         val (labels, values) = when (gpuType) {
             // "Turnip" marcado como experimental en el label (2026-09-14)
             // — antes era el único método sin la etiqueta "(experimental)" pese a estar en el
@@ -1856,9 +2051,20 @@ object EntornoNative {
         }
         if (packages.isNotEmpty()) {
             // pkg update -y best-effort + timeout subido (mismo criterio que
-            // installDesktop()).
+            // installDesktop,).
             pkgUpdateWithFallback()
-            ManagerNativeUtils.runExec(listOf(TERMUX_PKG_PATH, "install", "-y") + packages, 600)
+            // Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): el
+            // comentario de arriba (2026-09-14) ya documentaba este mismo bug como
+            // corregido ("runExec de más abajo no revisaba el exit code... la instalación
+            // se declaraba exitosa aunque ningún paquete real se hubiera instalado") pero
+            // el fix nunca se aplicó de verdad — el resultado de runExec() seguía
+            // descartado. Ahora si pkg install falla, no se guarda el método en el
+            // registry (quedaría mintiendo sobre qué GPU está activa de verdad).
+            val (rc, out, err) = ManagerNativeUtils.runExec(listOf(TERMUX_PKG_PATH, "install", "-y") + packages, 600)
+            if (rc != 0) {
+                return JSONObject().put("ok", false)
+                    .put("error", "No se pudieron instalar los paquetes GPU (${packages.joinToString(", ")}): ${err.ifBlank { out }.take(500)}")
+            }
         }
         if (method == "wrapper") {
             // vulkan-wrapper-android: release real de github.com/sabamdarif/termux-desktop
@@ -1883,7 +2089,7 @@ object EntornoNative {
         // mismo (ver comentario arriba); el driver ya se instala en este paso, solo falta
         // reiniciar el X11 embebido para que las variables nuevas de gpu_env.sh apliquen.
         val note = if (method == "turnip") " (driver Turnip instalado — no verificado en dispositivo real todavía)" else ""
-        // Fix (ronda Termux-Desktops-main): este mensaje seguía diciendo
+        // Fix (ronda Termux-Desktops-main, ver docs/humano/): este mensaje seguía diciendo
         // "reiniciá Termux:X11" — texto heredado de cuando Kairos usaba la app externa
         // com.termux.x11. Desde 2026-08-13 el servidor es el X11 embebido (Xlorie,
         // X11Service) — reiniciarlo es "Detener servidor X11" + volver a abrirlo desde
@@ -1913,11 +2119,11 @@ object EntornoNative {
      *   gestor de paquetes reales de distro_setup_gui.sh (apt/dnf/pacman/apk), más liviana
      *   que mate/kde — el default más seguro para un perfil pensado como recomendación
      *   genérica, no una elección a medida del hardware.
-     * - gpu_method: mismo agrupamiento que gpuMethodOptions() (adreno/mali/resto) — adreno usa
-     *   "zink" (primario ya ofrecido para Adreno), mali usa "virgl_angle" (primario ya
-     *   ofrecido para Mali/Xclipse), el resto ("unknown", y xclipse por el mismo
-     *   agrupamiento que ya usa gpuMethodOptions()) usa "llvmpipe" — software puro, el
-     *   fallback más compatible sin depender de un driver de fabricante no confirmado.
+     * - gpu_method: mismo agrupamiento que gpuMethodOptions() (adreno/mali/xclipse/resto) —
+     *   adreno usa "zink", mali usa "virgl_angle", xclipse usa "virgl" (corregido 2026-10-31:
+     *   antes caía en "llvmpipe" por error, sin coincidir con lo que _install_gpu_native()
+     *   realmente instala para GPU_TYPE=xclipse), el resto ("unknown") usa "llvmpipe" —
+     *   software puro, el fallback más compatible sin depender de un driver no confirmado.
      * - lite: true por default (perfil "recomendado" pensado como el caso más común y seguro
      *   en Termux/Android) salvo que /proc/meminfo reporte >=6GB de RAM total. Sin Context
      *   disponible en este object (ver comentario de status() arriba sobre por qué no se usa
@@ -1926,9 +2132,17 @@ object EntornoNative {
      */
     fun recommendedProfile(): JSONObject {
         val gpuType = detectGpuType()
+        // Bug real (2026-10-31, docs/mini-pc/AUDITORIA_PROFUNDA_2026-10-31.md): "xclipse"
+        // caía en el "else" -> "llvmpipe" (software puro), contradiciendo tanto el propio
+        // comentario de esta función ("xclipse por el mismo agrupamiento que gpuMethodOptions()
+        // ... usa llvmpipe" — el comentario mismo estaba mal) como _install_gpu_native() en
+        // entorno.sh, que para GPU_TYPE=xclipse instala mesa+virglrenderer-android+angle-android
+        // y fija GPU_METHOD="virgl" — el perfil recomendado le sugería al usuario un método
+        // (llvmpipe) que ni siquiera coincidía con lo que el instalador real iba a dejar activo.
         val gpuMethod = when (gpuType) {
             "adreno" -> "zink"
             "mali" -> "virgl_angle"
+            "xclipse" -> "virgl"
             else -> "llvmpipe"
         }
         val totalRamKb = try {
@@ -1966,6 +2180,13 @@ object EntornoNative {
             ?: return JSONObject().put("ok", false).put("error", "No se encontró $name en ningún layout de proot-distro")
         val dateTag = java.text.SimpleDateFormat("yyyyMMdd", java.util.Locale.US).format(java.util.Date())
         val backupPath = File(ManagerNativeUtils.home, "${name}_backup_$dateTag.tar.gz").absolutePath
+        // Normalizar permisos antes de archivar (mejora 2026-11-02, análisis Mini PC
+        // docs/mini-pc/PLAN_MEJORAS_MINIPC_AUDITORIA_REFERENCIA_2026-11-02.md §4.2) — mismo
+        // criterio que el backup.py real de proot-distro upstream: el rootfs puede tener
+        // archivos con permisos muy restrictivos (simulación de usuarios/dispositivos dentro
+        // del chroot) que archivan bien con tar pero pueden fallar al restaurar en otro
+        // contexto. Best-effort: si algún archivo especial no permite chmod, se sigue igual.
+        ManagerNativeUtils.runExec(listOf("chmod", "-R", "u+rwX", File(parent, name).absolutePath), 60)
         // Timeout generoso (5 min) — un rootfs completo puede pesar varios GB; el caller
         // ya corre esto en un Thread propio.
         val (rc, out, err) = ManagerNativeUtils.runExec(
@@ -1979,7 +2200,7 @@ object EntornoNative {
     }
 
     /**
-     * Restaurar distro desde un .tar.gz de distroBackup() (ronda 2026-09-09,
+     * Restaurar distro desde un.tar.gz de distroBackup (ronda 2026-09-09,
      * hallazgo real: existía backup sin su función simétrica). Extrae SOBRE el layout moderno
      * (containers/) — si el backup viene de una versión vieja de proot-distro con el layout
      * legacy, se extrae igual dentro de containers/ (proot-distro moderno no lee
@@ -2247,7 +2468,7 @@ object EntornoNative {
         JSONObject().put("ok", true).put("apps", JSONArray(loadDistroApps()))
 
     // ── Contenedores — udocker ──────────────────────────────────
-    // Feature nueva (2026-08-06, pedido explícito del
+    // Feature nueva (2026-08-06,, pedido explícito del
     // usuario): "usar la terminal adaptada para udocker, ejecutar más cosas ahí ya que es
     // un contenedor" — hasta ahora udocker solo se usaba para arrancar n8n en background
     // (modulos/n8n.sh), sin ninguna forma de abrir una sesión interactiva ADENTRO del
@@ -2270,7 +2491,7 @@ object EntornoNative {
         if (!udockerAvailable()) {
             return JSONObject().put("ok", false).put("error", "udocker no está instalado")
         }
-        // Bug real confirmado por ADB (2026-08-24): los 4 usos de
+        // Bug real confirmado por ADB (2026-08-24,): los 4 usos de
         // "udocker" en este archivo invocaban el binario por nombre relativo — mismo patrón ya
         // confirmado roto para Hermes/vncserver (ProcessBuilder no resuelve PATH acá). Ruta
         // absoluta (TERMUX_UDOCKER_PATH, ya definida en ProcessBuilderExt.kt y usada por
@@ -2356,7 +2577,7 @@ object EntornoNative {
     /**
      * Fuerza el default de orientación horizontal del visor X11 embebido (Xlorie) — bug real
      * reportado por el usuario: "por defecto X11 y VNC debe estar en horizontal con 1280x720p"
-     * pero arrancaba en vertical (2026-09-03).
+     * pero arrancaba en vertical (2026-09-03,).
      *
      * Causa raíz confirmada leyendo `x11-server/src/main/java/com/termux/x11/MainActivity.java`
      * (PROTEGIDO — no se toca, solo se lee): esa Activity ya tiene un mecanismo real de forzar
@@ -2390,4 +2611,5 @@ object EntornoNative {
             prefs.edit().putBoolean("forceLandscape", true).apply()
         }
     }
+
 }

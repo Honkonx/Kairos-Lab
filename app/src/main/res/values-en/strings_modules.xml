@@ -89,9 +89,9 @@
     <string name="codex_card_sesion">SESSION</string>
     <string name="codex_btn_resume_session">🕒 Resume last session</string>
     <string name="codex_btn_install_change_channel">⚙ Install / change channel</string>
-    <!-- Real variant selector (2026-09-09 round): "Normal" (termux channel, DioNanos/codex-termux,
-         with an automatic fallback to wallentx/codex-termux if the npm path fails) vs "VL"
-         (DioNanos/codex-vl, with code-mode, no fallback — opt-in). -->
+    <!-- Real variant selector (2026-09-09 round,): "Normal" (termux
+         channel, DioNanos/codex-termux, with an automatic fallback to wallentx/codex-termux if
+         the npm path fails) vs "VL" (DioNanos/codex-vl, with code-mode, no fallback — opt-in). -->
     <string name="codex_variant_dialog_title">Choose variant — Codex CLI</string>
     <string name="codex_variant_dialog_message">Both install via npm. \"Normal\" has an automatic fallback if the install fails; \"VL\" does not — it is an opt-in choice.</string>
     <string name="codex_variant_normal">Normal (recommended) — DioNanos/codex-termux</string>
@@ -150,6 +150,7 @@
     <string name="base_module_deep_uninstall_checkbox">Deep uninstall (also removes the real package, not just the state)</string>
     <string name="base_module_confirm_uninstall_title">Uninstall %1$s?</string>
     <string name="base_module_confirm_uninstall_message">Stops the module if it is running and removes its scripts, checkpoints, and registry entries. Does not touch shared packages (nodejs, python, proot-distro).</string>
+    <string name="base_module_uninstall_dependents_warning">⚠️ %1$s depends on this module and is installed — it might stop working if you uninstall it.</string>
     <string name="base_module_uninstall_btn">Uninstall</string>
     <string name="base_module_uninstalled">%1$s uninstalled</string>
     <string name="base_module_uninstall_failed">Could not uninstall %1$s</string>

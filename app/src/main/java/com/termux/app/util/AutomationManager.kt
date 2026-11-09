@@ -18,14 +18,17 @@ import java.io.File
  * IA + jobs programados") y el que más encaja con `.claude/rules/kairos-product-philosophy.md`
  * ("Kairos existe para no vivir en la terminal" — acá ni siquiera hace falta abrir la app).
  *
- * Alcance de esta primera versión (pedido explícito del usuario): 2 triggers reales de punta a
- * punta — [TriggerType.BOOT] (vía [com.termux.app.AutomationBootReceiver]) y
- * [TriggerType.SCHEDULE] (vía [AutomationScheduler] + [com.termux.app.AutomationAlarmReceiver],
- * AlarmManager) — y 2 acciones reales, reusando [ModuleController] tal cual ya existe
- * (`startModule`/`stopModule`), sin reimplementar nada de arranque/parada de módulos. Triggers de
- * batería/notificación/geofence (también presentes en rikkahub-agent) quedan documentados como
- * diseño real y accionable en `docs/arquitectura/FUTURO.md` sección "Automatizaciones — triggers
- * diferidos", NO implementados en esta ronda.
+ * Alcance original (pedido explícito del usuario): 2 triggers reales de punta a punta —
+ * [TriggerType.BOOT] (vía [com.termux.app.AutomationBootReceiver]) y [TriggerType.SCHEDULE] (vía
+ * [AutomationScheduler] + [com.termux.app.AutomationAlarmReceiver], AlarmManager) — y 2 acciones
+ * reales, reusando [ModuleController] tal cual ya existe (`startModule`/`stopModule`), sin
+ * reimplementar nada de arranque/parada de módulos.
+ *
+ * **Ronda 2026-09-16**: se sumó [TriggerType.BATTERY_LEVEL] (ver
+ * [com.termux.app.AutomationBatteryReceiver]) — diseño ya documentado en
+ * `docs/arquitectura/FUTURO.md` sección "Automatizaciones — triggers diferidos" (`BatteryTrigger`,
+ * el más simple de los 4 restantes: sin permiso especial, solo un receiver dinámico). Notificación,
+ * geofence y app-en-primer-plano siguen sin implementar — ver esa misma sección.
  *
  * Mismo patrón de registry que [HomelabManager]/`RemoteManager` (una clave con un array JSON
  * compacto en `~/.android_server_registry`, protegido por [RegistryLock]) — se duplica el mismo
@@ -35,21 +38,42 @@ import java.io.File
  */
 object AutomationManager {
 
-    enum class TriggerType { BOOT, SCHEDULE }
+    enum class TriggerType { BOOT, SCHEDULE, BATTERY_LEVEL }
 
-    enum class ActionType { START_MODULE, STOP_MODULE }
+    // GATEWAY_ACTION (2026-11-05, hallazgo real de docs/arquitectura/
+    // INVESTIGACION_MODULOS_NUEVOS_Y_PENDIENTES_REFERENCIA_2026-11-05.md: "automatizaciones que
+    // ejecuten acciones del gateway -- hoy solo START_MODULE/STOP_MODULE") -- corre cualquier
+    // acción real ya registrada en el manifiesto del gateway (ej. "restic.backup" programado a
+    // diario) vía [GatewayAppBridge.dispatchInternal], sin pasar por HTTP (mismo proceso). Solo
+    // funciona si el gateway YA está corriendo cuando el trigger dispara -- no lo arranca por su
+    // cuenta (decisión deliberada: arrancar un proceso de fondo desde un BroadcastReceiver sin
+    // que el usuario lo haya pedido explícitamente excede el alcance de esta automatización).
+    enum class ActionType { START_MODULE, STOP_MODULE, GATEWAY_ACTION }
+
+    /** Solo para [TriggerType.BATTERY_LEVEL] — BELOW dispara cuando el nivel CRUZA por debajo del
+     *  umbral, ABOVE cuando lo cruza por encima (ver [com.termux.app.AutomationBatteryReceiver]). */
+    enum class BatteryDirection { BELOW, ABOVE }
 
     data class Automation(
         val id: String,
         val name: String,
         val triggerType: TriggerType,
         // Solo para SCHEDULE — formato "HH:mm" (24h, hora local del dispositivo). Vacío/sin uso
-        // para BOOT. Validado con [isValidHHmm] antes de persistir, nunca a medio validar.
+        // para BOOT/BATTERY_LEVEL. Validado con [isValidHHmm] antes de persistir, nunca a medio
+        // validar.
         val scheduleTime: String = "",
         val actionType: ActionType,
         val moduleId: String,
         val enabled: Boolean = true,
-        val lastRunTs: Long = 0L
+        val lastRunTs: Long = 0L,
+        // Solo para BATTERY_LEVEL — porcentaje 1..100. Sin uso para el resto de triggers.
+        val batteryThreshold: Int = 20,
+        val batteryDirection: BatteryDirection = BatteryDirection.BELOW,
+        // Solo para ActionType.GATEWAY_ACTION -- target real del manifiesto del gateway (ej.
+        // "restic.backup") + sus params como JSON compacto (ej. {"path":"/sdcard/fotos",
+        // "repo":"restic_fotos"}). Vacíos/sin uso para START_MODULE/STOP_MODULE.
+        val gatewayActionId: String = "",
+        val gatewayParamsJson: String = "{}"
     )
 
     data class ActionResult(val ok: Boolean, val message: String = "", val error: String = "")
@@ -93,6 +117,10 @@ object AutomationManager {
                 put("moduleId", a.moduleId)
                 put("enabled", a.enabled)
                 put("lastRunTs", a.lastRunTs)
+                put("batteryThreshold", a.batteryThreshold)
+                put("batteryDirection", a.batteryDirection.name)
+                put("gatewayActionId", a.gatewayActionId)
+                put("gatewayParamsJson", a.gatewayParamsJson)
             })
         }
         return arr.toString()
@@ -112,9 +140,19 @@ object AutomationManager {
                     triggerType = trigger,
                     scheduleTime = o.optString("scheduleTime", ""),
                     actionType = action,
-                    moduleId = o.getString("moduleId"),
+                    // optString, no getString: una automatización GATEWAY_ACTION no tiene
+                    // moduleId real (usa gatewayActionId en su lugar) -- antes del soporte de
+                    // GATEWAY_ACTION, todo entry siempre tenía moduleId, así que esto sigue
+                    // retrocompatible con el formato viejo.
+                    moduleId = o.optString("moduleId", ""),
                     enabled = o.optBoolean("enabled", true),
-                    lastRunTs = o.optLong("lastRunTs", 0L)
+                    lastRunTs = o.optLong("lastRunTs", 0L),
+                    batteryThreshold = o.optInt("batteryThreshold", 20),
+                    batteryDirection = try {
+                        BatteryDirection.valueOf(o.optString("batteryDirection", "BELOW"))
+                    } catch (_: Exception) { BatteryDirection.BELOW },
+                    gatewayActionId = o.optString("gatewayActionId", ""),
+                    gatewayParamsJson = o.optString("gatewayParamsJson", "{}")
                 )
             }
         } catch (_: Exception) {
@@ -154,31 +192,55 @@ object AutomationManager {
     fun moduleExists(context: Context, moduleId: String): Boolean =
         try { ModuleCatalog.load(context).any { it.id == moduleId && it.hasSwitch } } catch (_: Exception) { false }
 
+    /** Acciones reales del gateway seguras para programar sin supervisión (idempotentes o de
+     *  solo lectura, sin "confirm=true" de por medio) -- hallazgo real: no se habilita CUALQUIER
+     *  acción del manifiesto (ej. "module.uninstall"/"fs.delete" serían peligrosas disparadas
+     *  solas a una hora fija) tal como [ModuleDetailNavigator]/el manifiesto del gateway no
+     *  exponen TODO sin criterio. Ampliar esta lista exige el mismo análisis caso por caso.
+     */
+    val SAFE_GATEWAY_ACTIONS = listOf("restic.backup", "restic.snapshots", "db.backup", "notify.send")
+
     fun addAutomation(
         context: Context,
         name: String,
         triggerType: TriggerType,
         scheduleTime: String,
         actionType: ActionType,
-        moduleId: String
+        moduleId: String,
+        batteryThreshold: Int = 20,
+        batteryDirection: BatteryDirection = BatteryDirection.BELOW,
+        gatewayActionId: String = "",
+        gatewayParamsJson: String = "{}",
+        gatewaySecret: String = ""
     ): ActionResult {
-        val error = validate(context, triggerType, scheduleTime, moduleId)
+        val error = validate(context, triggerType, scheduleTime, moduleId, batteryThreshold, actionType, gatewayActionId)
         if (error != null) return ActionResult(false, error = error)
         val id = "wf_" + System.currentTimeMillis()
-        val effectiveName = name.ifBlank { "$moduleId (${triggerType.name})" }
+        val effectiveName = name.ifBlank {
+            if (actionType == ActionType.GATEWAY_ACTION) "$gatewayActionId (${triggerType.name})" else "$moduleId (${triggerType.name})"
+        }
         RegistryLock.withLock(REGISTRY_LOCK_FILE) {
             writeRegistryFileLocked { current ->
                 val list = parse(current[AUTOMATIONS_KEY])
                 current[AUTOMATIONS_KEY] = serialize(
-                    list + Automation(id, effectiveName, triggerType, scheduleTime, actionType, moduleId)
+                    list + Automation(
+                        id, effectiveName, triggerType, scheduleTime, actionType, moduleId,
+                        batteryThreshold = batteryThreshold, batteryDirection = batteryDirection,
+                        gatewayActionId = gatewayActionId, gatewayParamsJson = gatewayParamsJson
+                    )
                 )
             }
+        }
+        if (actionType == ActionType.GATEWAY_ACTION && gatewaySecret.isNotBlank()) {
+            AutomationSecrets.save(context, id, gatewaySecret)
         }
         return ActionResult(true, message = id)
     }
 
     /** Preserva [Automation.enabled]/[Automation.lastRunTs] del registro existente — este diálogo
-     *  nunca toca esos 2 campos (ver [setEnabled]/[markRun] para eso, siempre por separado). */
+     *  nunca toca esos 2 campos (ver [setEnabled]/[markRun] para eso, siempre por separado).
+     *  [gatewaySecret] vacío conserva el secreto ya guardado (mismo criterio "nunca se borra sin
+     *  querer por dejar el campo en blanco" que `AiProviderPrefs.saveSelection()`). */
     fun updateAutomation(
         context: Context,
         id: String,
@@ -186,9 +248,14 @@ object AutomationManager {
         triggerType: TriggerType,
         scheduleTime: String,
         actionType: ActionType,
-        moduleId: String
+        moduleId: String,
+        batteryThreshold: Int = 20,
+        batteryDirection: BatteryDirection = BatteryDirection.BELOW,
+        gatewayActionId: String = "",
+        gatewayParamsJson: String = "{}",
+        gatewaySecret: String = ""
     ): ActionResult {
-        val error = validate(context, triggerType, scheduleTime, moduleId)
+        val error = validate(context, triggerType, scheduleTime, moduleId, batteryThreshold, actionType, gatewayActionId)
         if (error != null) return ActionResult(false, error = error)
         var found = false
         RegistryLock.withLock(REGISTRY_LOCK_FILE) {
@@ -198,21 +265,29 @@ object AutomationManager {
                     if (it.id == id) {
                         found = true
                         it.copy(
-                            name = name.ifBlank { moduleId },
+                            name = name.ifBlank { if (actionType == ActionType.GATEWAY_ACTION) gatewayActionId else moduleId },
                             triggerType = triggerType,
                             scheduleTime = scheduleTime,
                             actionType = actionType,
-                            moduleId = moduleId
+                            moduleId = moduleId,
+                            batteryThreshold = batteryThreshold,
+                            batteryDirection = batteryDirection,
+                            gatewayActionId = gatewayActionId,
+                            gatewayParamsJson = gatewayParamsJson
                         )
                     } else it
                 }
                 current[AUTOMATIONS_KEY] = serialize(updated)
             }
         }
+        if (found && actionType == ActionType.GATEWAY_ACTION && gatewaySecret.isNotBlank()) {
+            AutomationSecrets.save(context, id, gatewaySecret)
+        }
         return if (found) ActionResult(true) else ActionResult(false, error = "Automatización no encontrada")
     }
 
-    fun deleteAutomation(id: String): ActionResult {
+    fun deleteAutomation(context: Context, id: String): ActionResult {
+        AutomationSecrets.remove(context, id)
         RegistryLock.withLock(REGISTRY_LOCK_FILE) {
             writeRegistryFileLocked { current ->
                 val list = parse(current[AUTOMATIONS_KEY])
@@ -246,10 +321,23 @@ object AutomationManager {
         }
     }
 
-    private fun validate(context: Context, triggerType: TriggerType, scheduleTime: String, moduleId: String): String? {
-        if (moduleId.isBlank()) return "Elegí un módulo"
-        if (!moduleExists(context, moduleId)) return "El módulo \"$moduleId\" ya no existe en el catálogo"
+    private fun validate(
+        context: Context,
+        triggerType: TriggerType,
+        scheduleTime: String,
+        moduleId: String,
+        batteryThreshold: Int = 20,
+        actionType: ActionType = ActionType.START_MODULE,
+        gatewayActionId: String = ""
+    ): String? {
+        if (actionType == ActionType.GATEWAY_ACTION) {
+            if (gatewayActionId !in SAFE_GATEWAY_ACTIONS) return "Esa acción del gateway no está habilitada para programarse sin supervisión"
+        } else {
+            if (moduleId.isBlank()) return "Elegí un módulo"
+            if (!moduleExists(context, moduleId)) return "El módulo \"$moduleId\" ya no existe en el catálogo"
+        }
         if (triggerType == TriggerType.SCHEDULE && !isValidHHmm(scheduleTime)) return "Elegí un horario válido"
+        if (triggerType == TriggerType.BATTERY_LEVEL && batteryThreshold !in 1..100) return "Elegí un umbral de batería entre 1 y 100"
         return null
     }
 
@@ -283,6 +371,43 @@ object AutomationManager {
         when (automation.actionType) {
             ActionType.START_MODULE -> ModuleController.startModule(automation.moduleId, context) { ok, msg -> onDone(ok, msg) }
             ActionType.STOP_MODULE -> ModuleController.stopModule(automation.moduleId, context) { ok -> onDone(ok, "") }
+            ActionType.GATEWAY_ACTION -> executeGatewayAction(context, automation, onDone)
         }
+    }
+
+    /** [ActionType.GATEWAY_ACTION] -- corre vía [GatewayAppBridge.dispatchInternal], sin HTTP de
+     *  por medio (mismo proceso). Solo funciona si el gateway YA está arriba (ver KDoc de
+     *  [ActionType.GATEWAY_ACTION]) -- un dispatchInternal() que devuelve null significa que no
+     *  hay nada corriendo, se reporta como fallo claro en vez de intentar arrancarlo solo. El
+     *  secreto guardado (si lo hay, ver [AutomationSecrets]) se inyecta como "password" recién
+     *  acá, en el momento de ejecutar -- nunca viaja por el registry en texto plano.
+     *
+     *  Excepción real: "notify.send" es "kind":"native" (lo ejecuta el router Go, no
+     *  GatewayAppBridge) -- se resuelve con [NtfySender] directo, SIN necesitar el gateway activo.
+     */
+    private fun executeGatewayAction(context: Context, automation: Automation, onDone: (Boolean, String) -> Unit) {
+        val params = try { JSONObject(automation.gatewayParamsJson) } catch (_: Exception) { JSONObject() }
+        AutomationSecrets.get(context, automation.id).takeIf { it.isNotBlank() }?.let { params.put("password", it) }
+        // notify.send es "kind":"native" en default_manifest.json (lo ejecuta el router Go del
+        // gateway directamente, nunca pasa por GatewayAppBridge -- ese bridge solo reconoce
+        // targets "inapp" como restic.backup/db.backup, ver su `dispatch()`). Para que una
+        // automatización pueda mandar un push SIN necesitar el gateway activo (a diferencia de
+        // restic/db, que sí necesitan el proceso del gateway corriendo), se resuelve acá mismo
+        // con un POST HTTP directo -- mismo protocolo real que internal/notify/ntfy.go del lado
+        // Go, sin duplicar ESE código (no hay forma de compartirlo entre Kotlin y Go).
+        if (automation.gatewayActionId == "notify.send") {
+            val (ok, message) = NtfySender.send(params)
+            onDone(ok, message)
+            return
+        }
+        val result = GatewayAppBridge.dispatchInternal(automation.gatewayActionId, params)
+        if (result == null) {
+            onDone(false, "El gateway no está activo -- iniciá el Gateway desde Homelab para que las automatizaciones de acciones del gateway puedan correr")
+            return
+        }
+        val (code, body) = result
+        val ok = code in 200..299
+        val message = try { JSONObject(body).optString(if (ok) "message" else "error", body) } catch (_: Exception) { body }
+        onDone(ok, message)
     }
 }

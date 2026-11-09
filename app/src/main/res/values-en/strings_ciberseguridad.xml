@@ -48,7 +48,12 @@
 
     <!-- Recon buttons -->
     <string name="ciberseguridad_nmap_native_button">🎯 nmap — quick port scan (native panel)</string>
+    <string name="ciberseguridad_nmap_overlay_button">🛈 nmap — minimize and watch live (overlay)</string>
     <string name="ciberseguridad_nmap_terminal_button">⌨ nmap (full terminal — advanced flags)</string>
+    <string name="ciberseguridad_overlay_permiso_titulo">Overlay permission needed</string>
+    <string name="ciberseguridad_overlay_permiso_mensaje">To watch the scan live over other apps, Kairos needs the "Display over other apps" permission.</string>
+    <string name="ciberseguridad_overlay_permiso_ir_ajustes">Open Settings</string>
+    <string name="ciberseguridad_overlay_iniciado_toast">Scan minimized — tap the bubble to watch it live</string>
     <string name="ciberseguridad_theharvester_native_button">🔎 theHarvester — quick OSINT (native panel)</string>
     <string name="ciberseguridad_theharvester_terminal_button">⌨ theHarvester (full terminal — sources needing an API key)</string>
 

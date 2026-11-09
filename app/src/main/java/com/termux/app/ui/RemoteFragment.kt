@@ -26,8 +26,8 @@ class RemoteFragment : BaseModuleFragment() {
     override fun getModuleName() = getString(R.string.remote_module_name)
 
     // Anti-tapjacking (hallazgo de auditoría referencia/ia/*, 2026-08-31): esta pantalla
-    // gestiona/importa claves SSH (RemoteManager.kt — un secreto guardado nunca vuelve a
-    // mostrarse en la UI) — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
+    // gestiona/importa claves SSH (RemoteManager.kt — ver .claude/rules/kairos-secrets-never-revealed.md)
+    // — un overlay malicioso de otra app podría interceptar toques sobre botones sensibles
     // (Reemplazar/Borrar clave) sin que el usuario lo note. Se setea de forma PROGRAMÁTICA (no
     // hay <layout> propio de este Fragment, comparte fragment_module_detail.xml con el resto de
     // BaseModuleFragment) porque Android no soporta este atributo a nivel de Fragment, solo de
@@ -54,6 +54,15 @@ class RemoteFragment : BaseModuleFragment() {
         setScreenSecure(false)
     }
 
+    // Bug real (2026-11-02, "sigue sin dejar tirar capture"): hide/show
+    // (así cambia de tab TermuxActivity) NO dispara onPause()/onResume() — una sola visita a
+    // Remote dejaba FLAG_SECURE prendido para toda la app hasta que esta Activity entera
+    // pasara a background. onHiddenChanged() sí dispara con hide()/show().
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden) setScreenSecure(false) else if (isResumed) setScreenSecure(true)
+    }
+
     // Holds the latest remote info — antes venía del JSON de kairos_manager.py, ahora de
     // RemoteManager.info() (migrado 2026-07-31, ver comentario de runRemoteAction()).
     private var remoteInfo: RemoteManager.RemoteInfo? = null
@@ -74,7 +83,7 @@ class RemoteFragment : BaseModuleFragment() {
     // actualiza en updateInfoRows() igual que el resto de filas de INFO (nunca se arma a mano
     // en otro lado, para no tener 2 fuentes de la misma respuesta).
     private var usbConnectRow: View? = null
-    // Switches reales (2026-08-22) — reemplazan los pares de botones
+    // Switches reales (2026-08-22,) — reemplazan los pares de botones
     // Iniciar/Detener de SSH y del túnel Cloudflare. El comentario viejo de línea ~77
     // ("BaseModuleFragment provides only buttons") ya no aplica — ver
     // BaseModuleFragment.switchRow(). Sincronizados en updateInfoRows() con el estado real
@@ -120,7 +129,7 @@ class RemoteFragment : BaseModuleFragment() {
     // switches, seguridad SSH), se usa un enfoque de visibilidad: cada pestaña se construye
     // igual que antes (agregando directo a `container`), y section() registra qué vistas de
     // `container` pertenecen a qué pestaña para poder mostrar/ocultar por índice después.
-    // Terminología corregida 2026-08-27 (bug real confirmado: la app
+    // Terminología corregida 2026-08-27 (ver — bug real confirmado: la app
     // tenía estos dos roles exactamente invertidos respecto al modelo del usuario). Definición
     // real del usuario: "Emisor" = Kairos ACTIVA ssh y da la IP/clave para que ALGUIEN MÁS lo
     // controle (rol de servidor); "Receptor" = NOSOTROS ponemos la IP/clave para controlar
@@ -217,7 +226,8 @@ class RemoteFragment : BaseModuleFragment() {
         // getModuleStartScript()/getModuleStopInfo() para "remote") pero por un camino
         // paralelo sin waitForPortOpen()/ModuleEventBridge.notifySessionEvent() — dos
         // sistemas leyendo/escribiendo el mismo estado de formas distintas, el mismo
-        // patrón de bug que ya causó problemas reales en este proyecto. El resto de acciones de
+        // patrón de bug que ya causó problemas reales en este proyecto (ver
+        // .claude/rules/kotlin-kairos-android-patterns.md). El resto de acciones de
         // RemoteManager (info, add-key, password, connections, fingerprint, panel de
         // seguridad) no son lifecycle de módulo — no tienen equivalente en
         // ModuleController y se quedan como están.
@@ -285,7 +295,7 @@ class RemoteFragment : BaseModuleFragment() {
             toast(getString(R.string.remote_msg_comando_copiado, USB_ADB_FORWARD_CMD))
         }
         actionButton(getString(R.string.remote_btn_copiar_comando_ssh_usb), GHOST) { copyUsbConnectCommand() }
-        // Bug real (auditoria 2026-08-05): ningun modulo sin
+        // Bug real (auditoria 2026-08-05,): ningun modulo sin
         // CLI dedicada (Python/Ollama/n8n/Expo/Remote) tenia forma de actualizar desde la app.
         // Consolidado 2026-08-19 (auditoría de consistencia de menús) en la card MANTENIMIENTO
         // compartida (ver BaseModuleFragment.addMaintenanceCard()) — antes este botón vivía
@@ -441,7 +451,7 @@ class RemoteFragment : BaseModuleFragment() {
     // ---------------------------------------------------------------------
     private fun runRemoteAction(action: String, vararg extraArgs: String, silent: Boolean = true) {
         // applicationContext resuelto ANTES de entrar al Thread (mismo patrón que
-        // nativeLibraryDir en TunnelManager)
+        // nativeLibraryDir en TunnelManager, ver .claude/rules/kotlin-kairos-android-patterns.md)
         // — el Fragment puede desadjuntarse mientras el hilo corre, pero un Context de
         // aplicación sigue siendo válido igual, a diferencia de requireContext() llamado tarde.
         val appContext = context?.applicationContext

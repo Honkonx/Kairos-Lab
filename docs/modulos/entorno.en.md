@@ -1,172 +1,160 @@
-# Entorno (Environment)
+# Environment (Mini PC) — Kairos Module
 
-**Kairos module** — Managed via the Kairos UI (Modules tab). Installation of the base infrastructure via `ProcessBuilder` → `modulos/entorno.sh`; all subsequent operation (distros, desktops, VNC, GPU) runs **100% natively in Kotlin**, without going through bash scripts or the terminal (except "Login to distro", which deliberately opens a real console).
-
----
-
-**App:** Kairos (termux-app fork)
-**Installation script:** `modulos/entorno.sh`
-**Native Kotlin port:** `app/src/main/java/com/termux/app/util/EntornoNative.kt`
-**Fragment:** `EntornoFragment.kt`
-**`hasSwitch`:** `false` — no single ON/OFF (Entorno installs infrastructure; each component — X11, VNC, PulseAudio, distro — is turned on/off separately)
-**`requiresProot`:** `true`
-**Estimated size:** ~200MB · **Estimated time:** ~3 min (base infrastructure only — installing a distro/desktop afterward takes longer)
+**Kairos Module** — Managed through the Kairos UI. The base infrastructure is installed via `ProcessBuilder` → `modulos/entorno.sh`; all later operation (distros, desktops, VNC, GPU) runs **100% native in Kotlin**, without going through bash scripts or the terminal (except "Distro login", which opens a real console on purpose).
 
 ---
 
-## 1. What it is
+**Project:** Kairos
+**Based on:** the environment bash TUI menu of the original scripts project (~25 options) — Kairos natively reimplements the highest-value ones, not all of them
+**Installation script:** `modulos/entorno.sh` (identical to `app/src/main/assets/scripts/entorno.sh`; the header cites v1.4.0 but `update_registry "1.2.0"` in the final step writes 1.2.0 to the registry — a version inconsistency)
+**Native Kotlin port:** `app/src/main/java/com/termux/app/util/EntornoNative.kt` (~2451 lines, ~90 functions; JSON in/out)
+**Fragment:** `EntornoFragment.kt` + 4 tabs (`EntornoNativoTab`, `EntornoDistrosTab`, `EntornoX11Tab`/`EntornoVncTab` grouped in the Display tab, `EntornoSistemaTab`) + `EntornoTabUi.kt` (components `rowList/actionRow/switchRow`); `ModuleDetailNavigator.kt:34`
+**`modules.json`:** `hasSwitch: false`, `port: ""`, `requiresProot: false`, `arch: "distro"`, `requires: ["proot-distro"]`, `repo: Honkonx/kairos-lab`, `hideFromCatalog: true` (`:601`; it does not appear in the normal catalog, it is reached through the Mini PC screen / direct navigation)
+**Estimated size:** ~200MB · **Estimated time:** ~3 min (base infrastructure only — installing a distro/desktop afterwards takes longer)
 
-Entorno turns the phone into a "portable mini PC": it lets you install full Linux distros (via `proot-distro`) with a real graphical desktop (XFCE4/LXQt/MATE/Plasma) displayed through the **X11 server embedded in the APK itself** (Xlorie, `:xserver` process — see `docs/x11/x11-embedded-architecture.md`), with GPU acceleration auto-detected based on the device's hardware, plus VNC as a backup/alternative and PulseAudio for audio.
+---
 
-The X server is embedded directly in Kairos's own APK — it doesn't depend on any external app to display the desktop.
+## 1. What it is and what it is for
 
-`modulos/entorno.sh` **only installs the base infrastructure** (proot-distro, udocker, embedded-X11-mode registration, PulseAudio, GPU drivers, and 6 management scripts) — installing a specific distro or desktop is done AFTERWARD, from the app's own UI (`EntornoFragment`), not as part of the initial install.
+Entorno turns the phone into a "portable mini PC": it installs the base infrastructure (proot-distro, udocker, PulseAudio, Mesa/GPU drivers, desktop tools) and offers from the UI native desktops (XFCE4/LXQt/MATE on the **X11 server embedded in the APK itself**, Xlorie, `:xserver` process — see `docs/x11/x11-embedded-architecture.md`), proot-distro distros with a desktop (XFCE4/LXQt/MATE/Plasma), VNC (TigerVNC) as an alternative/fallback, PulseAudio and GPU/audio diagnostics, with GPU acceleration detected according to the hardware.
+
+`modulos/entorno.sh` **only installs the base infrastructure** — installing a specific distro or desktop is done AFTER, from the UI itself.
+
+**Classification: FUNCTIONAL MODULE.** Own screen, live state (STATUS card, polled every 3 s, `EntornoFragment.kt:269-280`), services that are switched on/off separately (X11, VNC, PulseAudio, desktop session) and a large Kotlin backend. Inside the tiles there are sub-dialogs (VNC config with resolution/orientation/quality/password, GPU selector, multi-select autostart, webapp/app/command shortcuts, wallpaper change, script editor).
 
 ## 2. Permissions
 
-- Generic Kairos wizard permissions (storage).
-- Doesn't install any external APK — the X11 server (Xlorie) is embedded in Kairos itself, starting as the Android `:xserver` process (`X11Service.kt`) when requested from the app.
-- Doesn't require root at any point — everything runs via `proot`/`proot-distro` (user namespace).
+- Generic permissions from the Kairos wizard (storage).
+- It installs no external APK — the X11 server (Xlorie) is embedded in Kairos itself and starts as the Android process `:xserver` (`X11Service.kt`) when requested from the app.
+- No root needed — everything runs through `proot`/`proot-distro` (user namespace).
 
 ## 3. Installation logic (`modulos/entorno.sh`)
 
-Accepts `--silent` (implicit from the app), `--force`, `--describe`. 8 checkpoints, all verified with real `command -v`/`dpkg -s` checks before being marked done (not blind checkpoints):
+Flags (`entorno.sh:93-103`): `--silent` (implicit from the app), `--force`, `--describe`, `--describe-files`, `diagnose|--diagnose`. No variants (`variants: []`). ARM64 only.
+
+Checkpoints (`check_done`/`mark_done`), verified with `command -v`/`dpkg -s` before being marked:
 
 | Step (checkpoint) | What it does |
 |---|---|
-| `entorno_arch` | Checks that `uname -m` is `aarch64`/`arm64` — aborts if not (Entorno is ARM64-only) |
-| `entorno_pkg_update` | `pkg update` with a **5-mirror fallback** (`packages.termux.dev`, `grimler.se`, `mirror.accum.se`, 2 Chinese mirrors) — measures the REAL speed of each with `curl -w '%{time_total}'` against `.../dists/stable/InRelease` and uses the fastest one, instead of trying them in a fixed order |
+| `entorno_arch` | Verifies `uname -m` is `aarch64`/`arm64` — aborts if not |
+| `entorno_pkg_update` | `pkg update` with a **5-mirror fallback** (`packages.termux.dev`, `grimler.se`, `mirror.accum.se`, 2 Chinese mirrors) — measures the real speed of each with `curl -w '%{time_total}'` against `.../dists/stable/InRelease` and uses the fastest |
 | `entorno_proot_distro` | `pkg install proot-distro` |
-| `entorno_udocker` | Downloads `udocker.py` directly from the official repo (`indigo-dc/udocker`) to `$PREFIX/bin/udocker` — if the download fails, just `warn`s and continues (udocker isn't strictly required for Entorno itself) |
-| `entorno_x11` | Registers the "embedded X11" mode in the registry (`entorno.x11_mode=embedded`) — no APK to download, the server (Xlorie) already ships inside Kairos itself |
-| `entorno_pulse` | `pkg install pulseaudio` + enables `module-native-protocol-tcp` with a `127.0.0.1` ACL in `default.pa` (only if not already set) |
-| `entorno_gpu` | See section 4 — detection + driver installation based on SoC |
-| `entorno_dirs` | Generates 6 management scripts under `~/scripts/entorno/` (see section 6) |
-| `entorno_desktop_tools` | Installs desktop tools on the HOST (outside any proot distro): `xfce4 xfce4-goodies dbus-x11 tigervnc x11vnc pavucontrol`, best-effort (`warn`, doesn't abort if a package fails). If the detected Android SDK is ≥31, warns about disabling "Disable phantom process killer" |
-| `entorno_ai_tools` | Installs the base for AI CLIs on the HOST: `python3 nodejs-lts git curl`, also best-effort. This is the base that modules like OpenCode/Claude Code assume is available on the HOST |
-| `entorno_registry` | Writes `entorno.installed=true`, `entorno.gpu`, `entorno.gpu_method`, `entorno.version` |
+| `entorno_udocker` | `pip3 install --upgrade udocker` (`entorno.sh:210-224`; no version pin). If it fails, only `warn` and continue (udocker is not strictly needed). `--describe-files` keeps an informational `install_hint` with an old `udocker.py` URL (`:136`, not executed) |
+| `entorno_x11` | Registers the "embedded X11" mode in the registry (`entorno.x11_mode=embedded`, `x11_display=:1`) — there is no APK to download |
+| `entorno_pulse` | `pkg install pulseaudio` + modifies `$PREFIX/etc/pulse/default.pa` (`module-aaudio-sink`, `module-native-protocol-tcp auth-ip-acl=127.0.0.1`, `module-sles-source`; `:241-282`) only if not already done |
+| `entorno_gpu` | See section 4 |
+| `entorno_dirs` | Generates the management scripts in `~/scripts/entorno/` (see section 7) |
+| `entorno_desktop_tools` | Installs desktop tools on the HOST (outside any distro): enables `x11-repo` and then `xfce4 xfce4-goodies tigervnc x11vnc pavucontrol` (without `dbus-x11`, which does not exist in Termux), best-effort (`warn`). If the Android SDK is ≥31, it warns about disabling "Disable phantom process killer" (`entorno.sh:1626-1680`) |
+| `entorno_ai_tools` | Installs the base for AI CLIs on the HOST: `python`, `nodejs-lts`, `git`, `curl`, best-effort |
+| `entorno_registry` | `registry_install entorno`: `installed=true`, `gpu`, `gpu_method`, `x11_mode=embedded`, `x11_display=:1` |
+
+At the end it calls `notify_event "entorno" "install_done" "GPU: ${GPU_TYPE}"` (FIFO `~/.kairos_events`, `ModuleEventBridge.kt`). Installation from the UI: `installEntornoSilently()` (`EntornoFragment.kt:341`).
+
+- It does NOT use `verify_binary_installed()` in the main flow; the `pkg install ... || warn` for desktop/ai/gpu do not abort: the module is marked installed even if packages are missing.
+- No sha256 in `entorno.sh`. In Kotlin, `tryKaliPrebuilt()` downloads a tar.gz from kairos-lab (`EntornoNative.kt:505-545`) and extracts it with `tar` without a checksum.
 
 ## 4. GPU detection and driver options
 
-`_check_gpu()` reads `getprop ro.board.platform` (not `dmesg`, which requires root on Android) and classifies by known patterns:
+`_check_gpu()` reads `getprop ro.board.platform` (not `dmesg`, which requires root on Android 15), with more codenames and a sysfs kgsl fallback (`entorno.sh:173-196`), and classifies:
 
-| Detected SoC | Type | Packages installed | Default method |
+| Detected SoC | Type | Installed driver | `GPU_METHOD` |
 |---|---|---|---|
-| `sm*`/`kona*`/`lahaina*`/`shima*` | Adreno (Qualcomm) | `mesa` + `vulkan-loader-generic` (Zink — a Gallium software-GL-over-Vulkan driver — ships inside the regular `mesa` package, it's not a separate package); additionally installs `mesa-vulkan-icd-freedreno` (Turnip's native Vulkan ICD) as an extra option, if the device's mirror has it available | `zink` (Turnip is available as a manually configurable alternative if `mesa-vulkan-icd-freedreno` installed successfully) |
-| `mt*`/`t618*`/`g610*`/`g720*` | Mali (MediaTek) | `mesa` + `virglrenderer-android` + `angle-android` (with compatibility symlinks for `libEGL`/`libGLESv1_CM`/`libGLESv2` when needed) | `virgl_angle` |
+| `sm*`/`kona*`/`lahaina*`/`shima*` and similar | Adreno (Qualcomm) | `mesa` + `vulkan-loader-generic` (+ `mesa-vulkan-icd-freedreno` best-effort) (`entorno.sh:283-310`) | `zink` |
+| `mt*`/`t618*`/`g610*`/`g720*` | Mali (MediaTek) | `mesa` + `virglrenderer-android` + `angle-android` (with manual `libEGL`/`libGLESv1_CM`/`libGLESv2` symlinks if `angle-android` does not leave them ready) | `virgl_angle` |
 | `s5e*`/`exynos*` | Xclipse (Samsung Exynos) | `mesa` + `virglrenderer-android` + `angle-android` | `virgl` |
-| Any other (`unknown`) | Generic | `mesa` (software rendering, llvmpipe) | `llvmpipe` |
+| Anything else (`unknown`) | Generic | `mesa` (softGPU) | `llvmpipe` |
 
-`mesa-demos` (`glxinfo`/`glxgears`) is also installed, used by the app's real GPU diagnostics (`EntornoNative.gpuDiagnostic()`) to report the effective OpenGL renderer, not just the configured method.
+It also installs `mesa-demos` at the end. The user can change the method manually from the app ("⚙ Configure GPU method" → `EntornoNative.setGpuMethod()`/`gpuMethodOptions()`), without reinstalling anything.
 
-The user can change the method manually afterward from the app (`EntornoFragment` → "⚙ Configure GPU method" → `EntornoNative.setGpuMethod()`/`gpuMethodOptions()`), without reinstalling anything.
+## 5. Execution
 
-## 5. Real app screen (`EntornoFragment.kt`)
+- There is no single process or port of its own; `ModuleController.kt` has no `entorno`-specific entry. Operation goes through `EntornoNative.kt`.
+- Components started/stopped separately: embedded X11 (`X11Service`, `:xserver` process, display `:1`; `EntornoX11Tab.kt:57-66`), native/distro desktop (`startDesktop`/`startDistroDesktop`, `EntornoNative.kt:848/924`; native↔distro mutual exclusion via `desktopModeConflict`, `:185`), VNC (`vncStart/vncStartWithConfig`, `:1538/1607`, display `:5901`), PulseAudio (`pulseToggle`, `:1654`). "Distro login" opens a real terminal (`launchTerminal`). Distro sessions are monitored with TermuxService's tmux/terminal session poll (`EntornoFragment.kt:449-520`).
+- All actions (except "Distro login") go straight through `EntornoNative.kt` — native Kotlin calling the binaries (`proot-distro`, `pm`, `am`, etc.) and returning `JSONObject`; there is no `ProcessBuilder` + stdout parsing from the Fragment.
 
-**STATUS card** (refreshed on every action via `EntornoNative.status()`): GPU, Method, Embedded X11 (● Running / ○ Stopped), VNC, PulseAudio, installed desktops.
+## 6. App screen (4 tabs: Native · Distros · Display · System)
 
-**CONTAINERS section — proot-distro**:
-- 📦 Install distro → 2-column tile grid — `ubuntu`/`debian`/`alpine` confirmed, `archlinux`/`fedora`/`void` flagged "experimental" with an extra confirmation before installing.
-- 🔑 Login to distro → opens a **real console** inside the chosen proot via the terminal overlay (`proot-distro login <name>`).
-- 💾 Backup distro (tar.gz), 🗑 Delete distro, 🔗 Link `~/scripts` and `~/proyectos` with the distro.
-- 📲 Install app in distro / 🗑 Remove app from distro.
+Top cards: STATUS (GPU, GPU method, X11 ● Running/○ Stopped — there is no "APK not installed" state, the server is inside Kairos itself —, VNC, PulseAudio, installed desktops; refreshed with `EntornoNative.status()`), INSTALLED (inventory of `proot-distro` distros, `refreshInventory()`), DISTRO SESSIONS, and maintenance (update/uninstall via `addMaintenanceCard()`).
 
-**DESKTOP section**:
-- 🖥 Native XFCE4 (no distro) — install + start — XFCE4 desktop directly on Termux, without going through a proot distro.
-- ▶ Start desktop (X11 + DE) — if only one DE is installed, launches it directly; if there are several, asks which one.
-- 🖥 Install another native desktop (LXQt/MATE).
-- 🖥 Update desktop launchers — regenerates the `.desktop` files.
-- 🚀 Configure desktop autostart.
-- ⏹ Stop current desktop (keeps X11 up) — different from stopping the entire X11 server.
-- ⏹ Stop X11 server.
+**Native** (`EntornoNativoTab.kt`):
 
-**VNC section** (secondary/optional alongside X11): install TigerVNC, start (`:5901`), configure and start VNC (resolution/quality/password), stop. The user can connect with an external VNC client to `127.0.0.1:5901`, **or with the app's own embedded VNC viewer** — `VncViewerActivity`/`VncClient.kt` (an RFB 3.8 client written from scratch, see `docs/x11/x11-embedded-architecture.md`).
+| Control | What it does | Why |
+|---|---|---|
+| "🖥 Native XFCE4 (no distro) — install + start" | `promptXfceNative()` — installs native xfce4+xfce4-terminal (`pkg` packages, no proot) if missing, starts on the embedded X11 | The recommended "bionic graphical interface", a single-tap path |
+| "▶ Start desktop (X11 + DE)" | `promptStartDesktop()` — if only one DE is installed it starts it directly, if several it asks which | — |
+| "🖥 Install another native desktop (LXQt/MATE)" | `promptInstallDesktop()` (the only action using `ProgressDialogController` for installation) | For whoever does not want XFCE4 |
+| "🖥 Update desktop launchers" | `runEntornoAction("desktop-launchers")` — regenerates the `.desktop` files | `startDesktop()` already regenerates them on start; this button is for adding a new CLI without restarting the DE |
+| "🚀 Configure desktop autostart" | `promptAutostart()` — multi-select of which CLIs open on their own when entering the desktop (`EntornoNative.autostartOptions()`/`setAutostart()`) | "Complete mini PC" concept |
+| "⏹ Stop current desktop (keeps X11 up)" | `stopDesktopSessionAction()` | Different from stopping the X11 server — it lets you switch path (native↔distro) without losing the server |
+| Change wallpaper / create shortcut (webapp/Android app/command) | See `webapp_launchers.sh` in section 7 | — |
 
-**"Log out" launcher**: `generateDesktopLaunchers()` (`EntornoNative.kt`) creates, alongside the CLI/distro-app icons, an extra `.desktop` file `kairos-cerrar-sesion.desktop` inside the desktop that runs `gui_stop.sh` without `--x11` (kills known DE sessions — xfce4/lxqt/openbox/proot-distro login — but leaves the embedded X11 server up, so a desktop can be reopened without restarting the server).
+**Distros** (`EntornoDistrosTab.kt`): one card per installed distro (Login, Start/Install desktop, Close session, ⋮ maintenance menu) plus a recommended profile (`recommendedProfile()`):
 
-**AUDIO + GPU section**: PulseAudio on/off, GPU diagnostics (real OpenGL renderer + Vulkan device + installed drivers, via `EntornoNative.gpuDiagnostic()`), manually configure the GPU method.
+| Control | What it does | Why |
+|---|---|---|
+| "📦 Install distro" | `promptDistroInstall()` — a 2-column tile grid: `ubuntu`/`debian`/`alpine` confirmed; `archlinux`/`fedora`/`void` marked "experimental" with extra confirmation | Secondary/optional path for a real isolated system |
+| "🖥 Install desktop in distro" | `promptDistroInstallDesktop()` — distro → DE picker | — |
+| "▶ Start desktop inside the distro" | `promptDistroDesktopStart()` | Shares the same embedded X11 as the native path — only one can be active at a time (`desktopModeConflict()`, `showConflictDialog()`) |
+| "🔑 Distro login (terminal)" | `promptDistroLogin()` — a real console via `proot-distro login <name>` | — |
+| Maintenance (⋮): backup (tar.gz), restore, reset (`distroRestore/Reset`), delete, link `~/scripts` and `~/proyectos` (`bridge-mount`), change wallpaper | `promptDistroAction(...)`, `promptDistroRemove()` | Shares host folders inside the distro |
+| "📲 Install app in distro" | `promptDistroAppInstall()` — curated catalog (`curatedDistroApps`: Firefox, Chromium, GIMP, Inkscape, VLC, LibreOffice, Thunderbird, Blender, OBS Studio, FileZilla) + an "Other" free-text option | Saves the user from typing the apt package from memory |
+| "🗑 Remove app from distro" | `promptDistroAppRemove()` | — |
 
-All actions (except "Login to distro") go directly through `EntornoNative.kt` — **there's no ProcessBuilder + stdout parsing from the Fragment**, it's native Kotlin calling the binaries (`proot-distro`, `pm`, `am`, etc.) directly and returning a `JSONObject`.
+**Display** (X11 and VNC together, in rows with descriptions):
 
-## 6. Generated management scripts (`~/scripts/entorno/`)
+| Control | What it does | Why |
+|---|---|---|
+| Enter X11 / X11 settings (`KairosX11PreferencesActivity`) / "⏹ Stop X11 server" | `EntornoX11Tab.kt:29-37`, `stopEmbeddedX11()` | Full shutdown (server + session) |
+| "📥 Install TigerVNC" | `vncInstallWithProgress()` | VNC is secondary/optional compared to X11 |
+| "▶ Start VNC (:5901)" | `runEntornoAction("vnc-start")` | Quick start with nothing to configure |
+| "⚙ Configure and start VNC" | `promptVncConfig()` — resolution, orientation, quality (16/24 bit), "Ask for password" checkbox + a real password field (starts empty; `vncSetPassword()`, `EntornoNative.kt:1593`) | Resolution/quality/password are the parameters `vncStartWithConfig()` supports without breaking alignment with the embedded display |
+| Open embedded VNC viewer | `VncViewerActivity`/`VncClient.kt` (RFB 3.8 client written from scratch; see `docs/x11/x11-embedded-architecture.md`). An external VNC client can also connect to `127.0.0.1:5901` | — |
+| "⏹ Stop VNC" | `runEntornoAction("vnc-stop")` | — |
 
-`entorno.sh` generates them as heredocs during installation — these are the ones `EntornoNative.kt` invokes at runtime:
+**System** (`EntornoSistemaTab.kt`): PulseAudio on/off (switch), "🩺 GPU diagnostics" (real OpenGL renderer + Vulkan device + installed drivers, `EntornoNative.gpuDiagnostic()`), GPU benchmark (`gpuBenchmark`), "⚙ Configure GPU method" (`promptGpuMethod()` — a list of real methods according to the detected GPU type), session resources (`sessionResourceUsage`), edit script (`gui_start.sh`, `gui_stop.sh`, `distro_setup_gui.sh`).
+
+`errorDetail()` (a helper shared by several flows) shows the short error message together with the last 300 characters of `output` (the real apt-get/pkg output inside proot) instead of only a generic message.
+
+**"Log out" launcher**: `generateDesktopLaunchers()` (`EntornoNative.kt`) creates, next to the icons for CLIs and distro apps, an extra `.desktop` `kairos-cerrar-sesion.desktop` inside the desktop that runs `gui_stop.sh` without `--x11` (it kills the known DE sessions — xfce4/lxqt/openbox/proot-distro login — but leaves the embedded X11 server up). It solves the case of being INSIDE XFCE4 with the terminal overlay hidden and no way to close the session (which would otherwise keep running and drain battery).
+
+## 7. Generated management scripts (`~/scripts/entorno/`)
+
+`entorno.sh` generates them as heredocs (`_create_scripts`, `entorno.sh:522-1585`); they are what `EntornoNative.kt` invokes at runtime: `tx11_start.sh`, `tx11_stop.sh`, `vnc_start.sh`, `vnc_stop.sh`, `pulse_start.sh`, `pulse_stop.sh`, `gpu_env.sh`, `pdrun`, `x11_setup_env.sh`, `gui_start.sh`, `gui_stop.sh`, `distro_setup_gui.sh`, `proot_menu_sync.sh`, `webapp_launchers.sh`.
 
 | Script | What it does |
 |---|---|
-| `tx11_start.sh` | `am start --user 0 -n com.termux/com.termux.x11.MainActivity` (the viewer Activity INSIDE Kairos's own APK, `sharedUserId=com.termux`) |
+| `tx11_start.sh` | Legacy name — today it does `am start --user 0 -n com.termux/com.termux.x11.MainActivity` (the viewer Activity INSIDE the APK itself, `sharedUserId=com.termux`), not an external app |
 | `tx11_stop.sh` | `am broadcast -a com.termux.x11.ACTION_STOP -p com.termux` — closes the embedded viewer |
-| `vnc_start.sh` | `vncserver`/`tigervncserver :1 -geometry 1920x1080 -depth 24 -localhost` |
-| `vnc_stop.sh` | Kills the VNC server + notifies the event bridge (`~/.kairos_events`) |
+| `vnc_start.sh` | `vncserver`/`tigervncserver :1 -geometry 1920x1080 -depth 24 -localhost` (VNC starts with `-localhost`; it can be started without a password after confirming a dialog, `EntornoVncTab.kt:173-176`) |
+| `vnc_stop.sh` | Kills the VNC server + notifies the event bridge (`~/.kairos_events`, inline, standalone) |
 | `pulse_start.sh` / `pulse_stop.sh` | `pulseaudio --start --exit-idle-time=-1` / `pkill pulseaudio` |
-| `gpu_env.sh` | Exports `GALLIUM_DRIVER`/`MESA_GL_VERSION_OVERRIDE`/etc. based on `entorno.gpu_method` read from the registry — sourced before launching any graphical app |
+| `gpu_env.sh` | Exports `GALLIUM_DRIVER`/`MESA_GL_VERSION_OVERRIDE`/etc. according to `entorno.gpu_method` read from the registry — sourced before starting any graphical app |
 
-## 7. Registry
+## 8. Files, registry and other
 
-Prefix `entorno.*`: `installed`, `version`, `install_date`, `gpu`, `gpu_method`.
+`~/scripts/entorno/`, `~/.android_server_registry` (`entorno.*` keys: `installed`, `version`, `install_date`, `gpu`, `gpu_method`, `x11_mode`, `x11_display`, `desktop_mode`), `~/.install_entorno_checkpoint`, `~/kairos_logs/x11_diagnose.txt` (diagnostics), `$PREFIX/etc/pulse/default.pa`, `~/.local/share/applications/kairos-webapp-*.desktop` and `~/Desktop/`. From Kotlin: temporary `.kali_prebuilt_download.tar.gz`, distro backups, `.desktop` launchers.
 
-## 8. Scope
+## 9. Technical notes
 
-`EntornoNative.kt` is a port of the highest-value options from a broader reference bash TUI menu — not a 1:1 reimplementation of every niche option that exists in that original tool.
+- **Unexported `TMPDIR` breaks embedded X11**: libX11 resolves the socket via `$TMPDIR/.X11-unix/X<display>`; if `TMPDIR` is not set before the native code reads it, the X client fails to connect even though the socket exists in `$PREFIX/tmp/.X11-unix`. `X11Service.onCreate()` forces `TMPDIR` via `Os.setenv("TMPDIR", TermuxConstants.TERMUX_PREFIX_DIR_PATH + "/tmp", true)`; it is also in `applyTermuxEnv()` (`ProcessBuilderExt.kt`) for the rest of the modules.
+- **Missing `LD_PRELOAD` breaks X11 clients launched from `EntornoNative.startDesktop()`**: `ManagerNativeUtils.runShell()` invokes `bash -c` (neither login nor interactive), so the `LD_PRELOAD` that Termux sets in `/etc/profile`/`bashrc` (`libtermux-exec-ld-preload.so`, which remaps `/tmp` → `$PREFIX/tmp`) is not applied, and libX11 (which resolves the socket with the hardcoded path `/tmp/.X11-unix/X<n>`) may fail. `startDesktop()` exports an explicit `LD_PRELOAD`, scoped to that command (same precedent as `modulos/claude.sh`), runs a socket diagnostic (`[diag] socket X11 presente/ausente`) before connecting, and waits up to 5 s for the X11 server (a separate Android process) because of intermittent failures on slow devices.
+- **Closing the X11 server kills the `:xserver` process**: `CmdEntryPoint.main()` (native code from `x11-server/`) runs `Looper.prepare()+Looper.loop()` in a separate `Thread` that `stopService()`/`onDestroy()` does not interrupt. Since `X11Service` runs isolated in its own process (`android:process=":xserver"`), the real mechanism is to kill the whole process: `android.os.Process.killProcess(Process.myPid())` at the end of `onDestroy()`.
+- `infoRow()` returns a `LinearLayout` of 2 `TextView`s (key/value); the STATUS card keeps the reference to the 2nd child (`valueTextView()`) so it can be updated.
 
-## Screen controls
+## 10. Security
 
-The module with the most controls in the project — organized into sections via `sectionLabel()`, without separate cards for everything.
+- No persistent secrets of its own except the VNC password: the UI password field starts empty (the stored one is not shown). Inference: the permissions of the `~/.vnc/passwd` file are not verified.
+- PulseAudio TCP is limited to 127.0.0.1 (`auth-ip-acl`). VNC with `-localhost`.
+- No `curl | bash` in `entorno.sh`. There is a download of the Kali tar without a checksum and `pip install udocker` without a version pin.
+- Injection: distro/package names are passed to shell commands from dialogs; `sanitizeId()` exists for launcher ids (`EntornoNative.kt:2136`), but the free-text "Other package" entry for distro apps was not audited line by line.
 
-### "STATUS" card (read-only)
+## 11. Known limitations
 
-GPU, GPU method, X11 (running/stopped), VNC (running/stopped/not installed), PulseAudio, installed desktops — refreshed by `refreshStatus()` via `EntornoNative.status()`, colored green/gray depending on whether it's running or not.
+- Inconsistent version: header v1.4.0 vs `update_registry "1.2.0"`.
+- No `verify_binary_installed()`; `pkg install` failures degrade to `warn` and the registry still ends up `installed=true`.
+- Kali tar downloaded/extracted without a checksum.
+- Inference: the real functional state of desktop-in-distro / VNC / GPU has not been confirmed on a device in the latest code review.
 
-### "📋 INSTALLED" card (read-only)
+## 12. Date added
 
-Inventory of installed `proot-distro` distros (`refreshInventory()`). udocker containers have their own full screen in `UdockerFragment.kt`.
-
-### "NATIVE — X11 + desktop directly on Termux (recommended)" section
-
-| Control | What it does | Why |
-|---|---|---|
-| "🖥 Native XFCE4 (no distro) — install + start" | `promptXfceNative()` — installs native xfce4+xfce4-terminal (via `pkg`, no proot) if missing, starts it over the embedded X11 | One-tap path to the native graphical interface |
-| "▶ Start desktop (X11 + DE)" | `promptStartDesktop()` | Starts the already-installed native desktop |
-| "🖥 Install another native desktop (LXQt/MATE)" | `promptInstallDesktop()` | For anyone who doesn't want XFCE4 |
-| "🖥 Update desktop launchers" | `runEntornoAction("desktop-launchers")` | `startDesktop()` already regenerates launchers automatically on startup — this button is only for adding a new CLI without restarting the whole DE |
-| "🚀 Configure desktop autostart" | `promptAutostart()` — multi-select of which CLIs open on their own when entering the desktop | Evaluated via `EntornoNative.autostartOptions()`/`setAutostart()` |
-| "⏹ Stop current desktop (keeps X11 up)" | `stopDesktopSessionAction()` | Different from "Stop X11 server" — allows switching paths (native↔distro) without losing the X11 server |
-| "⏹ Stop X11 server" | `stopEmbeddedX11()` | Full shutdown of everything (server + session) |
-
-### "WITH DISTRO (proot-distro) — full Linux system, optional" section
-
-| Control | What it does | Why |
-|---|---|---|
-| "📦 Install distro" | `promptDistroInstall()` | Secondary/optional path — for when the user needs a real isolated system |
-| "🖥 Install desktop in distro" | `promptDistroInstallDesktop()` — same picker pattern (distro → DE) as the native path | No need to run `distro_setup_gui.sh` by hand in the terminal |
-| "▶ Start desktop inside the distro" | `promptDistroDesktopStart()` | Shares the same embedded X11 as the native path — only one can be active at a time, enforced in `EntornoNative` (`desktopModeConflict()`) |
-| "🔑 Login to distro (terminal)" | `promptDistroLogin()` | Real interactive console inside the proot |
-| "💾 Backup distro (tar.gz)" | `promptDistroAction("distro-backup", ...)` | — |
-| "🗑 Delete distro" | `promptDistroRemove()` | — |
-| "🔗 Link ~/scripts and ~/proyectos" | `promptDistroAction("bridge-mount", ...)` | Shares host folders inside the distro |
-
-### "WITH DISTRO — app catalog (apt, optional)" section
-
-| Control | What it does | Why |
-|---|---|---|
-| "📲 Install app in distro" | `promptDistroAppInstall()` — curated catalog (`curatedDistroApps`: Firefox, Chromium, GIMP, Inkscape, VLC, LibreOffice, Thunderbird, Blender, OBS Studio, FileZilla) + "Other" free-text option | Suggestions instead of requiring the exact apt package name from memory |
-| "🗑 Remove app from distro" | `promptDistroAppRemove()` | — |
-
-### "VNC — secondary/optional" section
-
-| Control | What it does | Why |
-|---|---|---|
-| "📥 Install TigerVNC" | `vncInstallWithProgress()` | — |
-| "▶ Start VNC (:5901)" | `runEntornoAction("vnc-start")` | Quick startup without configuring anything |
-| "⚙ Configure and start VNC" | `promptVncConfig()` — resolution, quality (16/24-bit), "Require password" checkbox + real password field | Resolution/quality/password are the 3 real parameters `vncStartWithConfig()` supports without breaking alignment with the embedded `:1` display |
-| "⏹ Stop VNC" | `runEntornoAction("vnc-stop")` | — |
-
-### "AUDIO + GPU" section
-
-| Control | What it does | Why |
-|---|---|---|
-| "🔊 PulseAudio — turn on/off" | `runEntornoAction("pulse-toggle")` | — |
-| "🩺 GPU diagnostics" | `showGpuDiagnostic()` | — |
-| "⚙ Configure GPU method" | `promptGpuMethod()` — list of real methods based on the detected GPU type (`EntornoNative.gpuMethodOptions()`) | The correct method depends on the device's real hardware, it's not a universal option |
-
-**Non-obvious detail**: `errorDetail()` (a helper shared by several flows in this Fragment) shows the short error message TOGETHER WITH the last 300 characters of `output` (the real apt-get/pkg output from inside the proot), instead of just a short message with no hint about the cause.
+`modulos/entorno.sh`: 2026-07-28.

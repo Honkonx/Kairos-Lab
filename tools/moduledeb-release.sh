@@ -308,6 +308,46 @@ MANIFEST_FILE="$OUT_DIR/kairos-modules.manifest.json"
 } > "$MANIFEST_FILE"
 log "Manifest escrito: $MANIFEST_FILE"
 
+# ── catalog.json (v2) + SHA256SUMS.txt — el canal de confianza del instalador ──
+# El APK baja ESTOS dos archivos del Release antes que cualquier .deb y compara el sha256 del
+# paquete descargado contra lo que dicen acá (ModuleDebInstaller.findGithubAsset/hashFrom*).
+# Un hash que viaja DENTRO del mismo .deb solo detecta corrupción; publicado aparte protege
+# contra un asset reemplazado. Ver docs/paquetes_deb/CATALOGO_GITHUB.md.
+CATALOG_FILE="$OUT_DIR/catalog.json"
+SUMS_FILE="$OUT_DIR/SHA256SUMS.txt"
+: > "$SUMS_FILE"
+{
+  printf '{
+'
+  printf '  "generated": "%s",
+' "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date)"
+  printf '  "schema": 2,
+'
+  printf '  "repo": "Honkonx/Kairos-Lab",
+'
+  printf '  "packages": [
+'
+  first=true
+  for deb in "$DEBS_OUT_DIR"/*.deb; do
+    [ -f "$deb" ] || continue
+    name="$(basename "$deb")"
+    sha="$(sha256sum "$deb" 2>/dev/null | awk '{print $1}')"
+    size="$(wc -c < "$deb" | tr -d ' ')"
+    printf '%s  %s
+' "$sha" "$name" >> "$SUMS_FILE"
+    $first || printf ',
+'
+    first=false
+    printf '    {"module_id": "%s", "version": "%s", "filename": "%s", "size_bytes": %s, "arch": "aarch64", "sha256": "%s"}'       "$(extract_id_from_filename "$name" | sed 's/^kairos-module-//')" "$(extract_version_from_filename "$name")" "$name" "$size" "$sha"
+  done
+  printf '
+  ]
+'
+  printf '}
+'
+} > "$CATALOG_FILE"
+log "Catálogo v2 escrito: $CATALOG_FILE (y $SUMS_FILE)"
+
 # ── Índice liviano (JSON + Markdown) — distinto del manifest interno ───
 # El manifest de arriba es el detalle técnico de ESTE paquete (checksums,
 # tamaños en bytes). El índice es lo que el APK/un humano necesitan ANTES
@@ -377,11 +417,11 @@ if $DO_UPLOAD; then
   log "Subiendo a la Release '$RELEASE_TAG' del repo actual con 'gh release create/upload'..."
   if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
     gh release upload "$RELEASE_TAG" "$TARBALL" "$TARBALL.sha256" "$MANIFEST_FILE" \
-      "$INDEX_JSON_FILE" "$INDEX_MD_FILE" --clobber \
+      "$INDEX_JSON_FILE" "$INDEX_MD_FILE" "$CATALOG_FILE" "$SUMS_FILE" --clobber \
       || die "gh release upload falló"
   else
     gh release create "$RELEASE_TAG" "$TARBALL" "$TARBALL.sha256" "$MANIFEST_FILE" \
-      "$INDEX_JSON_FILE" "$INDEX_MD_FILE" \
+      "$INDEX_JSON_FILE" "$INDEX_MD_FILE" "$CATALOG_FILE" "$SUMS_FILE" \
       --title "Kairos modules — $RELEASE_TAG" \
       --notes "Paquetes .deb de módulos de Kairos, generados por tools/moduledeb-release.sh. No es una release de la app — ver docs/arquitectura/PAQUETES_MODULOS_RELEASE_2026-08-26.md." \
       --prerelease \

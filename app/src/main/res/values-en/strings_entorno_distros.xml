@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Redesigned "Distros" tab: one card per distro (approved 2026-10-08). -->
+    <string name="entorno_distros_seccion">INSTALLED DISTROS</string>
+    <string name="entorno_distros_vacio">No distros installed. Use “Install distro” or the recommended profile.</string>
+    <string name="entorno_distros_seccion_nueva">ADD</string>
+    <string name="entorno_distro_estado_sesion">Session open</string>
+    <string name="entorno_distro_estado_sin_sesion">No session</string>
+    <string name="entorno_distro_btn_login">Login (terminal)</string>
+    <string name="entorno_distro_btn_escritorio">Start desktop</string>
+    <string name="entorno_distro_btn_instalar_escritorio">Install desktop</string>
+    <string name="entorno_distro_btn_cerrar_sesion">✕ Close session</string>
+    <string name="entorno_distro_menu_descripcion">More options for %1$s</string>
+    <string name="entorno_distro_row_desc_instalar">Downloads a distro with proot-distro</string>
+    <string name="entorno_distro_row_desc_perfil">Installs a distro with its desktop and a suggested GPU method</string>
+    <string name="entorno_tile_detener_distro_dual">⏹ Stop desktop\n(2nd X11 instance)</string>
+    <string name="entorno_distro_row_desc_detener_dual">Stops the distro desktop running on the 2nd X11 instance, without touching a native desktop open at the same time</string>
+    <string name="entorno_distro_toast_sin_backups_de">There are no backups of %1$s in Termux storage</string>
+    <string name="entorno_distro_toast_sin_apps">%1$s has no apps installed from Kairos</string>
+</resources>

@@ -189,15 +189,15 @@ else
       log "Node.js $(node --version) ✓"
     else
       info "Node.js $(node --version) < 18, actualizando..."
-      # pkg_update_with_fallback() acá: el
+      # Bug real, mismo patrón que bug #21 (VNC), ver — el
       # fallback de mirrors del PASO 1 de este script no detecta "No mirror
       # or mirror group selected" (solo pkg_update_with_fallback de lib.sh).
       pkg_update_with_fallback
       pkg install nodejs -y \
         -o Dpkg::Options::="--force-confdef" \
         -o Dpkg::Options::="--force-confold"
-      # Bug real confirmado — causa raíz de "Expo no se instala" (auditoría 2026-08-05):
-      # "npm install -g npm" sobreescribe el npm
+      # Bug real confirmado — causa raíz de "Expo no se instala" (auditoría 2026-08-05,
+      #): "npm install -g npm" sobreescribe el npm
       # parcheado para Termux (shebang sin /usr/bin/env, que acá no existe) con uno
       # genérico del registry — cualquier npm posterior revienta con "bad interpreter".
       # El npm que trae "pkg install nodejs" ya alcanza.
@@ -205,8 +205,7 @@ else
     fi
   else
     info "Instalando Node.js..."
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install nodejs -y \
       -o Dpkg::Options::="--force-confdef" \
@@ -220,8 +219,7 @@ else
     log "git $(git --version | cut -d' ' -f3) ✓"
   else
     info "Instalando git..."
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install git -y \
       -o Dpkg::Options::="--force-confdef" \
@@ -242,7 +240,7 @@ if check_done "eas_install"; then
   log "EAS CLI ya instalado [checkpoint]"
 else
   info "Instalando eas-cli desde npm..."
-  # Bug real reportado (2026-08-04 — "expo... da error"): antes
+  # Bug real reportado (2026-08-04, ver — "expo... da error"): antes
   # esto pipeaba directo a `tail -3`, así que si `npm install` fallaba con un error real más
   # arriba en su output (permisos, memoria, dependencia nativa que no compila en Termux), el
   # log de instalación (~/kairos_logs/install_expo.log) solo veía las últimas 3 líneas —
@@ -251,7 +249,7 @@ else
   # sí funcionó — si falla, el output completo llega al log para poder diagnosticar de verdad.
   EAS_NPM_OUTPUT=$(npm install -g eas-cli 2>&1)
   echo "$EAS_NPM_OUTPUT" | tail -3
-  # Bug real (2026-08-07): "npm install -g eas-cli" terminaba
+  # Bug real (2026-08-07,): "npm install -g eas-cli" terminaba
   # bien ("changed 510 packages", sin errores) pero el "command -v eas" de acá abajo fallaba
   # igual, de forma intermitente — mismo patrón de falso negativo ya visto en otros módulos
   # de esta sesión (ollama_binary_works() con reintentos). "hash -r" fuerza a bash a olvidar
@@ -406,10 +404,11 @@ ALIASES
   mark_done "expo_aliases"
 fi
 
-# Verificación funcional real antes de marcar installed=true (expo.sh era uno de
-# los 2 únicos módulos sin ningún chequeo --version antes de registry_install, confirmado en
-# la auditoría docs/arquitectura/AUDITORIA_CONSISTENCIA_MODULOS_2026-08-26.md § 3). El PASO 3 ya reintenta
-# "command -v eas" con hash -r por el falso negativo intermitente ya visto antes, pero nunca
+# Verificación funcional real antes de marcar installed=true (.claude/rules/
+# empirical-verification-before-fix.md — expo.sh era uno de los 2 únicos módulos sin ningún
+# chequeo --version antes de registry_install, confirmado en la auditoría
+# docs/arquitectura/AUDITORIA_CONSISTENCIA_MODULOS_2026-08-26.md § 3). El PASO 3 ya reintenta
+# "command -v eas" con hash -r por el falso negativo intermitente de, pero nunca
 # confirmaba que el binario respondiera de verdad — "--version" es el flag default de
 # verify_binary_installed(), eas-cli lo soporta sin problema.
 verify_binary_installed eas || error "eas-cli no ejecuta tras la instalación"

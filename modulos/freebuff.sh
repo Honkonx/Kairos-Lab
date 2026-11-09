@@ -308,7 +308,7 @@ _bun_download_native_runtime() {
   mkdir -p "$_extract"
   dpkg-deb -x "$_deb" "$_extract" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
 
-  # Bug real confirmado por ADB en dispositivo real, con el
+  # Bug real confirmado por ADB en dispositivo real (2026-08-28), con el
   # .deb real descargado y extraído a mano para confirmar el layout exacto: dpkg-deb -x deja
   # el árbol bajo la RUTA ABSOLUTA COMPLETA "$_extract/data/data/com.termux/files/usr/..."
   # (así empaqueta Termux sus .deb — no relocatable, la ruta absoluta va adentro del propio
@@ -341,7 +341,7 @@ _bun_download_native_runtime() {
 
   # Verificación FUNCIONAL real del runtime en sí (no solo que la copia haya
   # funcionado) — mismo principio de post-condición real que el resto del
-  # script.
+  # script (.claude/rules/empirical-verification-before-fix.md).
   "$TERMUX_PREFIX/bin/bun" --version >/dev/null 2>&1 || {
     warn "bun nativo Bionic instalado pero no responde a --version — descartando runtime nativo"
     return 1
@@ -601,7 +601,7 @@ if ! $_NATIVE && ! $_NATIVE_BUN; then
     # package.json. Mismo patrón ya usado en minimaxcli.sh/kimi.sh/qwencode.sh/copilotcli.sh/
     # pi.sh: pasar el nombre de paquete sin "@latest".
     fix_npm_shebang_wrapper freebuff "${FREEBUFF_PKG%@latest}"
-    # verify_binary_installed() en vez de command -v a secas — confirma que el binario ejecuta de verdad, no solo que existe.
+    # verify_binary_installed en vez de command -v a secas (2026-08-22,).
     verify_binary_installed freebuff || error "freebuff no ejecuta tras la instalación (revisá manualmente: freebuff --version)"
     log "Freebuff instalado"
     mark_done "npm_install"

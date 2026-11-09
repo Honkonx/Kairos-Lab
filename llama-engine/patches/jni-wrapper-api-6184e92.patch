@@ -1,0 +1,39 @@
+commit 70b6870bade6b237cab83adeda6f7dbb54f4e50d
+Author: Kairos <kairos@termux.dev>
+Date:   Fri Oct 9 13:26:12 2026 -0300
+
+    feat(iconos,agente,skills,referencias,llama): humano355 - 25 iconos mas, base de conocimiento JSON del Agente, 9 skills, categorias librerias/homelab, llama.cpp 6184e92
+    
+    - 50 glifos de modulo (+SVG/PNG), registrados en ModuleIcons
+    - Agente: knowledge_es.json + KairosAgentKnowledge (+7 tests)
+    - Skills kairos-* (shell, kotlin-java, ui-ux, mockups, docs-memory, deb, proot-distro, homelab, local-ai); regla de extraccion ampliada
+    - Fichas de referencia: librerias (4) y homelab; investigacion homelab/proot/Shizuku; propuesta receptor Go
+    - Analisis de rootfs y pantallas de Mas (sin cambios de codigo)
+    - llama.cpp actualizado (wrapper JNI adaptado), respaldo y parches en llama-engine/patches
+    
+    Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+diff --git a/llama-engine/src/main/cpp/LLMInference.cpp b/llama-engine/src/main/cpp/LLMInference.cpp
+index 63a67b2..4445a41 100644
+--- a/llama-engine/src/main/cpp/LLMInference.cpp
++++ b/llama-engine/src/main/cpp/LLMInference.cpp
+@@ -169,8 +169,9 @@ LLMInference::loadModel(const char *model_path, float minP, float temperature, f
+     sampler_params.no_perf = true;
+     _sampler = llama_sampler_chain_init(sampler_params);
+ 
++    // llama.cpp (b>=10194, 2026-10-09): llama_sampler_init_penalties ahora recibe n_vocab como primer argumento.
+     if (repeatPenalty > 1.0f) {
+-        llama_sampler_chain_add(_sampler, llama_sampler_init_penalties(256, repeatPenalty, 0.0f, 0.0f));
++        llama_sampler_chain_add(_sampler, llama_sampler_init_penalties(llama_vocab_n_tokens(llama_model_get_vocab(_model)), 256, repeatPenalty, 0.0f, 0.0f));
+     }
+ 
+     if (topK > 0) {
+@@ -276,7 +277,7 @@ LLMInference::startCompletionWithImage(const char *query, const unsigned char *i
+     _skipNextDecode = false;
+ 
+     struct mtmd_helper_bitmap_wrapper bitmapResult =
+-        mtmd_helper_bitmap_init_from_buf(_mtmdCtx, imageBytes, imageLen, /*placeholder=*/false);
++        mtmd_helper_bitmap_init_from_buf(_mtmdCtx, imageBytes, imageLen, /*placeholder=*/false, mtmd_helper_init_opt_default());
+     if (!bitmapResult.bitmap) {
+         throw std::runtime_error("startCompletionWithImage() failed: no se pudo decodificar la imagen (formato no soportado o archivo corrupto)");
+     }

@@ -46,7 +46,7 @@ object DiagnosticExportManager {
             val logFiles = logsDir.listFiles { f -> f.isFile && isDiagnosticLog(f.name) }?.toList() ?: emptyList()
             logFiles.forEach { it.copyTo(File(staging, it.name), overwrite = true) }
 
-            // 2026-08-14 (humano123 C2): el snapshot de estado (usage_state.json) se genera
+            // 2026-08-14 ( C2): el snapshot de estado (usage_state.json) se genera
             // FRESCO en cada export (no se acumula en disco) — así el diagnóstico siempre lleva
             // el estado real de "qué instalado, qué versión, qué corriendo" al momento exacto
             // en que el usuario lo compartió, no uno viejo. La función de filtro de arriba

@@ -180,13 +180,15 @@ class UdockerFragment : BaseModuleFragment() {
         val icon = if (running) "●" else "○"
         val color = requireContext().kairosThemeColor(if (running) R.attr.kairosGreen else R.attr.kairosText2)
         val row = infoRow("$icon $name", image, color)
-        row.setOnClickListener { promptContainerActions(name) }
+        row.setOnClickListener { promptContainerActions(name, image) }
         return row
     }
 
-    private fun promptContainerActions(name: String) {
+    private fun promptContainerActions(name: String, image: String) {
         val options = arrayOf(
             getString(R.string.udocker_option_open_terminal),
+            getString(R.string.udocker_option_install_packages),
+            getString(R.string.udocker_option_run_command),
             getString(R.string.udocker_option_inspect),
             getString(R.string.udocker_option_export),
             getString(R.string.udocker_option_delete_container)
@@ -198,16 +200,117 @@ class UdockerFragment : BaseModuleFragment() {
                     0 -> promptRunOptions(name) { flags ->
                         launchTerminalCommand(buildUdockerRunCommand(name, flags), "udocker/$name")
                     }
-                    1 -> inspectContainer(name)
-                    2 -> {
+                    1 -> promptInstallPackages(name, image)
+                    2 -> promptContainerCommand(name)
+                    3 -> inspectContainer(name)
+                    4 -> {
                         pendingExportContainer = name
                         mExportContainerLauncher.launch("$name.tar")
                     }
-                    3 -> confirmRemoveContainer(name)
+                    5 -> confirmRemoveContainer(name)
                 }
             }
             .setNegativeButton(getString(R.string.udocker_button_cancel), null)
             .show()
+    }
+
+    /** Lleva del contenedor creado a una acción útil sin obligar a abrir una shell interactiva. */
+    private fun promptInstallPackages(name: String, image: String) {
+        val defaultManager = when {
+            image.contains("alpine", ignoreCase = true) -> "apk"
+            image.contains("debian", ignoreCase = true) || image.contains("ubuntu", ignoreCase = true) -> "apt"
+            else -> null
+        }
+        val chooseManager: (String) -> Unit = { manager -> promptPackageNames(name, manager) }
+        if (defaultManager != null) {
+            chooseManager(defaultManager)
+        } else {
+            AlertDialog.Builder(requireContext())
+                .setTitle(R.string.udocker_package_manager_title)
+                .setItems(arrayOf(getString(R.string.udocker_package_manager_apk), getString(R.string.udocker_package_manager_apt))) { _, which ->
+                    chooseManager(if (which == 0) "apk" else "apt")
+                }
+                .setNegativeButton(R.string.udocker_button_cancel, null)
+                .show()
+        }
+    }
+
+    private fun promptPackageNames(container: String, manager: String) {
+        val input = EditText(requireContext()).apply {
+            hint = getString(R.string.udocker_package_names_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.udocker_install_packages_title, container))
+            .setMessage(if (manager == "apk") getString(R.string.udocker_install_packages_alpine) else getString(R.string.udocker_install_packages_debian))
+            .setView(input)
+            .setPositiveButton(R.string.udocker_button_install) { _, _ ->
+                val packages = input.text.toString().trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+                val valid = packages.isNotEmpty() && packages.size <= 12 && packages.all { it.matches(Regex("[A-Za-z0-9.+:_-]{1,80}")) }
+                if (!valid) {
+                    toast(getString(R.string.udocker_invalid_package_names))
+                    return@setPositiveButton
+                }
+                val quoted = packages.joinToString(" ") { quoteShellArg(it) }
+                val command = if (manager == "apk") {
+                    "apk add --no-cache $quoted"
+                } else {
+                    "apt-get -o APT::Sandbox::User=root update && apt-get -o APT::Sandbox::User=root install -y $quoted"
+                }
+                runContainerCommand(container, command, 1200, getString(R.string.udocker_install_packages_title, container), asRoot = true)
+            }
+            .setNegativeButton(R.string.udocker_button_cancel, null)
+            .show()
+    }
+
+    private fun promptContainerCommand(container: String) {
+        val input = EditText(requireContext()).apply {
+            hint = getString(R.string.udocker_command_hint)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            minLines = 2
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.udocker_run_command_title, container))
+            .setMessage(R.string.udocker_run_command_message)
+            .setView(input)
+            .setPositiveButton(R.string.udocker_button_run) { _, _ ->
+                val command = input.text.toString().trim()
+                if (command.isNotEmpty()) runContainerCommand(container, command, 300, getString(R.string.udocker_run_command_title, container))
+            }
+            .setNegativeButton(R.string.udocker_button_cancel, null)
+            .show()
+    }
+
+    private fun runContainerCommand(container: String, command: String, timeoutSeconds: Long, title: String, asRoot: Boolean = false) {
+        val appContext = requireContext().applicationContext
+        val progress = ProgressDialogController(requireContext())
+        progress.show(title, getString(R.string.udocker_running_action), allowBackground = true)
+        Thread {
+            val rootArgs = if (asRoot) listOf("--user=root", "--containerauth") else emptyList()
+            val invocation = listOf(
+                TERMUX_BASH_PATH,
+                "-c",
+                "export UDOCKER_USE_PROOT_EXECUTABLE=\"$TERMUX_PREFIX_PATH/bin/proot\"; exec \"$TERMUX_UDOCKER_PATH\" \"\$@\"",
+                "udocker"
+            ) + listOf("run") + rootArgs + listOf(container, "/bin/sh", "-lc", command)
+            val (rc, out, err) = ManagerNativeUtils.runExec(invocation, timeoutSeconds)
+            val log = (out + if (err.isBlank()) "" else "\n$err").takeLast(1800)
+            if (progress.isBackgrounded) {
+                com.termux.app.util.ModuleEventBridge.notifyDirect(
+                    appContext,
+                    "udocker",
+                    if (rc == 0) "container_action_done" else "container_action_failed",
+                    log.ifBlank { title }
+                )
+            }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (rc == 0) progress.success(getString(R.string.udocker_action_complete))
+                else progress.failure(getString(R.string.udocker_action_failed), log.ifBlank { getString(R.string.udocker_no_output) })
+                if (log.isNotBlank()) showTextDialog(title, log)
+                refreshContainers()
+            }
+        }.start()
     }
 
     /** `udocker inspect <contenedor>` — imprime metadata JSON real del contenedor (imagen base,
@@ -598,6 +701,7 @@ class UdockerFragment : BaseModuleFragment() {
 
     private fun promptImageActions(image: String) {
         val options = arrayOf(
+            getString(R.string.udocker_option_create_container_from_image),
             getString(R.string.udocker_option_inspect),
             getString(R.string.udocker_option_save),
             getString(R.string.udocker_option_delete_image)
@@ -606,13 +710,17 @@ class UdockerFragment : BaseModuleFragment() {
             .setTitle(image)
             .setItems(options) { _, which ->
                 when (which) {
-                    0 -> inspectImage(image)
-                    1 -> {
+                    0 -> {
+                        val defaultName = image.substringBefore(':').substringAfterLast('/').ifBlank { "container" }
+                        promptContainerName(image, defaultName)
+                    }
+                    1 -> inspectImage(image)
+                    2 -> {
                         pendingSaveImage = image
                         val fileName = image.replace('/', '_').replace(':', '_') + ".tar"
                         mSaveImageLauncher.launch(fileName)
                     }
-                    2 -> confirmRemoveImage(image)
+                    3 -> confirmRemoveImage(image)
                 }
             }
             .setNegativeButton(getString(R.string.udocker_button_cancel), null)

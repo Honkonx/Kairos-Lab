@@ -182,9 +182,9 @@
     <string name="n8n_toast_install_failed">"Failed — check ~/kairos_logs/install_n8n.log"</string>
     <string name="n8n_cf_token_hint">"Token from dash.cloudflare.com → Zero Trust → Tunnels"</string>
     <string name="n8n_cf_token_status_fixed">"Fixed URL enabled"</string>
-    <string name="n8n_cf_token_status_temp">"Temporary URL (no token)"</string>
+    <string name="n8n_cf_token_status_temp">"No token (tunnel will not start)"</string>
     <string name="n8n_cf_token_dialog_title">"Cloudflare Token"</string>
-    <string name="n8n_cf_token_dialog_message">"Current status: %1$s.\n\nLeaving it empty clears the saved token (reverts to temporary URL)."</string>
+    <string name="n8n_cf_token_dialog_message">"Current status: %1$s.\n\nLeaving it empty clears the saved token (the tunnel can no longer start)."</string>
     <string name="n8n_btn_save">"Save"</string>
     <string name="n8n_webhook_domain_hint">"n8n.yourdomain.com"</string>
     <string name="n8n_webhook_domain_dialog_title">"Webhook domain"</string>

@@ -7,7 +7,7 @@
 #  en proceso — ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md y
 #  docs/referencias/REFERENCIA_OLLAMASERVER.md).
 #
-#  Rama "llama-server-and-terminal-ux" (2026-08-05) —
+# Rama "llama-server-and-terminal-ux" (2026-08-05,) —
 #  primera implementación, sin confirmar en dispositivo real todavía.
 #
 #  USO DESDE APP (KairosApp):
@@ -143,7 +143,7 @@ else
   cp "$SRC_BIN" "$LLAMASERVER_BIN" || error "No se pudo copiar $SRC_BIN a $LLAMASERVER_BIN"
   chmod 755 "$LLAMASERVER_BIN" || error "No se pudo hacer ejecutable $LLAMASERVER_BIN"
 
-  # Bug real (2026-08-06): "CANNOT LINK EXECUTABLE: library
+  # Bug real (2026-08-06,): "CANNOT LINK EXECUTABLE: library
   # libllama-server-impl.so not found" — llama-server es un binario dinámicamente linkeado
   # (BUILD_SHARED_LIBS=ON) contra varias bibliotecas propias (libggml-base.so, libllama.so,
   # libllama-common.so, libmtmd.so, libllama-server-impl.so). KairosBootstrap.kt las extrae al
@@ -159,7 +159,7 @@ else
     warn "No se encontraron .so dependientes en scripts/install/ — llama-server puede no arrancar"
   fi
 
-  # timeout defensivo (auditoría 2026-08-05): si "--version" no
+  # timeout defensivo (auditoría 2026-08-05,): si "--version" no
   # se reconociera como se espera y el binario intentara arrancar el servidor de verdad sin
   # modelo, esto evita que el instalador quede colgado para siempre esperando una conexión que
   # nunca llega — mismo criterio que notify_event() en lib.sh.
@@ -208,8 +208,8 @@ PORT=\$(grep -m1 '^LLAMA_SERVER_PORT=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d
 # (OLLAMA_NUM_CTX ya configurable desde la app). Flags reales confirmados contra
 # tools/server/README.md de ggml-org/llama.cpp — "0" vacío/no seteado deja que el binario
 # use su propio default, no se fuerza ningún valor si el usuario no lo tocó.
-CTX_SIZE=\$(grep -m1 '^LLAMA_SERVER_CTX_SIZE=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
-THREADS=\$(grep -m1 '^LLAMA_SERVER_THREADS=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+CTX_SIZE=\$(grep -m1 '^LLAMA_SERVER_CTX_SIZE=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
+THREADS=\$(grep -m1 '^LLAMA_SERVER_THREADS=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 EXTRA_ARGS=""
 [ -n "\$CTX_SIZE" ] && [ "\$CTX_SIZE" != "0" ] && EXTRA_ARGS="\$EXTRA_ARGS -c \$CTX_SIZE"
 [ -n "\$THREADS" ] && [ "\$THREADS" != "0" ] && EXTRA_ARGS="\$EXTRA_ARGS -t \$THREADS"
@@ -220,7 +220,7 @@ EXTRA_ARGS=""
 # embebido del Chat IA), pero llamaserver.sh nunca pasaba -ngl — el backend Vulkan quedaba
 # disponible en el binario sin que ninguna capa de offload a GPU se activara nunca. "0" o
 # vacío = todo en CPU (comportamiento anterior, sin cambios si el usuario no lo toca).
-NGL=\$(grep -m1 '^LLAMA_SERVER_NGL=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+NGL=\$(grep -m1 '^LLAMA_SERVER_NGL=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 [ -n "\$NGL" ] && [ "\$NGL" != "0" ] && EXTRA_ARGS="\$EXTRA_ARGS -ngl \$NGL"
 
 # --api-key / --embeddings / --parallel / bind LAN (ronda de continuación 2026-08-19, ver
@@ -229,14 +229,23 @@ NGL=\$(grep -m1 '^LLAMA_SERVER_NGL=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '
 # OLLAMA_LAN (host 0.0.0.0 en vez de 127.0.0.1) — deliberadamente se recomienda setear
 # LLAMA_SERVER_API_KEY antes de habilitar LAN (ver comentario en el config generado), pero no se
 # bloquea a nivel script: la app ya avisa en el toggle de UI, mismo criterio que Ollama.
-API_KEY=\$(grep -m1 '^LLAMA_SERVER_API_KEY=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+API_KEY=\$(grep -m1 '^LLAMA_SERVER_API_KEY=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 [ -n "\$API_KEY" ] && EXTRA_ARGS="\$EXTRA_ARGS --api-key \$API_KEY"
 
 EMBEDDINGS=\$(grep -m1 '^LLAMA_SERVER_EMBEDDINGS=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
 [ "\$EMBEDDINGS" = "1" ] && EXTRA_ARGS="\$EXTRA_ARGS --embeddings"
 
-PARALLEL=\$(grep -m1 '^LLAMA_SERVER_PARALLEL=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+PARALLEL=\$(grep -m1 '^LLAMA_SERVER_PARALLEL=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 [ -n "\$PARALLEL" ] && [ "\$PARALLEL" != "0" ] && EXTRA_ARGS="\$EXTRA_ARGS --parallel \$PARALLEL"
+
+# Multimodal (--mmproj) — ver nota en ~/.llamaserver_user_config. Solo se agrega el flag si el
+# archivo realmente existe en MODELS_DIR (mismo criterio defensivo que MODEL_FILE más abajo) --
+# un mmproj borrado/movido después de configurarlo no debe tumbar el arranque del servidor,
+# solo lo deja sin soporte de imágenes (mismo criterio "avisar, no fallar" de ChatFragment.kt).
+MMPROJ_FILE=\$(grep -m1 '^LLAMA_SERVER_MMPROJ=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+if [ -n "\$MMPROJ_FILE" ] && [ -f "\$MODELS_DIR/\$MMPROJ_FILE" ]; then
+  EXTRA_ARGS="\$EXTRA_ARGS --mmproj '\$MODELS_DIR/\$MMPROJ_FILE'"
+fi
 
 HOST="127.0.0.1"
 LAN=\$(grep -m1 '^LLAMA_SERVER_LAN=' "\$CFG" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
@@ -247,11 +256,11 @@ if [ -z "\$MODEL_FILE" ] || [ ! -f "\$MODELS_DIR/\$MODEL_FILE" ]; then
   exit 1
 fi
 
-# Bug real (2026-08-06): llama-server arrancaba
+# Bug real (2026-08-06,): llama-server arrancaba
 # y llegaba hasta intentar cargar el modelo, pero fallaba con "no backends are loaded" —
 # ggml_backend_load_all() (BUILD_SHARED_LIBS=ON + GGML_BACKEND_DL=ON, ver
 # llama-engine/build.gradle) busca los .so de los backends (libggml-cpu-*.so,
-# libggml-vulkan.so). El primer intento de fix (exportar GGML_BACKEND_DIR) NO FUNCIONABA — confirmado
+# libggml-vulkan.so). Fix real de (GGML_BACKEND_DIR) NO FUNCIONABA — confirmado
 # leyendo el código fuente real de llama.cpp (ggml/src/ggml-backend-reg.cpp):
 # GGML_BACKEND_DIR es una macro de COMPILACIÓN (#ifdef), nunca una variable de entorno de
 # runtime, así que exportarla acá no hacía nada. Las rutas que SÍ se consultan sin
@@ -335,6 +344,13 @@ LLAMA_SERVER_PARALLEL=0
 # que OLLAMA_LAN. Setear LLAMA_SERVER_API_KEY antes de activar esto si el dispositivo está en
 # una red no confiable.
 LLAMA_SERVER_LAN=0
+
+# Nombre de archivo .gguf del proyector multimodal (mmproj-*.gguf) dentro del directorio de
+# modelos del Chat IA -- vacío = sin soporte de imágenes (comportamiento anterior, sin
+# cambios). Editable desde la app (IA Local / llama-server → Parámetros). --mmproj es un flag
+# real de tools/server/README.md de ggml-org/llama.cpp -- mismo libmtmd que ya usa el motor
+# JNI embebido del Chat IA (ver "Implementado — soporte multimodal" en MEJORAS_PENDIENTES.md).
+LLAMA_SERVER_MMPROJ=
 UCFG
   log "~/.llamaserver_user_config creado"
 else

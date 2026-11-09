@@ -99,7 +99,7 @@ fi
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Reemplaza el manifest a mano modulos/manifests/n8n.json (borrado como
-# código muerto, ver docs/arquitectura/MODULEDEB_GENERICO.md).
+# código muerto en, ver docs/arquitectura/MODULEDEB_GENERICO.md).
 # Contenido migrado 1:1 del manifest piloto original
 # (git show 838544d^:modulos/manifests/n8n.json). PILOTO LIMITADO: solo
 # empaqueta scripts de control/boot — NO la imagen/contenedor udocker
@@ -198,7 +198,7 @@ update_registry() {
   registry_install n8n "$version" "mode=$mode" "port=5678"
 }
 
-# Bug real (2026-08-06): si este intento de
+# Bug real (2026-08-06,): si este intento de
 # instalación falla DESPUÉS de que un intento anterior (de la OTRA variante,
 # proot o udocker) ya haya escrito el registry con éxito, el registry se
 # queda con ese valor viejo — la UI termina mostrando "instalado, modo: X"
@@ -266,7 +266,8 @@ export UDOCKER_USE_PROOT_EXECUTABLE="${TERMUX_PREFIX}/bin/proot"
 export UDOCKER_TARBALL="https://raw.githubusercontent.com/jorge-lip/udocker-builds/master/tarballs/udocker-englib-1.2.11.tar.gz"
 
 echo "[*] Iniciando n8n (udocker)..."
-[ ! -d "$N8N_DATA_ABS" ] && mkdir -p "$N8N_DATA_ABS" && chmod 777 "$N8N_DATA_ABS"
+# chmod 700 (antes 777, auditoría 2026-10-07): udocker/proot corren con el mismo uid de la app, no necesitan acceso para "otros".
+[ ! -d "$N8N_DATA_ABS" ] && mkdir -p "$N8N_DATA_ABS" && chmod 700 "$N8N_DATA_ABS"
 if ! command -v udocker &>/dev/null; then
   echo "[ERROR] udocker no instalado."; exit 1
 fi
@@ -276,13 +277,13 @@ if ! udocker inspect n8n &>/dev/null; then
 fi
 [ -f "$TERMUX_HOME/.udocker_force_p2" ] && udocker setup --execmode=P2 n8n 2>/dev/null || true
 
-# Bug real (2026-08-06): el modo proot ya soportaba
+# Bug real (2026-08-06,): el modo proot ya soportaba
 # "Configurar dominio webhook" (N8N_WEBHOOK_URL en ~/.env_n8n, portado del [d] del
 # TUI original) pero el modo udocker no leía ese archivo en absoluto — el botón de
 # la app escribía el dominio pero solo tenía efecto si el usuario había instalado
 # la variante proot, no la recomendada (udocker).
 WEBHOOK_URL_CFG=$(grep "^N8N_WEBHOOK_URL=" "$TERMUX_HOME/.env_n8n" 2>/dev/null | cut -d'=' -f2)
-UDOCKER_ENV_ARGS="--env=N8N_HOST=0.0.0.0 --env=N8N_PORT=5678 --env=N8N_SECURE_COOKIE=false --env=N8N_RUNNERS_ENABLED=true --env=NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path,os --env=NODE_FUNCTION_ALLOW_EXTERNAL=*"
+UDOCKER_ENV_ARGS="--env=N8N_HOST=localhost --env=N8N_LISTEN_ADDRESS=127.0.0.1 --env=N8N_PORT=5678 --env=N8N_SECURE_COOKIE=false --env=N8N_RUNNERS_ENABLED=true --env=NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path,os --env=NODE_FUNCTION_ALLOW_EXTERNAL=*"
 [ -n "$WEBHOOK_URL_CFG" ] && UDOCKER_ENV_ARGS="${UDOCKER_ENV_ARGS} --env=WEBHOOK_URL=${WEBHOOK_URL_CFG}"
 [ -n "$WEBHOOK_URL_CFG" ] && echo "[*] Webhook URL: $WEBHOOK_URL_CFG"
 
@@ -304,7 +305,8 @@ echo "[*] Esperando n8n..."
 # udocker (pull/extract de la imagen + primer boot de n8n dentro de proot P2, más
 # lento que un contenedor nativo). Subido a 90s (45x2s), mismo criterio que el
 # timeout equivalente de ModuleController.kt (Kotlin) para n8n.
-# Subido de nuevo a 180s (90x2s) — evidencia real de dispositivo: 90s seguía siendo insuficiente en hardware real para un
+# Subido de nuevo a 180s (90x2s) — evidencia real de dispositivo (ver
+#): 90s seguía siendo insuficiente en hardware real para un
 # arranque en frío (pull/extract de imagen + primer boot bajo proot P2), el
 # script devolvía [ERROR] pero n8n seguía booteando en la sesión tmux detached
 # igual y quedaba arriba segundos/minutos después — un reintento manual poco
@@ -321,7 +323,7 @@ if ! $N8N_UP; then
   exit 1
 fi
 
-# Bug real reportado (auditoría 2026-08-05): /healthz responde
+# Bug real reportado (auditoría 2026-08-05,): /healthz responde
 # "ok" apenas el proceso de n8n está vivo, ANTES de que terminen las migraciones de
 # base de datos — el usuario veía "listo" en la app varios segundos antes de que la
 # interfaz de n8n realmente sirviera algo. Margen extra + segunda verificación real
@@ -334,18 +336,19 @@ else
   echo "[WARN] n8n dejó de responder durante el margen extra — puede seguir inicializando, revisa: tmux attach -t n8n-udocker"
 fi
 
-if [ -f "$TERMUX_HOME/.n8n_local_only" ]; then
-  echo "[*] Modo solo local activo (.n8n_local_only) — sin túnel cloudflared"
-elif command -v cloudflared &>/dev/null; then
+# Solo dos modos (pedido explícito 2026-10-08): LOCAL (por defecto,
+# http://localhost:5678, sin túnel) o TÚNEL Cloudflare con token + dominio. El túnel solo
+# arranca si existe el flag ~/.n8n_tunnel_mode Y hay token; ya no hay "URL temporal".
+if [ ! -f "$TERMUX_HOME/.n8n_tunnel_mode" ]; then
+  echo "[*] Modo local (por defecto): http://localhost:5678 — sin túnel"
+elif ! command -v cloudflared &>/dev/null; then
+  echo "[WARN] Modo túnel activo pero cloudflared no está instalado — n8n queda solo en localhost:5678"
+elif [ ! -s "$TERMUX_HOME/.cf_token" ]; then
+  echo "[WARN] Modo túnel activo pero falta el token de Cloudflare — n8n queda solo en localhost:5678"
+else
   tmux new-window -t "$SESSION" -n "tunnel"
-  if [ -f "$TERMUX_HOME/.cf_token" ] && [ -s "$TERMUX_HOME/.cf_token" ]; then
-    CF_TOK=$(cat "$TERMUX_HOME/.cf_token")
-    tmux send-keys -t "$SESSION:tunnel" \
-      "cloudflared tunnel --no-autoupdate run --token ${CF_TOK} 2>&1 | tee ${CF_LOG}" Enter
-  else
-    tmux send-keys -t "$SESSION:tunnel" \
-      "cloudflared tunnel --no-autoupdate --url http://localhost:5678 2>&1 | tee ${CF_LOG}" Enter
-  fi
+  CF_TOK=$(cat "$TERMUX_HOME/.cf_token")
+  tmux send-keys -t "$SESSION:tunnel"     "cloudflared tunnel --no-autoupdate run --token ${CF_TOK} 2>&1 | tee ${CF_LOG}" Enter
   sleep 20
 fi
 
@@ -353,7 +356,7 @@ CF_URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" 2>/dev/null
 [ -n "$CF_URL" ] && echo "$CF_URL" > "$TERMUX_HOME/.last_cf_url"
 echo "[OK] n8n (udocker) activo :5678"
 [ -n "$CF_URL" ] && echo "[OK] URL: $CF_URL"
-# Bug real confirmado con evidencia de dispositivo (2026-08-14):
+# Bug real confirmado con evidencia de dispositivo (2026-08-14,):
 # sin este "exit 0", el código de salida del script es el de la última línea ejecutada —
 # cuando CF_URL está vacío (modo .n8n_local_only, sin túnel), "[ -n "$CF_URL" ] && echo ..."
 # evalúa a falso y devuelve 1, así que start.sh "fallaba" pese a haber impreso
@@ -462,7 +465,7 @@ tmux new-session -d -s "\$SESSION" -n "n8n"
 N8N_CMD="export HOME=/root"
 N8N_CMD="\${N8N_CMD} && export NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path,os"
 N8N_CMD="\${N8N_CMD} && export NODE_FUNCTION_ALLOW_EXTERNAL=*"
-N8N_CMD="\${N8N_CMD} && export N8N_HOST=0.0.0.0"
+N8N_CMD="\${N8N_CMD} && export N8N_HOST=localhost && export N8N_LISTEN_ADDRESS=127.0.0.1"
 N8N_CMD="\${N8N_CMD} && export N8N_PORT=5678"
 N8N_CMD="\${N8N_CMD} && export N8N_PROXY_HOPS=1"
 N8N_CMD="\${N8N_CMD} && export N8N_SECURE_COOKIE=false"
@@ -501,7 +504,7 @@ if ! \$N8N_UP; then
   exit 1
 fi
 
-# Bug real reportado (auditoría 2026-08-05): /healthz responde
+# Bug real reportado (auditoría 2026-08-05,): /healthz responde
 # "ok" apenas el proceso de n8n está vivo, ANTES de que terminen las migraciones de
 # base de datos — el usuario veía "listo" en la app varios segundos antes de que la
 # interfaz de n8n realmente sirviera algo. Margen extra + segunda verificación real
@@ -514,22 +517,16 @@ else
   echo "[WARN] n8n dejó de responder durante el margen extra — puede seguir inicializando, revisa: tmux attach -t \$SESSION"
 fi
 
-if [ -f "\$HOME/.n8n_local_only" ]; then
-  echo "[*] Modo solo local activo (.n8n_local_only) — sin túnel cloudflared"
+if [ ! -f "\$HOME/.n8n_tunnel_mode" ]; then
+  echo "[*] Modo local (por defecto): http://localhost:5678 — sin túnel"
+elif [ ! -s "\$HOME/.cf_token" ]; then
+  echo "[WARN] Modo túnel activo pero falta el token de Cloudflare — n8n queda solo en localhost:5678"
 else
   tmux new-window -t "\$SESSION" -n "tunnel"
-  if [ -f "\$HOME/.cf_token" ]; then
-    CF_TOK=\$(cat "\$HOME/.cf_token")
-    tmux send-keys -t "\$SESSION:tunnel" \
-      "proot-distro login \"\$DISTRO_NAME\" -- bash -c 'cloudflared tunnel --no-autoupdate run --token \${CF_TOK} 2>&1 | tee /root/cf_url.log'" Enter
-  else
-    tmux send-keys -t "\$SESSION:tunnel" \
-      "proot-distro login \"\$DISTRO_NAME\" -- bash -c 'cloudflared tunnel --no-autoupdate --url http://localhost:5678 2>&1 | tee /root/cf_url.log'" Enter
-  fi
-
+  CF_TOK=\$(cat "\$HOME/.cf_token")
+  tmux send-keys -t "\$SESSION:tunnel"     "proot-distro login \"\$DISTRO_NAME\" -- bash -c 'cloudflared tunnel --no-autoupdate run --token \${CF_TOK} 2>&1 | tee /root/cf_url.log'" Enter
   sleep 40
-  CF_URL=\$(proot-distro login "\$DISTRO_NAME" -- bash -c \
-    "grep -o 'https://[a-zA-Z0-9.-]*\\.trycloudflare\\.com' /root/cf_url.log 2>/dev/null | head -1" 2>/dev/null)
+  CF_URL=\$(proot-distro login "\$DISTRO_NAME" -- bash -c     "grep -o 'https://[a-zA-Z0-9.-]*\.trycloudflare\.com' /root/cf_url.log 2>/dev/null | head -1" 2>/dev/null)
   [ -n "\$CF_URL" ] && echo "\$CF_URL" > "\$HOME/.last_cf_url"
 fi
 
@@ -543,8 +540,8 @@ SCRIPT
   cat > "$_dir/stop_servidor.sh" << SCRIPT
 #!/data/data/com.termux/files/usr/bin/bash
 DISTRO_NAME="${_distro}"
-# Mismo bug real que en openclaw_start.sh/openclaw_stop.sh (confirmado por ADB
-# con "time"+exit code): "pkill -f n8n" matchea contra la línea de comando
+# Mismo bug real que en openclaw_start.sh/openclaw_stop.sh (
+# confirmado por ADB con "time"+exit code): "pkill -f n8n" matchea contra la línea de comando
 # COMPLETA de cualquier proceso vivo — el propio "bash -c 'pkill -f n8n ...'" que lo ejecuta
 # tiene "n8n" en SU PROPIA línea de comando (el texto del pkill que está corriendo), así que se
 # automataba con SIGKILL antes de llegar a "pkill -f cloudflared". Patrón de 2 palabras
@@ -709,7 +706,7 @@ if [ "$VARIANT" = "udocker" ]; then
     "https://download.a.incd.pt/udocker/udocker-englib-1.2.11.tar.gz"
   )
 
-  # TMPDIR (2026-09-11, confirmado por ADB en dispositivo real):
+  # TMPDIR (2026-09-11, confirmado por ADB en dispositivo real,):
   # sin esto, udocker (Python) cae al fallback "/tmp" del sistema Android, que la app NO
   # puede escribir (drwxrwx--x, solo shell:shell) — todo curl interno de udocker (tarball de
   # udockertools Y pull de la imagen n8n) fallaba con "Error: in download: %s" / curl exit 23
@@ -719,8 +716,8 @@ if [ "$VARIANT" = "udocker" ]; then
   export TMPDIR="${PREFIX:-/data/data/com.termux/files/usr}/tmp"
   mkdir -p "$TMPDIR"
 
-  # UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real):
-  # con el fix de TMPDIR arriba, "udocker install"/udockertools ya
+  # UDOCKER_USE_CURL_EXECUTABLE (2026-09-11, confirmado por ADB en dispositivo real, ver
+  #): con el fix de TMPDIR arriba, "udocker install"/udockertools ya
   # funcionaba, pero "udocker pull" seguía fallando con el mismo "Error: in download: %s" —
   # traza real con "udocker -D pull" mostró X-ND-CURLSTATUS=1 (protocolo no soportado, típico
   # de una llamada a subprocess malformada) y "Debug: using curl executable " en blanco: la
@@ -769,7 +766,7 @@ if [ "$VARIANT" = "udocker" ]; then
 
   # ── PASO 0 — udocker ──────────────────────────────────────
   step "0/7 Instalando udocker"
-  # Bug real (auditoría 2026-08-05): esta variable
+  # Bug real (auditoría 2026-08-05,): esta variable
   # vivía DENTRO del bloque "else" de abajo, así que solo se exportaba la PRIMERA vez
   # que corría el script. Si un intento anterior dejó "udocker_install" marcado como
   # hecho (checkpoint) pero falló más adelante (PASO 2/3, pull o create de la imagen),
@@ -856,7 +853,7 @@ if [ "$VARIANT" = "udocker" ]; then
     log "Directorio ya creado [checkpoint]"
   else
     mkdir -p "$N8N_DATA_ABS"
-    chmod 777 "$N8N_DATA_ABS"
+    chmod 700 "$N8N_DATA_ABS"
     mark_done "datadir"
     log "Directorio creado: $N8N_DATA_ABS"
   fi
@@ -869,8 +866,7 @@ if [ "$VARIANT" = "udocker" ]; then
     if command -v cloudflared &>/dev/null; then
       log "cloudflared ya disponible"
     else
-      # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-      # "pkg install" no lo tiene disponible.
+      # Bug real, mismo patrón que bug #21 (VNC),.
       pkg_update_with_fallback
       if pkg install -y cloudflared; then
         log "cloudflared instalado via pkg"
@@ -907,7 +903,7 @@ if [ "$VARIANT" = "udocker" ]; then
     # (no depende de Docker Hub ni de udocker).
     #
     # --platform=linux/arm64 explícito: bug real confirmado por ADB en dispositivo
-    # (ronda de auditoría) — udocker arma el selector de
+    # ( ronda de auditoría) — udocker arma el selector de
     # plataforma con HostInfo.osversion() = platform.system().lower(), y el
     # Python de Termux devuelve "Android" (no "Linux") ahí, así que sin este
     # flag udocker pide el manifest de "android/arm64" a Docker Hub, que no
@@ -915,7 +911,7 @@ if [ "$VARIANT" = "udocker" ]; then
     # descarga falla siempre, en todo dispositivo. --platform es un flag real
     # y documentado del propio udocker (ver udocker/cli.py, "udocker pull
     # --platform=linux/arm64 <imagen>" en su propio --help).
-    # Fallback real a ":stable" si ":latest" falla (2026-08-31):
+    # Fallback real a ":stable" si ":latest" falla (2026-08-31,):
     # confirmado que "n8nio/n8n:latest" puede quedar roto en Docker Hub temporalmente
     # (build con un módulo interno faltante, "Cannot find module
     # '@n8n/ai-utilities/generic-text-editor'", reproducido 2 veces) — n8nio SÍ publica
@@ -1019,7 +1015,7 @@ SCRIPT
     error "n8n (udocker) se instaló pero no arrancó — revisa el log con: bash ~/scripts/n8n-udocker/log.sh (o ~/kairos_logs/install_n8n.log)"
   fi
 
-  # Bug real confirmado por ADB (2026-08-24): "udocker images" en la
+  # Bug real confirmado por ADB (2026-08-24,): "udocker images" en la
   # versión real instalada (1.3.17) devuelve REPO:TAG en una sola columna
   # ("n8nio/n8n:latest"), no en 2 columnas separadas — "awk '{print $2}'" agarraba la
   # columna del flag "protected" (".") en vez del tag, dejando "n8n.version=." en el
@@ -1156,7 +1152,7 @@ elif check_done "termux_update"; then
   log "Termux ya actualizado [checkpoint]"
 else
   info "Actualizando Termux..."
-  # Quick win de la auditoría de referencia/ (2026-08-05) — antes
+  # Quick win de la auditoría de referencia/ (2026-08-05,) — antes
   # probaba solo 2 mirrors fijos en orden; ahora comparte la selección por velocidad
   # real centralizada en lib.sh (mismo criterio que entorno.sh/kairos.sh).
   pkg_update_with_fallback
@@ -1192,8 +1188,7 @@ else
   else
     if ! command -v proot-distro &>/dev/null; then
       info "Instalando proot-distro..."
-      # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-      # "pkg install" no lo tiene disponible.
+      # Bug real, mismo patrón que bug #21 (VNC),.
       pkg_update_with_fallback
       pkg install proot-distro proot -y \
         -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" || \
@@ -1305,7 +1300,8 @@ export PYTHON=$(which python3)
 cat >> /root/.bashrc << 'PROFILE'
 export npm_config_python=$(which python3)
 export PYTHON=$(which python3)
-export N8N_HOST=0.0.0.0
+export N8N_HOST=localhost
+export N8N_LISTEN_ADDRESS=127.0.0.1
 export N8N_PORT=5678
 export N8N_SECURE_COOKIE=false
 PROFILE

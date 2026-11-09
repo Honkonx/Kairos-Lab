@@ -10,7 +10,7 @@ import android.content.Context
  * "puede no entrar en RAM"), pero nada que mire cuánta RAM está LIBRE en el momento real de
  * cargar/usar el modelo — un dispositivo con RAM total suficiente puede igual estar bajo de
  * memoria disponible en ese instante (otras apps, otros módulos de Kairos corriendo), y el
- * OOM-killer de Android mata el proceso sin aviso previo (mismo síntoma ya reportado antes
+ * OOM-killer de Android mata el proceso sin aviso previo (mismo síntoma ya documentado en
  * para el caso de RAM total insuficiente).
  *
  * Envoltorio fino sobre ActivityManager.getMemoryInfo() — no reimplementa nada, solo centraliza

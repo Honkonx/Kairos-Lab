@@ -25,7 +25,7 @@ class N8nFragment : BaseModuleFragment() {
     private lateinit var tunnelUrlValue: TextView
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona la API
-    // Key de n8n (showApiKeyDialog()) — un secreto guardado nunca vuelve a mostrarse en la UI.
+    // Key de n8n (showApiKeyDialog()) — ver .claude/rules/kairos-secrets-never-revealed.md.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -34,14 +34,14 @@ class N8nFragment : BaseModuleFragment() {
     private lateinit var networkRow: DropdownSwitchRow
     private val networkModes get() = listOf(getString(R.string.n8n_network_mode_local), getString(R.string.n8n_network_mode_tunnel))
 
-    // Bug real (2026-08-06): esta card mostraba "proot" fijo,
+    // Bug real (2026-08-06,): esta card mostraba "proot" fijo,
     // sin leer el registry — con n8n instalado en udocker (la variante recomendada desde una
     // ronda anterior), la UI mentía sobre qué entorno se estaba usando de verdad.
     private fun n8nMode(): String =
         com.termux.app.data.ModuleRegistry(requireContext()).load().get("n8n.mode") ?: "proot"
 
     override fun buildContent() {
-        // Instalación silenciosa en segundo plano (pedido explícito del usuario, 2026-08-13): si n8n
+        // Instalación silenciosa en segundo plano (pedido 2026-08-13,): si n8n
         // no está instalado, el fragment ofrece instalarlo internamente sin bloquear — el
         // usuario elige variante (udocker/proot-distro) y sigue navegando mientras se instala.
         if (!isModuleInstalled()) {
@@ -53,7 +53,7 @@ class N8nFragment : BaseModuleFragment() {
         addCard(getString(R.string.n8n_card_estado)) {
             addView(infoRow(getString(R.string.n8n_label_entorno), n8nMode()))
             // Dropdown (modo de red) + switch bloqueado — pedido explícito del usuario
-            // (2026-08-22, ejemplo textual que dio: "n8n
+            // (2026-08-22,, ejemplo textual que dio: "n8n
             // podría tener una casilla desplegable con modo localhost y modo cloudflare y el
             // switch dentro"). Reemplaza el botón de acción único que alternaba el modo
             // + los botones separados "Iniciar n8n"/"Detener" de
@@ -64,7 +64,7 @@ class N8nFragment : BaseModuleFragment() {
             networkRow = dropdownSwitchRow(
                 label = getString(R.string.n8n_module_name),
                 options = networkModes,
-                initialIndex = if (isLocalOnly()) 0 else 1,
+                initialIndex = if (isTunnelMode()) 1 else 0,
                 initialOn = false,
                 onOptionChosen = { index -> setLocalOnly(index == 0) },
                 onSwitchToggled = { on, _ -> onN8nSwitchToggled(on) }
@@ -123,7 +123,7 @@ class N8nFragment : BaseModuleFragment() {
         }
         actionButton(getString(R.string.n8n_btn_api_key), GHOST) { showApiKeyDialog() }
         actionButton(getString(R.string.n8n_btn_view_logs), GHOST) {
-            // Bug real (2026-08-06): mismo patrón ya corregido en
+            // Bug real (2026-08-06,): mismo patrón ya corregido en
             // "Actualizar n8n" — hardcodeado a la ruta de la variante proot, sin importar cuál
             // se instaló de verdad.
             val script = if (n8nMode() == "udocker") "~/scripts/n8n-udocker/log.sh" else "~/scripts/n8n/n8n_log.sh"
@@ -141,7 +141,7 @@ class N8nFragment : BaseModuleFragment() {
             showProjectsMenu(onToast = { toast(it) })
         }
         actionButton(getString(R.string.n8n_btn_update), GHOST) {
-            // Bug real (auditoría 2026-08-05): este botón
+            // Bug real (auditoría 2026-08-05,): este botón
             // corría SIEMPRE "~/scripts/n8n/n8n_update.sh" (el script de la variante proot) sin
             // importar con qué variante se instaló n8n — si el usuario instaló la variante
             // udocker (que vive en "~/scripts/n8n-udocker/update.sh", una ruta distinta), el
@@ -183,18 +183,23 @@ class N8nFragment : BaseModuleFragment() {
         loadInfo()
     }
 
-    private fun localOnlyFlagFile() = File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".n8n_local_only")
+    // Por defecto n8n es LOCAL (http://localhost:5678). Solo existe el flag cuando el usuario elige
+    // el modo "Túnel Cloudflare" (token + dominio) — pedido explícito 2026-10-08:
+    // dos modos y nada más. Antes el default era túnel y el flag marcaba "solo local" (invertido).
+    private fun tunnelFlagFile() = File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".n8n_tunnel_mode")
 
-    private fun isLocalOnly(): Boolean = localOnlyFlagFile().exists()
+    private fun isTunnelMode(): Boolean = tunnelFlagFile().exists()
 
-    // Pedido explícito del usuario, 2026-08-13: n8n arrancaba SIEMPRE el túnel
+    // Pedido 2026-08-13: n8n arrancaba SIEMPRE el túnel
     // cloudflared si el binario estaba presente (que siempre lo está) — sin forma de usar
     // n8n solo por LAN/localhost:5678. El flag lo leen start.sh (udocker) y
     // start_servidor.sh (proot) de modulos/n8n.sh antes de levantar el túnel.
     private fun setLocalOnly(localOnly: Boolean) {
         Thread {
-            val f = localOnlyFlagFile()
-            if (localOnly) f.createNewFile() else f.delete()
+            val f = tunnelFlagFile()
+            if (localOnly) f.delete() else f.createNewFile()
+            // Flag viejo (default invertido): ya no se lee, se limpia para no confundir.
+            File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".n8n_local_only").delete()
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
@@ -203,8 +208,8 @@ class N8nFragment : BaseModuleFragment() {
         }.start()
     }
 
-    // Reemplaza los botones separados "Iniciar n8n"/"Detener" (2026-08-22) — el switch
-    // de la fila "n8n" (dropdown de modo de red) ahora
+    // Reemplaza los botones separados "Iniciar n8n"/"Detener" (2026-08-22, ver
+    //) — el switch de la fila "n8n" (dropdown de modo de red) ahora
     // controla start/stop. Misma lógica de startModuleService/stopModuleService de siempre.
     private fun onN8nSwitchToggled(on: Boolean) {
         if (on) {
@@ -221,7 +226,7 @@ class N8nFragment : BaseModuleFragment() {
         }
     }
 
-    // Pedido explícito del usuario, 2026-08-13: instalación silenciosa en segundo plano — el usuario
+    // Pedido 2026-08-13: instalación silenciosa en segundo plano — el usuario
     // elige la variante (udocker = nativo recomendado, proot-distro = Debian) y sigue haciendo
     // otras cosas mientras n8n se instala internamente (ModuleController.installModule, Thread).
     private fun showSilentInstallVariantDialog() {
@@ -263,7 +268,7 @@ class N8nFragment : BaseModuleFragment() {
     // desproporcionado para un flag de un solo módulo.
     //
     // Vía de menor riesgo (2026-09-15): mismo patrón que YA usa este archivo para
-    // ".n8n_local_only" (ver setLocalOnly() más arriba) — la UI escribe la preferencia en un
+    // ".n8n_local_only" (ver setLocalOnly() más arriba; hoy el flag es .n8n_tunnel_mode) — la UI escribe la preferencia en un
     // archivo ANTES de llamar a installModuleInBackground() normal, y modulos/n8n.sh la lee
     // internamente (INSTALL_SOURCE_EXPLICIT) SOLO si --source no llegó por CLI. No toca
     // ModuleController.kt ni ningún otro módulo.
@@ -283,8 +288,8 @@ class N8nFragment : BaseModuleFragment() {
             .setItems(labels) { _, which ->
                 Thread {
                     try { n8nInstallSourceFile().writeText(values[which]) } catch (_: Exception) { }
-                    // Guard de Fragment-adjunto — el usuario puede navegar fuera mientras este
-                    // I/O de archivo corre.
+                    // Guard de Fragment-adjunto (ver .claude/rules/kotlin-kairos-android-patterns.md)
+                    // — el usuario puede navegar fuera mientras este I/O de archivo corre.
                     if (!isAdded) return@Thread
                     requireActivity().runOnUiThread {
                         if (isAdded) onChosen()
@@ -452,7 +457,7 @@ class N8nFragment : BaseModuleFragment() {
                 false
             }
             // Bug real (auditoría terminal adaptada 2026-08-19): este Thread no tenía NINGÚN
-            // guard de Fragment-adjunto — mismo patrón/mismo tipo de crash ya confirmado antes
+            // guard de Fragment-adjunto — mismo patrón/mismo tipo de crash confirmado en
             // (IllegalStateException si el usuario navega a otra
             // pantalla mientras el I/O de archivo corre en background).
             if (!isAdded) return@Thread
@@ -533,8 +538,7 @@ class N8nFragment : BaseModuleFragment() {
 
     // Gap real reportado en auditoría 2026-08-27: abría la terminal solo
     // para leer un archivo (cat ~/.last_cf_url) — contradice la filosofía de producto de Kairos
-    // (la app existe para no obligar al usuario a vivir en la terminal), no hace falta terminal
-    // para esto.
+    // (ver .claude/rules/kairos-product-philosophy.md), no hace falta terminal para esto.
     // Lectura directa del archivo, mismo patrón que localOnlyFlagFile()/webhookDomainFile() en
     // este mismo Fragment.
     private fun showTunnelUrlDialog() {

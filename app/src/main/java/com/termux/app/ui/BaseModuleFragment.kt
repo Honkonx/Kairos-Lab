@@ -118,7 +118,7 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * FAB real, flotante sobre el `ScrollView` (2026-08-23 — antes
+     * FAB real, flotante sobre el `ScrollView` (2026-08-23, ver — antes
      * `fragment_module_detail.xml` era un `ScrollView` raíz sin lugar para superponer nada, así
      * que la acción principal de una pantalla terminaba siendo "un botón más" arriba de la
      * lista; ahora hay un `fab_slot` real). Usar para LA acción principal de la pantalla (ej.
@@ -153,7 +153,7 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * Fila compacta de modelo/ítem (2026-08-23 — mockup aprobado por el
+     * Fila compacta de modelo/ítem (2026-08-23, ver — mockup aprobado por el
      * usuario, "no es quitar opciones es reorganizarlas [...] toca organizar bien y bonito").
      * Reemplaza el patrón viejo de una card entera de solo-lectura por ítem — un swatch
      * (ícono/color de estado), nombre + subtítulo en una sola fila, y contenido final opcional
@@ -177,6 +177,8 @@ abstract class BaseModuleFragment : Fragment() {
             addView(TextView(ctx).apply {
                 text = icon
                 textSize = 15f
+                // Ícono decorativo (emoji): TalkBack ya lee el nombre y el subtítulo de la fila.
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 gravity = Gravity.CENTER
                 background = android.graphics.drawable.GradientDrawable().apply {
                     cornerRadius = dp(9).toFloat()
@@ -544,7 +546,7 @@ abstract class BaseModuleFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
             when (style) {
                 ButtonStyle.PRIMARY -> {
-                    // Dirección acordada con el usuario (mockup /design, sección "Mockup
+                    // Dirección acordada en (mockup /design, sección "Mockup
                     // de componentes"): el botón primario "escandilaba" con relleno sólido verde
                     // saturado (#22C55E) + texto negro. Reemplazado por relleno azul tenue
                     // (14% opacidad de kairosBlue) + borde, con ripple/elevación reales — el
@@ -629,8 +631,8 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     /**
-     * Fila "dropdown + switch bloqueado" — pedido explícito del usuario (2026-08-22):
-     * reemplaza el antipatrón de N botones para una sola decisión
+     * Fila "dropdown + switch bloqueado" — pedido explícito del usuario (2026-08-22, ver
+     *): reemplaza el antipatrón de N botones para una sola decisión
      * excluyente (ej. OpenCode tenía 2 botones de puerto + un switch aparte; Entornos de
      * Prueba tenía 3 botones de destino + Iniciar/Detener separados). Un solo dropdown para
      * elegir la opción + un switch que la bloquea mientras está encendido — no se puede
@@ -764,8 +766,8 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Fila "solo dropdown" — versión sin switch de [dropdownSwitchRow], para elegir entre 3+
      * opciones mutuamente excluyentes que NO son un encendido/apagado (ej. sqlmap tiene 4
-     * acciones distintas con targets/params propios, no un simple toggle — diferido en la
-     * ronda anterior a falta de este componente). El botón
+     * acciones distintas con targets/params propios, no un simple toggle
+     * y, diferido en la ronda anterior a falta de este componente). El botón
      * que dispara la acción elegida sigue siendo un botón normal aparte, este componente solo
      * resuelve la selección de modo.
      */
@@ -888,7 +890,7 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Re-habilita [button] (texto + estado) apenas [moduleId] deja de estar instalando —
      * ver comentario de [showNotInstalled]. Guard de Fragment-adjunto (`isAdded`) igual que el
-     * resto del proyecto: si el usuario
+     * resto del proyecto (`.claude/rules/kotlin-kairos-android-patterns.md`): si el usuario
      * navega a otra pantalla mientras esto sigue reintentando, la cadena de `postDelayed()` se
      * corta acá en vez de seguir agendando callbacks contra un Fragment ya desadjuntado.
      */
@@ -907,10 +909,10 @@ abstract class BaseModuleFragment : Fragment() {
 
     // open: PythonFragment lo sobreescribe para además exigir el binario real con AND (ver
     // isTermuxBinaryAvailable) — es el módulo con más evidencia real de tener el registry
-    // desincronizado del dispositivo (2026-07-31), un caso más estricto que
+    // desincronizado del dispositivo ( 2026-07-31), un caso más estricto que
     // el OR de acá abajo (registry dice instalado pero el binario está roto).
     //
-    // Fix 2026-08-13 (bug de clase conocida: el registry
+    // Fix 2026-08-13 (ver — bug de clase conocida: el registry
     // puede desincronizarse del dispositivo real): antes esto solo leía el registry directo,
     // sin ningún fallback — cualquier Fragment que no overrideara este método (la mayoría)
     // no tenía forma de detectar un módulo instalado a mano en terminal (bypaseando la app).
@@ -979,6 +981,12 @@ abstract class BaseModuleFragment : Fragment() {
     }
 
     protected fun navigateTo(fragment: Fragment) {
+        // Defensa contra FLAG_SECURE pegado (ver com.termux.app.util.ScreenSecurity, bug real
+        // "sigue sin dejar tirar capture") -- replace() sobre fragment_container remueve TODOS
+        // los tabs raíz (incluidos los 6 que usan setScreenSecure()), un camino de navegación
+        // que el fix de onHiddenChanged no cubre explícitamente. El Fragment que de verdad siga
+        // visible lo vuelve a prender en su propio onResume() si lo necesita.
+        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .addToBackStack(null)
@@ -1031,7 +1039,8 @@ abstract class BaseModuleFragment : Fragment() {
      * Pedido explícito del usuario (docs/arquitectura/DISENO_SELECTOR_SESIONES_TERMINAL_2026-09-01.md,
      * Fase 3): "una opción para cerrar la terminal de un módulo puntual desde la pantalla de ESE
      * módulo" — no un botón global que pueda cerrar cualquier sesión. [onDone] siempre corre en
-     * el hilo principal, con el mismo guard `isAdded` que el resto de helpers de esta clase.
+     * el hilo principal, con el mismo guard `isAdded` que el resto de helpers de esta clase
+     * (`.claude/rules/kotlin-kairos-android-patterns.md`).
      */
     protected fun closeTerminalSession(sessionName: String = getModuleName(), onDone: (() -> Unit)? = null) {
         val act = activity as? com.termux.app.TermuxActivity ?: return
@@ -1116,8 +1125,8 @@ abstract class BaseModuleFragment : Fragment() {
 
     /**
      * [startModuleService] con polling corto (2-3s) mientras se espera el callback final —
-     * hallazgo de UX homelab pendiente de adoptar (2026-08-22, patrón Umbrel): un arranque
-     * que puede tardar 5-60s (Ollama cargando el
+     * hallazgo de UX homelab pendiente de adoptar (2026-08-22, ver /
+     *, patrón Umbrel): un arranque que puede tardar 5-60s (Ollama cargando el
      * modelo, servicios con health-check propio) se sentía "colgado" mientras la UI solo
      * esperaba el único callback final, sin ninguna señal intermedia de que sigue trabajando.
      * [onPoll] corre cada [intervalMs] mientras la instalación/arranque sigue en curso — un
@@ -1168,15 +1177,15 @@ abstract class BaseModuleFragment : Fragment() {
     /**
      * Reinstala/actualiza el módulo (`ModuleController.installModule()`, sin variante
      * específica, con `--force`). Mismo guard de Fragment-adjunto que
-     * [startModuleService]/[stopModuleService] — bug real confirmado (auditoría de
-     * arquitectura central): 7 módulos (Antigravity,
+     * [startModuleService]/[stopModuleService] — bug real confirmado (ver
+     *, auditoría de arquitectura central): 7 módulos (Antigravity,
      * Engram, Codex, Claude, Hermes, OpenCode, OpenClaw) llamaban a
      * `ModuleController.installModule()` DIRECTO desde su botón "Reinstalar/Actualizar", sin
      * pasar por ningún helper — mismo crash real ya corregido acá para start/stop
      * (`IllegalStateException: Fragment ... not attached to an activity`), solo que en la ruta
      * de reinstalación, que puede tardar minutos (n8n ~5min, OpenClaw ~2min).
      *
-     * force=true (auditoría 2026-08-05): sin esto, este botón
+     * force=true (auditoría 2026-08-05,): sin esto, este botón
      * era casi siempre un no-op — todos los scripts de instalación chequean "command -v X && !
      * $FORCE" y salen temprano si el binario ya existe, así que "Reinstalar/Actualizar" nunca
      * bajaba una versión nueva de nada, solo lo aparentaba (el usuario reportó "en ningún
@@ -1206,7 +1215,7 @@ abstract class BaseModuleFragment : Fragment() {
     protected fun updateModuleService(onDone: (Boolean) -> Unit) = reinstallModuleService(onDone)
 
     /**
-     * Instalación en segundo plano SIN bloquear la UI (pedido 2026-08-13):
+     * Instalación en segundo plano SIN bloquear la UI (pedido 2026-08-13,):
      * el usuario toca "Instalar en segundo plano" en el fragment y sigue navegando mientras
      * el módulo se instala internamente. Mismo mecanismo real que el BottomSheet
      * (ModuleController.installModule → Thread → bash <script> --silent), solo que sin
@@ -1278,7 +1287,8 @@ abstract class BaseModuleFragment : Fragment() {
      * 526 call-sites sin compilador local disponible es un riesgo desproporcionado). [work]
      * corre en background; [onResult] corre en el hilo principal SOLO si el Fragment sigue
      * adjunto tanto antes como después de saltar al hilo principal — mismo doble guard `isAdded`
-     * que el patrón manual ya usaba en todo el codebase.
+     * que el patrón manual ya usaba en todo el codebase (ver
+     * `.claude/rules/kotlin-kairos-android-patterns.md`).
      *
      * Agregado 2026-08-25 SOLO como helper disponible — no reemplaza ningún `Thread {}`
      * existente en el resto del codebase; la adopción queda para rondas futuras, módulo por
@@ -1370,9 +1380,24 @@ abstract class BaseModuleFragment : Fragment() {
             val pad = dp(20)
             setPadding(pad, pad / 2, pad, 0)
         }
+        // DeleteCheck (hallazgo real 1Panel, docs/referencias/vps-hosting/REFERENCIA_1PANEL.md,
+        // 2026-11-02): avisar si otro módulo INSTALADO depende de este, en vez de desinstalar en
+        // silencio y que el usuario descubra el problema después (ej. desinstalar Ollama con
+        // OpenCode todavía instalado). Mapa chico y conocido (TermuxActivity.modulesDependingOn),
+        // no un chequeo exhaustivo de todo el catálogo.
+        val installedDependents = com.termux.app.TermuxActivity.modulesDependingOn(getModuleId())
+            .filter { com.termux.app.data.ModuleInstalled.isInstalled(requireContext(), it) }
+        val message = if (installedDependents.isEmpty()) {
+            getString(R.string.base_module_confirm_uninstall_message)
+        } else {
+            getString(R.string.base_module_confirm_uninstall_message) + "\n\n" +
+                installedDependents.joinToString("\n") {
+                    getString(R.string.base_module_uninstall_dependents_warning, it)
+                }
+        }
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(getString(R.string.base_module_confirm_uninstall_title, getModuleName()))
-            .setMessage(getString(R.string.base_module_confirm_uninstall_message))
+            .setMessage(message)
             .setView(deepCheckbox)
             .setPositiveButton(getString(R.string.base_module_uninstall_btn)) { _, _ ->
                 if (deepCheckbox.isChecked) {

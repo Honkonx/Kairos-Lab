@@ -24,7 +24,7 @@
 #    esta misma app) memoria persistente entre sesiones — guarda contexto en
 #    SQLite local, sin depender de ningún servicio externo. Adaptado de
 #    core-termux (DevCoreXOfficial, MIT) — ver
-#    docs/REFERENCIA_ENGRAM.md.
+# docs/REFERENCIA_ENGRAM.md y.
 #
 #  OUTPUT (modo --silent):
 #    [STEP] descripción
@@ -164,7 +164,7 @@ if check_done "build"; then
   log "Binario ya compilado [checkpoint]"
 else
   info "go build (puede tardar 1-2 min la primera vez)..."
-  # Bug real reportado (2026-08-04 — "engram... da error"): igual
+  # Bug real reportado (2026-08-04, ver — "engram... da error"): igual
   # que expo.sh, esto pipeaba directo a `tail -10` y perdía el motivo real de un `go build`
   # fallido (dependencia de módulo no resuelta, versión de Go sin el flag -C, error de
   # compilación real) en el log de instalación. Ahora se guarda la salida completa y solo se

@@ -72,7 +72,11 @@ object RootfsInstaller {
     // A diferencia del repo privado (ver comentario de downloadWithChecksum() más abajo),
     // kairos-lab será PÚBLICO — esta descarga en runtime SÍ va a poder funcionar sin
     // ningún token una vez que exista la Release, no es una limitación permanente.
-    private const val ROOTFS_RELEASE_TAG = "rootfs-2026.07.28"
+    // Corregido 2026-11-02 (auditoría de documentación): este tag decía
+    // "rootfs-2026-10-09", que NUNCA existió como Release real en kairos-lab (confirmado con
+    // `gh release list -R Honkonx/kairos-lab`) — la descarga en runtime daba 404 siempre. El
+    // único Release real de rootfs hoy es "rootfs-2026-08-29".
+    private const val ROOTFS_RELEASE_TAG = "rootfs-2026-08-29"
     private const val ROOTFS_BASE_URL =
         "https://github.com/Honkonx/kairos-lab/releases/download/$ROOTFS_RELEASE_TAG"
     private const val ROOTFS_TAR_URL = "$ROOTFS_BASE_URL/kairos-rootfs-aarch64.tar.xz"
@@ -86,7 +90,7 @@ object RootfsInstaller {
 
     // Mensaje único para el 404 al descargar el rootfs desde kairos-lab — lo tiran los dos
     // pasos de downloadWithChecksum() (sha256 y tar.xz), ver docstring de ese método.
-    // Caso esperado HOY (2026-08-27): kairos-lab todavía no existe
+    // Caso esperado HOY (2026-08-27,): kairos-lab todavía no existe
     // como repo público, así que cualquier descarga acá da 404 — no por ser privado (ya no
     // apunta al repo privado kairos-dev a propósito), sino porque el repo/Release reales
     // todavía no se crearon. El día que kairos-lab exista y tenga la Release publicada, esta
@@ -162,7 +166,7 @@ object RootfsInstaller {
         return out
     }
 
-    // ESTADO REAL HOY (2026-08-27) — no es un bug a arreglar acá:
+    // ESTADO REAL HOY (2026-08-27,) — no es un bug a arreglar acá:
     // kairos-lab (repo PÚBLICO de destino, ver ROOTFS_BASE_URL arriba) todavía no existe —
     // esta descarga en runtime va a fallar con 404 hasta que se cree el repo y se publique
     // la Release real. A diferencia del repo privado kairos-dev (que SIEMPRE habría fallado
@@ -330,7 +334,7 @@ object RootfsInstaller {
     // Antes esto corría `apt install` con los 190 .deb de una y esperaba el exit code
     // en silencio (process.inputStream.bufferedReader().readText() bloqueaba hasta el
     // final) — 5+ minutos sin ningún dato real para el wizard, reportado por el usuario
-    // ("dura mas de 5 minutos extrayendo [...] no dice nada para saber
+    // (: "dura mas de 5 minutos extrayendo [...] no dice nada para saber
     // por donde va"). apt/dpkg SÍ emite una línea "Unpacking <paquete>" por cada .deb a
     // medida que instala — se lee línea por línea en un hilo separado (sin esperar a que
     // el proceso termine) y se cuenta cuántas ya pasaron para reportar un % real.
@@ -360,7 +364,7 @@ object RootfsInstaller {
                         outputBuilder.append(line).append('\n')
                         // Solo "Unpacking " — dpkg emite "Preparing to unpack .../X.deb ..." Y
                         // "Unpacking X (versión) ..." como 2 líneas SEPARADAS por cada paquete
-                        // (confirmado en vivo): contar ambas duplicaba
+                        // (confirmado en vivo,): contar ambas duplicaba
                         // el conteo real, mostrando "99% (248/190)" — más instalado que el
                         // total de paquetes.
                         if (line.startsWith("Unpacking ")) {

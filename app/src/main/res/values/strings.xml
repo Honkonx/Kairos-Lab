@@ -86,8 +86,17 @@
     <string name="action_terminal_adapted_close">Cerrar</string>
     <string name="action_terminal_adapted_menu">Más opciones</string>
 
+    <!-- Modo Simple de la terminal adaptada (Roadmap de terminal, Fase 2) — ver
+         TerminalSimpleRenderer.kt. -->
+    <string name="action_terminal_simple_toggle">Alternar entre modo Adaptada y modo Simple</string>
+    <string name="terminal_simple_fallback_banner">Esta sesión no se puede simplificar, mostrando vista cruda</string>
+    <string name="terminal_simple_raw_chip_format">● proceso real · %1$s · ver salida cruda</string>
+    <string name="terminal_simple_mode_label">Modo: %1$s</string>
+    <string name="terminal_simple_mode_adapted">Adaptada</string>
+    <string name="terminal_simple_mode_simple">Simple</string>
+
     <!-- Panel embebido (administrador de archivos/navegador) de la terminal adaptada, pedido
-         explícito del usuario 2026-09-08 — ver
+         explícito del usuario 2026-09-08
          TermuxActivity#showAdaptedPanel(). Los "_tab_" son la etiqueta corta de la pestaña
          (terminal_adapted_tabs_row); los "_panel_...title" son el título completo de la franja
          de cierre del panel — pueden diferir en longitud a propósito. -->
@@ -97,11 +106,19 @@
     <string name="terminal_adapted_tab_browser">🌐 Navegador</string>
     <string name="hint_terminal_adapted_browser_url">https://ejemplo.com o una búsqueda</string>
 
-    <!-- "Accesibilidad" del panel/sidebar adaptado (pedido explícito del usuario 2026-09-08)
-         — ver TermuxActivity#showAdaptedAccessibilityDialog(). -->
+    <!-- "Accesibilidad" del panel/sidebar adaptado (pedido explícito del usuario 2026-09-08,
+         ) — ver TermuxActivity#showAdaptedAccessibilityDialog. -->
     <string name="title_terminal_adapted_accessibility">Accesibilidad</string>
     <string name="terminal_adapted_accessibility_tab_mode_label">Abrir Archivos/Navegador como pestaña</string>
     <string name="msg_terminal_transcript_copied">Transcript copiado al portapapeles</string>
+
+    <!-- "✨ Revisar comando con IA" (patrón de 1Panel, ver TerminalAiAssist.kt) -->
+    <string name="title_terminal_ai_review">Revisión de IA</string>
+    <string name="msg_terminal_ai_review_no_command">No hay ningún comando tipeado para revisar</string>
+    <string name="msg_terminal_ai_review_loading">Consultando a la IA…</string>
+    <string name="msg_terminal_ai_review_session_changed">La sesión cambió mientras esperabas la respuesta -- no se aplicó nada</string>
+    <string name="btn_close">Cerrar</string>
+    <string name="btn_use_suggestion">Usar sugerencia</string>
 
     <!-- "Ventanas" — split view real de 2 superficies simultáneas de la terminal adaptada
          (Roadmap de terminal Fase 1, último ítem de ingeniería pendiente — ver
@@ -141,8 +158,19 @@
     <string name="action_toggle_keep_screen_on">Keep screen on</string>
     <string name="action_open_help">Help</string>
     <string name="action_open_settings">Settings</string>
+    <string name="action_open_homelab">Homelab</string>
 
     <string name="action_report_issue">Report Issue</string>
+
+    <!-- Widget de home screen "Homelab" (HomelabWidgetProvider.kt, ronda 2026-09-16). -->
+    <string name="widget_homelab_title">Kairos Homelab</string>
+    <string name="widget_homelab_description">CPU, RAM y módulos corriendo — tocá para abrir Homelab.</string>
+    <string name="widget_homelab_cpu_unavailable">CPU —</string>
+    <string name="widget_homelab_updated_at">Actualizado %1$s</string>
+    <plurals name="widget_homelab_modules_running">
+        <item quantity="one">%d módulo corriendo</item>
+        <item quantity="other">%d módulos corriendo</item>
+    </plurals>
     <string name="msg_generating_report">Generating Report</string>
     <string name="msg_add_termux_debug_info">Add termux debug info to report?</string>
 
@@ -290,4 +318,22 @@
     <!-- Donate Preference -->
     <string name="donate_preference_title">Donate</string>
 
+
+    <!-- Paquete.deb local (formato v2): resumen antes de instalar (2026-10-08) -->
+    <string name="plugins_deb_confirm_title">Instalar %1$s %2$s</string>
+    <string name="plugins_deb_confirm_files">El paquete trae %1$d archivos, todos listados con su hash en SHA256SUMS.txt.</string>
+    <string name="plugins_deb_confirm_requires_ok">Todos sus requisitos ya están en el sistema.</string>
+    <string name="plugins_deb_confirm_requires_missing">Faltan requisitos que se descargarán: %1$s</string>
+    <string name="plugins_deb_confirm_runs_commands">Después de copiar los archivos ejecuta los comandos de verificación y reparación que declara su manifest.json.</string>
+    <string name="plugins_deb_confirm_no_hash">Es un archivo local: no hay un hash publicado por un canal de confianza que lo respalde. Instálalo solo si confías en quien lo creó.</string>
+    <string name="plugins_deb_confirm_verify_cmd_text">Comando de verificación:\n%1$s</string>
+    <string name="plugins_deb_confirm_patch_cmd_text">Comando de reparación:\n%1$s</string>
+
+    <!-- Alcance B — consentimiento del servidor privilegiado (KairosPrivilegedConsentActivity) -->
+    <string name="privileged_consent_title">Privilegio elevado de Kairos</string>
+    <string name="privileged_consent_message">\"%1$s\" (%2$s) pide ejecutar comandos con el privilegio elevado de Kairos — identidad shell (o root, si el dispositivo lo tiene), nunca más que eso. ¿Permitir?</string>
+    <string name="privileged_consent_allow">Permitir siempre</string>
+    <string name="privileged_consent_allow_once">Solo esta vez</string>
+    <string name="privileged_consent_deny">Denegar</string>
+    <string name="plugins_deb_confirm_install">Instalar</string>
 </resources>

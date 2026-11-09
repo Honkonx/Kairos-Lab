@@ -16,10 +16,32 @@
     <string name="automations_trigger_boot">On device boot</string>
     <string name="automations_trigger_schedule">At a fixed time</string>
     <string name="automations_trigger_schedule_fmt">Every day at %1$s</string>
+    <string name="automations_trigger_battery">By battery level</string>
+    <string name="automations_trigger_battery_below_fmt">Battery below %1$d%%</string>
+    <string name="automations_trigger_battery_above_fmt">Battery above %1$d%%</string>
+    <string name="automations_hint_umbral_bateria">Battery threshold (1-100)</string>
+    <string name="automations_battery_direction_below">When it drops below</string>
+    <string name="automations_battery_direction_above">When it rises above</string>
+    <string name="automations_msg_umbral_invalido">Pick a battery threshold between 1 and 100</string>
 
     <!-- Actions -->
-    <string name="automations_action_start">Start</string>
-    <string name="automations_action_stop">Stop</string>
+    <string name="automations_action_start">Start module</string>
+    <string name="automations_action_stop">Stop module</string>
+    <string name="automations_action_gateway">Gateway action</string>
+    <string name="automations_gateway_action_restic_backup">Restic backup</string>
+    <string name="automations_gateway_action_restic_snapshots">List restic snapshots</string>
+    <string name="automations_gateway_action_db_backup">Backup database</string>
+    <string name="automations_gateway_action_notify_send">Send notification (ntfy)</string>
+    <string name="automations_hint_restic_repo">Restic repository folder (e.g. /sdcard/backups/photos)</string>
+    <string name="automations_hint_restic_folder">Folder to back up (e.g. /sdcard/DCIM)</string>
+    <string name="automations_hint_restic_password">Restic repository password</string>
+    <string name="automations_hint_restic_password_saved">Password already saved (leave blank to keep it)</string>
+    <string name="automations_hint_db_engine">Engine (mysql or postgres)</string>
+    <string name="automations_hint_db_name">Database name</string>
+    <string name="automations_hint_notify_topic">ntfy topic (e.g. kairos-backups)</string>
+    <string name="automations_hint_notify_title">Title (optional)</string>
+    <string name="automations_hint_notify_message">Message to send</string>
+    <string name="automations_msg_campos_gateway_incompletos">Fill in the fields for this gateway action</string>
 
     <string name="automations_never_run">Never ran</string>
     <string name="automations_last_run_fmt">Last run: %1$s</string>

@@ -4,7 +4,8 @@
 #  Vercel CLI — npm install -g vercel (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/vercel/install.sh
-#  (mismo comando real: npm install -g vercel).
+#  (mismo comando real: npm install -g vercel) — ver ronda "paquetes
+#  adicionales core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash vercel.sh --silent

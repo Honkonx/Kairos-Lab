@@ -4,7 +4,8 @@
 #  NestJS CLI — npm install -g @nestjs/cli (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/nestjs/install.sh
-#  (mismo comando real: npm install -g @nestjs/cli).
+#  (mismo comando real: npm install -g @nestjs/cli) — ver ronda "paquetes
+#  adicionales core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash nestjs.sh --silent

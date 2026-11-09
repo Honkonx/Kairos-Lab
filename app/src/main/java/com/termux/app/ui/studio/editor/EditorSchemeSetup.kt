@@ -34,5 +34,22 @@ object EditorSchemeSetup {
         editor.isLineNumberEnabled = prefs.showLineNumbers
         editor.isHighlightCurrentLine = prefs.highlightCurrentLine
         SyntaxHighlighter.setTheme(editor, prefs.editorTheme)
+
+        // 6 opciones agregadas 2026-11-02 (hallazgo real,
+        // docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md § quick-wins) — todas confirmadas
+        // contra las clases reales del AAR editor-0.24.4, no supuestas.
+        editor.props.stickyScroll = prefs.stickyScroll
+        editor.isScalable = prefs.pinchZoom
+        editor.setPinLineNumber(prefs.pinLineNumber)
+        editor.isCursorAnimationEnabled = prefs.cursorAnimation
+        editor.nonPrintablePaintingFlags = if (prefs.showInvisibleChars) {
+            CodeEditor.FLAG_DRAW_WHITESPACE_LEADING or
+                CodeEditor.FLAG_DRAW_WHITESPACE_INNER or
+                CodeEditor.FLAG_DRAW_WHITESPACE_TRAILING or
+                CodeEditor.FLAG_DRAW_LINE_SEPARATOR
+        } else {
+            0
+        }
+        editor.props.symbolPairAutoCompletion = prefs.autoCloseSymbols
     }
 }

@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit
  * 2. **GitHub Releases (binario standalone)** — opencode.sh y antigravity.sh descargan un
  *    binario de releases/latest de un fork propio; la versión REMOTA disponible se consulta
  *    con la GitHub API (mismo endpoint que ya usa opencode.sh, GITHUB_API) y la instalada con
- *    el binario "--version". Ampliado en la ronda 2026-08-14 (humano123, C1) — antes estaban
+ * el binario "--version". Ampliado en la ronda 2026-08-14 (C1) — antes estaban
  *    deliberadamente sin cubrir.
  *
  * 3. **PyPI** — mistralvibe.sh instala vía pip ("$PIP_PYTHON -m pip install mistral-vibe");
@@ -79,9 +79,7 @@ object ModuleVersionChecker {
     )
 
     /** Módulos pip: id → nombre del paquete en PyPI. */
-    private val PYPI_PACKAGES = mapOf(
-        "mistralvibe" to "mistral-vibe",
-    )
+    private val PYPI_PACKAGES = emptyMap<String, String> // ningún módulo pip se consulta hoy (mistralvibe se retiró)
 
     /** Módulos pkg/apt: id → paquete apt principal que define su versión de runtime. */
     private val APT_PACKAGES = mapOf(
@@ -361,7 +359,7 @@ object ModuleVersionChecker {
     fun checkAllNpmModules(): List<ModuleVersionStatus> = NPM_PACKAGES.keys.map { checkModuleVersion(it) }
 
     /**
-     * Versión ampliada del chequeo (ronda 2026-08-14, humano123 C1): "Verificar todas" — cubre
+     * Versión ampliada del chequeo (ronda 2026-08-14, C1): "Verificar todas" — cubre
      * npm + GitHub Releases + PyPI + claude + apt. Corre sobre el hilo que lo llame (ConfigFragment
      * usa Thread); secuencial a propósito (varias llamadas HTTP/npm/apt sin saturar el dispositivo).
      */

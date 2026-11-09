@@ -4,7 +4,8 @@
 #  Perl — paquete nativo de Termux (pkg install perl).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/lang/perl/install.sh
-#  (mismo comando real: pkg install perl).
+#  (mismo comando real: pkg install perl) — ver ronda "paquetes adicionales
+#  core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash perl.sh --silent

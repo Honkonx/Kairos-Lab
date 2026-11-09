@@ -86,11 +86,25 @@
     <string name="file_manager_action_compress">Compress</string>
     <string name="file_manager_toast_compress_done">Compressed: %1$s</string>
     <string name="file_manager_error_compress_failed">Could not compress</string>
+    <string name="file_manager_archive_compress_title">Compress selected items</string>
+    <string name="file_manager_archive_name_hint">Archive name (without extension)</string>
+    <string name="file_manager_archive_format_zip">ZIP — compatible</string>
+    <string name="file_manager_archive_format_7z">7-Zip — high compression</string>
+    <string name="file_manager_archive_format_tar_zstd">TAR + Zstandard — fast</string>
+    <string name="file_manager_archive_view_contents">View contents</string>
+    <string name="file_manager_archive_extract_here">Extract here</string>
+    <string name="file_manager_archive_extract_to">Choose extraction folder</string>
+    <string name="file_manager_archive_destination_title">Destination: %1$s</string>
+    <string name="file_manager_archive_entry_count">%1$d items</string>
+    <string name="file_manager_archive_more_entries">and %1$d more</string>
+    <string name="file_manager_archive_extracted">Extracted to: %1$s</string>
+    <string name="file_manager_error_archive_read">Could not read archive</string>
+    <string name="file_manager_error_archive_extract">Could not extract archive</string>
     <string name="file_manager_clipboard_multi">%1$d files</string>
     <string name="file_manager_toast_batch_result">%1$d done, %2$d failed</string>
     <string name="file_manager_dialog_msg_delete_batch">Delete %1$d items? This cannot be undone.</string>
-    <!-- Persistent clipboard bar + real confirmation on paste (UX fix 2026-09-14 — before
-         there was only a fleeting ~2.75s Snackbar as the only signal). -->
+    <!-- Persistent clipboard bar + real confirmation on paste (UX fix 2026-09-14,
+          — before there was only a fleeting ~2.75s Snackbar as the only signal). -->
     <string name="file_manager_clipboard_bar_cancel">Cancel</string>
     <string name="file_manager_dialog_msg_paste">Paste %1$s into this folder?</string>
     <!-- Bookmarks + browser-style navigation history (low-effort #2) -->
@@ -209,4 +223,49 @@
     <string name="webview_error_title">Couldn\'t connect</string>
     <string name="webview_error_desc">The module didn\'t respond. It may still be starting up or may have stopped — check its status and try again.</string>
     <string name="webview_error_retry">Retry</string>
+    <string name="media_downloader_title">Download video or audio</string>
+    <string name="media_downloader_subtitle">One tool powered by yt-dlp and FFmpeg. Files go to Movies unless you choose another folder.</string>
+    <string name="media_downloader_url_label">Content URL</string>
+    <string name="media_downloader_url_hint">https://…</string>
+    <string name="media_downloader_url_required">Enter an http or https URL</string>
+    <string name="media_downloader_format_label">Format</string>
+    <string name="media_downloader_video_with_audio">Video with audio · MP4</string>
+    <string name="media_downloader_video_silent">Video without audio</string>
+    <string name="media_downloader_audio_only">Audio only · MP3</string>
+    <string name="media_downloader_quality">Maximum resolution</string>
+    <string name="media_downloader_destination_label">Destination folder</string>
+    <string name="media_downloader_change">Change</string>
+    <string name="media_downloader_download">Download</string>
+    <string name="media_downloader_custom_folder">Selected folder</string>
+    <string name="media_downloader_working">Downloading… this may take a while depending on size and network.</string>
+    <string name="media_downloader_success">Download complete</string>
+    <string name="media_downloader_error">The download could not be completed</string>
+    <string name="media_downloader_saved_to">File saved to %1$s</string>
+    <string name="media_downloader_no_output">yt-dlp finished without creating a file.</string>
+    <string name="media_downloader_copy_failed">Could not copy the file to the selected folder.</string>
+    <string name="media_downloader_folder_unavailable">Could not write to the selected folder.</string>
+    <string-array name="media_downloader_qualities">
+        <item>480p</item>
+        <item>720p</item>
+        <item>1080p</item>
+        <item>1440p · 2K</item>
+    </string-array>
+    <string name="udocker_option_create_container_from_image">Create a container from this image</string>
+    <string name="udocker_option_install_packages">Install packages in this container</string>
+    <string name="udocker_option_run_command">Run a command in this container</string>
+    <string name="udocker_package_manager_title">Package manager</string>
+    <string name="udocker_package_manager_apk">Alpine · apk</string>
+    <string name="udocker_package_manager_apt">Debian / Ubuntu · apt</string>
+    <string name="udocker_package_names_hint">E.g. curl git python3</string>
+    <string name="udocker_install_packages_title">Install in %1$s</string>
+    <string name="udocker_install_packages_alpine">Changes are applied to the selected container. This runs apk add --no-cache.</string>
+    <string name="udocker_install_packages_debian">Changes are applied to the selected container. Apt will be updated before installing the requested packages.</string>
+    <string name="udocker_invalid_package_names">Enter 1 to 12 valid package names separated by spaces.</string>
+    <string name="udocker_command_hint">E.g. python3 --version</string>
+    <string name="udocker_run_command_title">Run in %1$s</string>
+    <string name="udocker_run_command_message">Non-interactive command. For shells, editors, and interactive apps, use “Open terminal”.</string>
+    <string name="udocker_button_run">Run</string>
+    <string name="udocker_running_action">Working inside the container…</string>
+    <string name="udocker_action_complete">The action completed successfully.</string>
+    <string name="udocker_action_failed">The action failed inside the container.</string>
 </resources>

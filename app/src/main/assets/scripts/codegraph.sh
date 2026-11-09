@@ -324,7 +324,7 @@ else
 
   rm -rf "$CODEGRAPH_DATA"
   mkdir -p "$CODEGRAPH_DATA"
-  # Bug real confirmado (auditoría ADB 2026-08-22, bug #28): el tarball
+  # Bug real confirmado (auditoría ADB 2026-08-22,, bug #28): el tarball
   # de GitHub Releases trae un directorio raíz con el mismo nombre que $CODEGRAPH_DATA
   # ("codegraph-linux-arm64/") envolviendo lib/dist/bin/codegraph.js — sin --strip-components=1
   # quedaba doble-anidado ($CODEGRAPH_DATA/codegraph-linux-arm64/lib/...) y el wrapper de
@@ -348,7 +348,7 @@ exec node "$CODEGRAPH_DATA/lib/dist/bin/codegraph.js" "\$@"
 WRAPPER
   chmod +x "$TERMUX_PREFIX/bin/codegraph"
   # Post-condición real, no solo "existe el archivo" (bug #28 real: MODULE_NOT_FOUND pese a
-  # que el wrapper existía y era ejecutable — ver verify_binary_installed()
+  # que el wrapper existía y era ejecutable —, verify_binary_installed
   # en lib.sh). --help es el flag real que codegraph expone (ver cabecera del script).
   verify_binary_installed codegraph --help || error "codegraph no responde tras crear el wrapper (revisar extracción del tarball)"
   mark_done "wrapper"

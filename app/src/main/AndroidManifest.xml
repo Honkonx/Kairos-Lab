@@ -12,6 +12,15 @@
         android:name="android.software.leanback"
         android:required="false" />
 
+    <!-- Voz del Agente (AgentVoice.kt, TextToSpeech nativo): visibilidad de paquetes para
+         encontrar un motor TTS instalado en API 30+ (targetSdk sigue en 28, no estrictamente
+         obligatorio todavía, pero es la forma correcta documentada y a prueba de futuro). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <permission
         android:name="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND"
         android:description="@string/permission_run_command_description"
@@ -68,7 +77,7 @@
         android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar"
         tools:targetApi="m">
 
-        <!-- Bug real, 4to intento (2026-08-07): las 3 rondas
+        <!-- Bug real, 4to intento (2026-08-07,): las 3 rondas
              anteriores parchearon un modelo de edge-to-edge
              manual (setDecorFitsSystemWindows(false) + padding vía WindowInsetsCompat en
              TermuxActivity.java) que NINGÚN proyecto de referencia usa — ni termux-app real
@@ -80,7 +89,7 @@
              TermuxTerminalViewClient.setSoftKeyboardState() y TermuxActivity.onCreate()),
              no una declaración estática en el manifest. Revertido a coincidir con eso —
              confirmado que el bug se reproducía igual CON este flag que SIN él
-             en 3 ROMs distintas, así que nunca fue la variable que decidía nada. -->
+              en 3 ROMs distintas, así que nunca fue la variable que decidía nada. -->
         <activity
             android:name=".app.TermuxActivity"
             android:exported="true"
@@ -104,6 +113,23 @@
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
+
+            <!-- Deep link externo kairos://module/<id>/start|stop — pedido explícito de la
+                 ronda "comunicación externa con Android" (2026-09-16, ver
+                 com.termux.app.util.DeepLinkHandler): permite disparar un módulo desde
+                 Tasker/otra app de automatización sin abrir Kairos a mano. Pasa SIEMPRE por
+                 ActionApprovalGate (a diferencia de AutomationManager.execute(), que bypassea el
+                 gate porque BOOT/SCHEDULE no tienen ventana posible) — acá sí hay ventana (esta
+                 misma Activity), y cualquier app instalada podría conocer el scheme, así que la
+                 aprobación real no se saltea. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="kairos" android:host="module" />
+            </intent-filter>
         </activity>
 
         <activity-alias
@@ -134,6 +160,17 @@
             android:label="@string/title_activity_termux_settings"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
 
+        <!-- Alcance B (docs/arquitectura/PLAN_ADB_USB_GATEWAY_2026-10-31.md § "diseño técnico
+             real") — exported=true a propósito: cualquier app cliente que quiera el Binder
+             privilegiado la invoca con startActivityForResult() (nunca al revés) — la identidad
+             real sale de getCallingPackage(), no de un extra. Fail-closed: solo
+             registra lo que la persona decide en el diálogo, nunca autoriza sola. -->
+        <activity
+            android:name=".app.KairosPrivilegedConsentActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.AppCompat.Dialog" />
+
         <!-- Sin configChanges, una rotación de pantalla destruye y recrea esta Activity — y
              con ella WizardPagerAdapter (FragmentStateAdapter) recrea cada Fragment. En la
              pantalla 4 (WizardInstallFragment, la de mayor riesgo del wizard: dispara
@@ -141,8 +178,8 @@
              onResume() vuelve a disparar beginInstall() — un SEGUNDO kairos.sh (modo silent)
              corriendo en paralelo al primero, que sigue vivo en el hilo de la instancia
              vieja. Mismo patrón de bug ya confirmado en este wizard para
-             setupBootstrapIfNeeded() sin guard de concurrencia ("corrompía $PREFIX").
-             Fix: declarar configChanges acá, igual que ya hace
+             setupBootstrapIfNeeded sin guard de concurrencia (:
+             "corrompía $PREFIX"). Fix: declarar configChanges acá, igual que ya hace
              TermuxActivity (línea ~75) y VncViewerActivity (línea ~136) para este mismo tipo
              de riesgo — Android entrega onConfigurationChanged() en vez de recrear la
              Activity, así que el Fragment/Thread de instalación en curso nunca se duplica.
@@ -156,8 +193,8 @@
         <!-- Visor VNC embebido (VncClient/VncCanvasView, com.termux.app.vnc) — conecta al
              vncserver/tigervncserver que ya arranca EntornoNative.vncStart() en 127.0.0.1:5901
              (o al -vnc propio de QEMU en 5902, ver QemuFragment.kt/bootVmVnc()). Ver
-             docs/x11/X11_EMBEBIDO.md.
-             android:screenOrientation="sensorLandscape" (2026-09-03): bug
+             docs/x11/X11_EMBEBIDO.md /.
+             android:screenOrientation="sensorLandscape" (2026-09-03,): bug
              real reportado por el usuario — el escritorio remoto (TigerVNC default 1280x720,
              QEMU/guest lo que sea) es siempre horizontal, pero esta Activity nunca fijaba
              orientación propia y heredaba portrait del sistema en la mayoría de teléfonos,
@@ -180,7 +217,7 @@
              X11Service (ver docs/x11/X11_EMBEBIDO.md). launchMode singleTask +
              configChanges + PiP igual que termux-x11 standalone (MainActivity gestiona
              orientation/fullscreen/cutout por código).
-             android:taskAffinity propio (bug real 2026-08-18): sin esto,
+             android:taskAffinity propio (bug real 2026-08-18, ver docs/humano/): sin esto,
              esta Activity comparte la misma task que TermuxActivity (ambas usan el
              taskAffinity por defecto = applicationId), así que el finishAffinity() y el
              moveTaskToBack(true) del diálogo "Salir de X11"
@@ -471,6 +508,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Arranca el panel web de Homelab al encender/actualizar la app, solo si la persona
+             activó "iniciar al arrancar" (ver HomelabBootReceiver.kt, HomelabPanelPrefs.kt). -->
+        <receiver
+            android:name=".app.HomelabBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Disparado solo por el PendingIntent explícito que arma AutomationScheduler.kt —
              sin intent-filter porque nunca se invoca por acción implícita. -->
         <receiver
@@ -479,6 +527,20 @@
 
         <receiver
             android:name=".shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
+            android:exported="false" />
+
+        <!-- Acción "Detener" de las notificaciones de sesión de módulo (ver StopModuleReceiver.kt,
+             ronda 2026-09-16 "comunicación externa con Android") — no exportado, solo lo dispara
+             el propio Android al tocar el botón de una notificación que Kairos ya generó. -->
+        <receiver
+            android:name=".app.StopModuleReceiver"
+            android:exported="false" />
+
+        <!-- Aprobar/Denegar de la notificación de confirmación en vivo del gateway (ver
+             GatewayConfirmationWatcher.kt/GatewayConfirmReceiver.kt) — no exportado,
+             mismo patrón que StopModuleReceiver. -->
+        <receiver
+            android:name=".GatewayConfirmReceiver"
             android:exported="false" />
 
 
@@ -501,6 +563,41 @@
             android:name=".app.FloatingWidgetService"
             android:exported="false" />
 
+        <!-- Overlay flotante de escaneo de Ciberseguridad en vivo (CiberScanOverlayService.kt):
+             servicio hermano de FloatingWidgetService, muestra stdout en vivo de nmap/etc. sin
+             volver a abrir la app. SIN VERIFICAR EN DISPOSITIVO REAL (2026-11-09). -->
+        <service
+            android:name=".app.CiberScanOverlayService"
+            android:exported="false" />
+
+        <!-- Avatar flotante del Agente (AgentAvatarService.kt) — "cara mínima" en una esquina,
+             overlay separado del widget flotante de módulos de arriba. Ver
+             docs/agente/DECISIONES_AGENTE_2026-10-10.md. -->
+        <service
+            android:name=".app.AgentAvatarService"
+            android:exported="false" />
+
+        <!-- Ventana flotante para escribir el código de emparejamiento ADB inalámbrico sobre
+             Ajustes, sin volver a Kairos (AdbPairingOverlayService.kt,). -->
+        <service
+            android:name=".app.AdbPairingOverlayService"
+            android:exported="false" />
+
+        <!-- Protege el proceso del gateway con notificación foreground mientras está activo
+             (GatewayForegroundService.kt, ver meta 7). -->
+        <service
+            android:name=".app.GatewayForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Protege el proceso mientras un .gguf sigue descargándose en background
+             (GgufDownloadService.kt, hallazgo real de docs/referencias/ia/
+             REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md). -->
+        <service
+            android:name=".util.GgufDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <!-- Servidor X11 embebido (Xlorie/termux-x11), patrón X11Service de Linbox-WinEmu:
              corre en un proceso aparte (:xserver) del mismo APK y arranca CmdEntryPoint.main()
              (que carga libXlorie.so vía System.loadLibrary). El visor com.termux.x11.MainActivity
@@ -509,6 +606,15 @@
             android:name=".app.X11Service"
             android:exported="false"
             android:process=":xserver"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- 2da instancia del servidor X11 embebido, display :2, proceso aparte (:xserver2):
+             hallazgo "2 instancias X11 conmutables (nativa + distro)", ver X11Service2.kt para
+             el detalle completo. SIN VERIFICAR EN DISPOSITIVO REAL (implementado 2026-11-09). -->
+        <service
+            android:name=".app.X11Service2"
+            android:exported="false"
+            android:process=":xserver2"
             android:foregroundServiceType="dataSync" />
 
         <!-- Bot de Telegram entrante (fase 2 de las notificaciones Telegram, ver
@@ -533,6 +639,33 @@
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
         </service>
+
+        <!-- Quick Settings Tile — enciende/apaga el panel web de Homelab sin abrir la app
+             (ver HomelabTileService.kt). -->
+        <service
+            android:name=".app.HomelabTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_homelab"
+            android:label="@string/homelab_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- Widget de home screen "Homelab" — CPU/RAM/módulos corriendo, tap abre Kairos en
+             Homelab (ver HomelabWidgetProvider.kt, ronda 2026-09-16 "comunicación externa con
+             Android"). -->
+        <receiver
+            android:name=".app.HomelabWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/homelab_widget_info" />
+        </receiver>
 
 
         <!-- This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the

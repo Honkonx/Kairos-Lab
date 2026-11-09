@@ -1,153 +1,161 @@
-# QEMU
+# QEMU (`qemu`) — Módulo de Kairos
 
-**Módulo de Kairos** — gestionado desde la UI (pestaña Módulos/Tienda). Instalación manejada por la app vía `ProcessBuilder` → `modulos/qemu.sh`; la pantalla (`QemuFragment.kt`) es un Fragment dedicado.
+**Módulo de Kairos** — gestionado vía la UI de Kairos (pestaña Módulos/Tienda). Instalación manejada por la app vía `ProcessBuilder` → `modulos/qemu.sh`; la pantalla (`QemuFragment.kt`) es un Fragment dedicado (no cae en `GenericModuleFragment`).
 
 ---
 
-**Script:** `modulos/qemu.sh` — espejado byte a byte en `app/src/main/assets/scripts/qemu.sh`
+**Proyecto:** Kairos
+**Script:** `modulos/qemu.sh` (v1.4.0) — espejado byte a byte en `app/src/main/assets/scripts/qemu.sh` (mismo contrato `lib.sh`)
 **Fragment:** `app/src/main/java/com/termux/app/ui/QemuFragment.kt`
-**`id` en `modules.json`:** `qemu` — sin switch (no es un servicio persistente con proceso de fondo; ver §4), tipo nativo, categoría desarrollo, tamaño ~150MB, comando de terminal `qemu-system-x86_64`
+**`id` en `modules.json`:** `qemu` — `hasSwitch: false` (no es un servicio persistente con proceso de fondo; ver §4), `type: "Nativo"`, `arch: "bionic"`, `category: "dev"`, `size: "~150MB"`, `estimate: "~3 min"`, `terminalCommand: "qemu-system-x86_64"`, `requires: []`, `installMethods: ["pkg"]`, `port: ""`
+
+> Fuentes de esta ficha: `modulos/qemu.sh` (520 líneas), `app/src/main/assets/modules.json`, `QemuFragment.kt` (1607 líneas), `ModuleDetailNavigator.kt:41` y `QmpClient.kt` (`app/src/main/java/com/termux/app/qemu/`). La copia `app/src/main/assets/scripts/qemu.sh` es idéntica (`cmp`).
 
 ---
 
-## 1. Descripción general
+## 1. Qué es y para qué sirve
 
-Módulo de emulación de CPU/binarios vía QEMU, diseñado con un criterio de honestidad explícito: no prometer nada que un entorno Android sin root no pueda cumplir.
+Caja de herramientas QEMU sin root: (a) `qemu-user` (x86_64/arm) para ejecutar binarios estáticos de otra arquitectura; (b) `qemu-system` headless **sin KVM** (TCG por software, `/dev/kvm` no existe sin root) para bootear Alpine/Debian/Ubuntu en consola serie o con pantalla vía VNC embebido, con control en caliente por QMP y acceso SSH por `hostfwd` (puerto host 2222 → 22 del guest).
 
-Hallazgos relevantes sobre el entorno:
+Hallazgos que condicionan el diseño (documentados en la cabecera del script):
 
 - Termux tiene paquetes reales de QEMU en su repo (algunos vía `x11-repo`): `qemu-system-x86-64(-headless)`, `qemu-system-aarch64`, `qemu-system-i386`, `qemu-system-arm`, `qemu-utils`, y los paquetes `qemu-user-<arch>` (`qemu-user-x86-64`, `qemu-user-arm`, etc.).
-- **Android no expone `/dev/kvm` a apps sin root.** No hay forma de dar aceleración de hardware a `qemu-system` sin rootear el dispositivo. Sin KVM, `qemu-system` corre en **TCG** (Tiny Code Generator — traducción de instrucciones por software): funciona, pero muy por debajo de nativo. Útil para probar un binario o bootear una distro headless liviana; no apto para un uso "de escritorio" fluido.
+- **Android no expone `/dev/kvm` a apps sin root.** No hay forma de dar aceleración de hardware a `qemu-system` sin rootear el dispositivo. Sin KVM, `qemu-system` corre en **TCG** (Tiny Code Generator — traducción de instrucciones por software): funciona, pero muy por debajo de nativo. Útil para probar un binario o bootear una distro headless liviana; **no** apto para un uso "de escritorio" fluido — una VM gráfica pesada (ej. Windows) sería prácticamente inusable.
 - `qemu-user` (`qemu-x86_64`, `qemu-arm`, etc.) sí es genuinamente útil sin root: corre un binario **estático** de otra arquitectura directo (ej. un binario x86_64 en un teléfono ARM64), sin necesitar una VM completa ni `binfmt_misc` (que sí requiere root) — se invoca explícito: `qemu-x86_64 ./mi_binario_x86_64`. Es el caso de uso más sólido de QEMU en Termux sin root.
-
-Qué expone el módulo:
 
 | | Capacidad |
 |---|---|
-| Sí | `qemu-user-x86-64` + `qemu-user-arm` — correr binarios estáticos de otra arquitectura (rápido, uso real, sin root) |
-| Sí | `qemu-system-x86-64-headless` + `qemu-utils` — bootear una VM x86_64 sin gráficos (`-nographic`, consola serie), útil para probar un kernel/ISO/imagen liviana. Sin KVM → software puro, lento (minutos de boot, no segundos) |
-| No | No incluye ninguna imagen/ISO de sistema operativo por defecto en el script (el catálogo descargable real vive en la UI — ver §6) |
-| No | No es una alternativa a una VM de escritorio con GPU |
+| ✅ | `qemu-user-x86-64` + `qemu-user-arm` — correr binarios estáticos de otra arquitectura (rápido, uso real, sin root) |
+| ✅ | `qemu-system-*-headless` + `qemu-utils` — bootear una VM **sin KVM**, por consola serie o con pantalla vía VNC. Software puro, lento (minutos de boot, no segundos) |
+| ❌ | No incluye ninguna imagen/ISO de sistema operativo por defecto en el script (el catálogo descargable vive en la UI) |
+| ❌ | No es una alternativa a una VM de escritorio con GPU |
 
-El Fragment repite el mismo criterio: se descartó a propósito cualquier UI de "VM gráfica" o selector de aceleración KVM/HAX.
+El Fragment repite el mismo criterio: no hay UI de "VM gráfica" ni selector de aceleración KVM/HAX — prometerlo sería UI aspiracional sin respaldo real.
 
-## 2. Permisos
+## 2. Clasificación
 
-- **Android**: ninguno específico más allá del asistente de configuración genérico de la app (almacenamiento). No requiere root, no requiere `INTERNET` extra propio (la descarga de imágenes del catálogo usa `HttpURLConnection` desde Kotlin, dentro del mismo proceso de la app).
-- **Termux interno**: corre completamente en espacio de usuario, sin `/dev/kvm`, sin `binfmt_misc` (ambos requieren root en Android). `qemu-user` no necesita ningún permiso adicional al invocar el binario extranjero directo.
+**MÓDULO FUNCIONAL.** Fragment dedicado con estado vivo (`refreshStatus()` mide `command -v` real), ciclo de vida de una VM (arrancar `bootVm()`, reconectar, detener `stopVm()`), gestión de imágenes (crear/listar/importar/info/resize/convert con `qemu-img`), descarga con progreso, control QMP y SSH. No tiene `hasSwitch` ni puerto TCP, así que no usa el interruptor de servicio estándar; el "servicio" es la sesión tmux de la VM. **Opciones de UI aproximadas: ~30** (2 ejecutar binario + 4 imágenes + 6 descargas + 3 chips arch/RAM/res + campo ruta/RAM + pick/boot/reconectar/detener + 6 QMP + SSH + instalar paquete + terminal + mantenimiento).
 
-## 3. Lógica de instalación (`modulos/qemu.sh`)
+## 3. Permisos
+
+- **Android**: ninguno específico más allá del wizard genérico de la app (almacenamiento). No requiere root ni `INTERNET` extra propio (la descarga de imágenes del catálogo usa `HttpURLConnection` desde Kotlin, dentro del mismo proceso de la app).
+- **Termux interno**: corre 100% en espacio de usuario, sin `/dev/kvm`, sin `binfmt_misc` (ambos requieren root en Android).
+
+## 4. Instalación (`modulos/qemu.sh`)
+
+`bash qemu.sh --silent` (flags `--silent --force --describe --describe-files`). Contrato `lib.sh` estándar (`log`/`warn`/`error`/`info`/`step` + `check_done`/`mark_done`/`registry_write`). Corto-circuito si ya existe `qemu-x86_64` y algún `qemu-system-*` y no se pasó `--force`.
 
 | Flag | Qué hace |
 |---|---|
 | `--silent` | Modo app: sin prompts |
-| `--force` | Reinstala aunque ya esté |
-| `--describe` | Manifiesto JSON — user-mode + system-mode sin KVM |
+| `--force` | Borra el checkpoint y reinstala aunque ya esté |
+| `--describe` | Manifiesto JSON (`{"id":"qemu","supports_silent":true,"supports_force":true,"variants":[],"variant_required":false,"note":"..."}`) |
+| `--describe-files` | Manifiesto de archivos para `moduledeb` |
 
-No implementa `--status`, `--uninstall` ni `--start`/`--stop` (no hay proceso de fondo persistente — ver §4).
+Pasos con checkpoint (idempotentes vía `check_done`/`mark_done`):
 
-**Guard de "ya instalado"**: si `qemu-x86_64` y `qemu-system-x86_64` existen y no se pasó `--force`, loguea la versión y sale sin hacer nada.
+1. **`1/3 x11-repo`** — algunos paquetes `qemu-system` viven en `x11-repo`; seguido de `pkg_update_with_fallback`.
+2. **`2/3 qemu-user-x86-64 qemu-user-arm`**.
+3. **`3/3 qemu-system-aarch64-headless` + `qemu-system-x86-64-headless` + `qemu-utils`**. aarch64 es el guest RECOMENDADO (mismo arch que el host; usa `-machine virt -cpu max -bios edk2-aarch64-code.fd`, `virtio-blk-pci`, `virtio-gpu-pci` en VNC); x86_64 usa `-machine q35`.
 
-### Pasos de instalación (3 pasos con checkpoint, cada uno idempotente)
-
-1. **Habilitando x11-repo** — algunos paquetes `qemu-system` viven en `x11-repo`. Si falla, solo avisa (no aborta).
-2. **Instalando qemu-user (x86_64 + arm)** — `qemu-user-x86-64 qemu-user-arm`. Verifica el binario para loguear OK/aviso, pero no aborta si falla.
-3. **Instalando qemu-system-x86-64-headless + qemu-utils** — si falla, avisa que puede no estar disponible para esta arquitectura de Termux, aclarando que `qemu-user` (paso 2) sigue funcionando igual aunque este paso falle. Ningún paso del script es bloqueante para los otros — filosofía "degradado, no todo o nada".
+Los fallos de `pkg install` solo hacen `warn` (no abortan): filosofía "degradado, no todo o nada", y `qemu-user` sigue funcionando aunque falle el paso 3. Por eso **el módulo puede terminar con `qemu.installed=true` aunque ningún `qemu-system` haya quedado**; el Fragment lo compensa con `refreshStatus()` y un diálogo. No usa `verify_binary_installed` (solo `command -v`). Sin sha256 propio: la integridad es la de apt/dpkg de Termux.
 
 ### Scripts wrapper generados (`~/scripts/qemu/`)
 
-- **`run_user.sh <arch> <binario> [args...]`** — valida `arch`/`binario` no vacíos, verifica que `qemu-$ARCH` exista, y ejecuta `qemu-$ARCH "$BIN" "$@"`. `<arch>` soportados: `x86_64` | `arm`.
-- **`run_vm.sh <imagen.qcow2|iso> [ram_MB] [ssh_port_host] [console|vnc]`** — RAM por defecto `512` MB, puerto SSH host por defecto `2222`, modo por defecto `console`. Valida que la imagen exista. Imprime avisos recordando que sin KVM el boot va a tardar. Intenta primero `-drive file=$IMG,format=qcow2`; si falla, reintenta con `-cdrom "$IMG"` — cubre tanto imágenes de disco (`.qcow2`) como ISOs de instalación/boot. Sin ningún flag de aceleración en ningún modo.
-  - **Modo `console`** (default) — `-nographic` (consola serie redirigida a la terminal, sin ventana gráfica).
-  - **Modo `vnc`** — reemplaza `-nographic` por `-vnc 127.0.0.1:2` (servidor VNC de QEMU en el puerto **5902**, display `:2` — el visor VNC nativo de Kairos ya usa `:1`/5901 para Mini PC/Entorno, así que QEMU usa el display siguiente para no colisionar). Sin `-nographic`, la salida real pasa a ser el framebuffer gráfico servido por VNC.
+- **`run_user.sh <arch> <binario> [args...]`** — valida argumentos, verifica que `qemu-$ARCH` exista, y hace `exec "qemu-$ARCH" "$BIN" "$@"`. `<arch>` soportados: `x86_64` | `arm`.
+- **`run_vm.sh <imagen> [ram] [ssh_port] [console|vnc] [WxH] [x86_64|aarch64]`** — RAM por defecto `512` MB, puerto SSH host por defecto `2222`, modo por defecto `console`. Valida que la imagen exista, avisa que sin KVM el boot va a tardar, e intenta primero `-drive file=$IMG,format=qcow2` y luego `-cdrom` (cubre imágenes de disco e ISOs). Sin flags de aceleración (`-enable-kvm`/`-accel`) en ningún modo.
+  - **Modo `console`** — `-nographic` (consola serie en la terminal, `exec`).
+  - **Modo `vnc`** — pantalla servida por **socket unix** `$HOME/scripts/qemu/vncsocket` (`-vnc unix:`); arranca en sesión tmux `kairos_qemu_vnc` con wrapper `.vm_vnc_cmd.sh` y log `~/kairos_logs/qemu_vm_vnc.log`. Sin `-nographic`, la salida real pasa a ser el framebuffer gráfico.
+  - En todos los modos se abre además un **socket QMP** `$HOME/scripts/qemu/qmpsocket`.
 
-### Registry
+### Registry (`~/.android_server_registry`)
 
-`registry_install qemu "1.0.0" "kvm=false" "mode=tcg_software" "user_mode=<true|false>" "system_mode=<true|false>"` — los dos últimos campos se calculan en el momento con verificación del binario, reflejando el resultado real de la instalación.
+```
+qemu.installed=true
+qemu.version=1.4.0
+qemu.kvm=false
+qemu.mode=tcg_software
+qemu.user_mode=<true|false>
+qemu.system_mode_aarch64=<true|false>
+qemu.system_mode_x86_64=<true|false>
+```
 
-## 4. Detección de estado — no es un módulo con proceso de fondo
+`user_mode`/`system_mode_*` reflejan el resultado real de la instalación al momento de correr el script; la UI (`QemuFragment.refreshStatus()`) re-chequea en vivo con `command -v` cada vez que se abre la pantalla, así que puede divergir del registry si el usuario desinstaló un paquete a mano.
 
-QEMU no tiene un daemon persistente que arrancar/detener desde un switch. Es una caja de herramientas: se instala una vez y después se invoca bajo demanda (ejecutar un binario, o arrancar una VM que corre en la terminal mientras el usuario la usa).
+## 5. Ejecución
 
-`QemuFragment.refreshStatus()` chequea instalación real en un hilo separado, sin depender del registry:
-- **user mode**: presencia de `qemu-x86_64` o `qemu-arm`
-- **system mode**: presencia de `qemu-system-x86_64`
+No hay start/stop de servicio: es una **caja de herramientas** que se instala una vez y se invoca bajo demanda.
 
-Cada resultado se pinta en su propia fila de estado. Si el módulo entero no está instalado, el Fragment muestra directamente la pantalla "Módulo no instalado".
+- Modo consola: `bootVmConsole()` abre una sesión de terminal con `run_vm.sh ... console`.
+- Modo VNC: `bootVmVnc()` ejecuta `run_vm.sh ... vnc`, que lanza tmux `kairos_qemu_vnc` y sale; la app espera el socket (`waitForQemuVncSocket()`) y abre `VncViewerActivity`.
+- Detener: `stopVm()` = `tmux kill-session -t kairos_qemu_vnc; pkill -f qemu-system-x86_64`.
+- Control: `QmpClient` por `LocalSocket` (powerdown, stop/cont, screendump `.ppm`, change/eject medium).
 
-## 5. Pantalla de la app (`QemuFragment.kt`)
+## 6. Pantalla real de la app (`QemuFragment.kt`)
 
-Seis cards:
+`getModuleId()` → `"qemu"`, `getModuleName()` → `"QEMU"`. Una card de **Estado** y **4 pestañas** (Binario, Imágenes, VM, Avanzado; `buildTabLayout()`). Si el módulo no está instalado (`isModuleInstalled()` falso), muestra la pantalla estándar "Módulo no instalado".
 
-**ESTADO** — filas `qemu-user (x86_64/arm)`, `qemu-system (headless)` + fila fija informativa "Aceleración KVM: No disponible sin root".
+- **Estado** (antes de las pestañas): filas `qemu-user (x86_64/arm)` y `qemu-system (headless)` (refrescadas por `refreshStatus()`: `command -v qemu-x86_64 || command -v qemu-arm`, y `command -v qemu-system-x86_64`) + fila fija "Aceleración KVM: No disponible sin root".
+- **Binario**: campo de ruta + "▶ Ejecutar como x86_64 (terminal)" / "▶ Ejecutar como arm (terminal)" → `launchTerminalCommand("qemu-<arch> '<ruta>'")`, abre una sesión de terminal real (no ejecuta en background silencioso).
+- **Imágenes** (carpeta `~/qemu_images`):
+  - "＋ Crear imagen de disco": nombre + tamaño → `qemu-img create -f <qcow2|raw> <archivo> <tamaño>` (formato según extensión). `normalizeQemuImgSize()` acepta `1gb`/`1GB`/`1g`/`1G` y normaliza al formato real que acepta `qemu-img` (sufijo de una letra `K`/`M`/`G`/`T`, sin `b` final); si el texto no es reconocible, lo pasa tal cual y `qemu-img` da su propio error.
+  - "☰ Listar imágenes": archivos `qcow2`/`img`/`iso`/`raw`; tocar uno completa la ruta de la VM.
+  - "🛠 Info / redimensionar / convertir imagen": `qemu-img info`/`resize`/`convert`. El diálogo de resize avisa que achicar (`-`) puede destruir datos si el filesystem interno no encoge también; agrandar (`+`) es seguro.
+  - Importar desde almacenamiento (SAF → copia a ruta real).
+  - **Catálogo de descarga (6 imágenes)**: Alpine 3.24.1 virt, Debian 12 generic y Ubuntu 22.04 cloudimg, cada una en **aarch64 y x86_64**. Las URLs son de dominios oficiales por HTTPS (p. ej. `dl-cdn.alpinelinux.org`, `cloud.debian.org`, `cloud-images.ubuntu.com`). La descarga (`downloadDiskImage`/`downloadFileWithProgress`) muestra progreso real (%, velocidad, ETA cada 500 ms), usa `HttpURLConnection` con redirects, timeout 15 s/30 s, descarga a un `.part` y hace `renameTo()` solo si el archivo final tiene al menos el 95% del tamaño esperado.
+  - Nota: Alpine bootea directo a login root sin cloud-init; las imágenes cloud de Debian/Ubuntu están pensadas para `cloud-init` y pueden requerir un ISO de semilla con usuario/contraseña para loguear por consola — la app no automatiza esa parte.
+- **VM**: ruta de imagen, chips de arquitectura del guest (aarch64/x86_64), RAM (+ presets, recomendación `recommendedRamMb()`), resolución (presets, solo x86_64), "📂 Elegir imagen de la lista", "▶ Arrancar VM…" (diálogo consola/VNC), "Reconectar VNC", "Detener VM", 6 controles QMP (apagar ACPI, pausar, reanudar, captura de pantalla, cambiar/expulsar medio), "Conectar por SSH" (`connectSsh()`) e "Instalar paquete en la VM" (apt/apk por SSH).
+  - "Consola / SSH" (default): `run_vm.sh ... console` en una sesión de terminal, con toast "Arrancando sin KVM — el boot va a tardar (TCG software)".
+  - "VNC": `run_vm.sh ... vnc` y apertura automática de `VncViewerActivity` apuntando al socket unix; reusa el visor VNC nativo existente.
+  - La opción "X11 nativo" (`-display gtk/sdl` sobre el X11 embebido) no está implementada: depende de que el paquete headless soporte GTK/SDL, hecho no confirmado.
+- **Avanzado**: "Abrir terminal" en `~/qemu_images` + mantenimiento (actualizar/desinstalar).
 
-**EJECUTAR BINARIO DE OTRA ARQUITECTURA** — un campo para la ruta del binario + dos botones "Ejecutar como x86_64 (terminal)" / "Ejecutar como arm (terminal)", que abren una sesión de terminal real.
+## 7. Limitaciones de rendimiento (documentadas en el script, el Fragment y la UI)
 
-**IMÁGENES DE DISCO (qemu-img)** — fila informativa con la carpeta `~/qemu_images` + tres botones:
-- "Crear imagen de disco" — diálogo con nombre y tamaño; corre `qemu-img create -f <qcow2|raw> '<target>' <size>` (formato se decide por extensión).
-- "Listar imágenes" — lista archivos en `~/qemu_images` con extensión `qcow2`/`img`/`iso`/`raw`, seleccionar uno completa el campo de ruta de la VM.
-- "Info / redimensionar / convertir imagen" — elige imagen → `qemu-img info`/`resize`/`convert`. El diálogo de resize avisa explícitamente que achicar puede destruir datos si el filesystem interno no encoge también — agrandar siempre es seguro.
+- **Sin `/dev/kvm`** → `qemu-system` corre en **TCG**, **no** acelerado por hardware.
+- El boot de una VM headless tarda **minutos, no segundos**; el script lo advierte en `run_vm.sh` y la UI lo repite en el toast de "Arrancar VM" y en el texto de la card de descargas.
+- **No recomendado** para una VM gráfica pesada (ej. Windows).
+- `qemu-user` no sufre esta limitación — no es una VM completa, solo traduce instrucciones de un binario estático al vuelo.
 
-**Normalización de tamaño**: la función normaliza formatos como `"1gb"`/`"1GB"`/`"1g"`/`"1G"` → `"1G"`, `"512mb"`/`"512M"` → `"512M"` — el formato real que acepta `qemu-img create` es un sufijo de una sola letra (`K`/`M`/`G`/`T`), sin `b` final; si el texto no matchea el patrón reconocible, se devuelve tal cual.
-
-**IMÁGENES PARA DESCARGAR** — catálogo curado de 3 imágenes de sistema operativo x86_64 reales, con URLs y tamaños confirmados:
-
-| Imagen | Archivo | Tamaño confirmado | URL |
-|---|---|---|---|
-| Alpine Linux 3.24 (virt, x86_64) | `alpine-virt-3.24.1-x86_64.iso` | ~66 MB | `https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-virt-3.24.1-x86_64.iso` |
-| Debian 12 (Bookworm) cloud, amd64 | `debian-12-generic-amd64.qcow2` | ~427 MB | `https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2` |
-| Ubuntu 22.04 LTS (Jammy) cloud, amd64 | `ubuntu-22.04-server-cloudimg-amd64.img` | ~700 MB | `https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img` |
-
-Alpine bootea directo a login root sin cloud-init (ideal para probar la VM headless rápido); las imágenes cloud de Debian/Ubuntu están pensadas para `cloud-init` y pueden requerir un ISO de semilla con usuario/contraseña para loguear por consola — la app no automatiza esa parte.
-
-La descarga usa el mismo patrón que el resto de descargadores de la app (progreso real con %, velocidad, ETA cada 500ms, timeout de conexión 15s/lectura 30s), sin la validación de magic bytes GGUF (acá el archivo es `.iso`/`.qcow2`, no un modelo). Descarga a un temporal y renombra al nombre final solo si la descarga se completó.
-
-**VM HEADLESS (sin KVM — TCG software, lento)** — campo de ruta de imagen + campo de RAM en MB (default 512), botón "Elegir imagen de la lista" y "Arrancar VM…" que abre un selector de **modo de visualización**:
-
-| Opción | Qué hace |
-|---|---|
-| "Consola / SSH" (default) | Corre `run_vm.sh '<path>' <ram> 2222 console` en terminal, con aviso "Arrancando sin KVM — el boot va a tardar (TCG software)" |
-| "VNC" | Corre `run_vm.sh '<path>' <ram> 2222 vnc` en terminal (fire-and-forget), y tras un margen de unos segundos (tiempo para que QEMU levante el servidor) abre automáticamente el visor VNC nativo apuntado al puerto 5902 |
-
-La opción "X11 nativo" (sobre el X11 embebido) no se implementó — depende de si el paquete headless soporta GTK/SDL, algo no confirmado.
-
-**MANTENIMIENTO** — "Actualizar QEMU" invoca la actualización estándar del módulo.
-
-## 6. Limitaciones de rendimiento
-
-- **Sin `/dev/kvm`** (Android no lo expone a apps sin root) → `qemu-system` corre en **TCG** (traducción de instrucciones por software), no acelerado por hardware.
-- Consecuencia práctica: el boot de una VM headless tarda minutos, no segundos.
-- Explícitamente no recomendado para una VM gráfica pesada (ej. Windows) — sería prácticamente inusable en este entorno.
-- `qemu-user` no sufre esta limitación — no es una VM completa, solo traduce instrucciones de un binario estático al vuelo, uso real y confiable sin root.
-
-## 7. Comandos de referencia rápida
+## 8. Comandos de referencia rápida
 
 ```bash
 # Correr un binario estático x86_64 en un teléfono ARM64
 bash ~/scripts/qemu/run_user.sh x86_64 ./mi_binario_x86_64 [args...]
 
-# Correr un binario estático ARM en cualquier host soportado
+# Correr un binario estático ARM
 bash ~/scripts/qemu/run_user.sh arm ./mi_binario_arm
 
 # Crear una imagen de disco vacía
 qemu-img create -f qcow2 ~/qemu_images/disco1.qcow2 4G
 
-# Arrancar una VM headless en modo consola (sin gráficos, sin KVM — lento)
+# Arrancar una VM en modo consola (sin gráficos, sin KVM — lento)
 bash ~/scripts/qemu/run_vm.sh ~/qemu_images/alpine-virt-3.24.1-x86_64.iso 512
 
-# Arrancar una VM headless en modo VNC (servidor QEMU en 127.0.0.1:5902)
-bash ~/scripts/qemu/run_vm.sh ~/qemu_images/alpine-virt-3.24.1-x86_64.iso 512 2222 vnc
+# Arrancar una VM en modo VNC (socket unix, sesión tmux kairos_qemu_vnc)
+bash ~/scripts/qemu/run_vm.sh ~/qemu_images/alpine-virt-3.24.1-x86_64.iso 512 2222 vnc x86_64
 ```
 
-## 8. Registry (`~/.android_server_registry`)
+## 9. Archivos y rutas
 
-```
-qemu.installed=true
-qemu.version=1.0.0
-qemu.kvm=false
-qemu.mode=tcg_software
-qemu.user_mode=<true|false>
-qemu.system_mode=<true|false>
-```
+`~/scripts/qemu/{run_user.sh,run_vm.sh,.vm_vnc_cmd.sh,vncsocket,qmpsocket}`, `~/qemu_images/` (imágenes, capturas `.ppm`), `~/kairos_logs/qemu_vm_vnc.log`, `~/kairos_logs/install_qemu.log`, `~/.install_qemu_checkpoint`, registry.
 
-`user_mode`/`system_mode` reflejan el resultado real de la instalación al momento de correr el script (no se re-verifican después salvo que el usuario vuelva a correr el módulo) — la UI en cambio sí re-chequea en vivo cada vez que se abre la pantalla, así que puede divergir del registry si, por ejemplo, el usuario desinstaló un paquete manualmente desde la terminal.
+## 10. Seguridad
+
+- VNC y QMP son sockets unix locales sin contraseña (protegidos por los permisos del `$HOME` de la app, no por autenticación).
+- El `hostfwd` SSH abre `tcp::2222-:22` en la interfaz por defecto de SLIRP (escucha en todas las interfaces del host salvo que se restrinja; inferencia: no se verificó si Android lo expone fuera del dispositivo).
+- Descargas de imágenes por HTTPS desde dominios oficiales, **sin verificación de sha256/firma** (solo chequeo de tamaño ≥95%).
+- Sin `curl | bash`. Las contraseñas SSH no se guardan en este Fragment (se piden en el cliente SSH de la terminal).
+
+## 11. Problemas / limitaciones
+
+1. `stopVm()` mata por patrón solo `qemu-system-x86_64`; una VM aarch64 arrancada en modo CONSOLA no se detiene con "Detener VM" (en modo VNC sí, por tmux).
+2. La instalación puede dar éxito con paquetes faltantes (§4); no usa `verify_binary_installed`.
+3. Catálogo sin sha256; versión de imagen fijada (`3.24.1`; el `latest` de Debian cambia).
+4. `terminalCommand: qemu-system-x86_64` en `modules.json` contrasta con el guest recomendado aarch64.
+5. Un solo socket/sesión fijos: una sola VM a la vez (por diseño, documentado en `run_vm.sh`).
+6. Inferencia: que aarch64 sin KVM sea "usable" para escritorio; no se midió rendimiento.
+
+## 12. Fecha de alta
+
+`modulos/qemu.sh`: **2026-08-16**.

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícono de módulo 'freebuff' (2026-10-08, generado por tools/gen_icons_modulos.py): glifo propio de trazo, no un logo de marca. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13 2L4 14h7l-1 8 9-12h-7z" />
+</vector>

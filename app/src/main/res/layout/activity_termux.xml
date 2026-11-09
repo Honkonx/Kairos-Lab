@@ -56,6 +56,83 @@
                 android:scrollbars="vertical"
                 tools:ignore="UnusedAttribute" />
 
+            <!-- Modo Simple de la terminal adaptada (pedido explícito del usuario: "casi como si
+                 fuera una app de ia como claude, chatgpt, no tener terminal visible pero con
+                 opciones [...] poder hacer todo pero sin tener la terminal ahi" — ver
+                 MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases", Fase 2). Hermano de
+                 terminal_view (mismo z-order, misma posición) para que TermuxActivity solo
+                 necesite alternar visibility entre los dos — NO reemplaza terminal_view ni la
+                 sesión real, es una capa de presentación (ver TerminalSimpleRenderer.kt) montada
+                 sobre el mismo motor PTY. Arranca GONE; TermuxActivity#applyTerminalSimpleModeUi()
+                 la muestra solo cuando la pestaña activa tiene Simple activado. -->
+            <FrameLayout
+                android:id="@+id/terminal_simple_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="?attr/kairosBg"
+                android:visibility="gone">
+
+                <ScrollView
+                    android:id="@+id/terminal_simple_scroll"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scrollbars="none"
+                    android:fillViewport="true">
+
+                    <LinearLayout
+                        android:id="@+id/terminal_simple_messages"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:paddingTop="12dp"
+                        android:paddingBottom="56dp" />
+
+                </ScrollView>
+
+                <!-- Aviso de fallback (ver TerminalSimpleRenderer#detectBigRedraw()) — sesiones
+                     tipo TUI de pantalla completa (htop, vim) que redibujan constantemente no se
+                     pueden simplificar de forma confiable; se avisa en vez de renderizar basura. -->
+                <TextView
+                    android:id="@+id/terminal_simple_fallback_banner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top"
+                    android:background="?attr/kairosAmber"
+                    android:padding="8dp"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/black"
+                    android:text="@string/terminal_simple_fallback_banner"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
+                <!-- Chip "ver salida cruda" (mockup aprobado: "proceso real: claude, flag de
+                     salida no interactiva, pid 4821, ver salida cruda") — SIEMPRE visible mientras Simple está activo,
+                     es la vía de escape al parser heurístico (ver
+                     .claude/rules/empirical-verification-before-fix.md, riesgo ya documentado en
+                     MEJORAS_PENDIENTES.md). Tocarlo vuelve a modo Adaptada clásico para la sesión
+                     actual — ver TermuxActivity#toggleTerminalSimpleModeForCurrentSession(). -->
+                <TextView
+                    android:id="@+id/terminal_simple_raw_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|center_horizontal"
+                    android:layout_marginBottom="10dp"
+                    android:background="?attr/kairosBg3"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp"
+                    android:textSize="11sp"
+                    android:fontFamily="monospace"
+                    android:textColor="?attr/kairosText2"
+                    android:clickable="true"
+                    android:focusable="true"
+                    tools:text="● proceso real · pid 4821 · ver salida cruda" />
+
+            </FrameLayout>
+
             <!-- El sidebar (deslizable desde el borde) muestra contenido DISTINTO según el modo
                  — ver TermuxActivity#applyTerminalModeUi(). En modo normal (terminal de Termux
                  vía FAB): left_drawer_normal_content (sesiones + config, sin cambios). En modo
@@ -375,6 +452,23 @@
                     android:textColor="?attr/kairosText"
                     tools:text="OpenCode" />
 
+                <!-- Toggle Adaptada/Simple (ver MEJORAS_PENDIENTES.md "Roadmap de terminal — 2
+                     fases", Fase 2) — "💬" cuando la sesión actual está en modo Adaptada clásico
+                     (tocar entra a Simple), "⌨" cuando ya está en Simple (tocar vuelve a
+                     Adaptada) — ver TermuxActivity#toggleTerminalSimpleModeForCurrentSession()/
+                     refreshTerminalSimpleToggleIcon(). Por sesión, no global — cada pestaña
+                     conserva su propio modo, igual que ya hace mTerminalAdaptedSessionName con el
+                     resto del estado por pestaña. -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/terminal_adapted_simple_toggle"
+                    style="?android:attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="48dp"
+                    android:minHeight="48dp"
+                    android:text="💬"
+                    android:contentDescription="@string/action_terminal_simple_toggle" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/terminal_adapted_minimize_button"
                     style="?android:attr/buttonBarButtonStyle"
@@ -447,9 +541,9 @@
             <!-- Fila de chips de dependencia (backend IA local: Ollama/llama-server) — poblada
                  dinámicamente por TermuxActivity#refreshAdaptedBarInfo() vía
                  adaptedModuleDependencies(moduleId), GONE si el módulo activo no depende de
-                 ningún otro (la mayoría). Pedido explícito del usuario ("mejorar la terminal
-                 adaptada... si estan en opencode ver si ollama/llama esta corriendo") —
-                 mecanismo genérico, no hardcodeado solo para OpenCode: agregar una
+                 ningún otro (la mayoría). Pedido explícito del usuario (
+                 "mejorar la terminal adaptada... si estan en opencode ver si ollama/llama esta
+                 corriendo") — mecanismo genérico, no hardcodeado solo para OpenCode: agregar una
                  entrada más en adaptedModuleDependencies() alcanza para que otro CLI muestre sus
                  propios chips sin tocar este layout. Los chips en sí son TextView creados en
                  código (mismo patrón que addAdaptedDrawerAction), no hace falta declarar cada
@@ -468,9 +562,9 @@
         </LinearLayout>
 
         <!-- Panel embebido de acciones rápidas de la terminal adaptada (pedido explícito del
-             usuario 2026-09-08: "falta el administrador de archivos, navegador... sin salir de
-             la terminal adaptada", y corregido el mismo día: "falta la opción de que sean
-             pestañas" — la primera versión
+             usuario 2026-09-08,: "falta el administrador de archivos,
+             navegador... sin salir de la terminal adaptada", y corregido el mismo día en
+             : "falta la opción de que sean pestañas" — la primera versión
              cubría TODO el overlay incluyendo terminal_adapted_bar, tapando la fila de pestañas
              mientras el panel estaba activo, lo que hacía imposible cambiar de pestaña sin
              cerrar el panel primero). Ahora POSICIONADO IGUAL que drawer_layout (layout_below/

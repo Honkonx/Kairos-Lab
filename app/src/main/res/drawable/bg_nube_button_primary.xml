@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Botón principal de acción (abrir en navegador) — equivalente sólido del botón
+     "bg-gradient-to-r from-brand-600 to-indigo-600" del mockup. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/kairosPurple" />
+    <corners android:radius="14dp" />
+</shape>

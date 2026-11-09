@@ -139,3 +139,17 @@ Esta guía cubre solo builds locales de prueba/desarrollo. Si se quiere que el p
 vuelva a producir automáticamente un APK con rootfs embebido, hace falta correr
 `build-rootfs.yml` de verdad y publicar la Release — el atajo local descrito acá no reemplaza
 eso, solo permite iterar sin depender de CI.
+
+## Release: siempre `armv8`, en dos variantes (octubre 2026)
+
+Para publicar solo se compila la arquitectura **`armv8`** (`arm64-v8a`), siempre en dos variantes:
+
+| Variante | Archivo | Qué es |
+|---|---|---|
+| Sin rootfs | `Kairos_<versión>_armv8_sin-rootfs.apk` | Liviana (~100 MB); descarga el rootfs en el primer arranque, así que tarda más en dejar el entorno listo |
+| Con rootfs | `Kairos_<versión>_armv8_con-rootfs.apk` | Pesada (rootfs embebido, ~1 GB); el entorno se arma más rápido |
+
+Con `TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS=1` el build genera `Kairos_<versión>_apt-android-7-debug_armv8.apk`. Primero se compila
+**sin** `app/src/main/assets/kairos_rootfs.tar.xz` (variante liviana), se guarda el APK, y después se copia el `.tar.xz` y se
+compila otra vez (variante con rootfs). Recordatorio: el rootfs actual tiene unos 490 paquetes (105 raíces), no los ~46
+raíces / ~189 totales que citan los ejemplos de arriba.

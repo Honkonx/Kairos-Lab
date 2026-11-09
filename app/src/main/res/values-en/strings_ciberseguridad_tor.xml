@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- "Tor" tab of Ciberseguridad (add-on, formerly its own module). See TorManager.kt. -->
+    <string name="ciberseguridad_tab_tor">Tor</string>
+    <string name="ciberseguridad_tor_description">Cybersecurity add-on: starts a local SOCKS proxy for the Tor network. Tools that support it can go out through it; Kairos does not route anything through Tor on its own.</string>
+    <string name="ciberseguridad_tor_label_status">Status</string>
+    <string name="ciberseguridad_tor_label_version">Version</string>
+    <string name="ciberseguridad_tor_label_proxy">SOCKS proxy</string>
+    <string name="ciberseguridad_tor_status_loading">Checking…</string>
+    <string name="ciberseguridad_tor_status_not_installed">Not installed</string>
+    <string name="ciberseguridad_tor_status_stopped">Installed, stopped</string>
+    <string name="ciberseguridad_tor_status_running">Running</string>
+    <string name="ciberseguridad_tor_btn_install">Install Tor</string>
+    <string name="ciberseguridad_tor_btn_start">Start Tor</string>
+    <string name="ciberseguridad_tor_btn_stop">Stop Tor</string>
+    <string name="ciberseguridad_tor_btn_test">Check that I go out through Tor</string>
+    <string name="ciberseguridad_tor_btn_copy">Copy SOCKS proxy</string>
+    <string name="ciberseguridad_tor_toast_installing">Installing Tor… this can take a few minutes</string>
+    <string name="ciberseguridad_tor_toast_install_ok">Tor installed</string>
+    <string name="ciberseguridad_tor_toast_install_failed">Could not install Tor: %1$s</string>
+    <string name="ciberseguridad_tor_toast_starting">Starting Tor…</string>
+    <string name="ciberseguridad_tor_toast_started">Tor running on 127.0.0.1:9050</string>
+    <string name="ciberseguridad_tor_toast_start_failed">Could not start Tor: %1$s</string>
+    <string name="ciberseguridad_tor_toast_stopped">Tor stopped</string>
+    <string name="ciberseguridad_tor_toast_stop_failed">Could not stop Tor: %1$s</string>
+    <string name="ciberseguridad_tor_toast_testing">Testing the connection (up to 30 s)…</string>
+    <string name="ciberseguridad_tor_toast_test_ok">You are going out through Tor — exit IP: %1$s</string>
+    <string name="ciberseguridad_tor_toast_test_not_tor">The connection works but does NOT go out through Tor (IP: %1$s)</string>
+    <string name="ciberseguridad_tor_toast_test_failed">Could not check: %1$s</string>
+    <string name="ciberseguridad_tor_toast_needs_running">Start Tor first</string>
+    <string name="ciberseguridad_tor_toast_copied">Proxy copied: %1$s</string>
+</resources>

@@ -111,6 +111,14 @@ object NubeServer {
 
     val isRunning: Boolean get() = serverSocket?.isClosed == false
 
+    /** Conteo de archivos (no carpetas) dentro de `nubeRoot`, recursivo — para `cloud.status` del gateway
+     *  (`GatewayAppBridge.kt`/`AppCloudOps`). Nunca devuelve el token ni lista nombres, solo un número. */
+    fun fileCount(): Int = try {
+        nubeRoot.walkTopDown().count { it.isFile }
+    } catch (_: Exception) {
+        0
+    }
+
     private fun loadOrCreateToken(): String {
         try {
             if (tokenFile.exists()) {
@@ -210,9 +218,17 @@ object NubeServer {
         }
 
         when {
-            method == "GET" && path == "/" -> serveIndex(output, params["path"] ?: "")
+            method == "GET" && path == "/" -> serveIndex(
+                output,
+                params["path"] ?: "",
+                params["q"] ?: "",
+                params["filter"] ?: "",
+                params["sort"] ?: "name"
+            )
             method == "GET" && path == "/download" -> serveDownload(output, params["path"] ?: "")
+            method == "GET" && path == "/confirm-delete" -> serveConfirmDelete(output, params["path"] ?: "")
             method == "POST" && path == "/upload" -> handleUpload(output, input, headers, params["path"] ?: "")
+            method == "POST" && path == "/delete" -> handleDelete(output, params["path"] ?: "", params["confirm"] ?: "")
             else -> writeText(output, 404, TEXT_PLAIN, "404 Not Found")
         }
     }
@@ -246,7 +262,7 @@ object NubeServer {
     }
 
     /** Icono + color de acento por TIPO de archivo, un único lookup en vez de dos `when`
-     *  paralelos que podrían desincronizarse (principio DRY).
+     *  paralelos que podrían desincronizarse (DRY, ver .claude/rules/clean-code-principles.md).
      *  El color es el mismo que pinta el fondo/borde del cuadrado del icono en la tarjeta (ver
      *  serveIndex()) — paleta inspirada en el material de referencia de `ver/nube/` (tarjetas
      *  con icono coloreado por tipo: sky=imagen, rose=video, violeta=audio, púrpura=comprimido,
@@ -257,6 +273,39 @@ object NubeServer {
      *  ya usa en serveDownload() para el Content-Type.
      */
     private data class FileTypeStyle(val icon: String, val color: String)
+
+    /** Categoría de filtro (`?filter=...`) para un archivo — mejora de esta ronda: agrupa por el
+     *  mismo criterio visual que [styleForFile] ya usa (misma lista de extensiones, DRY real
+     *  hubiera significado que ambas funciones lean de una sola tabla, pero los "buckets" de
+     *  filtro son deliberadamente más gruesos que los íconos — ej. doc/hoja/presentación se
+     *  agrupan en "documentos" para el filtro, no 3 opciones separadas en el dropdown). Ver
+     *  [buildSearchFormHtml] para dónde se usan estas claves. */
+    private fun categoryForFile(name: String): String {
+        val ext = name.substringAfterLast('.', "").lowercase(Locale.US)
+        return when (ext) {
+            "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "svg" -> "imagenes"
+            "mp4", "mkv", "mov", "avi", "webm", "3gp" -> "videos"
+            "mp3", "wav", "ogg", "flac", "m4a", "aac" -> "audio"
+            "zip", "tar", "gz", "xz", "7z", "rar", "kenc" -> "comprimidos"
+            "pdf", "doc", "docx", "odt", "xls", "xlsx", "csv", "ods", "ppt", "pptx", "odp", "txt", "md", "log" -> "documentos"
+            "apk" -> "apps"
+            "json", "xml", "yml", "yaml", "sh", "py", "js", "kt", "java" -> "codigo"
+            else -> "otros"
+        }
+    }
+
+    /** Orden servidor-side (`?sort=name|date|size`) — carpetas siempre primero, mismo criterio
+     *  que el `sortedWith` original tenía hardcodeado solo para "name"; esta ronda lo generaliza
+     *  a las 3 opciones pedidas sin perder ese comportamiento (nunca intercalar carpetas y
+     *  archivos por fecha/tamaño, sería confuso navegar). */
+    private fun sortEntries(entries: List<File>, sort: String): List<File> {
+        val secondary: Comparator<File> = when (sort) {
+            "date" -> compareByDescending { it.lastModified() }
+            "size" -> compareByDescending { it.length() }
+            else -> compareBy { it.name.lowercase(Locale.getDefault()) }
+        }
+        return entries.sortedWith(compareBy<File> { !it.isDirectory }.then(secondary))
+    }
 
     private fun styleForFile(name: String): FileTypeStyle {
         val ext = name.substringAfterLast('.', "").lowercase(Locale.US)
@@ -310,15 +359,32 @@ object NubeServer {
 
     // ── Rutas ────────────────────────────────────────────────────────────
 
-    private fun serveIndex(output: OutputStream, relPath: String) {
+    /**
+     * Mejora de esta ronda: el buscador/filtro que ya existía en la versión nativa
+     * ([NubeFragment], JS-driven) no tenía equivalente en el panel WEB — esta página se sirve
+     * con `script-src 'none'` (ver [writeText]), así que el equivalente es 100% server-side:
+     * `?q=`/`?filter=`/`?sort=` recargan la página vía un `<form method="get">` real (sin JS),
+     * ver [buildSearchFormHtml]. `q`/`filter` se aplican solo a ARCHIVOS (las carpetas siempre
+     * se listan si su nombre matchea `q`, o siempre si `q` está vacío) — filtrar carpetas por
+     * "tipo de archivo" no tiene sentido real.
+     */
+    private fun serveIndex(output: OutputStream, relPath: String, query: String, filter: String, sort: String) {
         val dir = resolveSafePath(relPath)
         if (dir == null || !dir.isDirectory) {
             writeText(output, 400, TEXT_PLAIN, "400 Bad Request — ruta inválida o fuera de la carpeta nube")
             return
         }
-        val entries = dir.listFiles()
-            ?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase(Locale.getDefault()) }))
-            ?: emptyList()
+        var entries = dir.listFiles()?.toList() ?: emptyList()
+        val trimmedQuery = query.trim()
+        if (trimmedQuery.isNotEmpty()) {
+            entries = entries.filter { it.name.contains(trimmedQuery, ignoreCase = true) }
+        }
+        val activeFilter = filter.ifBlank { "todos" }
+        if (activeFilter != "todos") {
+            entries = entries.filter { it.isDirectory || categoryForFile(it.name) == activeFilter }
+        }
+        val activeSort = sort.ifBlank { "name" }
+        entries = sortEntries(entries, activeSort)
 
         // Grid de tarjetas (antes: filas planas de lista) — adopta el patrón visual más fuerte
         // del material de referencia de `ver/nube/` (nube_personal_web.html / _interfaz_web.html:
@@ -361,22 +427,61 @@ object NubeServer {
                         "<p class=\"file-card-meta\">${ManagerNativeUtils.humanSize(f.length())} • ${formatFileDate(f.lastModified())}</p>" +
                         "<div class=\"file-card-foot\">" +
                         "<span class=\"file-card-ext\">$ext</span>" +
+                        "<span class=\"file-card-actions\">" +
                         "<a class=\"file-card-dl\" href=\"/download?path=${urlEncode(rel)}&token=$token\" title=\"Descargar\">⬇️</a>" +
+                        "<a class=\"file-card-dl file-card-del\" href=\"/confirm-delete?path=${urlEncode(rel)}&token=$token\" title=\"Eliminar\">🗑️</a>" +
+                        "</span>" +
                         "</div></div>"
                 )
             }
         }
-        val emptyState = if (entries.isEmpty() && dir.path == nubeRoot.path) {
-            "<div class=\"empty-state\"><span class=\"empty-state-icon\">🗂️</span>" +
+        val noResults = trimmedQuery.isNotEmpty() || activeFilter != "todos"
+        val emptyState = when {
+            entries.isEmpty() && noResults -> "<div class=\"empty-state\"><span class=\"empty-state-icon\">🔎</span>" +
+                "<p class=\"empty-state-title\">Sin resultados</p>" +
+                "<p class=\"empty-state-sub\">Nada coincide con la búsqueda/filtro actual.</p></div>"
+            entries.isEmpty() && dir.path == nubeRoot.path -> "<div class=\"empty-state\"><span class=\"empty-state-icon\">🗂️</span>" +
                 "<p class=\"empty-state-title\">Tu PC es tu Nube</p>" +
                 "<p class=\"empty-state-sub\">Vacío por ahora — subí algo desde las tarjetas de abajo.</p></div>"
-        } else ""
+            else -> ""
+        }
         val countLabel = if (entries.isNotEmpty()) {
             "<span class=\"card-count\">${entries.size} elemento${if (entries.size == 1) "" else "s"}</span>"
         } else ""
         val currentRel = relPathOf(dir)
-        val html = buildIndexHtml(currentRel, cards.toString() + emptyState, countLabel)
+        val searchForm = buildSearchFormHtml(currentRel, trimmedQuery, activeFilter, activeSort)
+        val html = buildIndexHtml(currentRel, cards.toString() + emptyState, countLabel, searchForm)
         writeText(output, 200, TEXT_HTML, html)
+    }
+
+    /** Buscador/filtro/orden server-side — un único `<form method="get">` sin JS (ver cabecera
+     *  de [serveIndex]). `path`/`token` viajan como campos ocultos para no perder la carpeta
+     *  actual ni la sesión al enviar el form. */
+    private fun buildSearchFormHtml(currentRel: String, query: String, filter: String, sort: String): String {
+        val filterOptions = listOf(
+            "todos" to "Todos los tipos", "imagenes" to "🖼️ Imágenes", "videos" to "🎬 Videos",
+            "audio" to "🎵 Audio", "documentos" to "📄 Documentos", "comprimidos" to "🗜️ Comprimidos",
+            "apps" to "📱 Apps (APK)", "codigo" to "💻 Código", "otros" to "❓ Otros"
+        )
+        val sortOptions = listOf("name" to "Nombre (A-Z)", "date" to "Más reciente", "size" to "Más pesado")
+        fun optionsHtml(options: List<Pair<String, String>>, current: String) = options.joinToString("") { (value, label) ->
+            val sel = if (value == current) " selected" else ""
+            "<option value=\"$value\"$sel>${escapeHtml(label)}</option>"
+        }
+        val clearLink = if (query.isNotEmpty() || filter != "todos" || sort != "name") {
+            "<a class=\"search-clear\" href=\"/?path=${urlEncode(currentRel)}&token=$token\">✕ Limpiar</a>"
+        } else ""
+        return """
+            <form method="get" class="search-form">
+                <input type="hidden" name="path" value="${escapeHtml(currentRel)}">
+                <input type="hidden" name="token" value="$token">
+                <input type="text" name="q" value="${escapeHtml(query)}" placeholder="🔎 Buscar por nombre…" class="search-input">
+                <select name="filter" class="search-select">${optionsHtml(filterOptions, filter)}</select>
+                <select name="sort" class="search-select">${optionsHtml(sortOptions, sort)}</select>
+                <button type="submit" class="search-btn">Buscar</button>
+                $clearLink
+            </form>
+        """.trimIndent()
     }
 
     // Paleta hardcodeada a mano — esta página es HTML standalone servido por un socket crudo
@@ -397,7 +502,7 @@ object NubeServer {
     // `<input type=file>` se restylea con el pseudo-elemento estándar `::file-selector-button`
     // (soportado en Chrome/Firefox/Safari modernos) — sigue siendo el picker nativo del SO, sin
     // ocultar el input detrás de un `<label>` que necesitaría JS para reflejar el nombre elegido.
-    private fun buildIndexHtml(currentRel: String, cards: String, countLabel: String): String {
+    private fun buildIndexHtml(currentRel: String, cards: String, countLabel: String, searchForm: String): String {
         val disk = diskUsage()
         return """
         <!doctype html><html><head><meta charset="utf-8">
@@ -509,6 +614,7 @@ object NubeServer {
             font-size:9.5px;color:var(--text3);letter-spacing:.4px;
             font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
           }
+          .file-card-actions{display:flex;align-items:center;gap:2px}
           .file-card-dl{
             color:var(--green);text-decoration:none;font-size:13px;padding:3px 9px;
             border-radius:6px;border:1px solid transparent;line-height:1;
@@ -516,6 +622,33 @@ object NubeServer {
           }
           .file-card-dl:hover{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35)}
           .file-card-dl:focus-visible{outline:none;background:rgba(34,197,94,.12);border-color:var(--green)}
+          .file-card-del{color:#f87171}
+          .file-card-del:hover{background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.35)}
+          .file-card-del:focus-visible{background:rgba(248,113,113,.12);border-color:#f87171}
+
+          .search-form{
+            display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center;
+          }
+          .search-input{
+            flex:1 1 160px;min-width:0;padding:8px 10px;background:var(--bg);color:var(--text);
+            border:1px solid var(--border);border-radius:8px;font-size:12.5px;
+            transition:border-color .15s ease, box-shadow .15s ease;
+          }
+          .search-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+          .search-select{
+            padding:8px 8px;background:var(--bg3);color:var(--text);
+            border:1px solid var(--border);border-radius:8px;font-size:12px;
+          }
+          .search-btn{
+            background:var(--bg3);color:var(--text);border:1px solid var(--border);
+            padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;
+            transition:border-color .15s ease;
+          }
+          .search-btn:hover{border-color:var(--green)}
+          .search-clear{
+            font-size:11.5px;color:var(--text3);text-decoration:none;padding:4px 6px;
+          }
+          .search-clear:hover{color:var(--text)}
 
           .empty-state{
             grid-column:1/-1;
@@ -632,6 +765,7 @@ object NubeServer {
             <h2 class="card-title">Archivos</h2>
             $countLabel
           </div>
+          $searchForm
           <div class="files-grid">$cards</div>
         </section>
 
@@ -722,6 +856,108 @@ object NubeServer {
         }
         output.flush()
     }
+
+    /**
+     * Página de confirmación real (GET, sin efecto) antes de borrar — pedido explícito de esta
+     * ronda: "nunca sin confirmar un borrado" (ver `.claude/rules/kairos-secrets-never-revealed.md`,
+     * mismo principio aplicado acá a contenido en vez de a un secreto). El único botón de la
+     * tarjeta (🗑️) navega ACÁ primero — el borrado real solo ocurre si el usuario manda el
+     * `<form method="post">` de esta página, nunca desde un `GET` directo.
+     */
+    private fun serveConfirmDelete(output: OutputStream, relPath: String) {
+        val file = resolveSafePath(relPath)
+        if (file == null || (!file.isFile && !file.isDirectory) || file.path == nubeRoot.path) {
+            writeText(output, 400, TEXT_PLAIN, "400 Bad Request — nada que eliminar en esa ruta")
+            return
+        }
+        val parentRel = relPathOf(file.parentFile ?: nubeRoot)
+        val kind = if (file.isDirectory) "carpeta" else "archivo"
+        val html = """
+            <!doctype html><html><head><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Eliminar — Nube — Kairos</title>
+            <style>
+              body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+                background:#050505;color:#e8e8e8;margin:0;min-height:100vh;
+                display:flex;align-items:center;justify-content:center;padding:24px}
+              .box{background:#0a0a0a;border:1px solid #1f1f1f;border-radius:14px;padding:22px;
+                max-width:360px;width:100%;text-align:center}
+              .icon{font-size:30px;margin-bottom:8px;display:block}
+              h1{font-size:16px;margin:0 0 6px}
+              p{font-size:12.5px;color:#888;margin:0 0 18px;word-break:break-word}
+              .row{display:flex;gap:10px}
+              a,button{flex:1;padding:10px;border-radius:8px;font-size:13px;font-weight:600;
+                text-decoration:none;border:1px solid #1f1f1f;cursor:pointer}
+              .cancel{background:#111111;color:#e8e8e8}
+              .confirm{background:#ef4444;color:#050505;border:none}
+            </style>
+            </head><body>
+            <div class="box">
+              <span class="icon">⚠️</span>
+              <h1>¿Eliminar este $kind?</h1>
+              <p>${escapeHtml(file.name)} — esta acción no se puede deshacer.</p>
+              <div class="row">
+                <a class="cancel" href="/?path=${urlEncode(parentRel)}&token=$token">Cancelar</a>
+                <form method="post" action="/delete" style="flex:1;margin:0">
+                  <input type="hidden" name="path" value="${escapeHtml(relPath)}">
+                  <input type="hidden" name="token" value="$token">
+                  <input type="hidden" name="confirm" value="1">
+                  <button type="submit" class="confirm">Eliminar</button>
+                </form>
+              </div>
+            </div>
+            </body></html>
+        """.trimIndent()
+        writeText(output, 200, TEXT_HTML, html)
+    }
+
+    /** Borrado real (POST únicamente, `confirm=1` obligatorio) — [resolveSafePath] ya impide
+     *  salir de `nubeRoot`, y acá además se rechaza explícitamente borrar `nubeRoot` en sí
+     *  (mismo espíritu que el resto del archivo: la carpeta contenedora nunca es un objetivo
+     *  válido, solo su contenido). */
+    private fun handleDelete(output: OutputStream, relPath: String, confirm: String) {
+        if (confirm != "1") {
+            writeText(output, 400, TEXT_PLAIN, "400 Bad Request — falta confirmación")
+            return
+        }
+        val file = resolveSafePath(relPath)
+        if (file == null || (!file.isFile && !file.isDirectory) || file.path == nubeRoot.path) {
+            writeText(output, 400, TEXT_PLAIN, "400 Bad Request — nada que eliminar en esa ruta")
+            return
+        }
+        val parentRel = relPathOf(file.parentFile ?: nubeRoot)
+        val deleted = try {
+            if (file.isDirectory) file.deleteRecursively() else file.delete()
+        } catch (_: Exception) {
+            false
+        }
+        if (!deleted) {
+            writeText(output, 500, TEXT_PLAIN, "500 — no se pudo eliminar (¿permisos?)")
+            return
+        }
+        writeText(output, 200, TEXT_HTML, buildRedirectHtml(parentRel))
+    }
+
+    /** Página transitoria de redirect (0s, `<meta refresh>`) — mismo patrón que
+     *  [buildIndexHtmlAfterUpload], reusado acá para no duplicar el mismo bloque de estilos con
+     *  un texto de éxito distinto (DRY real: mismo esqueleto visual, mensaje parametrizado). */
+    private fun buildRedirectHtml(targetPathParam: String): String = """
+        <!doctype html><html><head><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="refresh" content="0; url=/?path=${urlEncode(targetPathParam)}&token=$token">
+        <title>Nube — Kairos</title>
+        <style>
+          body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+            background:#050505;color:#e8e8e8;margin:0;height:100vh;
+            display:flex;align-items:center;justify-content:center;text-align:center}
+          p{font-size:14px;color:#888}
+          .ok{color:#22c55e;font-size:22px;display:block;margin-bottom:8px;animation:pop .35s ease}
+          @keyframes pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:scale(1)}}
+        </style>
+        </head><body>
+        <div><span class="ok">✔ Eliminado</span><p>Redirigiendo…</p></div>
+        </body></html>
+    """.trimIndent()
 
     /**
      * Subida con categorización real (pedido explícito del usuario, 2026-09-01, ver
@@ -903,9 +1139,8 @@ object NubeServer {
      * AES-256-GCM cuya clave se deriva de esa contraseña (PBKDF2-HMAC-SHA256, salt propio por
      * archivo) — cifrado real, no un flag cosmético (pedido explícito del usuario). El header
      * en claro (MAGIC+salt+iv) es imprescindible para poder re-derivar la misma clave al
-     * descifrar; la contraseña en sí NUNCA se guarda en ningún lado (mismo criterio de
-     * "un secreto guardado nunca se vuelve a mostrar" que aplica a credenciales en el resto
-     * de la app).
+     * descifrar; la contraseña en sí NUNCA se guarda en ningún lado (mismo criterio que
+     * .claude/rules/kairos-secrets-never-revealed.md aplica a credenciales).
      *
      * Todavía no hay UI de descifrado dentro de la app (fase 2 documentada, ver
      * docs/arquitectura/INVESTIGACION_NUBE_PERSONAL_2026-09-01.md) — el dueño del teléfono
@@ -934,8 +1169,8 @@ object NubeServer {
 
     /**
      * chmod 700 (carpetas) / 600 (archivos) reales sobre todo lo que llega por el link de
-     * Nube — mismo criterio de "restringir en disco, no solo ocultar en la UI" que ya aplica
-     * a credenciales en el resto de la app, extendido acá a
+     * Nube — mismo criterio de "restringir en disco, no solo ocultar en la UI" que
+     * .claude/rules/kairos-secrets-never-revealed.md aplica a credenciales, extendido acá a
      * contenido de terceros que el dueño del teléfono no pidió hacer accesible más allá del
      * propio link. Usa `chmod` real vía ManagerNativeUtils.runShell (bash de Termux) en vez de
      * File.setReadable/setWritable de Java — mismo patrón ya usado por RemoteManager.kt para
@@ -1124,7 +1359,7 @@ object NubeServer {
     private fun writeText(output: OutputStream, status: Int, contentType: String, body: String) {
         val bodyBytes = body.toByteArray(Charsets.UTF_8)
         val cspHeader = if (contentType.startsWith("text/html")) {
-            "Content-Security-Policy: default-src 'self'; script-src 'none'; frame-ancestors 'none'\r\n"
+            "Content-Security-Policy: default-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; script-src 'none'; frame-ancestors 'none'\r\n"
         } else ""
         val headers = "HTTP/1.1 $status ${statusText(status)}\r\n" +
             "Content-Type: $contentType\r\n" +
@@ -1137,6 +1372,32 @@ object NubeServer {
     }
 
     // ── Info para la UI (NubeFragment) ──────────────────────────────────
+
+    /**
+     * URL compartible de un archivo/carpeta dentro de [nubeRoot] — mismo mecanismo que ya usa
+     * `NubeFragment.refreshServerStatus()`/`pollTunnelStatus()` (IP local + puerto + [token]),
+     * pero resuelto acá para que el gateway (`cloud.share_link`, ver `GatewayAppBridge.kt`)
+     * pueda construirla sin duplicar esa lógica. `relativePath` pasa por [resolveSafePath] —
+     * las mismas reglas de path-traversal que el resto del servidor, nunca una ruta fuera de
+     * `nubeRoot`. Null si el servidor no corre, si la ruta no existe, o si se sale de la carpeta.
+     * Un archivo apunta a `/download` (descarga directa); una carpeta (o la raíz, `relativePath`
+     * vacío) apunta a `/` con ese `path` — el mismo listado que ve quien abre el enlace a mano.
+     */
+    fun shareLinkFor(relativePath: String): String? {
+        if (!isRunning) return null
+        val file = resolveSafePath(relativePath) ?: return null
+        if (!file.exists()) return null
+        val ip = localIpAddress() ?: "127.0.0.1"
+        val rel = relPathOf(file)
+        // Sin "path=" cuando apunta a la raíz — mismo formato exacto que ya muestra
+        // NubeFragment.refreshServerStatus() para el link local ("http://ip:puerto/?token=...",
+        // sin un "path=" vacío colgando).
+        return if (file.isDirectory) {
+            if (rel.isEmpty()) "http://$ip:$port/?token=$token" else "http://$ip:$port/?path=${urlEncode(rel)}&token=$token"
+        } else {
+            "http://$ip:$port/download?path=${urlEncode(rel)}&token=$token"
+        }
+    }
 
     fun localIpAddress(): String? {
         return try {

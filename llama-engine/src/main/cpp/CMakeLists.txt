@@ -163,7 +163,7 @@ target_link_options(
 )
 
 # llama-server (binario ejecutable real de llama.cpp, servidor HTTP compatible OpenAI) —
-# rama "llama-server-and-terminal-ux" (2026-08-05).
+# rama "llama-server-and-terminal-ux" (2026-08-05,).
 # Copiado a un directorio de assets generado (KAIROS_LLAMA_SERVER_OUT_DIR, pasado desde
 # ../../../build.gradle) en vez de quedar solo en el directorio de build interno de CMake, para
 # que AGP lo empaquete en la APK como assets/scripts/llama-server (extraído a Termux por
@@ -177,7 +177,7 @@ target_link_options(
 # add_subdirectory distinto), no acá. Fix intento #2: la forma OUTPUT (DEPENDS en vez de TARGET)
 # no tiene esa restricción, más un add_custom_target(... ALL) para engancharlo al build.
 #
-# Bug real de build (2026-08-06): "ALL" en add_custom_target NO
+# Bug real de build (2026-08-06,): "ALL" en add_custom_target NO
 # alcanzaba — confirmado leyendo la lista EXPLÍCITA de targets que AGP le pasa a ninja en un log
 # real de CI (mismo mecanismo ya documentado arriba: AGP enumera targets vía File API y se los
 # pasa a ninja por nombre, uno por uno) — esa lista tenía "kairos_llm", "llama-server", "mtmd",
@@ -195,7 +195,7 @@ target_link_options(
 # arrastre como prerequisito de su propio build. add_dependencies() no tiene la restricción de
 # "mismo directorio" de add_custom_command(TARGET ...) — funciona con cualquier target visible
 # en el árbol completo del proyecto.
-# Bug real (2026-08-06): confirmado en dispositivo real que el
+# Bug real (2026-08-06,): confirmado en dispositivo real que el
 # binario SÍ se extrae ahora (fix de arriba funcionó) pero falla al ejecutar: "CANNOT LINK
 # EXECUTABLE: library libllama-server-impl.so not found". BUILD_SHARED_LIBS=ON (ver
 # ../../build.gradle) hace que llama-server sea un ejecutable DINÁMICAMENTE linkeado contra
@@ -209,7 +209,7 @@ target_link_options(
 # add_subdirectory) — filtrado a mano con un comando de shell en vez de glob de CMake, porque
 # file(GLOB) corre en tiempo de CONFIGURE (cuando bin/ todavía no existe), y acá hace falta que
 # corra en tiempo de BUILD, después de que ninja ya generó los .so reales.
-# Bug real (2026-08-06): un "bash -c '...'" con comillas/redirects
+# Bug real (2026-08-06,): un "bash -c '...'" con comillas/redirects
 # embebidos directo acá se corrompía al pasar por 2 capas de escapado de shell (CMake -> ninja ->
 # sh) — confirmado en log real de CI: "cp: target '2': No such file or directory". Fix: un
 # script .sh real (copy_shared_libs.sh, al lado de este CMakeLists.txt), invocado con

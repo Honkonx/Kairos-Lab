@@ -28,7 +28,7 @@ import com.termux.app.util.kairosThemeColor
 
 /**
  * Navegador de propósito general embebido en la terminal adaptada — pedido explícito del
- * usuario (2026-09-08: "el navegador no es poner puertos, debe ser un
+ * usuario (2026-09-08,: "el navegador no es poner puertos, debe ser un
  * navegador completo como tal"). Deliberadamente un fragment NUEVO y separado de
  * `ModuleWebViewFragment` en vez de reusarlo/flexibilizarlo: ese fragment tiene un sandboxing de
  * origen a propósito (`shouldOverrideUrlLoading` en `ModuleWebViewFragment.kt` — cualquier link a
@@ -72,6 +72,7 @@ class TerminalBrowserFragment : Fragment() {
         }
         val webBack = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_media_rew)
+            contentDescription = ctx.getString(R.string.a11y_back)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText2))
             isEnabled = false
@@ -82,6 +83,7 @@ class TerminalBrowserFragment : Fragment() {
         webBackBtn = webBack
         val webForward = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_media_ff)
+            contentDescription = ctx.getString(R.string.a11y_forward)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText2))
             isEnabled = false
@@ -92,6 +94,7 @@ class TerminalBrowserFragment : Fragment() {
         webForwardBtn = webForward
         val reloadBtn = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_popup_sync)
+            contentDescription = ctx.getString(R.string.a11y_reload)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText2))
             setOnClickListener { webView?.reload() }

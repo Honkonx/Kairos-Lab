@@ -40,6 +40,10 @@
     <string name="chat_custom_base_url_hint">https://api.example.com/v1</string>
     <string name="chat_custom_model_hint">Model (optional, default: %1$s)</string>
     <string name="chat_custom_base_url_invalid_toast">The Base URL looks invalid — it must start with http</string>
+    <string name="chat_custom_test_connection">Test connection</string>
+    <string name="chat_custom_test_connection_testing">Testing %1$s/models…</string>
+    <string name="chat_custom_test_connection_ok">Endpoint responded (HTTP %1$d) — looks like an OpenAI-compatible server</string>
+    <string name="chat_custom_test_connection_fail">Could not connect: %1$s</string>
     <string name="chat_cloud_status">Cloud API · %1$s</string>
     <string name="chat_cloud_status_byo">Cloud API (BYO key)</string>
     <string name="chat_cloud_http_error">%1$s responded with HTTP %2$d</string>
@@ -60,6 +64,7 @@
     <string name="chat_image_discarded_no_vision">Image discarded: \"%1$s\" doesn\'t support images (confirmed by Ollama)</string>
     <string name="chat_temperature_label">Temperature: %1$.2f</string>
     <string name="chat_context_size_label">Context size: %1$d tokens</string>
+    <string name="chat_context_usage_indicator">%1$d/%2$d tokens</string>
     <string name="chat_history_limit_unlimited">Messages to keep: ∞ (no limit)</string>
     <string name="chat_history_limit_label">Messages to keep: %1$d</string>
     <string name="chat_autoaccept_permissions">Auto-accept tool permissions</string>
@@ -85,6 +90,7 @@
     <string name="chat_attach_disabled_local">Not available for local models (📱) — the local engine (embedded llama.cpp) doesn\'t have the required vision projector. Switch to an Ollama model with image support.</string>
     <string name="chat_image_read_failed">Couldn\'t read the selected image</string>
     <string name="chat_local_model_not_found">Local model not found: %1$s</string>
+    <string name="chat_local_ram_warning">⚠️ %1$s needs ~%2$.1f GB of RAM and your device has %3$.1f GB — it might crash mid-response</string>
     <string name="chat_loading_model">Loading model…</string>
     <string name="chat_local_unavailable_fallback">Local engine unavailable — using llama-server HTTP…</string>
     <string name="chat_llamaserver_http_error">llama-server responded with HTTP %1$d</string>
@@ -211,4 +217,6 @@
     <string name="chat_websearch_blocked">The search was blocked by DuckDuckGo (reason: %1$s) — it\'s not that there are no results, the site flagged this as an automated request. Try again in a few minutes.</string>
     <string name="chat_websearch_circuit_open">Too many blocks in a row — search is paused for ~%1$d minute(s) before retrying, to avoid making the block worse.</string>
     <string name="chat_websearch_error">Connection error while searching the web: %1$s</string>
+    <string name="chat_vulkan_fallback_status">Your GPU\'s Vulkan driver failed; retrying on CPU…</string>
+    <string name="chat_vulkan_fallback_next_toast">The Vulkan driver failed on this GPU: next replies will use CPU (you can pick Vulkan again in Local AI → Parameters)</string>
 </resources>

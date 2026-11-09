@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pantalla "Agente Kairos" (2026-10-08) -->
+    <string name="nav_agent">Agente</string>
+    <string name="more_sheet_agent">Agente</string>
+    <string name="agent_title">Agente Kairos</string>
+    <string name="agent_subtitle">Tu asistente: consulta el estado y, con tu confirmación, instala, inicia o detiene módulos.</string>
+    <string name="agent_welcome">Hola. Pregúntame por el estado de tus módulos, los procesos o mi historial. Para instalar, iniciar o detener un módulo escribe, por ejemplo, «inicia n8n»; siempre te pido confirmación antes.</string>
+    <string name="agent_setup_message">El motor del agente todavía no está activado en este dispositivo (ocupa ~1 MB).</string>
+    <string name="agent_setup_button">Activar agente</string>
+    <string name="agent_setup_working">Activando…</string>
+    <string name="agent_setup_done">Agente activado. Ya puedes pedirme cosas.</string>
+    <string name="agent_setup_failed">No pude activar el agente: %1$s</string>
+    <string name="agent_need_engine">Primero activa el agente con el botón de arriba.</string>
+    <string name="agent_input_hint">Escribe un pedido…</string>
+    <string name="agent_send">Enviar</string>
+    <string name="agent_chip_status">Estado</string>
+    <string name="agent_chip_processes">Procesos</string>
+    <string name="agent_chip_history">Historial</string>
+    <string name="agent_busy">Sigo con lo anterior; espera un momento.</string>
+    <string name="agent_working">Trabajando…</string>
+    <string name="agent_thinking">Pensando…</string>
+    <string name="agent_no_answer">El motor no respondió.</string>
+    <string name="agent_not_understood">No entendí ese pedido. Prueba con «estado», «procesos», «historial», «inicia n8n» o «detén n8n». Para frases libres hace falta un modelo local (llama-server u Ollama) encendido.</string>
+    <string name="agent_router_chose">Lo interpreté como: %1$s %2$s</string>
+    <string name="agent_verb_install">Instalar</string>
+    <string name="agent_verb_start">Iniciar</string>
+    <string name="agent_verb_stop">Detener</string>
+    <string name="agent_confirm_title">¿Ejecutar esta acción?</string>
+    <string name="agent_confirm_message">%1$s: %2$s</string>
+    <string name="agent_confirm_yes">Sí, hazlo</string>
+    <string name="agent_confirm_no">No</string>
+    <string name="agent_cancelled">Cancelado, no hice nada.</string>
+    <string name="agent_ai_settings_button">Configurar IA externa</string>
+    <string name="agent_ai_settings_title">IA externa para «interpretar»</string>
+    <string name="agent_ai_url_hint">URL (OpenAI-compatible)</string>
+    <string name="agent_ai_model_hint">Modelo</string>
+    <string name="agent_ai_key_hint">Clave de API</string>
+    <string name="agent_ai_key_hint_local">Sin clave (modelo local)</string>
+    <string name="agent_ai_custom_base_url_hint">URL base (ej. https://mi-servidor.com/v1)</string>
+    <string name="agent_ai_custom_model_hint">Nombre del modelo (ej. llama-3.1-8b)</string>
+    <string name="agent_ai_custom_fields_required">Completá la URL base y el nombre del modelo</string>
+    <string name="agent_ai_key_help">La clave no se vuelve a mostrar una vez guardada: solo puedes reemplazarla o quitarla.</string>
+    <string name="agent_ai_company_label">EMPRESA</string>
+    <string name="agent_ai_model_label">MODELO</string>
+    <string name="agent_ai_refresh_models">Actualizar modelos</string>
+    <string name="agent_ai_save">Guardar</string>
+    <string name="agent_ai_remove_key">Quitar clave</string>
+    <string name="agent_ai_saved">Configuración de IA actualizada.</string>
+    <string name="agent_ai_save_failed">No pude guardar la configuración de IA.</string>
+
+    <!-- Avatar flotante del Agente (AgentAvatarService.kt, 2026-10-10, docs/agente/DECISIONES_AGENTE_2026-10-10.md) -->
+    <string name="agent_avatar_toggle">Avatar flotante del Agente</string>
+    <string name="agent_avatar_toggle_hint">Una cara mínima flota en una esquina y de vez en cuando dice algo. Tócala para hablar con el Agente.</string>
+    <string name="agent_avatar_need_overlay">Kairos: falta el permiso de superposición para el avatar del Agente</string>
+    <string name="agent_avatar_overlay_failed">No se pudo mostrar el avatar del Agente: %1$s</string>
+    <string name="agent_voice_toggle">Voz del Agente</string>
+    <string name="agent_voice_toggle_hint">El avatar también dice en voz alta lo que muestra en el globo de texto (TextToSpeech del sistema). Apagado por defecto.</string>
+    <string name="agent_avatar_kind_label">Avatar</string>
+    <string name="agent_avatar_kind_cara">Kairos (cara mínima)</string>
+    <string name="agent_avatar_kind_kari">Kari (chica)</string>
+    <string name="agent_avatar_kind_kairo">Kairo (chico)</string>
+    <string name="agent_settings_button">Configurar Agente</string>
+    <string name="agent_settings_dialog_title">Configurar Agente</string>
+    <string-array name="agent_avatar_phrases">
+        <item>¿En qué te ayudo?</item>
+        <item>Aquí estoy si me necesitas.</item>
+        <item>Puedo revisar el estado de tus módulos.</item>
+        <item>Pregúntame por el historial cuando quieras.</item>
+        <item>Dime qué módulo iniciar o detener.</item>
+        <item>Sigo por aquí, atento.</item>
+    </string-array>
+</resources>

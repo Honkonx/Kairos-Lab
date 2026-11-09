@@ -59,7 +59,7 @@
 #      real) y le aplica patchelf al resultado, en vez de asumir que
 #      "npm install" ya deja todo funcional.
 #
-#  CORRECCIÓN 2026-08-24 (pedido explícito del
+# CORRECCIÓN 2026-08-24 (ver — pedido explícito del
 #  usuario: "busca si alguien lo hizo funcionar en termux android"; 3 bugs
 #  reales encontrados y arreglados en cadena, confirmados uno por uno en
 #  dispositivo real, no solo por lectura de código):
@@ -463,7 +463,7 @@ fi
 # ── PASO 6 — Verificación FUNCIONAL real ──────────────────────
 step "PASO 6 — Verificando instalación"
 # Verificación FUNCIONAL real, no solo "command -v" (mismo principio ya
-# aplicado a mistralvibe/n8n/freebuff) — el
+# aplicado a mistralvibe/n8n/freebuff,) — el
 # binario nativo puede estar presente pero no ejecutar sobre Bionic sin el
 # patchelf de arriba; "command -v" solo no lo detecta, "--version"
 # corriendo de verdad sí.
@@ -512,7 +512,7 @@ else
 fi
 
 # ── Persistir CODEBUFF_BINARY_TARGET para uso diario ──────────
-# Bug real encontrado 2026-08-24 (pruebas funcionales reales por ADB):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # el "export CODEBUFF_BINARY_TARGET=linux-arm64" de arriba (línea ~93) solo vive mientras CORRE
 # ESTE script — la verificación de PASO 4 (línea 326) pasa porque hereda ese export del mismo
 # proceso, pero un usuario real que abre una terminal NUEVA después de instalar y corre
@@ -526,7 +526,7 @@ if ! check_done "codebuff_bashrc_env"; then
   cat >> "$BASHRC" << 'BASHRC_EOF'
 
 # ════════════════════════════════
-#  Codebuff · override de plataforma (fix real)
+# Codebuff · override de plataforma (fix real,)
 # ════════════════════════════════
 export CODEBUFF_BINARY_TARGET="linux-arm64"
 BASHRC_EOF

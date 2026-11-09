@@ -79,7 +79,6 @@ class VoiceToAgentDialog : DialogFragment() {
             AgentCliOption("copilotcli", "GitHub Copilot CLI", "copilot"),
             AgentCliOption("minimaxcli", "MiniMax CLI", "mmx"),
             AgentCliOption("mimocode", "MiMo Code", "mimo"),
-            AgentCliOption("mistralvibe", "Mistral Vibe", "vibe"),
             AgentCliOption("qwencode", "Qwen Code", "qwen")
         )
     }

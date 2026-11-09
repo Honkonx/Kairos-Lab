@@ -159,8 +159,7 @@ else
   # nunca se había portado a esta copia usada por la app.
   if $_GLIBC_MISSING; then
     info "glibc no detectado — instalando glibc-repo..."
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y glibc-repo \
       -o Dpkg::Options::="--force-confdef" \
@@ -178,8 +177,7 @@ else
 
   if [ ${#_MISSING_DEPS[@]} -gt 0 ]; then
     info "Instalando: ${_MISSING_DEPS[*]}"
-    # pkg_update_with_fallback() antes de pkg install evita un fallo silencioso
-    # por índices de paquetes desactualizados (mirror con problemas).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y "${_MISSING_DEPS[@]}" \
       -o Dpkg::Options::="--force-confdef" \
@@ -248,8 +246,8 @@ step "PASO 3 — Verificación y registro"
 # escribe "installed=true" incondicionalmente, así que un binario que NO
 # EJECUTA de verdad (el propio not_covered de --describe-files ya admite
 # que puede faltar LSE atomics/glibc-runner) quedaba marcado como instalado
-# igual — mismo patrón de bug visto en otros módulos (verificar solo que el
-# binario existe en PATH no confirma que corre de verdad). Se usa
+# igual — mismo patrón de bug ya documentado en
+# .claude/rules/empirical-verification-before-fix.md (#28/#29/#30). Se usa
 # verify_binary_installed() (ejecuta agy --version de verdad, chequea exit
 # code) como gate real antes de escribir installed=true.
 if verify_binary_installed agy; then

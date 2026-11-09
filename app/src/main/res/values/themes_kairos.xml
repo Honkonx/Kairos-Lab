@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Temas seleccionables de Kairos (2026-08-22) — 3 temas que
+    <!-- Temas seleccionables de Kairos (2026-08-22,) — 3 temas que
          mapean los mismos ?attr/kairos* a paletas distintas. "Oscuro" es el default (mismos
          valores que colors_kairos.xml, cero cambio visual para quien no toque el selector de
          tema). "Señal" y "Claro" son las 2 direcciones nuevas. Todos extienden
@@ -21,6 +21,7 @@
         <item name="kairosGreen">@color/kairos_green</item>
         <item name="kairosRed">@color/kairos_red</item>
         <item name="kairosAmber">@color/kairos_amber</item>
+        <item name="kairosPurple">@color/kairos_purple</item>
         <item name="kairosBorder">@color/kairos_border</item>
         <item name="kairosDivider">@color/kairos_divider</item>
         <item name="kairosStatusRunning">@color/kairos_status_running</item>
@@ -44,6 +45,7 @@
         <item name="kairosGreen">@color/kairos_senal_green</item>
         <item name="kairosRed">@color/kairos_senal_red</item>
         <item name="kairosAmber">@color/kairos_senal_amber</item>
+        <item name="kairosPurple">@color/kairos_senal_purple</item>
         <item name="kairosBorder">@color/kairos_senal_border</item>
         <item name="kairosDivider">@color/kairos_senal_divider</item>
         <item name="kairosStatusRunning">@color/kairos_senal_status_running</item>
@@ -70,6 +72,7 @@
         <item name="kairosGreen">@color/kairos_claro_green</item>
         <item name="kairosRed">@color/kairos_claro_red</item>
         <item name="kairosAmber">@color/kairos_claro_amber</item>
+        <item name="kairosPurple">@color/kairos_claro_purple</item>
         <item name="kairosBorder">@color/kairos_claro_border</item>
         <item name="kairosDivider">@color/kairos_claro_divider</item>
         <item name="kairosStatusRunning">@color/kairos_claro_status_running</item>

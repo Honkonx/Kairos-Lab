@@ -202,3 +202,31 @@ Esta acción está disponible en dos lugares de la app, ambos usando `RootfsPack
 | `app/src/main/java/com/termux/app/wizard/Wizard{Welcome,Permissions,PhantomProcess,Battery,Install,Check}Fragment.kt` | Pantallas del wizard, cada una dueña de su propia UI y lógica |
 | `app/src/main/java/com/termux/app/wizard/WizardPagerAdapter.kt` | `FragmentStateAdapter` de las pantallas del wizard |
 | `app/src/main/java/com/termux/app/ui/ConfigFragment.kt` | Botón "Comprobar paquetes del sistema" en Ajustes |
+
+## Repos, contenido y verificación (octubre 2026)
+
+- `build_rootfs.py` resuelve **tres repos de Termux** (aarch64): `termux-main` (`stable/main`), `termux-glibc`
+  (`glibc/stable`) y `termux-x11` (`x11/main`). Si un nombre existe en varios, gana el primero de esa lista.
+- La lista (`tools/rootfs/package_list.txt`, 105 paquetes raíz) incluye todo lo que los módulos instalan con
+  `pkg install` (glibc y `glibc-runner`, JDK/Kotlin/Go/PHP/Ruby, bases de datos, QEMU, herramientas de red…), el
+  escritorio nativo de Mini PC (Xfce, TigerVNC, x11vnc) y los complementos (Tor, Syncthing, Restic). Con dependencias son
+  **490 `.deb`, unos 946 MB**. Criterio del proyecto: el rootfs solo crece; no se quita un paquete por su tamaño.
+- Dos paquetes **mutuamente excluyentes no pueden ir juntos** (`apt install ./*.deb` falla entero). Ejemplo real:
+  `vulkan-loader-generic` declara `Conflicts` y `Provides` sobre `vulkan-loader-android`; solo se incluye el primero.
+- Dos comprobaciones antes de publicar un rootfs:
+  - `python3 tools/rootfs/build_rootfs.py --check`: resuelve las dependencias, mide tamaños por repo y busca conflictos
+    (`Conflicts:`/`Breaks:` sin restricción de versión, incluidos los nombres que un paquete a la vez provee y excluye).
+  - `tools/rootfs/simulate_apt_install.sh <carpeta_con_debs>`: simula con el **`apt` real** la instalación conjunta de
+    todos los `.deb` (arquitectura `aarch64`, sin instalar nada). Detecta lo que la comprobación anterior solo aproxima.
+- `tools/rootfs/extract_module_packages.py` lista los paquetes que cada `modulos/*.sh` instala con `pkg`/`apt`, para
+  decidir qué agregar.
+
+### Compresión (medida)
+
+Los `.deb` ya vienen comprimidos, así que empaquetarlos en un `tar.xz` no ahorra nada (el archivo exterior sale del mismo
+tamaño que la suma de los paquetes). Lo que sí reduce bytes es **recomprimir el contenido de cada `.deb`**:
+`tools/rootfs/recompress_debs.py <origen> <destino>` reemplaza `data.tar.*` por un `data.tar.xz` con `xz -9e` (en paralelo).
+Resultado real con los 490 paquetes: **990,5 MB → 936,2 MB (-5,5 %)**; el ahorro varía mucho por paquete (0 % en los que ya
+venían al máximo, 20-37 % en otros, p. ej. `clamav` de 7,2 a 4,5 MB). El contenido instalado no cambia: se comprobó que el `tar` de
+archivos y el `control` de los 490 paquetes son idénticos (`sha256`) antes y después, y que `apt` sigue aceptando todos juntos
+(`simulate_apt_install.sh`). El recomprimido usa un diccionario mayor al por defecto, algo más de memoria al descomprimir.

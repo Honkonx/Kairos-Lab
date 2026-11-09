@@ -10,6 +10,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.MimeTypeMap
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -20,16 +24,14 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.tabs.TabLayout
 import com.termux.R
+import com.termux.app.util.ArchiveFormat
+import com.termux.app.util.ArchiveManager
 import com.termux.app.util.kairosThemeColor
 import com.termux.shared.termux.TermuxConstants
-import java.io.BufferedOutputStream
 import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 private val TEXT_EXTENSIONS = setOf(
     "txt", "md", "sh", "py", "js", "ts", "json", "xml", "kt", "java",
@@ -272,6 +274,8 @@ class FileManagerFragment : Fragment() {
                     toggleSelection(file)
                 } else if (file.isDirectory) {
                     navigateToDir(file)
+                } else if (ArchiveManager.kindFor(file) != null) {
+                    showArchiveContents(file)
                 } else if (isEditable(file)) {
                     navigateTo(EditorFragment.newInstance(file.absolutePath))
                 } else {
@@ -290,6 +294,9 @@ class FileManagerFragment : Fragment() {
     }
 
     private fun navigateTo(fragment: Fragment) {
+        // Defensa contra FLAG_SECURE pegado (ver com.termux.app.util.ScreenSecurity, bug real
+        // "sigue sin dejar tirar capture") -- mismo motivo que BaseModuleFragment.navigateTo().
+        activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         parentFragmentManager.beginTransaction()
             .replace(R.id.fragment_container, fragment)
             .addToBackStack(null)
@@ -434,7 +441,7 @@ class FileManagerFragment : Fragment() {
         }
     }
 
-    // Fix UX 2026-09-14: antes pasteInto() se ejecutaba directo, sin
+    // Fix UX 2026-09-14: antes pasteInto se ejecutaba directo, sin
     // confirmación — a diferencia de confirmDeleteBatch()/showDeleteConfirm() en este mismo
     // archivo, que sí usan AlertDialog antes de una acción con impacto real. Mismo patrón acá.
     private fun confirmPasteInto(targetDir: File) {
@@ -473,43 +480,158 @@ class FileManagerFragment : Fragment() {
     private fun compressBatch(files: List<File>) {
         if (files.isEmpty()) return
         val targetDir = currentDir
-        exitSelectionMode()
-        Thread {
-            val zipFile = File(targetDir, "archivos_${System.currentTimeMillis()}.zip")
-            try {
-                ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { zos ->
-                    for (f in files) addToZip(zos, f, f.name)
+        val formats = ArchiveFormat.values()
+        val formatNames = arrayOf(
+            getString(R.string.file_manager_archive_format_zip),
+            getString(R.string.file_manager_archive_format_7z),
+            getString(R.string.file_manager_archive_format_tar_zstd)
+        )
+        val nameEdit = EditText(requireContext()).apply {
+            hint = getString(R.string.file_manager_archive_name_hint)
+            setText("archivos_${System.currentTimeMillis()}")
+            setSingleLine(true)
+        }
+        val formatGroup = RadioGroup(requireContext()).apply { orientation = RadioGroup.VERTICAL }
+        formats.indices.forEach { index ->
+            formatGroup.addView(RadioButton(requireContext()).apply {
+                id = View.generateViewId()
+                tag = index
+                text = formatNames[index]
+                isChecked = index == 0
+            })
+        }
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(requireContext(), 20), dp(requireContext(), 8), dp(requireContext(), 20), dp(requireContext(), 0))
+            addView(nameEdit)
+            addView(formatGroup)
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.file_manager_archive_compress_title))
+            .setView(content)
+            .setPositiveButton(getString(R.string.file_manager_action_compress)) { _, _ ->
+                val baseName = nameEdit.text.toString().trim()
+                if (baseName.isBlank() || baseName == "." || baseName == ".." || baseName.contains('/') || baseName.contains('\\')) {
+                    toast(getString(R.string.file_manager_error_empty_name))
+                    return@setPositiveButton
                 }
+                val selected = formatGroup.findViewById<RadioButton>(formatGroup.checkedRadioButtonId)
+                    ?.tag as? Int ?: 0
+                val format = formats[selected]
+                val archive = File(targetDir, baseName + format.suffix)
+                exitSelectionMode()
+                Thread {
+                    try {
+                        ArchiveManager.compress(files, archive, format)
+                        if (!isAdded) return@Thread
+                        requireActivity().runOnUiThread {
+                            if (!isAdded) return@runOnUiThread
+                            refresh()
+                            toast(getString(R.string.file_manager_toast_compress_done, archive.name))
+                        }
+                    } catch (e: Exception) {
+                        if (!isAdded) return@Thread
+                        requireActivity().runOnUiThread {
+                            if (isAdded) toast(getString(R.string.file_manager_error_generic, e.message ?: getString(R.string.file_manager_error_compress_failed)))
+                        }
+                    }
+                }.start()
+            }
+            .setNegativeButton(getString(R.string.file_manager_btn_cancel), null)
+            .show()
+    }
+
+    private fun showArchiveContents(archive: File) {
+        Thread {
+            try {
+                val entries = ArchiveManager.list(archive)
                 if (!isAdded) return@Thread
                 requireActivity().runOnUiThread {
                     if (!isAdded) return@runOnUiThread
-                    refresh()
-                    toast(getString(R.string.file_manager_toast_compress_done, zipFile.name))
+                    val shown = entries.take(300)
+                    val summary = buildString {
+                        append(getString(R.string.file_manager_archive_entry_count, entries.size))
+                        append("\n\n")
+                        shown.forEach { entry ->
+                            append(if (entry.directory) "📁 " else "📄 ")
+                            append(entry.path)
+                            if (!entry.directory && entry.size >= 0) append("  ·  ").append(humanSize(entry.size))
+                            append('\n')
+                        }
+                        if (entries.size > shown.size) append("\n").append(getString(R.string.file_manager_archive_more_entries, entries.size - shown.size))
+                    }
+                    val body = TextView(requireContext()).apply {
+                        text = summary
+                        textSize = 13f
+                        setTextColor(requireContext().kairosThemeColor(R.attr.kairosText))
+                        setPadding(dp(requireContext(), 20), dp(requireContext(), 8), dp(requireContext(), 20), dp(requireContext(), 8))
+                    }
+                    val scroll = ScrollView(requireContext()).apply { addView(body) }
+                    AlertDialog.Builder(requireContext())
+                        .setTitle(archive.name)
+                        .setView(scroll)
+                        .setPositiveButton(getString(R.string.file_manager_archive_extract_here)) { _, _ -> extractArchive(archive, currentDir) }
+                        .setNeutralButton(getString(R.string.file_manager_archive_extract_to)) { _, _ -> showDestinationPicker(archive, currentDir) }
+                        .setNegativeButton(getString(R.string.file_manager_btn_cancel), null)
+                        .show()
                 }
             } catch (e: Exception) {
-                zipFile.delete()
                 if (!isAdded) return@Thread
                 requireActivity().runOnUiThread {
-                    if (isAdded) toast(getString(R.string.file_manager_error_compress_failed))
+                    if (isAdded) toast(getString(R.string.file_manager_error_generic, e.message ?: getString(R.string.file_manager_error_archive_read)))
                 }
             }
         }.start()
     }
 
-    private fun addToZip(zos: ZipOutputStream, file: File, entryName: String) {
-        if (file.isDirectory) {
-            val children = file.listFiles()
-            if (children.isNullOrEmpty()) {
-                zos.putNextEntry(ZipEntry("$entryName/"))
-                zos.closeEntry()
-                return
-            }
-            for (child in children) addToZip(zos, child, "$entryName/${child.name}")
-        } else {
-            zos.putNextEntry(ZipEntry(entryName))
-            file.inputStream().use { it.copyTo(zos) }
-            zos.closeEntry()
+    private fun showDestinationPicker(archive: File, directory: File) {
+        val root = currentRoot.canonicalFile
+        val current = directory.canonicalFile
+        if (current.path != root.path && !current.path.startsWith(root.path + File.separator)) {
+            toast(getString(R.string.file_manager_error_cannot_read_folder))
+            return
         }
+        val childDirs = current.listFiles()?.filter { it.isDirectory && !it.name.startsWith(".") }
+            ?.sortedBy { it.name.lowercase(Locale.getDefault()) } ?: emptyList()
+        val targets = mutableListOf<File>()
+        val labels = mutableListOf<String>()
+        val parent = current.parentFile?.canonicalFile
+        if (parent != null && (parent.path == root.path || parent.path.startsWith(root.path + File.separator))) {
+            targets.add(parent)
+            labels.add("..")
+        }
+        childDirs.forEach { child ->
+            val canonical = child.canonicalFile
+            if (canonical.path.startsWith(root.path + File.separator)) {
+                targets.add(canonical)
+                labels.add(child.name)
+            }
+        }
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.file_manager_archive_destination_title, current.path))
+            .setItems(labels.toTypedArray()) { _, which -> showDestinationPicker(archive, targets[which]) }
+            .setPositiveButton(getString(R.string.file_manager_archive_extract_here)) { _, _ -> extractArchive(archive, current) }
+            .setNegativeButton(getString(R.string.file_manager_btn_cancel), null)
+            .show()
+    }
+
+    private fun extractArchive(archive: File, destination: File) {
+        Thread {
+            try {
+                ArchiveManager.extractAll(archive, destination)
+                if (!isAdded) return@Thread
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+                    if (currentDir.canonicalPath == destination.canonicalPath) refresh()
+                    toast(getString(R.string.file_manager_archive_extracted, destination.name.ifEmpty { destination.path }))
+                }
+            } catch (e: Exception) {
+                if (!isAdded) return@Thread
+                requireActivity().runOnUiThread {
+                    if (isAdded) toast(getString(R.string.file_manager_error_generic, e.message ?: getString(R.string.file_manager_error_archive_extract)))
+                }
+            }
+        }.start()
     }
 
     // ── Menú de un solo archivo (copiar/cortar/renombrar/eliminar/abrir con/seleccionar) ──
@@ -523,7 +645,13 @@ class FileManagerFragment : Fragment() {
         val optRename = getString(R.string.file_manager_action_rename)
         val optDelete = getString(R.string.file_manager_action_delete)
         val options = mutableListOf(optSelect, optCopy, optCut, optRename, optDelete)
+        val archive = !file.isDirectory && ArchiveManager.kindFor(file) != null
         if (!file.isDirectory) options.add(1, optOpenWith)
+        if (archive) {
+            options.add(1, getString(R.string.file_manager_archive_view_contents))
+            options.add(2, getString(R.string.file_manager_archive_extract_here))
+            options.add(3, getString(R.string.file_manager_archive_extract_to))
+        }
         if (clipboardFiles.isNotEmpty()) options.add(0, optPaste)
         AlertDialog.Builder(requireContext())
             .setTitle(file.name)
@@ -532,6 +660,9 @@ class FileManagerFragment : Fragment() {
                     optPaste -> confirmPasteInto(currentDir)
                     optSelect -> toggleSelection(file)
                     optOpenWith -> openFileWithFallback(file)
+                    getString(R.string.file_manager_archive_view_contents) -> showArchiveContents(file)
+                    getString(R.string.file_manager_archive_extract_here) -> extractArchive(file, currentDir)
+                    getString(R.string.file_manager_archive_extract_to) -> showDestinationPicker(file, currentDir)
                     optCopy -> setClipboardBatch(listOf(file), cut = false)
                     optCut -> setClipboardBatch(listOf(file), cut = true)
                     optRename -> showRenameDialog(file)

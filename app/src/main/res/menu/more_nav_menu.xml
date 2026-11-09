@@ -1,35 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/nav_monitor"
-        android:icon="@drawable/ic_monitor"
-        android:title="Monitor"/>
-    <item
         android:id="@+id/nav_files"
         android:icon="@drawable/ic_files"
-        android:title="Archivos"/>
+        android:title="@string/nav_files"/>
     <item
         android:id="@+id/nav_tunnel"
         android:icon="@drawable/ic_tunnel"
-        android:title="Túnel"/>
+        android:title="@string/nav_tunnel"/>
     <item
         android:id="@+id/nav_nube"
         android:icon="@drawable/ic_cloud"
-        android:title="Nube"/>
+        android:title="@string/nav_nube"/>
     <item
         android:id="@+id/nav_plugins"
         android:icon="@drawable/ic_store"
-        android:title="Plugins"/>
+        android:title="@string/nav_plugins"/>
     <item
         android:id="@+id/nav_homelab"
         android:icon="@drawable/ic_homelab"
-        android:title="Homelab"/>
+        android:title="@string/nav_homelab"/>
     <item
-        android:id="@+id/nav_automations"
-        android:icon="@drawable/ic_automation"
-        android:title="Automatizaciones"/>
+        android:id="@+id/nav_agent"
+        android:icon="@drawable/ic_agent"
+        android:title="@string/nav_agent"/>
     <item
         android:id="@+id/nav_settings"
         android:icon="@drawable/ic_settings"
-        android:title="Config"/>
+        android:title="@string/nav_settings"/>
 </menu>

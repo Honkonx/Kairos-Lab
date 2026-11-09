@@ -1,34 +1,48 @@
-# yt-dlp
+# yt-dlp — Kairos Module
 
-**Kairos module** — no Fragment of its own, no switch, a pure CLI invoked by the user via the
-terminal, same pattern as `rclone`/`restic`.
+**Kairos module** — no Fragment of its own and no switch (`hasSwitch: false`), a pure CLI tool invoked
+by the user from the terminal (`terminalCommand: "yt-dlp"` in `modules.json`).
 
----
-
-**App:** Kairos (termux-app fork)
-**Script:** `modulos/yt-dlp.sh`
-**Category:** multimedia
-**`hasSwitch`:** `false` — no ON/OFF, no persistent background process
+> Checked against the real `termux-packages` index (`packages/python-yt-dlp/build.sh`,
+> regular package, no root) before writing the script.
 
 ---
 
-## 1. What it is
+**Script:** `modulos/yt-dlp.sh` (v1.0.0) — synchronized copy in
+`app/src/main/assets/scripts/yt-dlp.sh`.
+**Registry:** prefix `yt-dlp.*`
+**Port:** none (pure CLI, no background service).
 
-A video/audio downloader for YouTube and around 1800 other sites (an active fork of the classic
-youtube-dl). It installs as a simple CLI with no prior configuration — the user picks URL,
-format and destination folder on each download from the terminal.
+---
 
-## 2. Installation
+## 1. Overview
 
-Native Termux package, installed directly — a single ready-to-use binary.
+Video/audio downloader for YouTube and ~1800 more sites (active fork of youtube-dl). It installs
+as a simple CLI with no configuration — the user picks the URL/format/destination folder on each
+invocation from the terminal.
 
-## 3. Optional dependency: FFmpeg
+## 2. Package name peculiarity
 
-yt-dlp works without FFmpeg, but needs it for some conversions (extracting audio only, remuxing
-to another container, certain combined formats). Kairos already ships `ffmpeg` as its own
-module — installing it covers this optional dependency with nothing extra to configure.
+**The real apt package name is `python-yt-dlp`, NOT plain `yt-dlp`** — no package
+called `yt-dlp` exists in the `termux-packages` index. The resulting binary is indeed called
+`yt-dlp` (so `terminalCommand`/`check_cmd` use that name; only the argument to
+`pkg install`/`install_single_pkg()` uses the real package name). It was
+confirmed against `packages/python-yt-dlp/build.sh` (`TERMUX_PKG_PROVIDES='yt-dlp'`) before
+writing the script, not assumed from the upstream tool's name.
 
-## 4. Usage
+## 3. Installation
 
-The actual download (URL, format, destination folder) stays in the integrated terminal, with
-yt-dlp's standard syntax — it doesn't have its own screen inside Kairos yet.
+Native apt package installed through `install_single_pkg()` — `install_single_pkg "yt-dlp" "yt-dlp" python-yt-dlp`
+(id="yt-dlp", check_cmd="yt-dlp", real package="python-yt-dlp").
+
+## 4. Optional dependency: ffmpeg
+
+The real `python-yt-dlp` `build.sh` declares `TERMUX_PKG_RECOMMENDS="ffmpeg, yt-dlp-ejs"` — yt-dlp
+works without `ffmpeg` but needs it for remuxing/audio extraction and some formats. Kairos
+has its own `ffmpeg` module (category `multimedia`) that covers that optional dependency — the
+installation logic is not duplicated here, the relationship is only documented.
+
+## 5. Usage (stays in the terminal, by design of the upstream tool)
+
+The download itself (URL, format, destination folder) is inherently one command per download.
+No dedicated UI yet.

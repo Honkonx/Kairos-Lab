@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Redesigned Mini PC (2026-10-08): "Display" tab (X11 + VNC) and rows with a description. -->
+    <string name="entorno_tab_pantalla">Display</string>
+    <string name="entorno_seccion_vnc">VNC (OPTIONAL)</string>
+
+    <string name="entorno_row_desc_x11_entrar">Opens the viewer of the embedded X11 server</string>
+    <string name="entorno_row_desc_x11_config">Resolution, scale, orientation, fullscreen, PiP, extra keyboard and touch</string>
+    <string name="entorno_row_desc_x11_detener">Closes the server and any desktop running on top of it</string>
+
+    <string name="entorno_row_desc_vnc_instalar">Installs the VNC server (TigerVNC) from the Termux packages</string>
+    <string name="entorno_row_desc_vnc_iniciar">On :5901 with the script defaults (1920x1080, 24-bit, local only)</string>
+    <string name="entorno_row_desc_vnc_configurar">Resolution, orientation, quality and password</string>
+    <string name="entorno_row_desc_vnc_visor">Installs and starts VNC if needed and opens the Kairos viewer</string>
+    <string name="entorno_row_desc_vnc_detener">Stops the VNC server</string>
+
+    <string name="entorno_row_pulseaudio">PulseAudio</string>
+    <string name="entorno_row_desc_pulseaudio">Audio server for the desktop apps</string>
+    <string name="entorno_row_desc_gpu_diagnostico">Shows the backend that actually got loaded versus the configured method</string>
+    <string name="entorno_row_desc_gpu_benchmark">Measures FPS with glxgears</string>
+    <string name="entorno_row_desc_gpu_metodo">Choose how the GPU is accelerated on the desktop</string>
+    <string name="entorno_row_desc_recursos">Memory (RSS) of the active desktop session</string>
+    <string name="entorno_row_desc_script">Pick a startup script and edit it</string>
+</resources>

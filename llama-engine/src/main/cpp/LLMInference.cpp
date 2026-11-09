@@ -158,6 +158,15 @@ LLMInference::loadModel(const char *model_path, float minP, float temperature, f
         ctx_params.type_v = GGML_TYPE_Q8_0;
     }
     ctx_params.no_perf = true;
+    // Causa real del cierre de la app al abrir el Chat IA con Vulkan (2026-10-09): con
+    // n_outputs_max = 0 llama.cpp reserva como peor caso tantas salidas como el lote (512 por n_ubatch), y con
+    // el vocabulario de Gemma (262 144 palabras) eso son 512 x 262 144 x 4 bytes = 516 MiB de memoria anclada
+    // ("Vulkan_Host compute buffer") justo al crear el contexto. En un teléfono de 7,4 GB con otras apps abiertas
+    // el sistema declara mem-pressure-event y mata la app. El llama-server del módulo, con el mismo modelo y
+    // el mismo lote, reservaba 12 MiB porque fija este límite (tools/server/server-context.cpp). Este motor
+    // solo lee las probabilidades del ÚLTIMO token (llama_batch_get_one / logits_last), así que 1 basta.
+    // El campo existe en b10194 y en versiones posteriores.
+    ctx_params.n_outputs_max = 1;
     _ctx = llama_init_from_model(_model, ctx_params);
     if (!_ctx) {
         LOGe("llama_new_context_with_model() returned null");

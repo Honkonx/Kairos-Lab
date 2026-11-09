@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Rama/tag a compilar (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
+        description: 'Rama/tag a compilar (evita el bug real de: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
         required: false
         default: 'ide'
       rootfs_release_tag:

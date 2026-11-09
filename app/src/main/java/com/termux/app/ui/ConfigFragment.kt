@@ -27,7 +27,10 @@ import com.termux.app.util.BackupManager
 import com.termux.app.util.ConfigExportManager
 import com.termux.app.util.DiagnosticExportManager
 import com.termux.app.util.OverlayPermissionHelper
-import com.termux.app.util.TelegramNotifier
+import com.termux.app.util.PermissionsNotifier
+import com.termux.app.util.PhantomProcessKillerHelper
+import com.termux.app.util.ProgressDialogController
+import com.termux.app.util.startAdbPairingFlow
 import com.termux.app.util.setScreenSecure
 import com.termux.app.wizard.WizardActivity
 import com.termux.shared.termux.TermuxConstants
@@ -67,11 +70,19 @@ class ConfigFragment : Fragment() {
         setScreenSecure(false)
     }
 
+    // Bug real (2026-11-02, "sigue sin dejar tirar capture"): hide/show
+    // (así cambia de tab TermuxActivity) NO dispara onPause()/onResume() — una sola visita a
+    // Config dejaba FLAG_SECURE prendido para toda la app hasta que esta Activity entera
+    // pasara a background. onHiddenChanged() sí dispara con hide()/show().
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden) setScreenSecure(false) else if (isResumed) setScreenSecure(true)
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla guarda el
-        // token de bot de Telegram (tokenInput más abajo) — una vez guardado no se vuelve a
-        // mostrar en la UI, solo reemplazar/borrar.
+        // token de bot de Telegram (tokenInput más abajo) — ver .claude/rules/kairos-secrets-never-revealed.md.
         view.filterTouchesWhenObscured = true
         val prefs = requireContext().getSharedPreferences(PREFS_NAME, 0)
 
@@ -89,15 +100,21 @@ class ConfigFragment : Fragment() {
         val tabTerminal = view.findViewById<LinearLayout>(R.id.tab_terminal)
         val tabSistema = view.findViewById<LinearLayout>(R.id.tab_sistema)
         val tabMantenimiento = view.findViewById<LinearLayout>(R.id.tab_mantenimiento)
-        val tabNotificaciones = view.findViewById<LinearLayout>(R.id.tab_notificaciones)
-        val configTabs = listOf(tabGeneral, tabInterfaz, tabTerminal, tabSistema, tabMantenimiento, tabNotificaciones)
+        // Pestaña "Permisos" (2026-10-10, encargo explícito del usuario): estado + acción de
+        // root/ADB inalámbrico/Shizuku — ver setupPermissionsSection() más abajo. Ampliada
+        // 2026-10-30 con el diagnóstico (phantom killer/batería/root) que
+        // antes vivía en MonitorFragment.kt (pantalla eliminada, "pasan a config permisos").
+        // Notificaciones (Telegram) se mudó a la pantalla de Agente (ver KairosAgentFragment.kt,
+        // mismo) — esta pantalla deja de tener esa pestaña.
+        val tabPermisos = view.findViewById<LinearLayout>(R.id.tab_permisos)
+        val configTabs = listOf(tabGeneral, tabInterfaz, tabTerminal, tabSistema, tabMantenimiento, tabPermisos)
         val tabLayout = view.findViewById<TabLayout>(R.id.config_tab_layout).apply {
             addTab(newTab().setText(getString(R.string.config_tab_general)))
             addTab(newTab().setText(getString(R.string.config_tab_interfaz)))
             addTab(newTab().setText(getString(R.string.config_tab_terminal)))
             addTab(newTab().setText(getString(R.string.config_tab_sistema)))
             addTab(newTab().setText(getString(R.string.config_tab_mantenimiento)))
-            addTab(newTab().setText(getString(R.string.config_tab_notificaciones)))
+            addTab(newTab().setText(getString(R.string.config_tab_permisos)))
         }
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
@@ -111,7 +128,7 @@ class ConfigFragment : Fragment() {
 
         val generalContainer = view.findViewById<LinearLayout>(R.id.general_container)
         val interfazContainer = view.findViewById<LinearLayout>(R.id.interfaz_container)
-        // Selector de tema visual (2026-08-22, pedido explícito del
+        // Selector de tema visual (2026-08-22,, pedido explícito del
         // usuario: "no es eliminar la tematica/tema/estilo que tenemos es agregar una opcion
         // para cambiar el tema... dejar el que tenemos, añadir ese que te dije y tambien un
         // modo claro"). Recreate() es el único mecanismo real para que un cambio de
@@ -139,7 +156,7 @@ class ConfigFragment : Fragment() {
             prefs.edit().putBoolean("pref_auto_start", checked).apply()
             if (checked) toast(getString(R.string.config_toast_auto_start_on))
         }
-        // Bug real (2026-08-22, pedido explícito del usuario): esta fila
+        // Bug real (2026-08-22,, pedido explícito del usuario): esta fila
         // duplicaba (peor, más incompleta) lo que MonitorFragment.kt ya hace bien — Monitor
         // detecta el ESTADO real (PowerManager + setting global del phantom process killer),
         // cubre tanto batería como phantom killer, y ofrece 3 vías de fix (root/nmap-auto/
@@ -150,13 +167,13 @@ class ConfigFragment : Fragment() {
         // Misma acción que la pantalla opcional del wizard (RootfsInstaller/cmd_rootfs
         // sync) — acá se puede repetir cuando el usuario quiera, no solo en el primer
         // arranque. Pedido explícito del usuario: "esta opción también debe estar en
-        // el apk".
+        // el apk",.
         addClickableRow(generalContainer, getString(R.string.config_row_check_system_packages)) {
             runRootfsCheck()
         }
         // Chequeo de versión a nivel de MÓDULO individual (no del rootfs base) — pedido
         // explícito del usuario, complemento de "Comprobar paquetes del sistema" de arriba.
-        // 2026-08-14: "Verificar todas" — cubre npm + GitHub Releases + PyPI +
+        // 2026-08-14 ( C1): "Verificar todas" — cubre npm + GitHub Releases + PyPI +
         // claude + apt (antes solo npm), ver ModuleVersionChecker.kt. Solo informa (nada se
         // instala automáticamente); actualizar cada módulo lo sigue disparando el usuario
         // desde su propia pantalla con "Actualizar".
@@ -186,28 +203,28 @@ class ConfigFragment : Fragment() {
         // Quick Settings Tile. Ver QuickAccessPrefs.kt para el mecanismo completo.
         addQuickAccessSection(generalContainer)
 
-        // Bug real (2026-08-07): "Node proot"/"Python"/
+        // Bug real (2026-08-07,): "Node proot"/"Python"/
         // "Claude Code"/"Dashboard" quedaban en "—" para siempre — ningún código en este
         // archivo los volvía a tocar. "Dashboard" además referencia un módulo ya eliminado
-        // del stack por completo (el módulo "dashboard" fue eliminado del proyecto original
-        // termux-ai-stack), y Python/Claude Code duplican info que ya se muestra de verdad en
+        // del stack por completo (ver .claude/rules/scripts-rule.md: "dashboard ❌
+        // eliminado"), y Python/Claude Code duplican info que ya se muestra de verdad en
         // sus propias pantallas de módulo — se quitan en vez de fingir que son reales.
         // Sección TERMINAL — mejora de menor esfuerzo ya identificada (ver MEJORAS_PENDIENTES.md,
         // "Terminal sin personalizar por CLI", idea 2) para el pedido explícito del usuario
-        // "mejorar la terminal de los modulos" (2026-08-12): fzf y
+        // "mejorar la terminal de los modulos" (2026-08-12,): fzf y
         // zsh-autosuggestions son paquetes/plugin reales sin empaquetado custom, se ofrecen acá
         // como instalación opcional en vez de forzarlos en todos los módulos.
         val terminalContainer = view.findViewById<LinearLayout>(R.id.terminal_container)
         addClickableRow(terminalContainer, getString(R.string.config_row_install_fzf_zsh), R.drawable.ic_install) {
             installFzfZshAutosuggestions()
         }
-        // Segunda mejora de la terminal de módulos (2026-08-13): fijar nvim
+        // Segunda mejora de la terminal de módulos (2026-08-13,): fijar nvim
         // como editor por defecto (EDITOR + alias vim) — complementa el módulo IDE nuevo
         // (modulos/ide.sh, Neovim + NvChad) y aplica a todas las terminales nuevas.
         addClickableRow(terminalContainer, getString(R.string.config_row_set_nvim_editor)) {
             setNvimAsDefaultEditor()
         }
-        // Pedido explícito del usuario (2026-08-13): "facilitar
+        // Pedido explícito del usuario (2026-08-13,): "facilitar
         // los paquetes para usar teclado y mouse sea por otg o bluetooth" — Android ya soporta
         // teclado/mouse externo de forma nativa en cualquier vista con foco (incluida
         // TerminalView) sin ningún paquete/driver adicional; lo que faltaba era visibilidad de
@@ -260,7 +277,17 @@ class ConfigFragment : Fragment() {
             prefs.edit().putBoolean("pref_terminal_sessions_indicator", checked).apply()
         }
 
-        // Pedido explícito del usuario (2026-08-13): poder
+        // Hallazgo de seguridad real (auditoría referencia/terminal/, 2026-11-02):
+        // cualquier programa dentro de la terminal puede escribir el portapapeles del teléfono
+        // sin ninguna confirmación (OSC 52, TermuxTerminalSessionActivityClient.onCopyTextToClipboard).
+        // Default false (bloqueado) — no cambia el comportamiento de nadie que ya confiaba en
+        // OSC 52 para un caso real; quien lo necesite lo activa a propósito.
+        addToggleRow(terminalContainer, getString(R.string.config_row_osc52_clipboard),
+            prefs.getBoolean("pref_osc52_clipboard_enabled", false)) { checked ->
+            prefs.edit().putBoolean("pref_osc52_clipboard_enabled", checked).apply()
+        }
+
+        // Pedido explícito del usuario (2026-08-13,): poder
         // elegir entre el modo "adaptado" (barra de info + sidebar de acciones rápidas, el
         // default de Kairos para CLIs) y la terminal clásica de Termux (sesión normal, sin la
         // UI encima) — leído por TermuxActivity.openTerminalWithCommand() antes de decidir
@@ -351,7 +378,7 @@ class ConfigFragment : Fragment() {
         }
         rootInfoRow.addView(rootInfoValue)
         infoContainer.addView(rootInfoRow)
-        // Fix 2026-09-14: hasRoot() cacheaba un timeout como "false" para
+        // Fix 2026-09-14: hasRoot cacheaba un timeout como "false" para
         // siempre — si el primer chequeo coincidía con el diálogo del gestor de root sin
         // responder a tiempo, el usuario quedaba viendo "sin root" para siempre aunque después
         // otorgara el permiso. RootAccess.hasRoot() ya no cachea timeouts, pero acá además se
@@ -407,7 +434,7 @@ class ConfigFragment : Fragment() {
         view.findViewById<View>(R.id.btn_import_config).setOnClickListener { confirmPickImportConfig() }
         view.findViewById<View>(R.id.btn_export_diagnostics).setOnClickListener { confirmExportDiagnostics() }
         view.findViewById<View>(R.id.btn_reinstall).setOnClickListener { showReinstallDialog() }
-        // Pedido explícito del usuario (auditoría 2026-08-05):
+        // Pedido explícito del usuario (auditoría 2026-08-05,):
         // "en ningún tab o menú... sale para desinstalar módulos" — a diferencia de "Reinstalar
         // stack" (arriba, borra TODO), esto es por módulo individual.
         addClickableRow(generalContainer, getString(R.string.config_row_uninstall_module), R.drawable.ic_uninstall) { showUninstallModuleDialog() }
@@ -424,37 +451,63 @@ class ConfigFragment : Fragment() {
         // Pedido explícito del usuario: "la opcion de salir que
         // mate todos los servicios y luego cierre la app como si pusiera exit en la terminal" —
         // distinto de un botón genérico "cerrar app" (que el propio usuario descartó en la
-        // ronda anterior, por no ser algo que una app pueda lograr de forma
+        // ronda anterior,, por no ser algo que una app pueda lograr de forma
         // confiable desde adentro): esto SÍ detiene servicios reales primero.
         addClickableRow(generalContainer, getString(R.string.config_row_exit_app), R.drawable.ic_stop) { confirmExitApp() }
 
         setupUpdateSection(tabMantenimiento, prefs)
-        setupTelegramSection(tabNotificaciones, prefs)
+        setupPermissionsSection(tabPermisos)
+        setupDiagnosticsSection(tabPermisos)
     }
 
     // ────────────────────────────────────────────────────────────
-    // Notificaciones Telegram — pedido explícito del usuario (2026-08-13,
-    // plan en docs/mini-pc/PLAN_EXPANSION_HOMELAB_2026-08-13.md
-    // sección 4): ítem de mayor valor/menor esfuerzo de la auditoría de referencia/ciberseguridad/
-    // i-Haklab-master (patrón walkie-tg). Sección armada 100% en código (sin XML propio para el
-    // header+card, mismo criterio de siempre) — desde la reorganización en tabs (2026-09-03) vive
-    // en su propia pestaña "Notificaciones" (tab_notificaciones), pasada directo por parámetro
-    // en vez de navegar el árbol de vistas para encontrar el contenedor viejo.
+    // Permisos — encargo explícito del usuario (2026-10-10): pantalla propia dentro de
+    // Configuración con estado + acción para los 3 mecanismos REALES de privilegio que Kairos
+    // soporta (ver `.claude/rules/kairos-port-or-build-own.md`/límite duro del encargo: nunca un
+    // exploit/CVE, solo root ya presente, ADB inalámbrico, o Shizuku — los 3 que
+    // `PrivilegeProviders.kt` ya implementaba sin ninguna UI dedicada hasta ahora).
+    //
+    // El flujo guiado de 3 pasos para emparejar ADB inalámbrico que YA EXISTÍA en
+    // MonitorFragment.kt (showGuidedFixStep1/2, runGuidedFix) es ESPECÍFICO de desactivar el
+    // phantom process killer (corre una secuencia fija de `settings put`/`device_config` tras
+    // conectar) — no sirve para el propósito de esta pantalla, que es solo dejar disponible el
+    // proveedor `AdbLocalProvider` (pair+connect, sin tocar ningún setting). Mover ese código
+    // acá habría significado romper ese flujo (que sigue funcionando y no se tocó) para
+    // generalizarlo a dos propósitos distintos sin necesidad real. Decisión: NO mover ni
+    // duplicar la lógica de comandos — esta pantalla corre su propio pair+connect genérico (3
+    // líneas, `pkg install android-tools` + `adb pair` + `adb connect`) y verifica el resultado
+    // con el mismo `AdbLocalProvider.isAvailable()` que ya existía, en vez de reimplementar la
+    // detección. Sí se reusa `PhantomProcessKillerHelper.ensureDeveloperOptionsThen()`/
+    // `openDeveloperOptions()` (gate genérico de "¿Opciones de desarrollador activas?", no
+    // específico del phantom killer) para no duplicar ESE diálogo.
     // ────────────────────────────────────────────────────────────
 
-    private fun setupTelegramSection(outerContainer: LinearLayout, prefs: android.content.SharedPreferences) {
+    private fun setupPermissionsSection(outerContainer: LinearLayout) {
         val ctx = requireContext()
 
         val header = TextView(ctx).apply {
-            text = getString(R.string.config_telegram_header)
+            text = getString(R.string.config_permissions_header)
             textSize = 10f
             setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
             setTypeface(typeface, android.graphics.Typeface.BOLD)
             letterSpacing = 0.12f
             layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).also {
-                it.topMargin = dp(16); it.bottomMargin = dp(8); it.marginStart = dp(4)
+                it.bottomMargin = dp(8); it.marginStart = dp(4)
             }
         }
+        outerContainer.addView(header)
+
+        // Hallazgo real de docs/referencias/pc-movil/INVESTIGACION_KAIROS_COMO_SHIZUKU_PROPIO_2026-10-13.md
+        // Parte 5 punto 1: faltaba decir, de entrada, que Root/ADB YA le dan a Kairos privilegio
+        // elevado para sí mismo sin ninguna app externa -- un hallazgo de comunicación, no de código.
+        outerContainer.addView(TextView(ctx).apply {
+            text = getString(R.string.config_permissions_intro)
+            textSize = 11f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).also {
+                it.bottomMargin = dp(10); it.marginStart = dp(4); it.marginEnd = dp(4)
+            }
+        })
 
         val card = com.google.android.material.card.MaterialCardView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
@@ -465,157 +518,450 @@ class ConfigFragment : Fragment() {
             strokeWidth = dp(1)
             setContentPadding(0, 0, 0, 0)
         }
-        val cardBody = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(12), dp(14), dp(10))
-        }
+        val cardBody = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         card.addView(cardBody)
-
-        val tokenInput = EditText(ctx).apply {
-            hint = getString(R.string.config_telegram_hint_token)
-            setText(prefs.getString(TelegramNotifier.PREF_BOT_TOKEN, "") ?: "")
-            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
-            textSize = 13f
-        }
-        val chatIdInput = EditText(ctx).apply {
-            hint = getString(R.string.config_telegram_hint_chatid)
-            setText(prefs.getString(TelegramNotifier.PREF_CHAT_ID, "") ?: "")
-            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
-            textSize = 13f
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).also { it.topMargin = dp(6) }
-        }
-        cardBody.addView(tokenInput)
-        cardBody.addView(chatIdInput)
-
-        val testRow = TextView(ctx).apply {
-            text = getString(R.string.config_telegram_test_row)
-            textSize = 13f
-            setPadding(0, dp(12), 0, dp(2))
-            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
-            setOnClickListener {
-                testTelegramConfig(prefs, tokenInput.text.toString().trim(), chatIdInput.text.toString().trim())
-            }
-        }
-        cardBody.addView(testRow)
-
-        // Bot de Telegram entrante (TelegramBotService.kt, docs/modulos/TELEGRAM_BOT.md) —
-        // switch dedicado en la misma tarjeta, reusa token/chat id de arriba en vez de pedirlos
-        // de nuevo (el mismo chat id configurado es, a la vez, destino de notificaciones
-        // salientes y ÚNICO emisor autorizado a mandar comandos entrantes — ver whitelist
-        // fail-closed en TelegramBotService.isAuthorized()).
-        val botToggleRow = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).also { it.topMargin = dp(14) }
-        }
-        val botToggleLabel = TextView(ctx).apply {
-            text = getString(R.string.config_telegram_bot_toggle_label)
-            textSize = 13f
-            setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
-            layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
-        }
-        val botToggleSwitch = SwitchCompat(ctx).apply {
-            isChecked = prefs.getBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, false)
-        }
-        botToggleRow.addView(botToggleLabel)
-        botToggleRow.addView(botToggleSwitch)
-        cardBody.addView(botToggleRow)
-
-        val botStatusText = TextView(ctx).apply {
-            text = getString(
-                if (botToggleSwitch.isChecked) R.string.config_telegram_bot_status_on
-                else R.string.config_telegram_bot_status_off
-            )
-            textSize = 11f
-            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
-            setPadding(0, dp(2), 0, 0)
-        }
-        cardBody.addView(botStatusText)
-
-        // Guard de reentrancia: revertir botToggleSwitch.isChecked PROGRAMÁTICAMENTE desde
-        // dentro de su propio listener dispara el listener de nuevo (comportamiento estándar de
-        // CompoundButton) — sin este guard, el revert de la rama "faltan campos"/"no arrancó"
-        // hacía correr también la rama "else" (apagar) en la misma pasada, mostrando un segundo
-        // toast falso de "Bot detenido" encima del toast real del error.
-        var suppressBotToggleEvents = false
-        botToggleSwitch.setOnCheckedChangeListener { _, checked ->
-            if (suppressBotToggleEvents) return@setOnCheckedChangeListener
-            if (checked) {
-                val token = tokenInput.text.toString().trim()
-                val chatId = chatIdInput.text.toString().trim()
-                if (token.isBlank() || chatId.isBlank()) {
-                    toast(getString(R.string.config_toast_telegram_fill_fields))
-                    suppressBotToggleEvents = true
-                    botToggleSwitch.isChecked = false
-                    suppressBotToggleEvents = false
-                    return@setOnCheckedChangeListener
-                }
-                // Guarda al activar — mismo criterio que testTelegramConfig(): lo que queda en
-                // uso es exactamente lo que el usuario ve en pantalla en ese momento.
-                prefs.edit()
-                    .putString(TelegramNotifier.PREF_BOT_TOKEN, token)
-                    .putString(TelegramNotifier.PREF_CHAT_ID, chatId)
-                    .putBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, true)
-                    .apply()
-                val started = com.termux.app.TelegramBotService.start(ctx)
-                if (started) {
-                    botStatusText.text = getString(R.string.config_telegram_bot_status_on)
-                    toast(getString(R.string.config_toast_telegram_bot_started))
-                    // Batería agresiva por fabricante (Samsung/Xiaomi/MIUI/...) puede matar un
-                    // foreground service de larga duración tras horas en background — reusa el
-                    // helper ya existente (BatteryRestrictionHelper.kt, ronda 2026-08-01) en vez
-                    // de reinventar la lista de excepciones por fabricante.
-                    com.termux.app.util.BatteryRestrictionHelper.requestDisableBatteryRestrictions(requireActivity())
-                } else {
-                    // Fail-closed real: TelegramBotService.start() se niega a arrancar sin
-                    // token/chat id — no debería pasar acá (ya se validó arriba), pero si pasa
-                    // (ej. race guardando prefs) no se deja el switch prendido mintiendo el estado.
-                    suppressBotToggleEvents = true
-                    botToggleSwitch.isChecked = false
-                    suppressBotToggleEvents = false
-                    prefs.edit().putBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, false).apply()
-                    toast(getString(R.string.config_toast_telegram_fill_fields))
-                }
-            } else {
-                prefs.edit().putBoolean(com.termux.app.TelegramBotService.PREF_BOT_ENABLED, false).apply()
-                com.termux.app.TelegramBotService.stop(ctx)
-                botStatusText.text = getString(R.string.config_telegram_bot_status_off)
-                toast(getString(R.string.config_toast_telegram_bot_stopped))
-            }
-        }
-
-        // tab_notificaciones es un contenedor dedicado (sin spacer final que esquivar,
-        // a diferencia de antes de la reorganización en tabs) — se agrega directo al final.
-        outerContainer.addView(header)
         outerContainer.addView(card)
+
+        // Fila genérica (label + descripción de nivel + estado detectado + botón de acción).
+        // Devuelve el TextView de estado para que el caller lo actualice tras re-chequear.
+        fun permissionRow(label: String, levelDesc: String, actionLabel: String, onAction: () -> Unit): TextView {
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(10), dp(14), dp(10))
+            }
+            val textCol = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
+            }
+            textCol.addView(TextView(ctx).apply {
+                text = label
+                textSize = 13f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+            })
+            textCol.addView(TextView(ctx).apply {
+                text = levelDesc
+                textSize = 10f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+                setPadding(0, dp(1), 0, 0)
+            })
+            val stateText = TextView(ctx).apply {
+                text = getString(R.string.permissions_checking)
+                textSize = 11f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+                setPadding(0, dp(2), 0, 0)
+            }
+            textCol.addView(stateText)
+            row.addView(textCol)
+            row.addView(TextView(ctx).apply {
+                text = actionLabel
+                textSize = 12f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosBlue))
+                setPadding(dp(10), dp(6), dp(10), dp(6))
+                setOnClickListener { onAction() }
+            })
+            cardBody.addView(row)
+            return stateText
+        }
+
+        // Re-chequea UN proveedor en background y actualiza su fila — compartido por los 3,
+        // nunca bloquea el hilo de UI (PrivilegeProvider.isAvailable() corre un subproceso).
+        fun refreshRow(provider: com.termux.app.util.PrivilegeProvider, stateText: TextView, availableLabel: String, notAvailableLabel: String) {
+            stateText.text = getString(R.string.permissions_checking)
+            stateText.setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            Thread {
+                val available = try { provider.isAvailable() } catch (_: Exception) { false }
+                if (!isAdded) return@Thread
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+                    stateText.text = if (available) availableLabel else notAvailableLabel
+                    stateText.setTextColor(ctx.kairosThemeColor(if (available) R.attr.kairosGreen else R.attr.kairosAmber))
+                }
+            }.start()
+        }
+
+        val rootProvider = com.termux.app.util.RootProvider()
+        val adbProvider = com.termux.app.util.AdbLocalProvider()
+
+        // `lateinit var` (no `val`) a propósito: el botón "Reintentar"/"Emparejar" de cada fila
+        // necesita actualizar el propio TextView de estado de ESA fila, pero `permissionRow()`
+        // recién devuelve ese TextView DESPUÉS de construir la fila (que es cuando se registra
+        // el listener) — un `val` no se puede referenciar dentro de su propio inicializador en
+        // Kotlin, aunque sea dentro de un lambda que recién corre al tocar el botón; declarar el
+        // slot antes con `lateinit var` y asignarlo después rompe esa dependencia circular.
+        lateinit var rootStateText: TextView
+        lateinit var adbStateText: TextView
+
+        val rootRow = permissionRow(
+            getString(R.string.config_permission_root_label),
+            getString(R.string.config_permission_root_level),
+            getString(R.string.config_permission_retry)
+        ) { refreshRow(rootProvider, rootStateText, getString(R.string.config_permission_available), getString(R.string.config_permission_not_available)) }
+        rootStateText = rootRow
+        refreshRow(rootProvider, rootStateText, getString(R.string.config_permission_available), getString(R.string.config_permission_not_available))
+
+        addDivider(cardBody)
+
+        val adbRow = permissionRow(
+            getString(R.string.config_permission_adb_label),
+            getString(R.string.config_permission_adb_level),
+            getString(R.string.config_permission_pair)
+        ) {
+            startAdbPairingFlow(onPaired = {
+                refreshRow(adbProvider, adbStateText, getString(R.string.config_permission_available), getString(R.string.config_permission_not_available))
+            })
+        }
+        adbStateText = adbRow
+        refreshRow(adbProvider, adbStateText, getString(R.string.config_permission_available), getString(R.string.config_permission_not_available))
+
+        // Filas de Shizuku externo ("instalar Shizuku", "dar Shizuku a otras apps") y Dhizuku
+        // quitadas 2026-10-31 (ver orden explícita del usuario: "si necesita
+        // la aplicacion externas no nos sirve"). Root y ADB de arriba YA son el mecanismo real de
+        // Kairos para darse privilegio elevado a sí mismo sin ninguna app externa — ver
+        // `docs/arquitectura/PLAN_SHIZUKU_IA_HOMELAB_ADB_2026-10-31.md`.
+
+        // ADB por USB (Alcance A, 2026-10-31) — a diferencia del ADB inalámbrico de arriba, esto
+        // NO lo ejecuta el teléfono: un teléfono no puede ser host de ADB de sí mismo por cable
+        // (confirmado leyendo esta misma app, ver RemoteFragment/strings_remote.xml "el comando
+        // se corre EN LA PC"). Acá solo va el TUTORIAL — la activación real la hace el gateway de
+        // escritorio (`kairos-dashboard --usb-grant`, native/gateway/internal/adb/adb.go) una vez
+        // conectado el cable.
+        addClickableRow(outerContainer, getString(R.string.config_permission_usb_row)) { showUsbAdbTutorialDialog() }
+
+        addClickableRow(outerContainer, getString(R.string.config_permission_credits_row)) { showPermissionsCreditsDialog() }
     }
 
-    private fun testTelegramConfig(prefs: android.content.SharedPreferences, token: String, chatId: String) {
-        if (token.isBlank() || chatId.isBlank()) {
-            toast(getString(R.string.config_toast_telegram_fill_fields))
-            return
+    private fun showUsbAdbTutorialDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.config_permission_usb_dialog_title))
+            .setMessage(getString(R.string.config_permission_usb_dialog_message))
+            .setNeutralButton(getString(R.string.monitor_open_dev_options)) { _, _ ->
+                PhantomProcessKillerHelper.openDeveloperOptions(requireActivity())
+            }
+            .setPositiveButton(getString(R.string.config_btn_close), null)
+            .show()
+    }
+
+    // ────────────────────────────────────────────────────────────
+    // Diagnóstico (phantom process killer / optimización de batería / acceso root) — movido
+    // acá desde MonitorFragment.kt (2026-10-30,: "pasan a config permisos",
+    // pantalla Monitor eliminada). A diferencia del port literal del archivo viejo, esta versión
+    // reusa PhantomProcessKillerHelper directo (ya existía como la fuente real compartida con
+    // WizardPhantomProcessFragment — Monitor nunca le pasaba la lógica a mano, solo dibujaba el
+    // diálogo) en vez de copiar las ~250 líneas de UI de diálogos que tenía Monitor — mismo
+    // comportamiento, código más corto. Reusa los strings `monitor_diag_*`/`monitor_phantom_*`/
+    // `monitor_guided_*`/`monitor_autodetect_*` tal cual (genéricos, no específicos de pantalla).
+    // ────────────────────────────────────────────────────────────
+
+    private fun setupDiagnosticsSection(outerContainer: LinearLayout) {
+        val ctx = requireContext()
+
+        outerContainer.addView(TextView(ctx).apply {
+            text = getString(R.string.monitor_section_diagnostics)
+            textSize = 10f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            letterSpacing = 0.12f
+            layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).also {
+                it.topMargin = dp(16); it.bottomMargin = dp(8); it.marginStart = dp(4)
+            }
+        })
+
+        val card = com.google.android.material.card.MaterialCardView(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+            radius = dp(14).toFloat()
+            cardElevation = 0f
+            setCardBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg2))
+            strokeColor = ctx.kairosThemeColor(R.attr.kairosBorder)
+            strokeWidth = dp(1)
+            setContentPadding(0, 0, 0, 0)
         }
-        // Guarda al probar — así "Probar" confirma exactamente lo que va a quedar en uso
-        // (ModuleEventBridge.notify() lee estas mismas claves), en vez de un guardado separado
-        // que pueda desincronizarse de lo que el usuario ve en pantalla.
-        prefs.edit()
-            .putString(TelegramNotifier.PREF_BOT_TOKEN, token)
-            .putString(TelegramNotifier.PREF_CHAT_ID, chatId)
-            .apply()
-        toast(getString(R.string.config_toast_telegram_sending))
+        val cardBody = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        card.addView(cardBody)
+        outerContainer.addView(card)
+
+        var phantomFixedThisSession = false
+        var phantomActive = true
+        var batteryOptimized = true
+        var checked = false
+        var rootFullCount: Int? = null
+
+        lateinit var phantomStateText: TextView
+        lateinit var batteryStateText: TextView
+        lateinit var rootStateText: TextView
+
+        fun diagRow(label: String, actionLabel: String, onAction: () -> Unit): TextView {
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+            }
+            val textCol = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f)
+            }
+            textCol.addView(TextView(ctx).apply {
+                text = label; textSize = 13f; setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+            })
+            val stateText = TextView(ctx).apply {
+                text = getString(R.string.monitor_diag_checking_real_state)
+                textSize = 11f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+                setPadding(0, dp(2), 0, 0)
+            }
+            textCol.addView(stateText)
+            row.addView(textCol)
+            if (actionLabel.isNotBlank()) {
+                row.addView(TextView(ctx).apply {
+                    text = actionLabel
+                    textSize = 12f
+                    setTextColor(ctx.kairosThemeColor(R.attr.kairosBlue))
+                    setPadding(dp(10), dp(6), dp(10), dp(6))
+                    setOnClickListener { onAction() }
+                })
+            }
+            cardBody.addView(row)
+            return stateText
+        }
+
+        fun refreshDiagTexts() {
+            phantomStateText.text = if (phantomFixedThisSession) getString(R.string.monitor_diag_phantom_fixed)
+                else if (!checked) getString(R.string.monitor_diag_checking_real_state)
+                else if (!phantomActive) getString(R.string.monitor_diag_phantom_off)
+                else getString(R.string.monitor_diag_phantom_on)
+            phantomStateText.setTextColor(ctx.kairosThemeColor(
+                if (phantomFixedThisSession || (checked && !phantomActive)) R.attr.kairosGreen
+                else if (checked && phantomActive) R.attr.kairosAmber else R.attr.kairosText3
+            ))
+            batteryStateText.text = if (!checked) getString(R.string.monitor_diag_checking_real_state)
+                else if (!batteryOptimized) getString(R.string.monitor_diag_battery_off)
+                else getString(R.string.monitor_diag_battery_on)
+            batteryStateText.setTextColor(ctx.kairosThemeColor(
+                if (!checked) R.attr.kairosText3 else if (!batteryOptimized) R.attr.kairosGreen else R.attr.kairosAmber
+            ))
+            rootStateText.text = if (!checked) getString(R.string.monitor_diag_checking)
+                else if (rootFullCount == null) getString(R.string.monitor_diag_root_not_detected)
+                else getString(R.string.monitor_diag_root_detected, rootFullCount ?: 0, "?")
+            rootStateText.setTextColor(ctx.kairosThemeColor(if (checked && rootFullCount != null) R.attr.kairosGreen else R.attr.kairosText3))
+        }
+
+        fun ensureDevOptionsThen(onReady: () -> Unit) = PhantomProcessKillerHelper.ensureDeveloperOptionsThen(requireActivity(), onReady)
+
+        fun runGuidedFix(pairingPort: String, code: String, connectPort: String) {
+            val progress = ProgressDialogController(ctx)
+            progress.show(getString(R.string.monitor_guided_step3_title), getString(R.string.monitor_running_adb))
+            val log = StringBuilder()
+            PhantomProcessKillerHelper.runFix(pairingPort, code, connectPort,
+                onOutput = { line -> log.append(line).append('\n'); if (isAdded) requireActivity().runOnUiThread { if (isAdded) progress.update(line) } },
+                onDone = { success ->
+                    if (!isAdded) return@runFix
+                    requireActivity().runOnUiThread {
+                        if (!isAdded) return@runOnUiThread
+                        if (success) { phantomFixedThisSession = true; progress.success(getString(R.string.monitor_phantom_fix_success), log.toString()); refreshDiagTexts() }
+                        else progress.failure(getString(R.string.monitor_phantom_fix_fail), log.toString())
+                    }
+                })
+        }
+
+        fun showGuidedFixStep2() {
+            val pairingPortInput = EditText(ctx).apply { hint = getString(R.string.monitor_hint_pairing_port); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setTextColor(ctx.kairosThemeColor(R.attr.kairosText)) }
+            val codeInput = EditText(ctx).apply { hint = getString(R.string.monitor_hint_code); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setTextColor(ctx.kairosThemeColor(R.attr.kairosText)) }
+            val connectPortInput = EditText(ctx).apply { hint = getString(R.string.monitor_hint_connect_port); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setTextColor(ctx.kairosThemeColor(R.attr.kairosText)) }
+            val container = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(8), dp(20), dp(0))
+                addView(TextView(ctx).apply { text = getString(R.string.monitor_guided_step2_message); textSize = 12f; setTextColor(ctx.kairosThemeColor(R.attr.kairosText3)); setPadding(0, 0, 0, dp(12)) })
+                addView(pairingPortInput); addView(codeInput); addView(connectPortInput)
+            }
+            AlertDialog.Builder(ctx)
+                .setTitle(getString(R.string.monitor_guided_step2_title))
+                .setView(container)
+                .setNegativeButton(getString(R.string.monitor_action_cancel), null)
+                .setPositiveButton(getString(R.string.monitor_apply_fix)) { _, _ ->
+                    val p = pairingPortInput.text.toString().trim(); val c = codeInput.text.toString().trim(); val cp = connectPortInput.text.toString().trim()
+                    val digits = Regex("^\\d+$")
+                    if (!digits.matches(p) || !digits.matches(c) || !digits.matches(cp)) { toast(getString(R.string.monitor_fill_3_fields)); return@setPositiveButton }
+                    runGuidedFix(p, c, cp)
+                }.show()
+        }
+
+        fun startGuidedFix() = ensureDevOptionsThen {
+            AlertDialog.Builder(ctx)
+                .setTitle(getString(R.string.monitor_guided_step1_title))
+                .setMessage(getString(R.string.monitor_guided_step1_message))
+                .setNeutralButton(getString(R.string.monitor_open_dev_options)) { _, _ -> PhantomProcessKillerHelper.openDeveloperOptions(requireActivity()) }
+                .setNegativeButton(getString(R.string.monitor_action_cancel), null)
+                .setPositiveButton(getString(R.string.monitor_continue)) { _, _ -> showGuidedFixStep2() }
+                .show()
+        }
+
+        fun runAutoDetectFixFlow(pairingPort: String, code: String) {
+            val progress = ProgressDialogController(ctx)
+            progress.show(getString(R.string.monitor_autodetect_step3_title), getString(R.string.monitor_running_adb))
+            val log = StringBuilder()
+            PhantomProcessKillerHelper.runAutoDetectFix(pairingPort, code,
+                onOutput = { line -> log.append(line).append('\n'); if (isAdded) requireActivity().runOnUiThread { if (isAdded) progress.update(line) } },
+                onDone = { success ->
+                    if (!isAdded) return@runAutoDetectFix
+                    requireActivity().runOnUiThread {
+                        if (!isAdded) return@runOnUiThread
+                        if (success) { phantomFixedThisSession = true; progress.success(getString(R.string.monitor_phantom_fix_success), log.toString()); refreshDiagTexts() }
+                        else progress.failure(getString(R.string.monitor_phantom_fix_fail), log.toString())
+                    }
+                })
+        }
+
+        fun showAutoDetectStep2() {
+            val pairingPortInput = EditText(ctx).apply { hint = getString(R.string.monitor_hint_pairing_port); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setTextColor(ctx.kairosThemeColor(R.attr.kairosText)) }
+            val codeInput = EditText(ctx).apply { hint = getString(R.string.monitor_hint_code); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setTextColor(ctx.kairosThemeColor(R.attr.kairosText)) }
+            val container = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(8), dp(20), dp(0))
+                addView(TextView(ctx).apply { text = getString(R.string.monitor_autodetect_step2_message); textSize = 12f; setTextColor(ctx.kairosThemeColor(R.attr.kairosText3)); setPadding(0, 0, 0, dp(12)) })
+                addView(pairingPortInput); addView(codeInput)
+            }
+            AlertDialog.Builder(ctx)
+                .setTitle(getString(R.string.monitor_guided_step2_title))
+                .setView(container)
+                .setNegativeButton(getString(R.string.monitor_action_cancel), null)
+                .setPositiveButton(getString(R.string.monitor_apply_fix)) { _, _ ->
+                    val p = pairingPortInput.text.toString().trim(); val c = codeInput.text.toString().trim()
+                    val digits = Regex("^\\d+$")
+                    if (!digits.matches(p) || !digits.matches(c)) { toast(getString(R.string.monitor_fill_2_fields)); return@setPositiveButton }
+                    runAutoDetectFixFlow(p, c)
+                }.show()
+        }
+
+        fun startAutoDetectFix() {
+            if (PhantomProcessKillerHelper.isNmapAvailable()) { ensureDevOptionsThen { showAutoDetectStep1Then { showAutoDetectStep2() } }; return }
+            val progress = ProgressDialogController(ctx)
+            progress.show(getString(R.string.monitor_autodetect_preparing_title), getString(R.string.monitor_autodetect_preparing_message))
+            Thread {
+                val ok = PhantomProcessKillerHelper.installNmap { line -> if (isAdded) requireActivity().runOnUiThread { if (isAdded) progress.update(line) } }
+                if (!isAdded) return@Thread
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+                    if (ok) { progress.dismiss(); ensureDevOptionsThen { showAutoDetectStep1Then { showAutoDetectStep2() } } }
+                    else progress.failure(getString(R.string.monitor_nmap_install_fail_title), getString(R.string.monitor_nmap_install_fail_detail))
+                }
+            }.start()
+        }
+
+        fun showManualTutorial() = PhantomProcessKillerHelper.showManualTutorialDialog(requireActivity())
+
+        fun showFixOptionsDialog(rootErrorDetail: String) {
+            lateinit var dialog: AlertDialog
+            fun optionRow(title: String, subtitle: String, onClick: () -> Unit): View = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                isClickable = true; isFocusable = true
+                val outValue = android.util.TypedValue()
+                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                if (outValue.resourceId != 0) setBackgroundResource(outValue.resourceId)
+                setPadding(dp(4), dp(12), dp(4), dp(12))
+                addView(TextView(ctx).apply { text = title; textSize = 14f; setTextColor(ctx.kairosThemeColor(R.attr.kairosBlue)) })
+                addView(TextView(ctx).apply { text = subtitle; textSize = 11f; setTextColor(ctx.kairosThemeColor(R.attr.kairosText3)); setPadding(0, dp(2), 0, 0) })
+                setOnClickListener { onClick() }
+            }
+            val content = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(20), dp(4), dp(20), dp(4))
+                addView(TextView(ctx).apply {
+                    text = getString(R.string.monitor_phantom_dialog_no_root) + (if (rootErrorDetail.isNotBlank()) getString(R.string.monitor_phantom_dialog_detail_suffix, rootErrorDetail) else "")
+                    textSize = 13f; setTextColor(ctx.kairosThemeColor(R.attr.kairosText2)); setPadding(0, 0, 0, dp(14))
+                })
+                addView(optionRow(getString(R.string.monitor_phantom_option_auto_title), getString(R.string.monitor_phantom_option_auto_subtitle)) { dialog.dismiss(); startGuidedFix() })
+                addView(optionRow(getString(R.string.monitor_phantom_option_beta_title), getString(R.string.monitor_phantom_option_beta_subtitle)) { dialog.dismiss(); startAutoDetectFix() })
+                addView(optionRow(getString(R.string.monitor_phantom_option_manual_title), getString(R.string.monitor_phantom_option_manual_subtitle)) { dialog.dismiss(); showManualTutorial() })
+            }
+            dialog = AlertDialog.Builder(ctx).setTitle(getString(R.string.monitor_phantom_dialog_title_no_root)).setView(content)
+                .setNegativeButton(getString(R.string.monitor_action_close), null).create()
+            dialog.show()
+        }
+
+        fun disablePhantomKiller() {
+            Thread {
+                val (ok, detail) = try {
+                    val pb = ProcessBuilder("su", "-c", "settings put global ${PhantomProcessKillerHelper.PHANTOM_SETTING_KEY} false")
+                    val process = pb.start()
+                    val out = process.inputStream.bufferedReader().readText()
+                    val err = process.errorStream.bufferedReader().readText()
+                    val success = process.waitFor() == 0
+                    success to (if (success) "" else err.ifBlank { out })
+                } catch (e: Exception) { false to (e.message ?: "sin acceso root") }
+                if (!isAdded) return@Thread
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+                    if (ok) { phantomFixedThisSession = true; toast(getString(R.string.monitor_phantom_root_success)); refreshDiagTexts() }
+                    else showFixOptionsDialog(detail)
+                }
+            }.start()
+        }
+
+        phantomStateText = diagRow(getString(R.string.monitor_diag_phantom_label), getString(R.string.monitor_diag_disable)) { disablePhantomKiller() }
+        batteryStateText = diagRow(getString(R.string.monitor_diag_battery_label), getString(R.string.monitor_diag_disable)) {
+            (activity as? android.app.Activity)?.let { com.termux.app.util.BatteryRestrictionHelper.requestDisableBatteryRestrictions(it) }
+        }
+        rootStateText = diagRow(getString(R.string.monitor_diag_root_label), "") {}
+
+        // Detección real en segundo plano — misma lógica que tenía MonitorFragment.detectSystemRestrictions().
         Thread {
-            val result = TelegramNotifier.sendMessageDetailed(
-                token, chatId, getString(R.string.config_telegram_test_message)
-            )
+            val phantomOn = try {
+                val pb = ProcessBuilder("settings", "get", "global", PhantomProcessKillerHelper.PHANTOM_SETTING_KEY)
+                pb.redirectErrorStream(true)
+                val p = pb.start()
+                val out = p.inputStream.bufferedReader().readText().trim()
+                p.waitFor()
+                out == "1" || out == "null" || out.isEmpty()
+            } catch (_: Exception) { true }
+            val batteryOn = try {
+                val pm = ctx.getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
+                if (pm == null) true else !pm.isIgnoringBatteryOptimizations(ctx.packageName)
+            } catch (_: Exception) { true }
+            val fullProcCount = if (com.termux.app.util.RootAccess.hasRoot()) {
+                val r = com.termux.app.util.RootAccess.runAsRoot("ps -A")
+                if (r.ok) r.stdout.lines().filter { it.isNotBlank() }.size.let { (it - 1).coerceAtLeast(0) } else null
+            } else null
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
-                if (result.ok) {
-                    resultSnackbar(getString(R.string.config_snackbar_telegram_sent))
-                } else {
-                    resultSnackbar(getString(R.string.config_snackbar_telegram_error, result.error ?: getString(R.string.config_unknown)))
-                }
+                if (!isAdded) return@runOnUiThread
+                phantomActive = phantomOn; batteryOptimized = batteryOn; checked = true; rootFullCount = fullProcCount
+                refreshDiagTexts()
             }
         }.start()
+    }
+
+    // showAutoDetectStep1Then: wrapper fino sobre el diálogo "Paso 1" de la vía beta (mismo
+    // mensaje que la vía guiada normal, reusa monitor_autodetect_step1_*) — separado para no
+    // duplicar el AlertDialog.Builder en startAutoDetectFix().
+    private fun showAutoDetectStep1Then(onContinue: () -> Unit) {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.monitor_autodetect_step1_title))
+            .setMessage(getString(R.string.monitor_autodetect_step1_message))
+            .setNeutralButton(getString(R.string.monitor_open_dev_options)) { _, _ -> PhantomProcessKillerHelper.openDeveloperOptions(requireActivity()) }
+            .setNegativeButton(getString(R.string.monitor_action_cancel), null)
+            .setPositiveButton(getString(R.string.monitor_continue)) { _, _ -> onContinue() }
+            .show()
+    }
+
+    // (ADB) Diálogo guiado de 2 pasos + ventana flotante -- extraído a AdbPairingDialogFlow.kt
+    // ( lote 27) para que WizardPermissionsFragment ofrezca el mismo flujo durante el
+    // wizard, no solo acá. startAdbPairingFlow() de acá es la función de extensión importada.
+
+    // Créditos — límite duro del encargo (nunca un exploit/CVE): los mecanismos de esta
+    // pantalla son root ya presente, ADB inalámbrico (ya documentado en PhantomProcessKillerHelper),
+    // y Shizuku — ningún código de este archivo se copió de los repos de referencia (son
+    // crédito por INSPIRACIÓN de qué proveedor ofrecer, no por código adoptado literal; el
+    // propio `ShizukuRishProvider`/`AdbLocalProvider` de `PrivilegeProviders.kt` ya existían
+    // antes de este encargo). Licencias verificadas leyendo el LICENSE real de cada carpeta en
+    // `referencia/ver/` (2026-10-10) — `termux-shizuku-tools` no tiene un archivo LICENSE en el
+    // clon local (su README linkea a LICENCE.md, no presente), así que no se afirma una licencia
+    // para ese uno.
+    private fun showPermissionsCreditsDialog() {
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.config_permission_credits_title))
+            .setMessage(getString(R.string.config_permission_credits_message))
+            .setPositiveButton(getString(R.string.config_btn_close), null)
+            .show()
     }
 
     private fun confirmExitApp() {
@@ -658,7 +1004,7 @@ class ConfigFragment : Fragment() {
     // Resultados importantes (backup/restore/desinstalar/config) usan Snackbar, no Toast —
     // pulido visual 2026-08-25 (docs/estructura/ESTILO_VISUAL_2026-08-25.md), mismo patrón ya
     // establecido en PluginsFragment.kt. Guard de isAdded: puede llamarse desde un callback de
-    // background thread después de que el Fragment ya se desadjuntó (patrón estándar del proyecto).
+    // background thread después de que el Fragment ya se desadjuntó (kotlin-kairos-android-patterns.md).
     private fun resultSnackbar(msg: String) {
         if (!isAdded) return
         Snackbar.make(requireView(), msg, Snackbar.LENGTH_LONG).show()
@@ -713,7 +1059,7 @@ class ConfigFragment : Fragment() {
         }.start()
     }
 
-    // Editor por defecto = nvim (pedido 2026-08-13). Escribe en ~/.bashrc
+    // Editor por defecto = nvim (pedido 2026-08-13,). Escribe en ~/.bashrc
     // (idempotente: grep antes de agregar) y aplica a las terminales nuevas. Si nvim no está
     // instalado, avisa y sugiere el módulo IDE (modulos/ide.sh).
     private fun showExternalInputGuide() {
@@ -759,7 +1105,7 @@ class ConfigFragment : Fragment() {
     // ────────────────────────────────────────────────────────────
 
     // Migrado a ProgressDialogController (quick win de la auditoría de referencia/,
-    // 2026-08-05 — "extenderlo más allá de Entorno") — antes era un
+    // 2026-08-05, ver — "extenderlo más allá de Entorno") — antes era un
     // AlertDialog+ProgressBar armado a mano que solo mostraba el resultado final en un Toast
     // que desaparece solo; ahora el resultado queda visible en el propio diálogo.
     private fun runRootfsCheck() {
@@ -801,7 +1147,7 @@ class ConfigFragment : Fragment() {
         val ctx = requireContext()
         val progress = com.termux.app.util.ProgressDialogController(ctx)
         val checker = com.termux.app.util.ModuleVersionChecker
-        // Ronda 2026-08-14: antes solo cubría npm. Ahora el chequeo cubre
+        // Ronda 2026-08-14 ( C1): antes solo cubría npm. Ahora el chequeo cubre
         // todas las fuentes (npm + GitHub Releases + PyPI + claude + apt) — ver
         // ModuleVersionChecker.kt cabecera para la lista por mecanismo.
         progress.show(getString(R.string.config_progress_module_updates_title), getString(R.string.config_progress_querying_modules, checker.supportedModuleIds().size))
@@ -1186,7 +1532,7 @@ class ConfigFragment : Fragment() {
     }
 
     // Fila "🎨 Tema" con selector inline (PopupMenu, aplica al toque) — reemplaza el
-    // AlertDialog.setSingleChoiceItems()+"Aplicar" anterior (2026-08-22, pedido
+    // AlertDialog.setSingleChoiceItems+"Aplicar" anterior (2026-08-22, pedido
     // explícito del usuario: "el boton de tema [...] deberia ser una casilla al tocar salir las
     // demas opciones y al tocar cambiar asi bonito estetico como las apk modernas"). Componente
     // compartido con StudioFragment (ver com.termux.app.ui.widget.InlineThemePicker) — "un solo
@@ -1333,8 +1679,8 @@ class ConfigFragment : Fragment() {
     }
 
     // ────────────────────────────────────────────────────────────
-    // Log Kairos — log interno transversal de la app (ver com.termux.app.util.KairosLogger).
-    // Distinto del log de instalación por módulo (~/kairos_logs/
+    // Log Kairos — log interno transversal de la app (ver com.termux.app.util.KairosLogger,
+    //). Distinto del log de instalación por módulo (~/kairos_logs/
     // install_<modulo>.log, ModuleController.installLogFile()), que ya existe y no se toca acá.
     // ────────────────────────────────────────────────────────────
 

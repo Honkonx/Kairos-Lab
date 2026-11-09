@@ -49,7 +49,7 @@ object ModuleInstalled {
         "remote" to "sshd",
         "db" to "mariadbd",
         // claude.sh (método "native"): wrapper real SOLO en $HOME/.local/bin/claude —
-        // corregido 2026-08-21 — la afirmación vieja de que también
+        // corregido 2026-08-21, la afirmación vieja de que también
         // había uno en $TERMUX_PREFIX/bin/claude era falsa (confirmado por ADB en dispositivo
         // real: ese archivo no existe). El fix real vive en applyTermuxEnv()
         // (ProcessBuilderExt.kt), que ahora agrega $HOME/.local/bin al PATH usado acá.
@@ -80,7 +80,6 @@ object ModuleInstalled {
         "copilotcli" to "copilot",
         "minimaxcli" to "mmx",
         "mimocode" to "mimo",
-        "mistralvibe" to "vibe",
         "qwencode" to "qwen",
         // ciberseguridad.sh: nmap es el primero de los 3 binarios que confirma el script
         // (`command -v nmap && command -v theHarvester && command -v sqlmap`) — representativo
@@ -186,7 +185,7 @@ object ModuleInstalled {
         "repo" to "repo",
         "pi" to "pi",
         "codegraph" to "codegraph",
-        // git.sh (2026-09-08, módulo nuevo extraído de expo.sh): instala
+        // git.sh (2026-09-08, módulo nuevo extraído de expo.sh —): instala
         // git + gh vía install_single_pkg(), `command -v git` coincide con el moduleId por
         // coincidencia — entrada explícita por prolijidad, mismo criterio que "kimi"/"kilo"/"hf"
         // de arriba (documentado para no depender silenciosamente de esa coincidencia).
@@ -232,7 +231,6 @@ object ModuleInstalled {
         "copilotcli" to LiveCheck.PATH_BINARY,
         "minimaxcli" to LiveCheck.PATH_BINARY,
         "mimocode" to LiveCheck.PATH_BINARY,
-        "mistralvibe" to LiveCheck.PATH_BINARY,
         "qwencode" to LiveCheck.PATH_BINARY,
         "ciberseguridad" to LiveCheck.PATH_BINARY,
         "db" to LiveCheck.PATH_BINARY,
@@ -244,7 +242,7 @@ object ModuleInstalled {
         "cursor" to LiveCheck.PATH_BINARY,
         "hf" to LiveCheck.PATH_BINARY,
         // "udocker" to LiveCheck.PATH_BINARY — revertido junto con BINARY_FALLBACK arriba,
-        // mismo motivo real (ver comentario en BINARY_FALLBACK).
+        // mismo motivo real.
         "entorno" to LiveCheck.DPKG_PACKAGE,
         "stacks" to LiveCheck.DPKG_PACKAGE,
         "ide" to LiveCheck.DIRECTORY,
@@ -309,7 +307,16 @@ object ModuleInstalled {
     // niveles que llega a liveIsInstalled(), así que solo la Tienda quedaba con el falso
     // positivo — de ahí el desfasaje exacto reportado. Confirmado en el dispositivo del
     // usuario: ~/.android_server_registry sin ninguna clave "udocker.*".
-    private val LIVE_CHECK_DISABLED = setOf("udocker")
+    //
+    // "stacks" (2026-10-09, reporte del usuario "Entornos de Prueba sale instalado pero
+    // en la pantalla principal no está"): su chequeo en vivo miraba el paquete dpkg "proot-distro", que es
+    // un paquete BASE (lo trae el rootfs y el módulo Entorno), no algo que Stacks instale. Verificado en el
+    // dispositivo: dpkg tenía proot-distro 5.9.0 y ~/.android_server_registry no tenía ninguna clave
+    // "stacks.*" (nunca se instaló un preset). Stacks escribe `stacks.installed=true` en modulos/stacks.sh
+    // al instalar, así que el registry basta y el chequeo en vivo solo producía el falso positivo.
+    // Nota: "entorno" usa el mismo paquete como blanco y tiene el mismo riesgo; no se tocó porque su
+    // registry sí estaba bien en el dispositivo (entorno.installed=true).
+    private val LIVE_CHECK_DISABLED = setOf("udocker", "stacks")
 
     /**
      * Versión robusta: registry O binario (isInstalled, cache 30s) y, si ambos fallan,

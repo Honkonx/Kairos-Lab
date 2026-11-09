@@ -29,6 +29,40 @@ class LlamaEngine {
 
     @Volatile private var nativePtr = 0L
 
+    /**
+     * Serializa TODAS las llamadas al objeto nativo (un paso de generación a la vez) y hace que [close] espere
+     * a que termine el paso en curso antes de liberar la memoria.
+     *
+     * Causa real del cierre de la app al usar el Chat IA (captura del dispositivo, 2026-10-09,
+     *): SIGSEGV en ggml_compute_forward_glu dentro de completionLoop porque el hilo principal
+     * (ChatFragment.onDestroyView -> close()) liberaba el contexto mientras el hilo de generación seguía dentro
+     * de llama_decode. interrupt() de Java no detiene código nativo, así que cancelar "antes de cerrar" no
+     * bastaba. Los callbacks de token (onToken) se llaman FUERA del candado, para no bloquear la UI ni a close().
+     */
+    private val nativeLock = java.util.concurrent.locks.ReentrantLock()
+    private val closing = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private inline fun <T> withHandle(block: (Long) -> T): T {
+        nativeLock.lock()
+        try {
+            verifyHandle()
+            return block(nativePtr)
+        } finally {
+            nativeLock.unlock()
+        }
+    }
+
+    /** Un paso de generación bajo el candado; null si el motor ya se cerró. */
+    private fun completionStep(): String? {
+        nativeLock.lock()
+        try {
+            val ptr = nativePtr
+            return if (ptr == 0L) null else completionLoop(ptr)
+        } finally {
+            nativeLock.unlock()
+        }
+    }
+
     data class InferenceParams(
         val minP: Float = 0.1f,
         val temperature: Float = 0.7f,
@@ -66,6 +100,7 @@ class LlamaEngine {
         val modelContextSize = ggufReader.getContextSize() ?: DefaultParams.CONTEXT_SIZE
         val modelChatTemplate = ggufReader.getChatTemplate() ?: DefaultParams.CHAT_TEMPLATE
         ggufReader.close()
+        closing.set(false)
         nativePtr = loadModel(
             modelPath,
             params.minP,
@@ -106,25 +141,23 @@ class LlamaEngine {
 
     /** Agrega un mensaje con un rol específico — necesario para modelos como Gemma que usan "model" en vez de "assistant". */
     fun addChatMessage(role: String, message: String) {
-        verifyHandle()
-        addChatMessage(nativePtr, message, role)
+        withHandle { ptr -> addChatMessage(ptr, message, role) }
     }
 
     fun addUserMessage(message: String) = addChatMessage("user", message)
     fun addSystemPrompt(prompt: String) = addChatMessage("system", prompt)
     fun addAssistantMessage(message: String) = addChatMessage("assistant", message)
 
-    fun getResponseGenerationSpeed(): Float {
-        verifyHandle()
-        return getResponseGenerationSpeed(nativePtr)
-    }
+    fun getResponseGenerationSpeed(): Float = withHandle { ptr -> getResponseGenerationSpeed(ptr) }
 
-    fun getContextLengthUsed(): Int {
-        verifyHandle()
-        return getContextSizeUsed(nativePtr)
-    }
+    fun getContextLengthUsed(): Int = withHandle { ptr -> getContextSizeUsed(ptr) }
 
+    /**
+     * Pide detener la generación en curso. No toma el candado a propósito (debe poder llamarse mientras un paso
+     * está corriendo); solo escribe una bandera del objeto nativo. Si [close] ya empezó, no hace nada.
+     */
     fun stop() {
+        if (closing.get()) return
         val ptr = nativePtr
         if (ptr != 0L) stopCompletion(ptr)
     }
@@ -136,17 +169,31 @@ class LlamaEngine {
      * RootfsInstaller.install()'s onProgress).
      */
     fun streamResponse(query: String, onToken: (String) -> Unit) {
-        verifyHandle()
-        val ptr = nativePtr
-        startCompletion(ptr, query)
+        withHandle { ptr -> startCompletion(ptr, query) }
+        pumpCompletion(onToken)
+    }
+
+    /** Bucle de generación común: un paso bajo el candado, el callback fuera de él. */
+    private fun pumpCompletion(onToken: (String) -> Unit) {
         try {
-            while (nativePtr != 0L) {
-                val piece = completionLoop(nativePtr)
+            while (true) {
+                val piece = completionStep() ?: break
                 if (piece == "[EOG]") break
                 if (piece.isNotEmpty()) onToken(piece)
             }
         } finally {
-            if (nativePtr != 0L) stopCompletion(nativePtr)
+            stopQuietly()
+        }
+    }
+
+    /** stopCompletion al terminar el bucle, bajo el candado y solo si el motor sigue vivo. */
+    private fun stopQuietly() {
+        nativeLock.lock()
+        try {
+            val ptr = nativePtr
+            if (ptr != 0L) stopCompletion(ptr)
+        } finally {
+            nativeLock.unlock()
         }
     }
 
@@ -164,14 +211,18 @@ class LlamaEngine {
      * modelo de texto cargado o no soporta imágenes.
      */
     fun loadMultimodalProjector(mmprojPath: String, useGpu: Boolean = true) {
-        verifyHandle()
-        loadMultimodalProjector(nativePtr, mmprojPath, useGpu)
+        withHandle { ptr -> loadMultimodalProjector(ptr, mmprojPath, useGpu) }
     }
 
     /** true si ya se cargó un mmproj compatible con imágenes vía [loadMultimodalProjector]. */
     fun supportsVision(): Boolean {
-        if (nativePtr == 0L) return false
-        return supportsVision(nativePtr)
+        nativeLock.lock()
+        try {
+            val ptr = nativePtr
+            return ptr != 0L && supportsVision(ptr)
+        } finally {
+            nativeLock.unlock()
+        }
     }
 
     /**
@@ -184,30 +235,31 @@ class LlamaEngine {
      * NO un bitmap decodificado.
      */
     fun streamResponseWithImage(query: String, imageBytes: ByteArray, onToken: (String) -> Unit) {
-        verifyHandle()
+        withHandle { ptr -> startCompletionWithImage(ptr, query, imageBytes) }
+        pumpCompletion(onToken)
+    }
+
+    fun benchModel(pp: Int, tg: Int, pl: Int, nr: Int): String =
+        withHandle { ptr -> benchModel(ptr, pp, tg, pl, nr) }
+
+    /**
+     * Libera el modelo nativo. Es seguro llamarlo desde cualquier hilo y varias veces: pide detener la generación,
+     * ESPERA a que termine el paso nativo en curso (ver [nativeLock]) y recién entonces libera. Puede bloquear
+     * mientras dure ese paso (un prefill largo en CPU puede tardar segundos): llamarlo fuera del hilo principal.
+     */
+    fun close() {
+        if (nativePtr == 0L || !closing.compareAndSet(false, true)) return
         val ptr = nativePtr
-        startCompletionWithImage(ptr, query, imageBytes)
+        if (ptr != 0L) stopCompletion(ptr) // aborta el paso en curso lo antes posible
+        nativeLock.lock()
         try {
-            while (nativePtr != 0L) {
-                val piece = completionLoop(nativePtr)
-                if (piece == "[EOG]") break
-                if (piece.isNotEmpty()) onToken(piece)
+            val toFree = nativePtr
+            if (toFree != 0L) {
+                nativePtr = 0L
+                close(toFree)
             }
         } finally {
-            if (nativePtr != 0L) stopCompletion(nativePtr)
-        }
-    }
-
-    fun benchModel(pp: Int, tg: Int, pl: Int, nr: Int): String {
-        verifyHandle()
-        return benchModel(nativePtr, pp, tg, pl, nr)
-    }
-
-    fun close() {
-        if (nativePtr != 0L) {
-            val ptr = nativePtr
-            nativePtr = 0L  // en cero antes del free nativo para que streamResponse() lo vea de inmediato
-            close(ptr)
+            nativeLock.unlock()
         }
     }
 

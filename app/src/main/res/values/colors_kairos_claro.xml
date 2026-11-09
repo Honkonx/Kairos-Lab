@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema "Claro" (2026-08-22) — modo claro real, no una simple
+    <!-- Tema "Claro" (2026-08-22,) — modo claro real, no una simple
          inversión del oscuro (fondo cálido en vez de blanco puro, acentos más oscuros para
          mantener contraste sobre fondo claro). Aplicado vía Theme.Kairos.Claro
          (themes_kairos.xml), nunca referenciado directo desde layouts. -->
@@ -19,6 +19,7 @@
     <color name="kairos_claro_green">#16A34A</color>
     <color name="kairos_claro_red">#DC2626</color>
     <color name="kairos_claro_amber">#D97706</color>
+    <color name="kairos_claro_purple">#4F46E5</color>
 
     <color name="kairos_claro_border">#E4E2DC</color>
     <color name="kairos_claro_divider">#EBE9E4</color>

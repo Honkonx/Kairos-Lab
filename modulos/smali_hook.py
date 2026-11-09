@@ -8,7 +8,7 @@ modulos/apk.sh, cmd_instrument) — usado tal cual salvo 2 cambios: la clase de
 destino apunta a com.kairos.logger.RemoteLogger (no com.deadnote.RemoteLogger,
 para no colisionar con el proyecto original) y se agregó --json a --list para
 que la UI de Kairos pueda parsear la lista de métodos sin scrapear texto con
-colores ANSI.
+colores ANSI..
 
 Uso:
     python3 smali_hook.py archivo.smali --method metodo --action observ

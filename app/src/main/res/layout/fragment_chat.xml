@@ -59,6 +59,21 @@
                         android:textSize="11sp"
                         android:textColor="?attr/kairosText3" />
 
+                    <!-- Indicador de contexto en vivo (tokens usados / tamaño de contexto del
+                         modelo activo) — hallazgo real de docs/referencias/ia/REFERENCIA_OFFLINELLM.md:
+                         Kairos ya calcula activeContextTokens()/estimateTokens() en
+                         enforceTokenBudget() pero nunca lo mostraba. Oculto por defecto
+                         (visibility="gone"), ChatFragment lo muestra solo cuando hay al menos un
+                         mensaje en la conversación. -->
+                    <TextView
+                        android:id="@+id/context_usage_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:textSize="11sp"
+                        android:textColor="?attr/kairosText3"
+                        android:visibility="gone" />
+
                 </LinearLayout>
 
             </LinearLayout>
@@ -181,10 +196,17 @@
             android:paddingLeft="12dp" android:paddingRight="12dp"
             android:paddingTop="8dp" android:paddingBottom="8dp">
 
+            <!-- 0dp + weight 1 y una sola línea con "…" en el medio: un nombre largo de modelo
+                 (p. ej. google_gemma-3-1b-it-Q4_K_M.gguf) ya no empuja ni aplasta al resto de la fila
+                 (captura del dispositivo). Rol, Web y Buscar van en una segunda
+                 fila desplazable que arma ChatFragment. -->
             <TextView
                 android:id="@+id/model_selector"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="middle"
                 android:background="@drawable/model_selector_bg"
                 android:paddingLeft="12dp" android:paddingRight="12dp"
                 android:paddingTop="8dp" android:paddingBottom="8dp"

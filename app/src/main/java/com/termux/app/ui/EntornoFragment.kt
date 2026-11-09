@@ -69,6 +69,9 @@ class EntornoFragment : BaseModuleFragment() {
     private var desktopsValue: TextView? = null
     private var inventoryDistrosContainer: LinearLayout? = null
 
+    /** Último estado con el que se dibujó la pestaña activa (ver refreshStatus()): evita reconstruirla sin cambios. */
+    private var lastTabState: String? = null
+
     // Selector visual multi-sesión de terminal por distro (2026-09-01, auditoría profunda de
     // Mini PC — ver docs/mini-pc/AUDITORIA_MINIPC_PROFUNDA_2026-09-01.md). Antes de la ronda
     // 2026-09-01 esto quedó documentado como "requiere más diseño de estado" (REFERENCIA_TRIERARCH.md,
@@ -109,7 +112,7 @@ class EntornoFragment : BaseModuleFragment() {
      * con `pkill -9 -f "proot-distro login $DISTRO"` (limpieza de procesos huérfanos de una
      * corrida anterior interrumpida) — si dos instalaciones para LA MISMA distro corren
      * solapadas (posible desde que `ProgressDialogController` ofrece "Enviar a 2do plano",
-     * el diálogo desaparece pero el Thread sigue corriendo, nada impide
+     *: el diálogo desaparece pero el Thread sigue corriendo, nada impide
      * volver a tocar el mismo botón u otro que toque el mismo proot-distro login/dpkg), la
      * segunda mataría a la primera en pleno `apt-get install` sin avisar — el usuario ve
      * "instalando en 2do plano" y en realidad la instalación murió silenciosamente. Lo mismo
@@ -148,7 +151,7 @@ class EntornoFragment : BaseModuleFragment() {
     // 3s de BaseModuleFragment (mismo patrón ya usado por distroSessionsHolder arriba).
     private var statusWatchHolder: FrameLayout? = null
 
-    /** Pestaña activa del grid (Nativo/X11/Distros/VNC/Sistema) — usado por renderTab() al reconstruir tras un refresh de estado. */
+    /** Pestaña activa (Nativo/Distros/Pantalla/Sistema) — usado por renderTab() al reconstruir tras un refresh de estado. */
     private var tabContentContainer: LinearLayout? = null
     private var activeTabIndex = 0
 
@@ -223,34 +226,14 @@ class EntornoFragment : BaseModuleFragment() {
         // Handler nuevo, reusa watchTerminalSessions()/terminalStatusHandler de
         // BaseModuleFragment.
         statusWatchHolder = FrameLayout(requireContext())
-        watchTerminalSessions(statusWatchHolder!!) { refreshStatus() }
+        watchTerminalSessions(statusWatchHolder!!) { refreshStatus(force = false) }
 
-        // Inventario de solo-lectura (gap real de paridad con menu_entorno.sh
-        // submenu_terminal [3] — "Listar distros instaladas"): antes solo se podía ACTUAR
-        // sobre distros vía los diálogos de EntornoDistrosTab (instalar/login/eliminar) — no
-        // había forma de simplemente VER "esto es lo que tenés instalado ahora" sin abrir un
-        // diálogo de acción primero. Contenedores udocker: sacados de acá (2026-08-18, pedido
-        // explícito del usuario) — ya tienen pantalla propia completa en el módulo "udocker"
-        // (UdockerFragment.kt), esta card duplicaba esa vista sin agregar nada.
-        addCard(getString(R.string.entorno_card_instalado)) {
-            addView(inventorySubLabel(requireContext(), getString(R.string.entorno_sublabel_distros)))
-            inventoryDistrosContainer = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-            addView(inventoryDistrosContainer)
-        }
-        refreshInventory()
-
-        // Card "SESIONES DE DISTRO" — selector visual multi-sesión (ver comentario del campo
-        // distroSessionsContainer arriba). Solo lectura del estado ya en memoria de
-        // TermuxService (mismo mecanismo que ModulesFragment.refreshTerminalSessionsIndicator(),
-        // sin ProcessBuilder) — watchTerminalSessions() la refresca sola cada 3s mientras la
-        // pantalla está visible, así que se actualiza si una sesión se cierra desde OTRO lado
-        // (ej. `exit` dentro de la propia TUI de la distro).
-        addCard(getString(R.string.entorno_card_sesiones_distro)) {
-            distroSessionsContainer = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
-            addView(distroSessionsContainer)
-        }
-        distroSessionsHolder = FrameLayout(requireContext())
-        watchTerminalSessions(distroSessionsHolder!!) { refreshDistroSessions() }
+        // Rediseño 2026-10-08 (boceto aprobado por el usuario, ui_mockups/mini_pc/minipc_v2.html): se quitaron
+        // las cards "INSTALADO" y "SESIONES DE DISTRO ACTIVAS" de arriba de las pestañas. Repetían lo que ya
+        // muestran las tarjetas de la pestaña Distros (una por distro, con su estado de sesión y "Cerrar
+        // sesión") y empujaban el selector de pestañas fuera de la primera pantalla (medido en el
+        // dispositivo: las pestañas quedaban a ~80% de la altura). refreshInventory()/refreshDistroSessions()
+        // siguen existiendo pero no hacen nada sin sus contenedores.
 
         // Rediseño visual 2026-08-26 (mockup "Grid Launcher" aprobado por el usuario, ver
         // docs/mini-pc/MINIPC_TAB_2026-08-25.md sección "Ronda 4"): TabLayout de categorías
@@ -270,11 +253,11 @@ class EntornoFragment : BaseModuleFragment() {
     }
 
     /**
-     * Fix real (bug reportado: "da error al instalar entorno gráfico en la distro"). Varios
+     * Fix real (bug 1 "da error al instalar entorno gráfico en la distro"). Varios
      * `progress.failure(...)` de las pestañas solo mostraban `json.error` (mensaje corto) y
      * descartaban `json.output` (la salida real de apt-get/pkg dentro del proot — por qué
      * falló de verdad) sin mostrarlo NI loguearlo — mismo tipo de gap de diagnosticabilidad
-     * ya identificado y corregido en runEntornoAction().
+     * ya identificado y corregido en runEntornoAction.
      * `internal`: llamado desde EntornoNativoTab y EntornoDistrosTab.
      */
     internal fun errorDetail(json: JSONObject): String {
@@ -308,7 +291,7 @@ class EntornoFragment : BaseModuleFragment() {
 
     /**
      * Variante de infoRow() con un ícono chico antes de la etiqueta — pulido visual 2026-08-27
-     * ("hacer la interfaz bonita tipo app del 2026") para la card
+     * (ver "hacer la interfaz bonita tipo app del 2026") para la card
      * "ESTADO", que antes era texto plano puro. Mantiene la MISMA estructura de 2 hijos que
      * infoRow() (contenedor de etiqueta, TextView de valor) para que valueTextView() — que
      * asume `getChildAt(1)` == el TextView de valor — siga funcionando sin cambios; el ícono
@@ -361,7 +344,7 @@ class EntornoFragment : BaseModuleFragment() {
     /**
      * Fila del inventario "📋 INSTALADO" con el logo real de la distro (reemplaza el 🐧
      * genérico fijo que antes se mostraba para CUALQUIER distro instalada — pedido explícito
-     * del usuario) — mismo layout de 2 columnas que infoRow() pero con
+     * del usuario,) — mismo layout de 2 columnas que infoRow pero con
      * un ícono de identidad antes del nombre.
      */
     private fun distroInventoryRow(name: String): View {
@@ -398,7 +381,7 @@ class EntornoFragment : BaseModuleFragment() {
      * el par (nombre completo de sesión, nombre de distro sin el prefijo) para poder mostrar el
      * ícono real de la distro (distroIconView()) en cada fila.
      */
-    private fun activeDistroSessions(): List<Pair<String, String>> {
+    internal fun activeDistroSessions(): List<Pair<String, String>> {
         val act = activity as? com.termux.app.TermuxActivity ?: return emptyList()
         val prefix = distroSessionPrefix
         return act.getActiveModuleSessionNames()
@@ -495,7 +478,7 @@ class EntornoFragment : BaseModuleFragment() {
     }
 
     /** `internal`: llamado desde las 5 clases de pestaña tras cualquier acción que cambie el estado (instalar/detener/etc). */
-    internal fun refreshStatus() {
+    internal fun refreshStatus(force: Boolean = true) {
         Thread {
             val json = EntornoNative.status()
             if (!isAdded) return@Thread
@@ -559,7 +542,19 @@ class EntornoFragment : BaseModuleFragment() {
                 // Los badges verdes de las tiles del grid dependen de x11Running/vncRunning/
                 // pulseRunning — re-renderizar la pestaña activa para reflejar el estado nuevo
                 // (mismo criterio que refreshInventory(), llamado tras cada acción real).
-                renderTab(activeTabIndex)
+                //
+                // Bug real (2026-10-08, "glitches gráficos en Mini PC con las distros", visto en el
+                // dispositivo): refreshStatus() corre cada 3 s (watchTerminalSessions) y esta línea
+                // reconstruía SIEMPRE toda la pestaña — las tarjetas de distros se borraban y se
+                // volvían a crear cada 3 s aunque nada hubiera cambiado. Ahora solo se redibuja si
+                // cambió algo que la pestaña muestra (o si es la primera vez / cambió de pestaña).
+                val tabState = "$activeTabIndex|$x11Running|$vncRunning|$pulseRunning|${desktopsValue?.text}|${methodValue?.text}|${activeDistroSessions().joinToString(",") { it.first }}"
+                // force=true (acciones del usuario: instalar/eliminar una distro, etc.) siempre redibuja;
+                // el poll de 3 s pasa force=false y solo redibuja si cambió algo visible.
+                if (force || tabState != lastTabState) {
+                    lastTabState = tabState
+                    renderTab(activeTabIndex)
+                }
             }
         }.start()
     }
@@ -601,7 +596,7 @@ class EntornoFragment : BaseModuleFragment() {
                 // Antes solo se mostraba json.error (mensaje genérico) — el detalle real
                 // (json.output, la salida real de proot-distro/pkg) se descartaba sin mostrar
                 // ni loguear en ningún lado. Bug de diagnosticabilidad real (auditoría
-                // 2026-08-05): el usuario no tenía forma de
+                // 2026-08-05,): el usuario no tenía forma de
                 // saber POR QUÉ fallaba una distro/escritorio/X11, y nosotros tampoco
                 // teníamos ningún log para depurarlo después. Ahora se muestra el detalle real
                 // (si vino) además del mensaje corto, y EntornoNative ya lo deja también en
@@ -624,7 +619,7 @@ class EntornoFragment : BaseModuleFragment() {
     }
 
     /**
-     * TabLayout de 5 categorías (Nativo/X11/Distros/VNC/Sistema) arriba del grid — mismo
+     * TabLayout de 4 categorías (Nativo/Distros/Pantalla/Sistema; Pantalla = X11 + VNC desde 2026-10-08) arriba del grid — mismo
      * estilo (`?attr/kairosGreen` de indicador, `?attr/kairosText`/`kairosText3` de texto) que
      * ya usa `fragment_file_manager.xml`, aplicado programáticamente acá porque este Fragment
      * arma todo su contenido en Kotlin (BaseModuleFragment.container), no desde un layout XML
@@ -645,9 +640,8 @@ class EntornoFragment : BaseModuleFragment() {
         }
         listOf(
             getString(R.string.entorno_tab_nativo),
-            getString(R.string.entorno_tab_x11),
             getString(R.string.entorno_tab_distros),
-            getString(R.string.entorno_tab_vnc),
+            getString(R.string.entorno_tab_pantalla),
             getString(R.string.entorno_tab_sistema)
         ).forEach { tabLayout.addTab(tabLayout.newTab().setText(it)) }
         container.addView(tabLayout)
@@ -671,9 +665,12 @@ class EntornoFragment : BaseModuleFragment() {
         content.removeAllViews()
         when (index) {
             0 -> nativoTab.render(content)
-            1 -> x11Tab.render(content)
-            2 -> distrosTab.render(content)
-            3 -> vncTab.render(content)
+            1 -> distrosTab.render(content)
+            // "Pantalla" = X11 + VNC juntos (rediseño aprobado 2026-10-08, mensaje 6).
+            2 -> {
+                x11Tab.render(content)
+                vncTab.render(content)
+            }
             else -> sistemaTab.render(content)
         }
     }
@@ -714,11 +711,21 @@ class EntornoFragment : BaseModuleFragment() {
      * EntornoNativoTab (Snackbar "Abrir X11" tras iniciar el escritorio) y EntornoDistrosTab
      * (mismo Snackbar, camino con distro).
      */
-    internal fun launchX11() {
+    internal fun launchX11(display: String = com.termux.app.X11Service.DISPLAY) {
         try {
-            X11Service.start(requireContext())
+            // "2 instancias X11 conmutables" (ver EntornoDistrosTab.startDistroDesktopOnEmbeddedX11Dual
+            // y com.termux.x11.CmdEntryPoint) -- display=":2" arranca/usa X11Service2 en vez de
+            // X11Service, y el extra "kairos_display" le dice a KairosX11MainActivity a cuál de
+            // las 2 instancias conectarse (ver su expectedKairosDisplay()). SIN VERIFICAR EN
+            // DISPOSITIVO REAL todavía (ver kairos-minipc-empirical-verification.md).
+            if (display == com.termux.app.X11Service2.DISPLAY) {
+                com.termux.app.X11Service2.start(requireContext())
+            } else {
+                X11Service.start(requireContext())
+            }
             startActivity(
                 Intent(requireContext(), KairosX11MainActivity::class.java)
+                    .putExtra("kairos_display", display)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         } catch (e: Exception) {

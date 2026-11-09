@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mini PC rediseñado (2026-10-08, mensaje 6): pestaña "Pantalla" (X11 + VNC) y
+         filas con descripción en Pantalla y Sistema. Cada descripción sale del código real de la
+         acción (ver los comentarios de EntornoX11Tab/EntornoVncTab/EntornoSistemaTab). -->
+    <string name="entorno_tab_pantalla">Pantalla</string>
+    <string name="entorno_seccion_vnc">VNC (OPCIONAL)</string>
+
+    <string name="entorno_row_desc_x11_entrar">Abre el visor del servidor X11 embebido</string>
+    <string name="entorno_row_desc_x11_config">Resolución, escala, orientación, pantalla completa, PiP, teclado extra y touch</string>
+    <string name="entorno_row_desc_x11_detener">Cierra el servidor y cualquier escritorio que corra encima</string>
+
+    <string name="entorno_row_desc_vnc_instalar">Instala el servidor VNC (TigerVNC) desde los paquetes de Termux</string>
+    <string name="entorno_row_desc_vnc_iniciar">En :5901 con los valores del script (1920x1080, 24 bits, solo local)</string>
+    <string name="entorno_row_desc_vnc_configurar">Resolución, orientación, calidad y contraseña</string>
+    <string name="entorno_row_desc_vnc_visor">Instala e inicia VNC si hace falta y abre el visor de Kairos</string>
+    <string name="entorno_row_desc_vnc_detener">Detiene el servidor VNC</string>
+
+    <string name="entorno_row_pulseaudio">PulseAudio</string>
+    <string name="entorno_row_desc_pulseaudio">Servidor de audio para las apps del escritorio</string>
+    <string name="entorno_row_desc_gpu_diagnostico">Muestra el backend real que quedó cargado frente al método configurado</string>
+    <string name="entorno_row_desc_gpu_benchmark">Mide los FPS con glxgears</string>
+    <string name="entorno_row_desc_gpu_metodo">Elige cómo se acelera la GPU en el escritorio</string>
+    <string name="entorno_row_desc_recursos">Memoria (RSS) de la sesión de escritorio activa</string>
+    <string name="entorno_row_desc_script">Elige un script de arranque y edítalo</string>
+</resources>

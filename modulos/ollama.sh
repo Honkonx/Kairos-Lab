@@ -85,9 +85,10 @@ if $DESCRIBE_FILES; then
   _variant=$(grep -m1 '^ollama\.install_mode=' "$_REGISTRY" 2>/dev/null | cut -d= -f2 | tr -d '\r\n')
   [ -z "$_variant" ] && _variant="null" || _variant="\"$_variant\""
   _bin=$(command -v ollama 2>/dev/null || echo "$TERMUX_PREFIX/bin/ollama")
-  # Bug real confirmado por ADB (2026-08-29): el .deb de ollama pesaba KB en vez de los
-  # ~123MB reales que pesa el runtime de github.com/DioNanos/ollama-termux (fork propio:
-  # github.com/Honkonx/ollama-termux): la variante termux_npm/GPU instala un WRAPPER en
+  # Bug real confirmado por ADB (2026-08-29, /286.md, pregunta directa del
+  # usuario sobre por qué el .deb de ollama pesaba KB en vez de los ~123MB reales que pesa
+  # el runtime de github.com/DioNanos/ollama-termux (fork propio: github.com/Honkonx/
+  # ollama-termux)): la variante termux_npm/GPU instala un WRAPPER en
   # $TERMUX_PREFIX/bin/ollama que hace exec de $TERMUX_PREFIX/lib/ollama/ollama (el binario
   # real, 123MB) + libs Vulkan en $TERMUX_PREFIX/lib/ollama/vulkan/ — el manifiesto solo
   # empaquetaba el wrapper (unos pocos KB), documentado como "no cubierto" en vez de
@@ -185,8 +186,8 @@ HW_CPU=$(detect_cpu_features)
 # Reintenta un comando hasta 3 veces con una pausa corta — la variante GPU (termux_npm,
 # PASO 2 abajo) encadena varias operaciones de red seguidas (nodejs-lts, npm, descarga del
 # binario real vía ollama-termux) sin ningún reintento, a diferencia de PASO 1 (que sí
-# reintenta con mirrors alternativos si pkg update falla). Bug real reportado: "en
-# ocasiones se instala la version gpu y en otras no" con el
+# reintenta con mirrors alternativos si pkg update falla). Bug real reportado (ver
+#): "en ocasiones se instala la version gpu y en otras no" con el
 # mismo dispositivo/red — consistente con un fallo transitorio de red en alguno de esos
 # pasos encadenados sin reintento, algo que la variante standard (un solo "pkg install") no
 # sufre casi nunca.
@@ -262,8 +263,7 @@ if [ -n "$ANDROID_SERVER_READY" ]; then
   # tmux es crítico para ollama-start
   if ! command -v tmux &>/dev/null; then
     info "Instalando tmux..."
-    # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-    # "pkg install" no lo tiene disponible.
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install tmux -y \
       -o Dpkg::Options::="--force-confdef" \
@@ -273,7 +273,7 @@ elif check_done "termux_update"; then
   log "Termux ya actualizado [checkpoint]"
 else
   info "Actualizando Termux..."
-  # Quick win de la auditoría de referencia/ (2026-08-05) — antes
+  # Quick win de la auditoría de referencia/ (2026-08-05,) — antes
   # probaba solo 2 mirrors fijos en orden; ahora comparte la selección por velocidad
   # real centralizada en lib.sh (mismo criterio que entorno.sh/kairos.sh).
   pkg_update_with_fallback
@@ -304,8 +304,7 @@ else
 
     standard)
       info "Instalando Ollama vía pkg (ARM64 genérico, CPU-only)..."
-      # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-      # "pkg install" no lo tiene disponible.
+      # Bug real, mismo patrón que bug #21 (VNC),.
       pkg_update_with_fallback
       pkg install ollama -y \
         -o Dpkg::Options::="--force-confdef" \
@@ -317,8 +316,7 @@ else
     termux_npm)
       # Paquetes Vulkan/GPU
       info "Instalando paquetes Vulkan/GPU..."
-      # Bug real, mismo patrón que bug #21 (VNC): fallback al binario oficial si
-      # "pkg install" no lo tiene disponible.
+      # Bug real, mismo patrón que bug #21 (VNC),.
       pkg_update_with_fallback
       pkg install vulkan-tools vulkan-loader-android -y \
         -o Dpkg::Options::="--force-confdef" \
@@ -331,7 +329,7 @@ else
       # hardware real, así que en dispositivos Mali o Xclipse (Exynos) llama.cpp
       # podía tener Vulkan funcional a nivel de sistema pero Ollama nunca
       # instalaba el paquete de driver que necesita para ese vendor específico.
-      # Bug real (2026-08-06): "local" fuera de una
+      # Bug real (2026-08-06,): "local" fuera de una
       # función es un error de bash ("local: can only be used in a function",
       # confirmado en log real de dispositivo) — este bloque vive en un "case"
       # a nivel de script, no dentro de un "function ... { }". Además la lista
@@ -386,7 +384,7 @@ else
         -o Dpkg::Options::="--force-confold" || \
         error "Error instalando nodejs-lts (3 intentos) — revisá la conexión"
 
-      # Bug real confirmado (auditoría 2026-08-05):
+      # Bug real confirmado (auditoría 2026-08-05,):
       # "npm install -g npm" sobreescribe el npm que trae "pkg install nodejs-lts" —
       # ese SÍ viene con el shebang parcheado para Termux (sin /usr/bin/env, que acá
       # no existe), pero el npm genérico bajado del registry no. El resultado es
@@ -395,7 +393,7 @@ else
       # nodejs-lts es suficiente — no hace falta reinstalarlo.
 
       info "Instalando Ollama Termux vía npm..."
-      # Bug real confirmado en dispositivo (2026-08-29): "npm
+      # Bug real confirmado en dispositivo (2026-08-29, ver /288.md): "npm
       # install -g" corre el script "install" del paquete (node install.js) COMO PARTE del
       # propio "npm install" — no queda diferido a cuando se corre "ollama-termux" a mano
       # (el comentario original de abajo, sobre postinstall bloqueado por default, describe
@@ -458,7 +456,7 @@ else
       fi
 
       # Fallback real (2026-08-29, permiso explícito del usuario para tocar este archivo
-      # protegido con ESTE fix puntual): confirmado con curl/tar
+      # protegido con ESTE fix puntual —): confirmado con curl/tar
       # reales contra el Release oficial de GitHub que "ollama-termux" (el instalador que
       # corre en el loop de arriba) SIEMPRE va a fallar con "HTTP 404" pidiendo
       # "<tarball>.sha256" — ese checksum por-archivo nunca existió en ningún Release
@@ -529,7 +527,7 @@ OLLAMA_WRAPPER
       }
 
       # Fallback real (2026-08-29, permiso explícito del usuario para tocar este archivo
-      # protegido con ESTE fix puntual): confirmado con curl/tar
+      # protegido con ESTE fix puntual —): confirmado con curl/tar
       # reales contra el Release oficial de GitHub que "ollama-termux" (el instalador que
       # corre en el loop de arriba) SIEMPRE va a fallar con "HTTP 404" pidiendo
       # "<tarball>.sha256" — ese checksum por-archivo nunca existió en ningún Release
@@ -575,7 +573,7 @@ OLLAMA_WRAPPER
         # Si ni ollama-termux ni la descarga directa del Release dejaron el binario
         # funcionando (falla de red, GitHub rate-limit, etc.) — abortar en vez de marcar
         # el checkpoint como hecho (mismo criterio que el resto de scripts de este
-        # proyecto: nunca dar por instalado algo sin verificar el binario real).
+        # proyecto: nunca dar por instalado algo sin verificar el binario real, ver
         error "Binario 'ollama' no funciona ni tras correr ollama-termux ni tras la descarga directa del Release — probá --variant standard, o revisá conexión/GitHub"
       fi
 
@@ -652,15 +650,15 @@ OLLAMA_BIND_HOST="127.0.0.1"
 # texto libre no apto para "source"). Vacío = no se exporta la variable, así el binario usa su
 # propio default sin que Kairos fuerce nada si el usuario no tocó el campo.
 KEEP_ALIVE_ENV=""
-_KEEP_ALIVE=$(grep -m1 '^OLLAMA_KEEP_ALIVE=' "$HOME/.ollama_user_config" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+_KEEP_ALIVE=$(grep -m1 '^OLLAMA_KEEP_ALIVE=' "$HOME/.ollama_user_config" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 [ -n "$_KEEP_ALIVE" ] && KEEP_ALIVE_ENV="OLLAMA_KEEP_ALIVE=${_KEEP_ALIVE} "
 
 NUM_PARALLEL_ENV=""
-_NUM_PARALLEL=$(grep -m1 '^OLLAMA_NUM_PARALLEL=' "$HOME/.ollama_user_config" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+_NUM_PARALLEL=$(grep -m1 '^OLLAMA_NUM_PARALLEL=' "$HOME/.ollama_user_config" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 [ -n "$_NUM_PARALLEL" ] && [ "$_NUM_PARALLEL" != "0" ] && NUM_PARALLEL_ENV="OLLAMA_NUM_PARALLEL=${_NUM_PARALLEL} "
 
 MAX_LOADED_ENV=""
-_MAX_LOADED=$(grep -m1 '^OLLAMA_MAX_LOADED_MODELS=' "$HOME/.ollama_user_config" 2>/dev/null | cut -d= -f2 | tr -d '"'"'"' \r\n')
+_MAX_LOADED=$(grep -m1 '^OLLAMA_MAX_LOADED_MODELS=' "$HOME/.ollama_user_config" 2>/dev/null | cut -d= -f2 | tr -cd 'A-Za-z0-9._:@+=-')
 [ -n "$_MAX_LOADED" ] && [ "$_MAX_LOADED" != "0" ] && MAX_LOADED_ENV="OLLAMA_MAX_LOADED_MODELS=${_MAX_LOADED} "
 
 # La variante GPU (termux_npm, ver ollama.sh PASO 2) necesita OLLAMA_VULKAN=1 en el
@@ -700,8 +698,8 @@ else
   exit 1
 fi
 
-# Detección de fallback silencioso a CPU (hallazgo de investigación de foros/GitHub):
-# en la variante GPU (termux_npm) el usuario espera aceleración
+# Detección de fallback silencioso a CPU (hallazgo de investigación de foros/GitHub,
+#): en la variante GPU (termux_npm) el usuario espera aceleración
 # Vulkan real, pero si Ollama no logra usarla (driver ausente, dispositivo no soportado)
 # cae a `llvmpipe`/CPU sin avisar en ningún lado visible — solo queda en este log de
 # arranque, que nadie lee en uso normal. Formato real confirmado contra el código fuente
@@ -856,7 +854,7 @@ if ! $SILENT; then
 fi
 
 # Aviso real a la app (bridge sin polling, ver modulos/lib.sh notify_event()) — quick win
-# de la auditoría de referencia/ (2026-08-05, ver REFERENCIA_PODROID.md,
+# de la auditoría de referencia/ (2026-08-05, ver y REFERENCIA_PODROID.md,
 # patrón ya probado en entorno.sh): antes solo Entorno avisaba, el resto de módulos dependía
 # de que el usuario volviera a abrir la app para ver que ya terminó.
 notify_event "ollama" "install_done" "$INSTALL_MODE"

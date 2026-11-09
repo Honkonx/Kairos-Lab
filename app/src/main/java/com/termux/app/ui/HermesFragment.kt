@@ -27,15 +27,14 @@ class HermesFragment : BaseModuleFragment() {
     private var providerValue: TextView? = null
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona una
-    // API key propia (keyInput) — una vez guardada nunca se vuelve a mostrar en la UI,
-    // solo reemplazar o borrar.
+    // API key propia (keyInput) — ver .claude/rules/kairos-secrets-never-revealed.md.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
     }
 
     override fun buildContent() {
-        // Instalación silenciosa en segundo plano (pedido 2026-08-13): si
+        // Instalación silenciosa en segundo plano (pedido 2026-08-13,): si
         // Hermes no está instalado, se ofrece instalarlo internamente sin bloquear — el
         // usuario sigue navegando mientras corre.
         if (!isModuleInstalled()) {
@@ -143,8 +142,8 @@ class HermesFragment : BaseModuleFragment() {
         // Antes eran 2 botones sueltos ("Usar Ollama local" / "Usar llama-server local") para
         // una sola decisi\u00F3n excluyente (qu\u00E9 proveedor de IA local usa Hermes) \u2014 no hay ning\u00FAn
         // encendido/apagado asociado (ambos flujos solo listan modelos y escriben la config),
-        // as\u00ED que encaja en dropdownRow() y no en dropdownSwitchRow() (ver
-        // BaseModuleFragment.dropdownRow()). El bot\u00F3n "Configurar" despacha al
+        // as\u00ED que encaja en dropdownRow y no en dropdownSwitchRow (ver /
+        //, BaseModuleFragment.dropdownRow). El bot\u00F3n "Configurar" despacha al
         // flujo real (useOllamaLocal()/useLlamaServerLocal()) seg\u00FAn la opci\u00F3n elegida \u2014 cada
         // uno sigue abriendo su propio di\u00E1logo de selecci\u00F3n de modelo, sin cambios de l\u00F3gica.
         val localProviderRow = dropdownRow(getString(R.string.hermes_label_local_provider), listOf(getString(R.string.hermes_option_ollama_local), getString(R.string.hermes_option_llama_server_local))) { }
@@ -155,7 +154,7 @@ class HermesFragment : BaseModuleFragment() {
                 else -> useLlamaServerLocal()
             }
         }
-        // Bug real (2026-08-07): "en hermes tampoco sale la
+        // Bug real (2026-08-07,): "en hermes tampoco sale la
         // opcion de detener los servicios" \u2014 el bot\u00F3n real (HermesGatewayFragment) exist\u00EDa
         // pero estaba una pantalla m\u00E1s abajo (Gateway) que la principal \u2014 a diferencia de
         // TODOS los dem\u00E1s m\u00F3dulos con servicio persistente, que tienen "Detener" directo ac\u00E1.
@@ -366,7 +365,7 @@ class HermesFragment : BaseModuleFragment() {
             .show()
     }
 
-    // Bug real (2026-08-07): antes era un EditText de texto
+    // Bug real (2026-08-07,): antes era un EditText de texto
     // libre ("Modelo (ej. qwen2.5:1.5b)") sin ninguna lista real — el usuario tenía que
     // saber de memoria el tag exacto de un modelo ya descargado. Ahora lista los modelos
     // REALES vía HermesNative.ollamaModels() (mismo cliente HTTP que Ollama/OpenCode), y

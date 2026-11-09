@@ -131,5 +131,23 @@ class EditorSettingsActivity : AppCompatActivity() {
         binding.highlightCurrentLineSwitch.setOnCheckedChangeListener { _, checked ->
             prefs.highlightCurrentLine = checked
         }
+
+        binding.stickyScrollSwitch.isChecked = prefs.stickyScroll
+        binding.stickyScrollSwitch.setOnCheckedChangeListener { _, checked -> prefs.stickyScroll = checked }
+
+        binding.pinchZoomSwitch.isChecked = prefs.pinchZoom
+        binding.pinchZoomSwitch.setOnCheckedChangeListener { _, checked -> prefs.pinchZoom = checked }
+
+        binding.pinLineNumberSwitch.isChecked = prefs.pinLineNumber
+        binding.pinLineNumberSwitch.setOnCheckedChangeListener { _, checked -> prefs.pinLineNumber = checked }
+
+        binding.cursorAnimationSwitch.isChecked = prefs.cursorAnimation
+        binding.cursorAnimationSwitch.setOnCheckedChangeListener { _, checked -> prefs.cursorAnimation = checked }
+
+        binding.showInvisibleCharsSwitch.isChecked = prefs.showInvisibleChars
+        binding.showInvisibleCharsSwitch.setOnCheckedChangeListener { _, checked -> prefs.showInvisibleChars = checked }
+
+        binding.autoCloseSymbolsSwitch.isChecked = prefs.autoCloseSymbols
+        binding.autoCloseSymbolsSwitch.setOnCheckedChangeListener { _, checked -> prefs.autoCloseSymbols = checked }
     }
 }

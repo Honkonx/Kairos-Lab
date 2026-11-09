@@ -48,7 +48,12 @@
 
     <!-- Botones de reconocimiento -->
     <string name="ciberseguridad_nmap_native_button">🎯 nmap — escaneo rápido de puertos (panel nativo)</string>
+    <string name="ciberseguridad_nmap_overlay_button">🛈 nmap — minimizar y ver en vivo (overlay)</string>
     <string name="ciberseguridad_nmap_terminal_button">⌨ nmap (terminal completo — flags avanzados)</string>
+    <string name="ciberseguridad_overlay_permiso_titulo">Falta el permiso de superposición</string>
+    <string name="ciberseguridad_overlay_permiso_mensaje">Para ver el escaneo en vivo sobre otras apps, Kairos necesita el permiso "Mostrar sobre otras apps".</string>
+    <string name="ciberseguridad_overlay_permiso_ir_ajustes">Ir a Ajustes</string>
+    <string name="ciberseguridad_overlay_iniciado_toast">Escaneo minimizado — tocá la burbuja para ver el progreso en vivo</string>
     <string name="ciberseguridad_theharvester_native_button">🔎 theHarvester — OSINT rápido (panel nativo)</string>
     <string name="ciberseguridad_theharvester_terminal_button">⌨ theHarvester (terminal completo — fuentes con API key)</string>
 

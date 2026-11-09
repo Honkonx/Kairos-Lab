@@ -78,7 +78,7 @@ class PluginsFragment : Fragment() {
 
     /**
      * Selector de paquete local (.deb o .tar.gz) vía Storage Access Framework — 2026-08-13,
-     * pedido del usuario (ver LocalPluginManager). El archivo
+     * pedido del usuario (ver y LocalPluginManager). El archivo
      * elegido se copia a $HOME y se instala según su formato.
      */
     private val localPackagePicker =
@@ -96,7 +96,7 @@ class PluginsFragment : Fragment() {
 
         recyclerView = view.findViewById(R.id.plugin_recycler)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        // Mismo fix preventivo que ModulesFragment (bug #27) — este
+        // Mismo fix preventivo que ModulesFragment (bug #27,) — este
         // RecyclerView también hace submitList() tras acciones del usuario (instalar/refrescar
         // catálogo); sin ItemAnimator, esas actualizaciones aplican al instante sin ventana de
         // desfase entre posición visual y real durante un toque.
@@ -182,7 +182,7 @@ class PluginsFragment : Fragment() {
                 if (!isAdded) return@runOnUiThread
                 allModules = catalog
                 applyFilter()
-                // Bug real confirmado por ADB (2026-08-25):
+                // Bug real confirmado por ADB (2026-08-25, ver y siguientes):
                 // mismo bug que refreshCatalog() ya tenía arreglado (60f3921) pero en la carga
                 // INICIAL — módulos genuinamente instalados (confirmados por registry, ej.
                 // Hermes) se mostraban como "No instalado" la primera vez que se abría la
@@ -212,7 +212,7 @@ class PluginsFragment : Fragment() {
                 refreshBtn.text = getString(R.string.plugins_btn_catalog)
                 allModules = refreshed
                 applyFilter()
-                // Bug real confirmado en dispositivo (2026-08-24):
+                // Bug real confirmado en dispositivo (2026-08-24,):
                 // refreshCatalog() reemplaza allModules con instancias NUEVAS de ModuleInfo
                 // (de ModuleCatalog.refreshRemote()) pero nunca volvía a pedir el estado real
                 // — módulos genuinamente instalados (confirmados en la pantalla Módulos y en
@@ -282,7 +282,7 @@ class PluginsFragment : Fragment() {
         Snackbar.make(v, getString(R.string.plugins_msg_installing_local), Snackbar.LENGTH_SHORT).show()
         val ctx = requireContext()
         Thread {
-            val result = LocalPluginManager.install(ctx, uri)
+            val result = LocalPluginManager.install(ctx, uri) { report -> confirmDebInstall(report) }
             if (!isAdded) return@Thread
             requireActivity().runOnUiThread {
                 if (!isAdded) return@runOnUiThread
@@ -298,6 +298,47 @@ class PluginsFragment : Fragment() {
                     .show()
             }
         }.start()
+    }
+
+    /**
+     * Un .deb local no trae hash de un canal de confianza, así que antes de tocar nada se muestra
+     * lo que el paquete DECLARA (leído solo de manifest.json + SHA256SUMS.txt) y el usuario decide.
+     * Se llama desde el hilo de instalación: bloquea ese hilo (no la UI) hasta que se responde.
+     */
+    private fun confirmDebInstall(report: com.termux.app.util.ModuleDebInstaller.PackageReport): Boolean {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var accepted = false
+        if (!isAdded) return false
+        requireActivity().runOnUiThread {
+            if (!isAdded) { latch.countDown(); return@runOnUiThread }
+            val lines = mutableListOf<String>()
+            lines += getString(R.string.plugins_deb_confirm_files, report.filesCount)
+            val missing = report.missing
+            lines += if (missing.isEmpty()) getString(R.string.plugins_deb_confirm_requires_ok)
+            else getString(R.string.plugins_deb_confirm_requires_missing, missing.joinToString(", ") { r ->
+                if (r.packages.isNotEmpty()) r.packages.joinToString(" ") else r.id
+            })
+            if (report.runsVerifyCmd || report.runsPatchCmd) {
+                // Hallazgo de seguridad 2026-10-31: antes solo se avisaba genéricamente "ejecuta
+                // comandos" sin mostrar cuáles — ahora el texto real de verify_cmd/patch_cmd
+                // (si el manifest los declara) se muestra completo para que el usuario pueda
+                // revisarlos antes de aceptar, mismo criterio que revisar permisos de Android
+                // antes de concederlos.
+                lines += getString(R.string.plugins_deb_confirm_runs_commands)
+                if (report.verifyCmdText.isNotBlank()) lines += getString(R.string.plugins_deb_confirm_verify_cmd_text, report.verifyCmdText)
+                if (report.patchCmdText.isNotBlank()) lines += getString(R.string.plugins_deb_confirm_patch_cmd_text, report.patchCmdText)
+            }
+            lines += getString(R.string.plugins_deb_confirm_no_hash)
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.plugins_deb_confirm_title, report.id, report.version))
+                .setMessage(lines.joinToString("\n\n"))
+                .setPositiveButton(getString(R.string.plugins_deb_confirm_install)) { _, _ -> accepted = true; latch.countDown() }
+                .setNegativeButton(getString(R.string.plugins_cancel)) { _, _ -> latch.countDown() }
+                .setOnCancelListener { latch.countDown() }
+                .show()
+        }
+        latch.await(5, java.util.concurrent.TimeUnit.MINUTES)
+        return accepted
     }
 
     private fun applyFilter() {
@@ -397,7 +438,7 @@ class PluginsFragment : Fragment() {
         // hasVariants=true y >1 installMethods en modules.json); opencode/hermes/python/...
         // aceptan --variant como no-op pero no ofrecen opción que elegir.
         val hasVariants = module.hasVariants && module.installMethods.size > 1
-        // 2026-08-11 (pedido explícito del usuario): Desactivar = ocultar del home sin desinstalar;
+        // 2026-08-11 ( punto 4): Desactivar = ocultar del home sin desinstalar;
         // Activar = restaurarlo. Se muestra "Activar"/"Desactivar" en vez de solo
         // "Desinstalar" para que quitar un módulo del inicio sea reversible.
         val isHidden = adapter.isHidden(module.id)
@@ -473,7 +514,7 @@ class PluginsFragment : Fragment() {
     }
 
     /**
-     * 2026-08-11 (pedido explícito del usuario): oculta/restaura un módulo en la pantalla Módulos SIN
+     * 2026-08-11 ( punto 4): oculta/restaura un módulo en la pantalla Módulos SIN
      * desinstalarlo. Escribe la clave `<id>.hidden` en el registry real (~/.android_server_registry)
      * con el mismo lock que el resto de escrituras (ProjectsManager.setModuleHidden). El módulo
      * sigue instalado (registry <id>.installed intacto) y se reactiva desde acá sin reinstalar.

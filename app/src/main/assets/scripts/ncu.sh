@@ -4,7 +4,8 @@
 #  NPM Check Updates — npm install -g npm-check-updates (requiere Node.js, se instala solo si falta).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/npm/ncu/install.sh
-#  (mismo comando real: npm install -g npm-check-updates).
+#  (mismo comando real: npm install -g npm-check-updates) — ver ronda "paquetes
+#  adicionales core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash ncu.sh --silent

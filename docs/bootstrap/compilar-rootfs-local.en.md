@@ -143,3 +143,17 @@ This guide covers only local test/development builds. If the CI pipeline needs t
 automatically producing an APK with the rootfs embedded, `build-rootfs.yml` has to actually be
 run and the Release actually published — the local shortcut described here doesn't replace
 that, it only allows iterating without depending on CI.
+
+## Release: always `armv8`, in two variants (October 2026)
+
+Only the **`armv8`** architecture (`arm64-v8a`) is built for publishing, always in two variants:
+
+| Variant | File | What it is |
+|---|---|---|
+| Without rootfs | `Kairos_<version>_armv8_sin-rootfs.apk` | Lightweight (~100 MB); downloads the rootfs on first launch, so setting up the environment takes longer |
+| With rootfs | `Kairos_<version>_armv8_con-rootfs.apk` | Heavy (embedded rootfs, ~1 GB); the environment is set up faster |
+
+With `TERMUX_SPLIT_APKS_FOR_DEBUG_BUILDS=1` the build produces `Kairos_<version>_apt-android-7-debug_armv8.apk`. First build
+**without** `app/src/main/assets/kairos_rootfs.tar.xz` (lightweight variant) and keep that APK, then copy the `.tar.xz` and build
+again (variant with rootfs). Note: the current rootfs has about 490 packages (105 roots), not the ~46 roots / ~189 total quoted
+in the examples above.

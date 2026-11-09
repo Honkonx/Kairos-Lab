@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pantalla — Kairos</title>
+<style>
+:root{color-scheme:dark}
+body{margin:0;font:14px system-ui,sans-serif;background:#0d1117;color:#e6edf3}
+main{padding:12px}
+h1{font-size:15px;margin:0 0 8px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#21262d;font-size:12px}
+.pill.g{background:#1a7f37}
+button{padding:7px 11px;border-radius:8px;border:1px solid #30363d;background:#21262d;color:#e6edf3;font:inherit;margin:0 6px 0 0;cursor:pointer}
+button.pr{background:#1f6feb;border-color:#1f6feb}
+button.dg{background:#8b1a1a;border-color:#8b1a1a}
+button:disabled{opacity:.5;cursor:default}
+canvas{background:#000;border:1px solid #30363d;border-radius:8px;margin-top:10px;max-width:100%;cursor:crosshair;display:block}
+pre{white-space:pre-wrap;word-break:break-word;font-size:12px;color:#8b949e;margin:10px 0 0;max-height:160px;overflow:auto;border-top:1px solid #21262d;padding-top:8px}
+.sub{color:#8b949e;font-size:12px;margin-top:8px}
+</style></head><body><main>
+<h1>Pantalla de Kairos — ventana aparte</h1>
+<div id="noToken" class="sub" style="display:none">Falta el token — abrí esta ventana desde el botón "Abrir en ventana aparte" del panel completo, o pegalo acá: <input id="tokIn" type="password" style="width:260px"> <button id="tokGo">Usar</button></div>
+<div id="app" style="display:none">
+<span class="pill" id="st">desconectado</span>
+<div style="margin-top:8px"><button class="pr" id="go">Conectar</button><button class="dg" id="stop" disabled>Desconectar</button></div>
+<canvas id="cv" width="360" height="200"></canvas>
+<div class="sub">Clic/arrastre manda toques reales (igual que el panel completo) — el video se decodifica con WebCodecs (H.264); si el navegador o el codec no son compatibles, el log de abajo lo va a decir.</div>
+<pre id="log">Sin conectar.</pre>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let token=decodeURIComponent(location.hash.slice(1))||sessionStorage.getItem('kx_token')||'';
+if(!token){$('noToken').style.display='block'}else{$('app').style.display='block'}
+$('tokGo').onclick=()=>{token=$('tokIn').value.trim();if(token){$('noToken').style.display='none';$('app').style.display='block'}};
+
+let ws=null;
+function log(line){const e=$('log');e.textContent=(e.textContent==='Sin conectar.'?'':e.textContent+'\n')+line;e.scrollTop=e.scrollHeight}
+function decodeHeader(buf){const v=new DataView(buf);const b0=v.getUint8(0);return{config:(b0&0x40)!==0,keyFrame:(b0&0x20)!==0,size:v.getInt32(8)}}
+// Mismo decodificador WebCodecs que el panel completo (docs/humano369.md) — ver el comentario
+// largo junto a scrMakeDecoder en panel/index.html para el porqué del formato Annex B / config
+// prepend. NO verificado contra un dispositivo real todavía.
+function makeDecoder(canvas, log) {
+  if (typeof VideoDecoder === 'undefined') { log('este navegador no soporta WebCodecs — sin decodificar video'); return null }
+  let configured = false, lastConfigBytes = null, sizeKnown = false;
+  const decoder = new VideoDecoder({
+    output(frame) {
+      if (!sizeKnown && frame.displayWidth && frame.displayHeight) { canvas.width = frame.displayWidth; canvas.height = frame.displayHeight; sizeKnown = true }
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+      frame.close();
+    },
+    error(e) { log('error del decodificador de video: ' + e.message); configured = false },
+  });
+  return {
+    feed(f, payload) {
+      if (f.config) { lastConfigBytes = payload; return }
+      if (!configured) {
+        try { decoder.configure({ codec: 'avc1.42E01E', optimizeForLatency: true }); configured = true }
+        catch (e) { log('no se pudo configurar el decodificador: ' + e.message); return }
+      }
+      let data = payload;
+      if (f.keyFrame && lastConfigBytes) { data = new Uint8Array(lastConfigBytes.length + payload.length); data.set(lastConfigBytes, 0); data.set(payload, lastConfigBytes.length) }
+      try { decoder.decode(new EncodedVideoChunk({ type: f.keyFrame ? 'key' : 'delta', timestamp: 0, data })) }
+      catch (e) { log('frame descartado (' + e.message + ')') }
+    },
+    close() { try { decoder.close() } catch (_) {} },
+  };
+}
+let decoder=null;
+function connect(){
+  if(ws)return;
+  const proto=location.protocol==='https:'?'wss://':'ws://';
+  ws=new WebSocket(proto+location.host+'/v1/screen/ws','kairos-token.'+token);
+  ws.binaryType='arraybuffer';
+  $('st').textContent='conectando…';
+  decoder=makeDecoder($('cv'),log);
+  ws.onopen=()=>{$('st').textContent='conectado';$('st').className='pill g';$('go').disabled=true;$('stop').disabled=false;log('websocket abierto')};
+  ws.onmessage=e=>{
+    if(!(e.data instanceof ArrayBuffer)||e.data.byteLength<12)return;
+    const f=decodeHeader(e.data);
+    log(f.config?'frame de configuración ('+e.data.byteLength+' bytes)':'frame'+(f.keyFrame?' (keyframe)':'')+', '+e.data.byteLength+' bytes');
+    if(decoder)decoder.feed(f,new Uint8Array(e.data,12));
+  };
+  ws.onerror=()=>log('error de websocket');
+  ws.onclose=ev=>{$('st').textContent='desconectado';$('st').className='pill';$('go').disabled=false;$('stop').disabled=true;log('websocket cerrado (código '+ev.code+')');ws=null;if(decoder){decoder.close();decoder=null}};
+}
+function disconnect(){if(ws){ws.close();ws=null}if(decoder){decoder.close();decoder=null}}
+$('go').onclick=connect;$('stop').onclick=disconnect;
+
+// Mismo formato que ScreenControlMessage/scrEncodeTouch del panel completo — TYPE_INJECT_TOUCH_EVENT,
+// action 0=DOWN 1=UP 2=MOVE.
+function encodeTouch(action,x,y,w,h){
+  const buf=new ArrayBuffer(32),v=new DataView(buf);let o=0;
+  v.setUint8(o,2);o+=1;v.setUint8(o,action);o+=1;v.setBigUint64(o,0n);o+=8;
+  v.setInt32(o,Math.round(x));o+=4;v.setInt32(o,Math.round(y));o+=4;
+  v.setUint16(o,w);o+=2;v.setUint16(o,h);o+=2;v.setUint16(o,0xFFFF);o+=2;
+  v.setInt32(o,0);o+=4;v.setInt32(o,1);
+  return buf;
+}
+function point(e){const c=$('cv'),r=c.getBoundingClientRect();const t=e.touches&&e.touches[0]?e.touches[0]:e;return{x:(t.clientX-r.left)*(c.width/r.width),y:(t.clientY-r.top)*(c.height/r.height),w:c.width,h:c.height}}
+function sendTouch(action,p){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(encodeTouch(action,p.x,p.y,p.w,p.h))}
+let dragging=false;
+const cv=$('cv');
+cv.addEventListener('mousedown',e=>{e.preventDefault();dragging=true;sendTouch(0,point(e))});
+cv.addEventListener('mousemove',e=>{if(!dragging)return;e.preventDefault();sendTouch(2,point(e))});
+window.addEventListener('mouseup',e=>{if(dragging){dragging=false;sendTouch(1,point(e))}});
+cv.addEventListener('touchstart',e=>{e.preventDefault();dragging=true;sendTouch(0,point(e))},{passive:false});
+cv.addEventListener('touchmove',e=>{if(!dragging)return;e.preventDefault();sendTouch(2,point(e))},{passive:false});
+cv.addEventListener('touchend',e=>{if(dragging){dragging=false;sendTouch(1,point(e))}});
+</script></main></body></html>

@@ -27,7 +27,7 @@ import java.io.File
 import java.security.MessageDigest
 
 /**
- * Entornos de Prueba — reorganizado 2026-08-23 (pedido explícito del
+ * Entornos de Prueba — reorganizado 2026-08-23 (ver pedido explícito del
  * usuario: "no es quitar opciones es reorganizarlas", confirmado sobre un mockup visual antes de
  * implementar). Antes eran 2 pantallas: esta (4 presets fijos con 8 botones sueltos + un acceso
  * a "Proyecto real") y `StacksProjectFragment` (lista de carpetas + detalle). Ahora es UNA sola
@@ -57,7 +57,7 @@ class StacksFragment : BaseModuleFragment() {
         private const val PREFS = "kairos_stacks_prefs"
         private const val KEY_PATHS = "project_paths"
         private const val KEY_STATES = "project_states"
-        // Monorepos (2026-09-15, pedido explícito del usuario):
+        // Monorepos (2026-09-15, pedido explícito del usuario —):
         // parent path -> lista de sub-proyectos (paths ABSOLUTOS de subcarpetas de 1er nivel
         // con su propia señal de stack, ej. "proyecto-0/frontend" en Node + "proyecto-0/backend"
         // en Python). Clave nueva, ausente en instalaciones viejas — `loadProjects()` la trata
@@ -125,7 +125,7 @@ class StacksFragment : BaseModuleFragment() {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Persistencia real de la lista de proyectos (2026-08-24).
+    // Persistencia real de la lista de proyectos (2026-08-24,).
     //  Bug real reportado: "las carpetas en entorno de prueba las carpetas no se quedan guardadas
     //  al salir se quitan" — `projectPaths`/`projectStates` eran solo `mutableListOf`/`mutableMapOf`
     //  en memoria, sin ningún archivo/SharedPreferences detrás, así que se perdían apenas el
@@ -240,7 +240,7 @@ class StacksFragment : BaseModuleFragment() {
 
     /** Ícono por stack detectado — mismo `detectProjectStack()` de siempre, solo se le agrega
      * una representación visual (2026-08-23, rediseño visual real tras el rechazo del usuario a
-     * la reorganización "copy-paste" anterior). */
+     * la reorganización "copy-paste" anterior —). */
     private fun iconForTags(tags: List<String>): String = when {
         "python" in tags -> "🐍"
         "php" in tags -> "🐘"
@@ -267,6 +267,7 @@ class StacksFragment : BaseModuleFragment() {
             trailing = {
                 addView(TextView(context).apply {
                     text = "✕"
+                    contentDescription = context.getString(R.string.a11y_close)
                     textSize = 14f
                     setTextColor(context.kairosThemeColor(R.attr.kairosText2))
                     setPadding(dp(10), dp(4), dp(2), dp(4))
@@ -379,7 +380,7 @@ class StacksFragment : BaseModuleFragment() {
 
     // ═══════════════════════════════════════════════════════════
     //  Estado MONOREPO — overview de sub-proyectos de un mismo proyecto padre (2026-09-15,
-    //  pedido explícito del usuario — caso real: "proyecto-0/frontend"
+    // pedido explícito del usuario, ver — caso real: "proyecto-0/frontend"
     //  en TypeScript/Node + "proyecto-0/backend" en Python bajo la misma carpeta padre). Cada
     //  fila navega al MISMO buildProjectDetailState() de siempre, pasándole el path ABSOLUTO
     //  del sub-proyecto — el sub-proyecto se comporta como un proyecto independiente completo
@@ -420,6 +421,7 @@ class StacksFragment : BaseModuleFragment() {
             trailing = {
                 addView(TextView(context).apply {
                     text = "✕"
+                    contentDescription = context.getString(R.string.a11y_close)
                     textSize = 14f
                     setTextColor(context.kairosThemeColor(R.attr.kairosText2))
                     setPadding(dp(10), dp(4), dp(2), dp(4))
@@ -684,7 +686,7 @@ class StacksFragment : BaseModuleFragment() {
      * [detectProjectStack] apenas se elige la carpeta y la muestra ANTES de agregar el proyecto
      * a la lista, en vez de detectar en silencio recién al entrar al detalle.
      *
-     * Monorepo (2026-09-15): además de la detección de la raíz, se
+     * Monorepo (2026-09-15,): además de la detección de la raíz, se
      * escanean subcarpetas de 1er nivel ([detectSubProjects]) — si aparece alguna con SU PROPIA
      * señal de stack, se ofrece agregar el proyecto como monorepo (checkboxes por sub-proyecto)
      * en vez del diálogo simple de siempre. Se ofrece SIEMPRE que haya sub-proyectos, incluso si

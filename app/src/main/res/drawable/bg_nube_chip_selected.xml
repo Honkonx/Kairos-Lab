@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chip de filtro de categoría seleccionado — "nav-tab" activo del sidebar del mockup
+     (bg-brand-600 text-white). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/kairosPurple" />
+    <corners android:radius="999dp" />
+</shape>

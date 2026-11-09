@@ -94,7 +94,7 @@ object ModuleEventBridge {
     private fun pipeFile(): File = File(TermuxConstants.TERMUX_HOME_DIR_PATH, ".kairos_events")
 
     /**
-     * Bug real confirmado (auditoría de ProcessBuilder): usaba
+     * Bug real confirmado (ver auditoría de ProcessBuilder): usaba
      * `"mkfifo"` por nombre relativo y solo seteaba `PATH` a mano (sin HOME/PREFIX/
      * LD_LIBRARY_PATH/SHELL) — entorno incompleto, mismo patrón del bug original de julio.
      * Se llama UNA sola vez, al arrancar la app (`TermuxApplication.onCreate()`) — la
@@ -159,13 +159,21 @@ object ModuleEventBridge {
 
     /**
      * Disparo proactivo de un evento de SESIÓN (idle/error/permission/started/stopped) desde
-     * código Kotlin — 2026-08-14 (humano123 C3/C4). Mismo camino que notifyDirect() (local +
+     * código Kotlin — 2026-08-14 ( C3/C4). Mismo camino que notifyDirect (local +
      * Telegram opt-in + cooldown), pero tipado para que el caller no tenga que recordar los
      * nombres de evento: los únicos que existen son los que messageFor() sabe traducir.
      */
     @JvmStatic
     fun notifySessionEvent(context: Context, module: String, event: SessionEvent, detail: String = "") {
         notify(context.applicationContext, module, event.value, detail)
+        // Regenera las rutas del reverse proxy (módulo nginx, ver NginxProxyManager) en cada
+        // STARTED/STOPPED real -- "no vivir en la terminal": el usuario nunca edita nginx.conf
+        // a mano, se mantiene al día solo. Se llama fuera del cooldown de notify() de arriba a
+        // propósito -- un módulo cuyo evento se "colapsó" por cooldown de notificación igual
+        // necesita que el proxy refleje su estado real cada vez.
+        if (event == SessionEvent.STARTED || event == SessionEvent.STOPPED) {
+            NginxProxyManager.regenerateRoutes(context.applicationContext)
+        }
     }
 
     enum class SessionEvent(val value: String) {
@@ -209,7 +217,7 @@ object ModuleEventBridge {
     }
 
     private fun notify(context: Context, module: String, event: String, detail: String) {
-        // Cooldown anti-spam (2026-08-14, humano123 C3): un módulo que manda el MISMO
+        // Cooldown anti-spam (2026-08-14, C3): un módulo que manda el MISMO
         // evento repetido (p. ej. "session_idle" cada pocos minutos desde un proceso bash en
         // loop) no debe spamear una notificación por línea. Equivalente Kotlin de un
         // "collapse_id" de FCM: mismo módulo+evento dentro de la ventana → se actualiza la
@@ -263,14 +271,30 @@ object ModuleEventBridge {
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+        val notificationId = "$module:$event".hashCode()
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle(title)
             .setContentText(text)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .build()
-        NotificationManagerCompat.from(context).notify("$module:$event".hashCode(), notification)
+
+        // Acción "Detener" — solo en los 3 eventos que implican que el módulo está corriendo
+        // AHORA MISMO (session_started/idle/permission); session_stopped/error/install_done/
+        // vnc_closed/updates_available no tienen nada real que detener. Ver StopModuleReceiver.kt.
+        if (event == SessionEvent.STARTED.value || event == SessionEvent.IDLE.value || event == SessionEvent.PERMISSION.value) {
+            val stopIntent = android.content.Intent(context, com.termux.app.StopModuleReceiver::class.java).apply {
+                putExtra(com.termux.app.StopModuleReceiver.EXTRA_MODULE_ID, module)
+                putExtra(com.termux.app.StopModuleReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            }
+            val stopPendingIntent = android.app.PendingIntent.getBroadcast(
+                context, notificationId, stopIntent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Detener", stopPendingIntent)
+        }
+
+        NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     }
 
     /**
@@ -303,7 +327,7 @@ object ModuleEventBridge {
             // un id de modules.json real (Nube no es un módulo instalable, es un servidor
             // embebido siempre disponible). detail trae "<nombre archivo> (<categoría>)".
             "upload_received" -> "📥 Subida recibida en Nube" to detail.ifBlank { "Alguien subió un archivo por el link." }
-            // Eventos de SESIÓN (2026-08-14, humano123 C3/C4) — los manda el lado bash de un
+            // Eventos de SESIÓN (2026-08-14, C3/C4) — los manda el lado bash de un
             // módulo (notify_event en modulos/lib.sh) o código Kotlin (notifyDirect). Son los
             // que permiten el aviso PROACTIVO sin polling: el módulo avisa solo cuando pasa
             // algo, en vez de que la app tenga que estar preguntando. Ver el plan en

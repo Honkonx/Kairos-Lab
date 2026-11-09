@@ -17,10 +17,10 @@
 #       loader glibc de Termux — comando: kilo
 #    ✅ Registry actualizado
 #
-#  QUÉ CAMBIÓ (v2.0.0, 2026-08-24):
+# QUÉ CAMBIÓ (v2.0.0, 2026-08-24,):
 #    v1.0.0 instalaba vía "npm install -g @kilocode/cli" — el package.json
-#    de ese paquete no lista "android" en su campo "os" (--force lo saltea
-#    desde v1.1.0), pero incluso saltando eso, su postinstall.mjs
+#    de ese paquete no lista "android" en su campo "os" (--force lo saltea,
+# ver v1.1.0/), pero incluso saltando eso, su postinstall.mjs
 #    busca un paquete opcional "@kilocode/cli-android-arm64" que
 #    Kilo-Org nunca publicó en npm (404 real, confirmado 2026-08-24) — el
 #    mismo patrón de raíz que mimocode v1 (paquete de plataforma inexistente
@@ -40,7 +40,7 @@
 #    Kilo Code es un fork del motor OpenCode (el mismo que Kairos ya
 #    instala como módulo opencode) con su propio ecosistema/proveedores.
 #    Se mantiene como módulo separado porque es un binario/paquete distinto
-#    y el usuario puede querer ambos.
+# y el usuario puede querer ambos.
 #
 #  OUTPUT (modo --silent):
 #    [STEP] descripción
@@ -48,7 +48,7 @@
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
 #  VERSIÓN: 2.0.0 | Agosto 2026 (binario nativo ARM64 + glibc, reemplaza el
-#  método npm roto)
+# método npm roto —)
 # ============================================================
 
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"

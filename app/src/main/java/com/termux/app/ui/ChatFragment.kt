@@ -32,6 +32,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.termux.R
+import com.termux.app.util.AiCompany
+import com.termux.app.util.AiProviders
 import com.termux.app.util.ChatHistoryStore
 import com.termux.app.util.DocumentChunker
 import com.termux.app.util.LlmErrorMapper
@@ -79,7 +81,7 @@ class ChatFragment : Fragment() {
 
     companion object {
         private const val OLLAMA_URL = "http://127.0.0.1:11434"
-        // 2026-08-11 (fusión llama-server + IA Local): el chat usa el motor
+        // 2026-08-11 ( punto 3, fusión llama-server + IA Local): el chat usa el motor
         // embebido (JNI, mismo proceso) si puede cargarlo; si NO (fallback HTTP) habla con el
         // servidor llama-server (módulo llamaserver, puerto 8085, OpenAI-compatible /v1) — ver
         // makeLlamaServerRequest. Mismo puerto/contrato que modulos/llamaserver.sh.
@@ -93,7 +95,7 @@ class ChatFragment : Fragment() {
         // motor ANTES de ver el chat. Ver mEngine/showEngineSelector()/selectEngine().
         private const val ENGINE_OLLAMA = "ollama"
         private const val ENGINE_LOCAL = "local"
-        // BYO API key (2026-08-15): motores cloud con clave propia del
+        // BYO API key (2026-08-15, ronda): motores cloud con clave propia del
         // usuario — el selector de motor gana una tercera opción "Cloud API" que despliega
         // los 5 proveedores. La clave ("cloud_api_key_<id>") se guarda cifrada vía
         // SecureChatPrefs (EncryptedSharedPreferences, ver util/SecureChatPrefs.kt); el
@@ -111,17 +113,24 @@ class ChatFragment : Fragment() {
         // — reusa exactamente el payload/parseo del caso "openai" (openAiBody() +
         // contentPath "choices[0].message.content"), solo la URL y el modelo son configurables
         // por el usuario en vez de estar hardcodeados. Ver requestCustomProviderConfig().
-        private val CLOUD_PROVIDERS = listOf("gemini", "deepseek", "openai", "anthropic", "grok", "custom")
+        // Unificado con AiCompany (util/AiProviders.kt, 2026-10-31, mismo enum que usan el
+        // Agente y el IDE) — agrega "openrouter"/"ollama_cloud" que faltaban (regla
+        // kairos-ia-selector-nunca-vacio.md exige las 6 empresas fijas + local; esta pantalla
+        // tenía solo 4 de las 6). Los ids NO se tocaron para los 5 ya existentes (se conserva
+        // "gemini" en vez de pasar a "google" como AiCompany) para no invalidar en silencio la
+        // elección ya guardada de quien actualice desde una versión anterior — chatProviderToAiCompany()
+        // de abajo traduce entre ambos.
+        private val CLOUD_PROVIDERS = listOf("gemini", "deepseek", "openai", "anthropic", "grok", "openrouter", "ollama_cloud", "custom")
         private const val CLOUD_CUSTOM_BASE_URL_KEY = "cloud_custom_base_url"
         private const val CLOUD_CUSTOM_MODEL_KEY = "cloud_custom_model"
         // Default replicando el mismo criterio que el caso "openai" existente (modelo fijo
         // razonable si el usuario deja el campo vacío) — mismo patrón, endpoint distinto.
         private const val DEFAULT_CUSTOM_MODEL = "gpt-3.5-turbo"
-        // Prefijo del modo shell (2026-08-15, hallazgo #7 whispercode):
+        // Prefijo del modo shell (2026-08-15, ronda, hallazgo #7 whispercode):
         // un mensaje que empieza con "!" se ejecuta como comando shell real y su salida se
         // muestra en el chat como mensaje de sistema — sin pasar por ningún motor de IA.
         private const val SHELL_COMMAND_PREFIX = "!"
-        // Internet para modelos (2026-08-15): la Web Search API de Ollama
+        // Internet para modelos (2026-08-15, ronda): la Web Search API de Ollama
         // (https://ollama.com/api/web_search, header "Authorization: Bearer $OLLAMA_API_KEY",
         // ver docs.ollama.com/capabilities/web-search) se usa como servicio de búsqueda
         // compartido para los motores locales (ollama Y llama-server) — los resultados se
@@ -134,8 +143,8 @@ class ChatFragment : Fragment() {
         private const val WEB_SEARCH_MAX_RESULTS = 5
         private const val WEB_SEARCH_TIMEOUT_MS = 10000
         // Fallback SOLO para el primer render, antes de que checkOllamaStatus() termine de
-        // consultar los modelos reales — bug real confirmado (reporte del usuario, 2026-07-31):
-        // esta lista se usaba como si fueran los modelos disponibles
+        // consultar los modelos reales — bug real confirmado (reporte del usuario, 2026-07-31,
+        //): esta lista se usaba como si fueran los modelos disponibles
         // de verdad, pero son solo nombres de ejemplo — si el usuario nunca hizo `ollama pull`
         // de ninguno de estos, CADA mensaje fallaba con el error real de Ollama (404 "model
         // not found", a veces 400 según la versión). Ver mOllamaModels, poblado con
@@ -154,7 +163,7 @@ class ChatFragment : Fragment() {
 
         // C6 ("resume lifecycle streaming"): política del ciclo de vida del
         // streaming HTTP. Antes el loop de lectura era un readLine() pelado hasta EOF o
-        // [DONE] con un catch genérico — tres fallas reales (ver auditoría de C6):
+        // [DONE] con un catch genérico — tres fallas reales (ver auditoría de C6 en
         //   1) Sin watchdog: si el servidor moría a mitad de un stream (proceso muerto,
         //      sleep del SoC, pico de CPU) la lectura quedaba bloqueada hasta el
         //      readTimeout y el error era un "Error de conexion" genérico que no
@@ -253,7 +262,7 @@ class ChatFragment : Fragment() {
             RegexOption.IGNORE_CASE
         )
 
-        // MVP (pedido 2026-08-13): trigger manual para que el
+        // MVP (pedido 2026-08-13,): trigger manual para que el
         // chat ejecute tools de cactus-needle (bash/python/engram) SIN pasar por ningún motor
         // de IA — el usuario pide la ejecución explícitamente con este prefijo, la IA no decide
         // sola cuándo correr comandos (eso es tool-calling completo, fuera de alcance acá).
@@ -307,6 +316,7 @@ class ChatFragment : Fragment() {
     private lateinit var mErrorDetail: TextView
     private lateinit var mCancelText: TextView
     private lateinit var mStatusText: TextView
+    private lateinit var mContextUsageText: TextView
     private lateinit var mModelSelector: TextView
     private lateinit var mMessageCount: TextView
     private lateinit var mPersonaLabel: TextView
@@ -419,6 +429,9 @@ class ChatFragment : Fragment() {
     // local distinto o sale del fragment.
     private var mLocalEngine: LlamaEngine? = null
     private var mLocalEngineModelName: String? = null
+
+    /** Capas en GPU con las que se cargó el motor local actual (0 = CPU). Decide si un error de Vulkan se puede reintentar en CPU. */
+    private var mLocalEngineGpuLayers = 0
     // true si mLocalEngine ya tiene un mmproj cargado (ver LocalModelManager.isMmproj()) — se
     // resetea junto con mLocalEngineModelName porque loadMultimodalProjector() necesita el
     // llama_model* del modelo de texto YA cargado (ver LLMInference.cpp), así que un cambio de
@@ -468,8 +481,8 @@ class ChatFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-        // API keys BYO de proveedores cloud (cloudApiKeyKey() arriba) — una vez guardadas
-        // nunca se vuelven a mostrar en la UI, solo reemplazar/borrar.
+        // API keys BYO de proveedores cloud (cloudApiKeyKey() arriba) — ver
+        // .claude/rules/kairos-secrets-never-revealed.md.
         view.filterTouchesWhenObscured = true
 
         mRecycler = view.findViewById(R.id.recycler_chat)
@@ -491,6 +504,7 @@ class ChatFragment : Fragment() {
         mCancelSpinner = view.findViewById(R.id.cancel_spinner)
         mStatusText = view.findViewById(R.id.status_text)
         mStatusDot = view.findViewById(R.id.status_dot)
+        mContextUsageText = view.findViewById(R.id.context_usage_text)
         mModelSelector = view.findViewById(R.id.model_selector)
         mMessageCount = view.findViewById(R.id.message_count)
         mOfflineOverlay = view.findViewById(R.id.offline_overlay)
@@ -554,6 +568,23 @@ class ChatFragment : Fragment() {
         // está fuera de alcance esta ronda; mismo patrón de UI programática que ya usa
         // buildEngineSelectorView(). Muestra el nombre de la persona activa y abre un diálogo
         // de selección (radio list) persistido en kairos_llm_prefs vía SystemPrompts.save().
+        // Segunda fila desplazable bajo la model_bar para rol / Web / Buscar. Antes se agregaban a la
+        // propia model_bar (LinearLayout horizontal con 5 hijos de ancho "wrap"): no cabían y Android
+        // aplastaba al último, dejando el rol partido letra por letra en vertical y estirando la
+        // cabecera a media pantalla (captura del dispositivo "lisa").
+        val modelBar = view.findViewById<LinearLayout>(R.id.model_bar)
+        val toolsRow = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val toolsScroll = android.widget.HorizontalScrollView(requireContext()).apply {
+            isHorizontalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            setBackgroundColor(requireContext().kairosThemeColor(R.attr.kairosBgSurface))
+            setPadding(dp(2), 0, dp(12), dp(6))
+            addView(toolsRow)
+        }
+        (modelBar.parent as ViewGroup).addView(toolsScroll, (modelBar.parent as ViewGroup).indexOfChild(modelBar) + 1)
         mPersonaLabel = TextView(requireContext()).apply {
             text = getString(R.string.chat_persona_label_format, SystemPrompts.current(requireContext()).name)
             textSize = 12f
@@ -569,9 +600,9 @@ class ChatFragment : Fragment() {
             ).also { it.leftMargin = dp(12) }
             setOnClickListener { showPersonaSelector() }
         }
-        view.findViewById<LinearLayout>(R.id.model_bar).addView(mPersonaLabel)
+        toolsRow.addView(mPersonaLabel)
 
-        // Toggle "Web" (internet para modelos, 2026-08-15): activa/desactiva
+        // Toggle "Web" (internet para modelos, 2026-08-15 ronda): activa/desactiva
         // la inyección de resultados de la Web Search API de Ollama en los motores locales.
         // Al activarlo sin key guardada pide la clave (showWebSearchKeyDialog).
         val webToggle = TextView(requireContext()).apply {
@@ -610,7 +641,7 @@ class ChatFragment : Fragment() {
                 }
             }
         }
-        view.findViewById<LinearLayout>(R.id.model_bar).addView(webToggle)
+        toolsRow.addView(webToggle)
 
         // Botón manual de búsqueda web SIN API key (WebSearchService, ver
         // WEB_SEARCH_COMMAND_PREFIX) — distinto del toggle "Web" de arriba (que inyecta
@@ -633,7 +664,7 @@ class ChatFragment : Fragment() {
             ).also { it.leftMargin = dp(12) }
             setOnClickListener { showWebSearchQueryDialog() }
         }
-        view.findViewById<LinearLayout>(R.id.model_bar).addView(webSearchButton)
+        toolsRow.addView(webSearchButton)
 
         // Follow-up queue (Composer docks, ver mPendingQueue) — fila "⏳ N en cola" debajo del
         // input. Se agrega en código porque fragment_chat.xml no la declara (mismo patrón que
@@ -673,6 +704,12 @@ class ChatFragment : Fragment() {
         if (!hidden && isAdded && ::mEngineSelectorView.isInitialized) {
             showEngineSelector()
         }
+        // Bug real (2026-11-02, "sigue sin dejar tirar capture"): el
+        // comentario de arriba YA explicaba por qué hide()/show() no dispara onPause()/
+        // onResume() — pero nunca se aplicó esa misma lógica a setScreenSecure(false) de
+        // onPause() más abajo. Una sola visita a Chat dejaba FLAG_SECURE prendido para toda
+        // la app hasta que la Activity entera pasara a background.
+        if (hidden) setScreenSecure(false) else if (isResumed) setScreenSecure(true)
     }
 
     override fun onDestroyView() {
@@ -693,9 +730,13 @@ class ChatFragment : Fragment() {
         // Libera el modelo nativo (memoria potencialmente grande, GBs) al salir
         // de la pantalla — se vuelve a cargar perezosamente si el usuario
         // vuelve y manda otro mensaje con un modelo local.
-        mLocalEngine?.close()
+        // close() espera a que termine el paso nativo en curso (LlamaEngine.nativeLock): se hace en un hilo
+        // aparte para no bloquear el principal. Antes se cerraba aquí mismo, sin esperar al hilo de generación,
+        // y la app moría con SIGSEGV en llama_decode (captura del dispositivo).
+        val engineToClose = mLocalEngine
         mLocalEngine = null
         mLocalEngineModelName = null
+        if (engineToClose != null) Thread({ engineToClose.close() }, "llama-engine-close").start()
         mSpeechManager?.destroy()
         mSpeechManager = null
         persistHistory()
@@ -770,6 +811,25 @@ class ChatFragment : Fragment() {
         }
         enforceTokenBudget(ctx)
         if (::mAdapter.isInitialized) mAdapter.notifyDataSetChanged()
+        updateContextUsageIndicator(ctx)
+    }
+
+    /**
+     * Indicador de contexto en vivo (hallazgo real,
+     * docs/referencias/ia/REFERENCIA_OFFLINELLM.md, 2026-11-02) — Kairos ya calculaba
+     * activeContextTokens()/estimateTokens() para enforceTokenBudget() pero nunca lo mostraba
+     * en la UI. Oculto mientras no hay ningún mensaje (nada que medir todavía).
+     */
+    private fun updateContextUsageIndicator(ctx: Context) {
+        if (!::mContextUsageText.isInitialized) return
+        if (mMessages.isEmpty()) {
+            mContextUsageText.visibility = View.GONE
+            return
+        }
+        val used = mMessages.sumOf { estimateTokens(it.content) }
+        val total = activeContextTokens(ctx)
+        mContextUsageText.text = getString(R.string.chat_context_usage_indicator, used, total)
+        mContextUsageText.visibility = View.VISIBLE
     }
 
     /**
@@ -860,7 +920,7 @@ class ChatFragment : Fragment() {
         root.addView(engineOptionCard(ctx, getString(R.string.chat_engine_local_title), mEngineLocalSubtitle) { onEngineCardClicked(ENGINE_LOCAL) })
         root.addView(engineOptionCard(ctx, getString(R.string.chat_engine_cloud_title), mEngineCloudSubtitle) { onEngineCardClicked(ENGINE_CLOUD) })
 
-        // 2026-08-11 (decisión usuario): switch para llamar a llama.cpp SIN puerto
+        // 2026-08-11 ( R2 — decisión usuario): switch para llamar a llama.cpp SIN puerto
         // (motor embebido JNI, mismo proceso) o CON puerto (servidor llama-server HTTP 8085 via
         // la macbook). Se persistede en kairos_llm_prefs (same prefs que LocalAIFragment).
         root.addView(TextView(ctx).apply {
@@ -1032,15 +1092,22 @@ class ChatFragment : Fragment() {
     private fun cloudApiKey(provider: String): String =
         securePrefs().getSecret(cloudApiKeyKey(provider))
 
-    private fun cloudProviderName(provider: String): String = when (provider) {
-        "gemini" -> "Gemini"
-        "deepseek" -> "DeepSeek"
-        "openai" -> "OpenAI"
-        "anthropic" -> "Anthropic"
-        "grok" -> "Grok"
-        "custom" -> getString(R.string.chat_custom_provider_name)
-        else -> provider
+    /** Traduce el id propio de esta pantalla al enum unificado (`null` para "custom", que no
+     *  tiene equivalente en AiCompany — queda resuelto aparte con Base URL/modelo propios). */
+    private fun chatProviderToAiCompany(provider: String): AiCompany? = when (provider) {
+        "gemini" -> AiCompany.GOOGLE
+        "deepseek" -> AiCompany.DEEPSEEK
+        "openai" -> AiCompany.OPENAI
+        "anthropic" -> AiCompany.ANTHROPIC
+        "grok" -> AiCompany.GROK
+        "openrouter" -> AiCompany.OPENROUTER
+        "ollama_cloud" -> AiCompany.OLLAMA_CLOUD
+        else -> null
     }
+
+    private fun cloudProviderName(provider: String): String =
+        if (provider == "custom") getString(R.string.chat_custom_provider_name)
+        else chatProviderToAiCompany(provider)?.label ?: provider
 
     /** Diálogo de selección de proveedor cloud (radio list) — si falta la API key del
      *  proveedor elegido, pide ingresarla antes de entrar al chat (ver requestCloudApiKey). */
@@ -1146,8 +1213,65 @@ class ChatFragment : Fragment() {
                     selectEngine(ENGINE_CLOUD)
                 }
             }
+            .setNeutralButton(getString(R.string.chat_custom_test_connection)) { _, _ ->
+                probeCustomEndpoint(urlInput.text?.toString()?.trim().orEmpty())
+            }
             .setNegativeButton(getString(R.string.chat_cancel), null)
             .show()
+    }
+
+    /** "Probar conexión" del diálogo de proveedor custom — health-check liviano ANTES de
+     *  guardar, mismo espíritu que `provider_probe.py` de `agent-nexus2.0`
+     *  (`docs/referencias/agentes/REFERENCIA_AGENT_NEXUS.md`, hallazgo #3 de
+     *  `MEJORAS_PENDIENTES.md` "Health-check/probe de provider antes de guardar"): hoy un Base
+     *  URL mal tipeado solo se descubre al primer mensaje real fallando en el chat. Un GET a
+     *  `<baseUrl>/models` (ruta estándar de la API de OpenAI, la que casi todo servidor
+     *  compatible implementa) con la API key ya guardada si existe (algunos servidores locales,
+     *  ej. llama.cpp, no la exigen) es suficiente para confirmar que hay ALGO respondiendo ahí
+     *  antes de guardar — no valida el modelo ni el formato exacto de respuesta, solo
+     *  alcanzabilidad real. No bloquea el guardado: es un botón adicional, no reemplaza
+     *  "Guardar". */
+    private fun probeCustomEndpoint(baseUrl: String) {
+        if (baseUrl.isBlank() || !baseUrl.startsWith("http")) {
+            toast(getString(R.string.chat_custom_base_url_invalid_toast))
+            return
+        }
+        val probeUrl = baseUrl.trim().trimEnd('/') + "/models"
+        toast(getString(R.string.chat_custom_test_connection_testing, baseUrl.trim().trimEnd('/')))
+        val apiKey = cloudApiKey("custom")
+        Thread {
+            var conn: java.net.HttpURLConnection? = null
+            val result: Result<Int> = try {
+                conn = (java.net.URL(probeUrl).openConnection() as java.net.HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 5000
+                    readTimeout = 5000
+                    if (apiKey.trim().length >= 8) {
+                        setRequestProperty("Authorization", "Bearer $apiKey")
+                    }
+                }
+                Result.success(conn.responseCode)
+            } catch (e: Exception) {
+                Result.failure(e)
+            } finally {
+                conn?.disconnect()
+            }
+            if (!isAdded) return@Thread
+            mMainHandler.post {
+                if (!isAdded) return@post
+                result.fold(
+                    onSuccess = { code ->
+                        // Cualquier respuesta HTTP real (incluso 401/403 por API key faltante)
+                        // ya confirma que hay un servidor ahí — solo un timeout/DNS/conexión
+                        // rechazada es una falla real de alcanzabilidad.
+                        toast(getString(R.string.chat_custom_test_connection_ok, code))
+                    },
+                    onFailure = { e ->
+                        toast(getString(R.string.chat_custom_test_connection_fail, e.message ?: e.toString()))
+                    }
+                )
+            }
+        }.start()
     }
 
     // ── Modo shell ("!") ────────────────────────────────────────────────────────────────
@@ -1270,7 +1394,7 @@ class ChatFragment : Fragment() {
 
     /**
      * Request HTTP a un proveedor cloud con la API key del usuario (BYO — ver
-     * ENGINE_CLOUD). Endpoints por proveedor (2026-08-15):
+     * ENGINE_CLOUD). Endpoints por proveedor (2026-08-15, ronda):
      *   - Gemini:   POST .../generateContent?key=KEY        → candidates[0].content.parts[0].text
      *   - DeepSeek: POST https://api.deepseek.com/chat/completions (Bearer) → choices[0].message.content
      *   - OpenAI:   POST https://api.openai.com/v1/chat/completions (Bearer)
@@ -1352,37 +1476,29 @@ class ChatFragment : Fragment() {
 
     /** Construye el spec del request cloud según el proveedor (URL, headers, body,
      *  contentPath) — ver makeCloudRequest para la tabla de endpoints por proveedor. */
+    /** URL/modelo por defecto de cada proveedor delegados a [AiProviders] (unificado con el
+     *  Agente/IDE, 2026-10-31) — Anthropic con su formato nativo propio, el resto
+     *  compatible-OpenAI (Gemini pasó del formato nativo `generateContent` al compatible-OpenAI,
+     *  mismo cambio ya hecho en `AiClient.kt` del IDE). "custom" sigue resuelto aparte, ver abajo. */
     private fun cloudRequestSpec(provider: String, apiKey: String, fullPrompt: String): CloudSpec {
-        return when (provider) {
-            "gemini" -> CloudSpec(
-                url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey",
-                headers = emptyMap(),
-                body = JSONObject().apply {
-                    put("contents", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("parts", JSONArray().apply { put(JSONObject().apply { put("text", fullPrompt) }) })
-                        })
-                    })
-                },
-                contentPath = "candidates[0].content.parts[0].text"
-            )
-            "deepseek" -> CloudSpec(
-                url = "https://api.deepseek.com/chat/completions",
+        if (provider == "custom") {
+            val baseUrl = cloudPrefs().getString(CLOUD_CUSTOM_BASE_URL_KEY, "").orEmpty()
+            val model = cloudPrefs().getString(CLOUD_CUSTOM_MODEL_KEY, "").orEmpty()
+                .ifBlank { DEFAULT_CUSTOM_MODEL }
+            return CloudSpec(
+                url = customCompletionsUrl(baseUrl),
                 headers = mapOf("Authorization" to "Bearer $apiKey"),
-                body = openAiBody("deepseek-chat", fullPrompt),
+                body = openAiBody(model, fullPrompt),
                 contentPath = "choices[0].message.content"
             )
-            "openai" -> CloudSpec(
-                url = "https://api.openai.com/v1/chat/completions",
-                headers = mapOf("Authorization" to "Bearer $apiKey"),
-                body = openAiBody("gpt-4o-mini", fullPrompt),
-                contentPath = "choices[0].message.content"
-            )
-            "anthropic" -> CloudSpec(
-                url = "https://api.anthropic.com/v1/messages",
+        }
+        val company = chatProviderToAiCompany(provider) ?: AiCompany.GROK
+        if (company == AiCompany.ANTHROPIC) {
+            return CloudSpec(
+                url = AiProviders.chatUrl(company),
                 headers = mapOf("x-api-key" to apiKey, "anthropic-version" to "2023-06-01"),
                 body = JSONObject().apply {
-                    put("model", "claude-3-5-haiku-latest")
+                    put("model", AiProviders.fallbackModel(company))
                     put("max_tokens", 1024)
                     put("messages", JSONArray().apply {
                         put(JSONObject().apply { put("role", "user"); put("content", fullPrompt) })
@@ -1390,24 +1506,13 @@ class ChatFragment : Fragment() {
                 },
                 contentPath = "content[0].text"
             )
-            "custom" -> {
-                val baseUrl = cloudPrefs().getString(CLOUD_CUSTOM_BASE_URL_KEY, "").orEmpty()
-                val model = cloudPrefs().getString(CLOUD_CUSTOM_MODEL_KEY, "").orEmpty()
-                    .ifBlank { DEFAULT_CUSTOM_MODEL }
-                CloudSpec(
-                    url = customCompletionsUrl(baseUrl),
-                    headers = mapOf("Authorization" to "Bearer $apiKey"),
-                    body = openAiBody(model, fullPrompt),
-                    contentPath = "choices[0].message.content"
-                )
-            }
-            else -> CloudSpec(
-                url = "https://api.x.ai/v1/chat/completions",
-                headers = mapOf("Authorization" to "Bearer $apiKey"),
-                body = openAiBody("grok-2-latest", fullPrompt),
-                contentPath = "choices[0].message.content"
-            )
         }
+        return CloudSpec(
+            url = AiProviders.chatUrl(company),
+            headers = mapOf("Authorization" to "Bearer $apiKey"),
+            body = openAiBody(AiProviders.fallbackModel(company), fullPrompt),
+            contentPath = "choices[0].message.content"
+        )
     }
 
     /** Arma la URL final de "/chat/completions" para el proveedor "custom" — el usuario suele
@@ -1572,7 +1677,7 @@ class ChatFragment : Fragment() {
             // muestra el offline_overlay, que es un concepto específico de Ollama. Prioriza el
             // primer modelo .gguf ya descargado como default (antes el default quedaba en un
             // nombre de Ollama aunque hubiera un modelo local real ya bajado — bug real
-            // reportado).
+            // reportado,).
             mChatContent.visibility = View.VISIBLE
             mOfflineOverlay.visibility = View.GONE
             mStatusDot.setBackgroundResource(R.drawable.circle_dot_green)
@@ -1582,6 +1687,11 @@ class ChatFragment : Fragment() {
             val localModels = LocalModelManager.listChatModels(requireContext()).map { it.name }
             if (localModels.isNotEmpty() && !isLocalModel(mSelectedModel)) {
                 mSelectedModel = localModels[0]
+                mModelSelector.text = "📱 $mSelectedModel"
+                mInput.hint = getString(R.string.chat_input_hint_model, mSelectedModel)
+            } else if (localModels.isNotEmpty()) {
+                // Modelo local ya elegido (p. ej. restaurado de las preferencias): el hint se quedaba con el
+                // "qwen2.5:0.5b" del XML aunque el activo fuera otro (captura del dispositivo).
                 mModelSelector.text = "📱 $mSelectedModel"
                 mInput.hint = getString(R.string.chat_input_hint_model, mSelectedModel)
             } else if (localModels.isEmpty()) {
@@ -2009,8 +2119,37 @@ class ChatFragment : Fragment() {
             confirmSendWithUnknownVisionModel(text, image)
             return
         }
+        // Hallazgo real (MEJORAS_PENDIENTES.md): LlamaServerFragment.onToggle() ya chequea RAM
+        // libre (MemoryMonitor) porque carga el GGUF de forma SÍNCRONA al arrancar -- pero
+        // `ollama serve` solo levanta el daemon, el modelo real se carga PEREZOSO recién en la
+        // primera request real (acá). ChatFragment nunca tenía ningún chequeo de RAM para ese
+        // momento -- un modelo grande podía intentar cargarse con poca RAM libre sin ningún
+        // aviso. Solo se chequea una vez por modelo por sesión (mRamWarnedModels) -- si ya se
+        // avisó (o ya se confirmó "enviar igual"), Ollama probablemente ya lo tiene en memoria
+        // (OLLAMA_KEEP_ALIVE) y seguir preguntando en cada mensaje sería ruido.
+        if (mEngine == ENGINE_OLLAMA && mSelectedModel !in mRamWarnedModels) {
+            val ctx = requireContext()
+            if (com.termux.app.util.MemoryMonitor.isMemoryCritical(ctx)) {
+                mRamWarnedModels.add(mSelectedModel)
+                val freeGb = String.format("%.1f", com.termux.app.util.MemoryMonitor.availableGb(ctx))
+                androidx.appcompat.app.AlertDialog.Builder(ctx)
+                    .setTitle(getString(R.string.llamaserver_ram_warning_title))
+                    .setMessage(getString(R.string.llamaserver_ram_warning_message, freeGb))
+                    .setPositiveButton(getString(R.string.llamaserver_ram_warning_continue)) { _, _ -> dispatchMessage(text, image) }
+                    .setNegativeButton(getString(R.string.llamaserver_ram_warning_cancel), null)
+                    .show()
+                return
+            } else if (com.termux.app.util.MemoryMonitor.isMemoryWarning(ctx)) {
+                mRamWarnedModels.add(mSelectedModel)
+                toast(getString(R.string.llamaserver_ram_warning_toast))
+            }
+        }
         dispatchMessage(text, image)
     }
+
+    /** Modelos de Ollama ya avisados de RAM esta sesión (ver chequeo en [sendMessage]) -- no se
+     *  vuelve a preguntar/avisar por el mismo modelo hasta que se reinicie la Activity. */
+    private val mRamWarnedModels = mutableSetOf<String>()
 
     private fun looksLikeVisionModel(name: String) = VISION_MODEL_HINT_REGEX.containsMatchIn(name)
 
@@ -2093,24 +2232,27 @@ class ChatFragment : Fragment() {
             // embebido vía LlamaEngine.streamResponseWithImage() (ver ese método/
             // LLMInference::startCompletionWithImage). El documento adjunto SÍ llega acá igual
             // (ver engineText arriba) — el motor local no tiene ninguna limitación real para texto.
-            // 2026-08-11 (decisión usuario): transporte de llama.cpp elegible
+            // 2026-08-11 ( R2 — decisión usuario): transporte de llama.cpp elegible
             // en el selector de motor — "embedded" = motor embebido JNI (sin puerto);
             // "http" = servidor llama-server 8085 (con puerto). Persistido en kairos_llm_prefs.
             val transport = requireContext().getSharedPreferences("kairos_llm_prefs", 0)
                 .getString("llama_transport", "embedded")
             Thread {
                 if (transport == "http") {
-                    // Soporte multimodal 2026-09-15 solo llegó al motor embebido JNI
-                    // (kairos_llm) — el binario llama-server (transporte HTTP) necesitaría su
-                    // propio flag --mmproj + el cliente hablando la API OpenAI de imágenes, no
-                    // implementado esta ronda (ver docs/ia-local/LLAMA_CPP_EMBEBIDO.md). Se
-                    // avisa en vez de mandar la imagen en silencio a un servidor que la ignora.
-                    if (imageBase64 != null) {
-                        mMainHandler.post { if (isAdded) toast(getString(R.string.chat_image_discarded_local)) }
-                    }
+                    // Multimodal 2026-11-09 -- antes SIEMPRE se descartaba la imagen acá con un
+                    // aviso (el binario llama-server no tenía --mmproj cableado todavía, ver
+                    // modulos/llamaserver.sh). Ahora, si el usuario configuró un proyector
+                    // multimodal (IA Local → llama-server → Parámetros →
+                    // LLAMA_SERVER_MMPROJ) y el servidor lo cargó, la imagen viaja de verdad
+                    // (ver makeLlamaServerRequest). Si NO hay mmproj configurado, el propio
+                    // servidor va a ignorar/rechazar el content multimodal -- no hay forma de
+                    // confirmarlo desde la app sin un endpoint dedicado, así que se sigue
+                    // avisando en ese caso puntual (mImageAttachAllowed ya exige al menos un
+                    // mmproj IMPORTADO para habilitar el botón, pero no garantiza que ESTE
+                    // servidor en particular lo tenga cargado con --mmproj).
                     if (llamaServerAvailable()) {
                         mMainHandler.post { if (isAdded) mStatusText.text = getString(R.string.chat_llamaserver_transport_status) }
-                        makeLlamaServerRequest(engineText, assistantId)
+                        makeLlamaServerRequest(engineText, assistantId, imageBase64)
                     } else {
                         showError(getString(R.string.chat_llamaserver_unavailable))
                         finishLoading()
@@ -2140,9 +2282,9 @@ class ChatFragment : Fragment() {
      *  o, si `useAi` es true, `cactus ai --model <mSelectedModel> --json-only <query>` (el
      *  razonador — mismo motor/modelo que ya usa el chat, vía Ollama 11434 o llama-server 8085
      *  — interpreta el pedido en lenguaje natural ANTES de que needle decida qué tool ejecutar).
-     *  Pedido explícito del usuario: "cactus debe ser con y sin
+     * Pedido explícito del usuario: "cactus debe ser con y sin
      *  ia" — deben convivir ambos modos, `/run` sin IA y `/ai` con IA (una ronda anterior había
-     *  forzado siempre el modo con IA — corregido acá). Ya corre
+     * forzado siempre el modo con IA, ver — corregido acá). Ya corre
      *  en el Thread de fondo armado por dispatchMessage(). */
     private fun dispatchCactusRun(query: String, assistantId: String, useAi: Boolean) {
         val usagePrefix = if (useAi) AI_RUN_COMMAND_PREFIX else RUN_COMMAND_PREFIX
@@ -2462,8 +2604,23 @@ class ChatFragment : Fragment() {
         Toast.makeText(ctx, message, Toast.LENGTH_SHORT).show()
     }
 
+    /** Mismo mecanismo que ModelsFragment.totalRamGb()/LocalAIFragment.totalRamGb() — duplicado
+     *  deliberado, 5 líneas triviales (ver clean-code-principles.md § KISS). */
+    private fun totalRamGb(): Double {
+        val activityManager = requireContext().getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val memInfo = android.app.ActivityManager.MemoryInfo()
+        activityManager.getMemoryInfo(memInfo)
+        return memInfo.totalMem / (1024.0 * 1024.0 * 1024.0)
+    }
+
     /** Motor local (llama.cpp embebido) — carga perezosa + streaming token a token. */
     private fun makeLocalRequest(prompt: String, assistantId: String, imageBase64: String? = null) {
+        var streamedAny = false
+        // Motor que se está cargando en ESTA llamada y capas en GPU que se le pidieron. El error del driver de
+        // Vulkan suele saltar al CARGAR (reserva de búferes), antes de que mLocalEngine exista: sin esto el
+        // reintento en CPU no se activaba (captura del dispositivo, 2026-10-09).
+        var loadingEngine: LlamaEngine? = null
+        var requestedGpuLayers = 0
         try {
             var engine = mLocalEngine
             if (engine == null || mLocalEngineModelName != mSelectedModel) {
@@ -2475,7 +2632,22 @@ class ChatFragment : Fragment() {
                     finishLoading()
                     return
                 }
+                // Hallazgo real de docs/referencias/ia/REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md:
+                // el aviso de RAM solo vivía en el catálogo (ModelsFragment/LocalAIFragment),
+                // nunca en la carga real -- el usuario podía elegir un modelo ya descargado que
+                // no entra en la RAM libre y el OOM-killer de Android mataba la app a mitad de
+                // generación sin ningún aviso previo. Mismo factor 1.3x (pesos + KV cache) que
+                // ya usa ModelsFragment.estimatedRamGb(), aplicado al tamaño REAL del archivo en
+                // vez del label de texto del catálogo.
+                val estimatedRamGb = modelFile.length() / (1024.0 * 1024.0 * 1024.0) * 1.3
+                val deviceRamGb = totalRamGb()
+                if (estimatedRamGb > deviceRamGb * 0.85) {
+                    mMainHandler.post {
+                        if (isAdded) toast(getString(R.string.chat_local_ram_warning, mSelectedModel, estimatedRamGb, deviceRamGb))
+                    }
+                }
                 engine = LlamaEngine()
+                loadingEngine = engine
                 engine.loadBackends(ctx.applicationInfo.nativeLibraryDir)
                 val prefs = ctx.getSharedPreferences("kairos_llm_prefs", 0)
                 val backendPref = GpuBackend.valueOf(
@@ -2483,10 +2655,12 @@ class ChatFragment : Fragment() {
                         ?: GpuBackend.VULKAN_IF_AVAILABLE.name
                 )
                 val gpuName = engine.getGpuDeviceInfo()
-                val nGpuLayers = GpuBackend.resolveGpuLayers(backendPref, gpuName)
+                val vulkanFailedBefore = prefs.getBoolean(GpuBackend.PREF_VULKAN_DRIVER_FAILED, false)
+                val nGpuLayers = GpuBackend.resolveGpuLayers(backendPref, gpuName, vulkanDriverFailed = vulkanFailedBefore)
                 val temperature = prefs.getFloat("temperature", 0.7f)
                 val contextSize = prefs.getInt("context_size", 2048).toLong()
                 mMainHandler.post { if (isAdded) mStatusText.text = getString(R.string.chat_loading_model) }
+                requestedGpuLayers = nGpuLayers
                 engine.load(
                     modelFile.absolutePath,
                     LlamaEngine.InferenceParams(
@@ -2499,6 +2673,9 @@ class ChatFragment : Fragment() {
                 mLocalEngine = engine
                 mLocalEngineModelName = mSelectedModel
                 mLocalEngineMmprojLoaded = false
+                mLocalEngineGpuLayers = nGpuLayers
+                // "Cargando modelo…" quedaba fijo aunque ya hubiera respuesta (captura del dispositivo).
+                mMainHandler.post { if (isAdded) mStatusText.text = getString(R.string.chat_local_engine_status) }
             }
 
             if (imageBase64 != null) {
@@ -2524,7 +2701,10 @@ class ChatFragment : Fragment() {
                         prefs.getString("backend", GpuBackend.VULKAN_IF_AVAILABLE.name)
                             ?: GpuBackend.VULKAN_IF_AVAILABLE.name
                     )
-                    val useGpu = GpuBackend.resolveGpuLayers(backendPref, engine.getGpuDeviceInfo()) > 0
+                    val useGpu = GpuBackend.resolveGpuLayers(
+                        backendPref, engine.getGpuDeviceInfo(),
+                        vulkanDriverFailed = prefs.getBoolean(GpuBackend.PREF_VULKAN_DRIVER_FAILED, false),
+                    ) > 0
                     engine.loadMultimodalProjector(mmproj.file.absolutePath, useGpu = useGpu)
                     mLocalEngineMmprojLoaded = true
                 }
@@ -2534,6 +2714,7 @@ class ChatFragment : Fragment() {
                         engine.stop()
                         return@streamResponseWithImage
                     }
+                    streamedAny = true
                     mMainHandler.post { appendToAssistant(assistantId, chunk) }
                 }
                 finishLoading()
@@ -2545,11 +2726,28 @@ class ChatFragment : Fragment() {
                     engine.stop()
                     return@streamResponse
                 }
+                streamedAny = true
                 mMainHandler.post { appendToAssistant(assistantId, chunk) }
             }
             finishLoading()
         } catch (e: Exception) {
-            // 2026-08-11 (fusión llama-server + IA Local): si el motor
+            // Error del DRIVER de Vulkan en plena inferencia (p. ej. "vk::Device::createComputePipeline:
+            // ErrorUnknown" en una Adreno 642L, captura del dispositivo 2026-10-09): no es un fallo de Kairos ni
+            // del modelo, y repetirlo en GPU volvería a fallar. Se recuerda (GpuBackend.PREF_VULKAN_DRIVER_FAILED)
+            // y, si todavía no se mostró nada de la respuesta, se reintenta sola en CPU.
+            if (!mCancelled.get() && maxOf(mLocalEngineGpuLayers, requestedGpuLayers) > 0 && isVulkanDriverFailure(e)) {
+                markVulkanDriverFailed()
+                // Si el fallo fue al cargar, el motor a medias nunca llegó a mLocalEngine: se libera aquí.
+                val half = loadingEngine
+                if (half != null && half !== mLocalEngine) Thread({ half.close() }, "llama-engine-close").start()
+                if (!streamedAny) {
+                    mMainHandler.post { if (isAdded) mStatusText.text = getString(R.string.chat_vulkan_fallback_status) }
+                    makeLocalRequest(prompt, assistantId, imageBase64)
+                    return
+                }
+                mMainHandler.post { if (isAdded) toast(getString(R.string.chat_vulkan_fallback_next_toast)) }
+            }
+            // 2026-08-11 ( punto 3, fusión llama-server + IA Local): si el motor
             // embebido (JNI) no pudo cargar/responder, se cae al servidor llama-server HTTP
             // (módulo llamaserver, 127.0.0.1:8085, OpenAI-compatible) — que ya tiene un
             // modelo cargado (llamaserver.sh lo arranca con LLAMA_SERVER_MODEL). El usuario
@@ -2572,6 +2770,26 @@ class ChatFragment : Fragment() {
         }
     }
 
+    /** ¿El error viene del driver de Vulkan (y no del modelo o de la memoria)? */
+    private fun isVulkanDriverFailure(e: Throwable): Boolean {
+        val m = e.message.orEmpty()
+        return m.contains("vk::", ignoreCase = true) || m.contains("vulkan", ignoreCase = true) ||
+            m.contains("ErrorDeviceLost", ignoreCase = true) || m.contains("ErrorInitializationFailed", ignoreCase = true)
+    }
+
+    /** Guarda que Vulkan falló en este dispositivo y suelta el motor para que la próxima carga sea en CPU. */
+    private fun markVulkanDriverFailed() {
+        requireContext().getSharedPreferences("kairos_llm_prefs", 0).edit()
+            .putBoolean(GpuBackend.PREF_VULKAN_DRIVER_FAILED, true).apply()
+        val broken = mLocalEngine
+        mLocalEngine = null
+        mLocalEngineModelName = null
+        mLocalEngineGpuLayers = 0
+        // close() espera al paso nativo en curso: fuera del hilo que lo está usando no hay riesgo, pero por
+        // simetría con onDestroyView se hace en un hilo aparte.
+        if (broken != null) Thread({ broken.close() }, "llama-engine-close").start()
+    }
+
     /** ¿Está respondiendo el servidor llama-server HTTP (módulo llamaserver, puerto 8085)? */
     private fun llamaServerAvailable(): Boolean {
         return try {
@@ -2585,13 +2803,13 @@ class ChatFragment : Fragment() {
     }
 
     /**
-     * Fallback HTTP al servidor llama-server (2026-08-11) — el chat le habla
+     * Fallback HTTP al servidor llama-server (2026-08-11, punto 3) — el chat le habla
      * por el endpoint OpenAI-compatible /v1/chat/completions del módulo llamaserver (puerto
      * 8085, ver modulos/llamaserver.sh). Streaming SSE (data: {...} y [DONE]), mismos roles que
      * Ollama (/api/chat) — el campo "model" se ignora en llama-server (sirve un solo modelo
      * cargado, el de LLAMA_SERVER_MODEL).
      *
-     * Bug real corregido (auditoría categoría I, 2026-08-13): el
+     * Bug real corregido (auditoría categoría I, 2026-08-13,): el
      * comentario original de esta función asumía que "llama-server mantiene su propia
      * conversación con KV-cache, igual que el motor embebido" — falso. El endpoint
      * /v1/chat/completions de llama-server es STATELESS por request (a diferencia del motor
@@ -2605,7 +2823,7 @@ class ChatFragment : Fragment() {
      * stream stale, heartbeat de feedback y reconnect) vive ahora en postStreamingRequest() —
      * esta función solo construye el request y parsea los payloads SSE.
      */
-    private fun makeLlamaServerRequest(prompt: String, assistantId: String) {
+    private fun makeLlamaServerRequest(prompt: String, assistantId: String, imageBase64: String? = null) {
         try {
             val effectivePrompt = augmentPromptWithWebSearch(prompt)
             val messages = JSONArray()
@@ -2614,7 +2832,26 @@ class ChatFragment : Fragment() {
             buildSystemMessage()?.let { messages.put(it) }
             val contextMessages = buildContextMessages()
             for (i in 0 until contextMessages.length()) messages.put(contextMessages.getJSONObject(i))
-            messages.put(JSONObject().apply { put("role", "user"); put("content", effectivePrompt) })
+            // Multimodal 2026-11-09 -- antes esta imagen se descartaba siempre con un aviso
+            // (ver dispatchMessage()): el binario llama-server YA soporta --mmproj (libmtmd,
+            // mismo motor que el JNI embebido) y su API /v1/chat/completions es OpenAI-
+            // compatible de verdad -- formato real confirmado contra tools/server/README.md de
+            // ggml-org/llama.cpp: "content" pasa de string plano a un array
+            // [{"type":"text",...},{"type":"image_url","image_url":{"url":"data:..."}}]. Solo
+            // se usa el formato array cuando hay imagen -- un turno sin imagen sigue mandando
+            // "content" como string plano, sin cambio de comportamiento.
+            val userContent: Any = if (imageBase64 != null) {
+                JSONArray().apply {
+                    put(JSONObject().apply { put("type", "text"); put("text", effectivePrompt) })
+                    put(JSONObject().apply {
+                        put("type", "image_url")
+                        put("image_url", JSONObject().apply { put("url", "data:image/jpeg;base64,$imageBase64") })
+                    })
+                }
+            } else {
+                effectivePrompt
+            }
+            messages.put(JSONObject().apply { put("role", "user"); put("content", userContent) })
 
             val body = JSONObject().apply {
                 put("model", LLAMASERVER_MODEL)
@@ -2664,7 +2901,7 @@ class ChatFragment : Fragment() {
     /**
      * Últimos MAX_CONTEXT_TURNS mensajes ya en pantalla, como array de mensajes
      * role/content — NO como texto plano prefijado al prompt. Bug real reportado
-     * ("ollama termux no guarda los mensajes o contexto pero
+     * (: "ollama termux no guarda los mensajes o contexto pero
      * llama.cpp si"): la versión anterior mandaba todo por /api/generate (endpoint de un
      * solo turno, sin estado) simulando el historial a mano ("User: ...\nAssistant: ...\n"
      * prepended al prompt) — eso NUNCA pasa por el chat template real del modelo, así que
@@ -2740,7 +2977,7 @@ class ChatFragment : Fragment() {
                 body = body,
                 sse = false,
                 onHttpError = { code, errorBody ->
-                    // Bug real confirmado (reporte del usuario, 2026-07-31):
+                    // Bug real confirmado (reporte del usuario, 2026-07-31 —):
                     // antes esto mostraba "HTTP 404"/"HTTP 400" a secas, sin leer el cuerpo real
                     // del error de Ollama (`{"error": "model \"x\" not found, try pulling it
                     // first"}`) ni explicar qué hacer. Ver LlmErrorMapper.mapOllamaHttp.
@@ -3114,6 +3351,7 @@ class ChatFragment : Fragment() {
         val clearBtn = TextView(ctx).apply {
             text = "✕"
             textSize = 14f
+            contentDescription = ctx.getString(R.string.a11y_close)
             setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))
             setPadding(dp(10), dp(2), dp(10), dp(2))
             isClickable = true

@@ -89,7 +89,7 @@
     <string name="codex_card_sesion">SESIÓN</string>
     <string name="codex_btn_resume_session">🕒 Reanudar última sesión</string>
     <string name="codex_btn_install_change_channel">⚙ Instalar / cambiar canal</string>
-    <!-- Selector de variante real (ronda 2026-09-09): "Normal" (canal
+    <!-- Selector de variante real (ronda 2026-09-09,): "Normal" (canal
          termux, DioNanos/codex-termux, con fallback automático a wallentx/codex-termux si la
          vía npm falla) vs "VL" (DioNanos/codex-vl, con code-mode, sin fallback — a sabiendas). -->
     <string name="codex_variant_dialog_title">Elegir variante — Codex CLI</string>
@@ -155,6 +155,7 @@
     <string name="base_module_deep_uninstall_checkbox">Desinstalación profunda (borra también el paquete real, no solo el estado)</string>
     <string name="base_module_confirm_uninstall_title">¿Desinstalar %1$s?</string>
     <string name="base_module_confirm_uninstall_message">Detiene el módulo si está corriendo y borra sus scripts, checkpoints y entradas del registry. No toca los paquetes compartidos (nodejs, python, proot-distro).</string>
+    <string name="base_module_uninstall_dependents_warning">⚠️ %1$s depende de este módulo y está instalado — podría dejar de funcionar si lo desinstalás.</string>
     <string name="base_module_uninstall_btn">Desinstalar</string>
     <string name="base_module_uninstalled">%1$s desinstalado</string>
     <string name="base_module_uninstall_failed">No se pudo desinstalar %1$s</string>

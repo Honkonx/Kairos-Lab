@@ -97,10 +97,6 @@
     <string name="module_mimocode_type">Native</string>
     <string name="module_mimocode_estimate">~1 min</string>
 
-    <!-- mistralvibe -->
-    <string name="module_mistralvibe_description">Mistral AI\'s official terminal coding agent.</string>
-    <string name="module_mistralvibe_type">Native</string>
-    <string name="module_mistralvibe_estimate">~1 min</string>
 
     <!-- qwencode -->
     <string name="module_qwencode_description">Alibaba\'s code CLI (fork of Gemini CLI) powered by the Qwen3-Coder model.</string>

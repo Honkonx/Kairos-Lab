@@ -20,11 +20,13 @@
     <string name="config_row_floating_widget">Widget flotante de acceso rápido</string>
     <string name="config_toast_grant_overlay">Concedé el permiso de superposición y volvé a activar el switch</string>
     <string name="config_row_terminal_sessions_indicator">Indicador de sesiones de terminal activas</string>
+    <string name="config_row_osc52_clipboard">Permitir que un programa en la terminal escriba el portapapeles (OSC 52)</string>
+    <string name="toast_osc52_clipboard_copied">Un programa en la terminal copió texto al portapapeles (OSC 52)</string>
     <string name="config_row_install_fzf_zsh">Instalar fzf + autosugerencias (zsh)</string>
     <string name="config_row_set_nvim_editor">✏️ Definir nvim como editor por defecto</string>
     <string name="config_row_external_input">⌨ Usar teclado/mouse externo (OTG/Bluetooth)</string>
     <!-- Casilla desplegable de modo de terminal (2026-09-08, reemplaza el switch binario de
-         arriba — decidido tras mockups A/B de un artifact de terminal adaptada).
+         arriba — ver docs/humano/ de esta ronda: mockups A/B del artifact de terminal adaptada).
          Arranca con 2 opciones (Clásica/Adaptada); "Simple" (Fase 2) se agrega cuando esa
          evolución tenga contenido real. Sigue guardando el mismo boolean pref_classic_terminal
          que ya lee TermuxActivity/ConfigExportManager — solo cambia la presentación. -->
@@ -53,6 +55,10 @@
     <string name="config_row_exit_app">Salir (detener todo y cerrar)</string>
     <string name="config_telegram_header">NOTIFICACIONES TELEGRAM</string>
     <string name="config_telegram_hint_token">Token del bot (BotFather)</string>
+    <!-- Nunca se pre-carga el token guardado en el campo (ver .claude/rules/kairos-secrets-never-revealed.md)
+         — este hint reemplaza al de arriba cuando ya hay un token guardado, para que el usuario
+         sepa que el campo vacío no significa "sin configurar". -->
+    <string name="config_telegram_hint_token_saved">Token guardado — dejá vacío para mantenerlo, o escribí uno nuevo para reemplazarlo</string>
     <string name="config_telegram_hint_chatid">Chat ID</string>
     <string name="config_telegram_test_row">🧪 Probar</string>
     <string name="config_toast_telegram_fill_fields">Completá token y chat id</string>
@@ -68,6 +74,12 @@
     <string name="config_toast_telegram_bot_started">Bot de Telegram iniciado</string>
     <string name="config_toast_telegram_bot_stopped">Bot de Telegram detenido</string>
     <!-- TelegramBotService.kt — notificación foreground + respuestas del bot a comandos. -->
+    <string name="gateway_foreground_channel_name">Gateway de Kairos</string>
+    <string name="gateway_foreground_notification_title">Gateway de Kairos activo</string>
+    <string name="gateway_foreground_notification_text">Sirviendo Homelab — tocá para volver a Kairos</string>
+    <string name="gguf_download_guard_channel_name">Descarga de modelos IA</string>
+    <string name="gguf_download_guard_notification_title">Descargando modelo…</string>
+    <string name="gguf_download_guard_notification_text">Protegiendo la descarga en segundo plano</string>
     <string name="telegram_bot_channel_name">Bot de Telegram</string>
     <string name="telegram_bot_notification_title">Bot de Telegram activo</string>
     <string name="telegram_bot_notification_text">Escuchando comandos — tocá para volver a Kairos</string>
@@ -86,7 +98,20 @@
     <string name="telegram_bot_status_error">Error al leer el estado de los módulos: %1$s</string>
     <string name="telegram_bot_ssh_running">🟢 Remote/SSH corriendo en el puerto %1$d</string>
     <string name="telegram_bot_ssh_stopped">⚪ Remote/SSH no está corriendo</string>
-    <string name="telegram_bot_help">Comandos disponibles:\n/status — módulos corriendo\n/start &lt;modulo&gt; — iniciar un módulo\n/stop &lt;modulo&gt; — detener un módulo (pide confirmación)\n/ssh — estado de Remote/SSH\n/help — esta ayuda</string>
+    <!-- /metrics (SystemMetrics.kt) — reusa la misma lectura de RAM/almacenamiento/CPU/batería/
+         red que ya usa MonitorFragment/HomelabFragment, ver sección Homelab. -->
+    <string name="telegram_bot_metrics_header">📊 Métricas del sistema:</string>
+    <string name="telegram_bot_metrics_ram">🧠 RAM: %1$d%% (%2$d/%3$d MB)</string>
+    <string name="telegram_bot_metrics_ram_unavailable">🧠 RAM: no disponible</string>
+    <string name="telegram_bot_metrics_cpu">⚙️ CPU: %1$d%%</string>
+    <string name="telegram_bot_metrics_cpu_unavailable">⚙️ CPU: no disponible</string>
+    <string name="telegram_bot_metrics_storage">💾 Almacenamiento: %1$d%% (%2$.1f/%3$.1f GB)</string>
+    <string name="telegram_bot_metrics_storage_no_permission">💾 Almacenamiento: sin permiso (Ajustes → Almacenamiento)</string>
+    <string name="telegram_bot_metrics_battery">🔋 Batería: %1$d%% — %2$.1f°C</string>
+    <string name="telegram_bot_metrics_battery_unavailable">🔋 Batería: no disponible</string>
+    <string name="telegram_bot_metrics_network">🌐 Red: %1$s%2$s</string>
+    <string name="telegram_bot_metrics_network_no_internet">, sin internet</string>
+    <string name="telegram_bot_help">Comandos disponibles:\n/status — módulos corriendo\n/start &lt;modulo&gt; — iniciar un módulo\n/stop &lt;modulo&gt; — detener un módulo (pide confirmación)\n/metrics — CPU, RAM, almacenamiento, batería, red\n/ssh — estado de Remote/SSH\n/help — esta ayuda</string>
     <string name="telegram_bot_already_processed">Ya procesado</string>
     <string name="config_exit_dialog_title">Salir de Kairos</string>
     <string name="config_exit_dialog_message">Esto detiene todos los módulos en ejecución (Ollama, n8n, OpenClaw, OpenCode, Remote, llama-server) y cierra la app por completo, como si escribieras \"exit\" en cada terminal.</string>
@@ -235,7 +260,7 @@
     <string name="vnc_viewer_reason_connection_lost">conexión perdida</string>
     <string name="vnc_viewer_open_keyboard">Abrir teclado</string>
 
-    <!-- Menú de 3 puntos + orientación -->
+    <!-- Menú de 3 puntos + orientación, ver -->
     <string name="vnc_viewer_open_menu">Más opciones</string>
     <string name="vnc_viewer_menu_minimize">Minimizar (sigue conectado)</string>
     <string name="vnc_viewer_menu_orientation">Orientación…</string>
@@ -294,4 +319,59 @@
     <string name="config_quick_access_tile_set">Quick Settings Tile ahora controla: %1$s</string>
     <string name="qs_tile_default_label">Kairos</string>
     <string name="qs_tile_no_module_label">Elegí un módulo en Ajustes</string>
+
+    <!-- Pestaña "Permisos" (2026-10-10) — estado + acción de root/ADB inalámbrico/Shizuku,
+         los 3 únicos mecanismos de privilegio que Kairos soporta (ver
+         .claude/rules/kairos-port-or-build-own.md — nunca exploits/CVEs). -->
+    <string name="config_tab_permisos">Permisos</string>
+    <string name="config_permissions_header">PERMISOS Y PRIVILEGIOS</string>
+    <!-- Hallazgo real de docs/referencias/pc-movil/INVESTIGACION_KAIROS_COMO_SHIZUKU_PROPIO_2026-10-13.md
+         Parte 5, punto 1: la UI no dejaba claro que Root/ADB YA le dan a Kairos privilegio elevado
+         para sí mismo sin ninguna app externa — Shizuku solo entra en juego para dar permiso a OTRAS
+         apps, y ni Shizuku mismo puede hacer eso sin que esa app ya integre su SDK (limitación real de
+         Android, no nuestra). -->
+    <string name="config_permissions_intro">Root o ADB inalámbrico ya le dan a Kairos privilegio elevado para sí mismo — no hace falta instalar Shizuku para eso. Shizuku solo entra en juego para dar permiso a OTRAS apps, y ni Shizuku mismo puede hacerlo si esa app no integró ya su SDK (ver «Créditos» abajo).</string>
+    <string name="permissions_checking">Comprobando…</string>
+    <string name="config_permission_available">Disponible</string>
+    <string name="config_permission_not_available">No disponible</string>
+    <string name="config_permission_retry">Reintentar</string>
+    <string name="config_permission_pair">Emparejar</string>
+    <string name="config_permission_install">Instalar</string>
+    <string name="config_permission_root_label">Root (su)</string>
+    <string name="config_permission_root_level">Nivel total — acceso completo al sistema, sin confirmación por comando</string>
+    <string name="config_permission_adb_label">ADB inalámbrico</string>
+    <string name="config_permission_adb_level">Nivel alto — shell del sistema contra este mismo teléfono, vía Depuración inalámbrica</string>
+    <string name="config_permission_shizuku_label">Shizuku (rish)</string>
+    <string name="config_permission_shizuku_level">Nivel alto — shell con permisos elevados vía el servicio de Shizuku</string>
+    <string name="config_permission_usb_row">🔌 ADB por USB (desde el gateway de PC)</string>
+    <string name="config_permission_usb_dialog_title">ADB por USB</string>
+    <string name="config_permission_usb_dialog_message">Un teléfono no puede emparejarse consigo mismo por cable USB — esta vía se activa desde el gateway de escritorio (PC), no desde acá.\n\n1. Activá Opciones de desarrollador (botón de abajo) y dentro, «Depuración por USB».\n2. Conectá el teléfono a la PC con un cable USB.\n3. Abrí el gateway de Kairos en la PC y usá la opción «Activar por USB» — te va a pedir que toques «Permitir» en este teléfono la primera vez.\n4. Listo: el gateway deja desactivado el bloqueo de procesos en segundo plano y exime a Kairos de la optimización de batería, igual que la vía inalámbrica.</string>
+    <string name="config_permission_credits_row">ℹ Créditos — root / ADB / Shizuku</string>
+    <string name="config_permission_adb_step1_title">Paso 1 de 2 — Depuración inalámbrica</string>
+    <string name="config_permission_adb_step1_message">Abrí Opciones de desarrollador, entrá a \"Depuración inalámbrica\" y tocá \"Vincular dispositivo con código de emparejamiento\" — vas a ver un puerto y un código de 6 dígitos. Anotá también el puerto de conexión que aparece junto a la IP, en la pantalla principal de Depuración inalámbrica.</string>
+    <string name="config_permission_adb_step2_title">Paso 2 de 2 — Datos del emparejamiento</string>
+    <string name="config_permission_adb_step2_message">Completá los 3 valores que te mostró Ajustes. El código expira rápido — si falla, repetí el paso 1 y pedí uno nuevo.</string>
+    <string name="config_permission_adb_progress_title">Emparejando ADB</string>
+    <string name="config_permission_adb_progress_pairing">Instalando android-tools y emparejando…</string>
+    <string name="config_permission_adb_success">ADB inalámbrico emparejado y conectado — ya podés usarlo como proveedor de privilegio.</string>
+    <string name="config_permission_adb_error_install">No se pudo instalar android-tools</string>
+    <string name="config_permission_adb_error_connect">No se pudo conectar — revisá que el código no haya expirado y que los 3 valores sean correctos</string>
+    <string name="config_permission_shizuku_dialog_title">Shizuku no está disponible</string>
+    <string name="config_permission_shizuku_dialog_message">Instalá la app Shizuku, iniciá su servicio (por ADB inalámbrico o root, desde la propia app de Shizuku) y seguí sus instrucciones para exportar \"rish\" a tu $HOME — una vez hecho eso, esta fila va a mostrar \"Disponible\".</string>
+    <string name="config_permission_shizuku_open_play">Abrir Play Store</string>
+    <string name="config_permission_shizuku_open_github">Abrir GitHub</string>
+    <string name="config_permission_no_browser">No se encontró una app para abrir el enlace</string>
+    <string name="config_permission_credits_title">Créditos — mecanismos de permisos</string>
+    <string name="config_permission_credits_message">Shizuku (github.com/RikkaApps/Shizuku) — Apache License 2.0.\n\nShizuku-API (github.com/RikkaApps/Shizuku-API) — MIT License, © RikkaW.\n\nAndroid-Automation-Termux-Shizuku-Rish — Apache License 2.0.\n\ntermux-shizuku-tools (github.com/AlexeiCrystal/termux-shizuku-tools) — licencia no confirmada en este proyecto (su README linkea a un LICENCE.md que no está presente en la copia local usada para esta investigación).\n\nAndroid Debug Bridge (adb), usado por el gateway de escritorio para la vía por USB — Google/AOSP, Apache License 2.0 (dl.google.com/android/repository, platform-tools).\n\nNinguno de estos proyectos se copió — se usaron solo como referencia de qué mecanismos de permiso ofrecer (root, ADB inalámbrico, ADB por USB, Shizuku); Kairos nunca usa exploits ni CVEs para escalar privilegios.</string>
+    <string name="config_permission_shizuku_manage_other_apps_row">Dar Shizuku a otras apps</string>
+    <string name="config_permission_shizuku_manage_other_apps_title">Permisos de Shizuku para otras apps</string>
+    <string name="config_permission_shizuku_manage_other_apps_message">La fila de arriba solo pide permiso de Shizuku para Kairos/Termux. Otorgar (o revisar) el permiso de Shizuku de OTRA app instalada no se puede hacer desde Kairos — esa función está reservada a la propia app de Shizuku (o Shizuku+), que es la única que administra esos permisos. Te abrimos Shizuku para que lo hagas ahí.</string>
+    <string name="config_permission_shizuku_manage_other_apps_open">Abrir Shizuku</string>
+    <string name="config_permission_dhizuku_check_row">Chequear Dhizuku (sin app externa)</string>
+    <string name="config_permission_dhizuku_check_title">Dhizuku — permisos elevados sin ninguna app externa</string>
+    <string name="config_permission_dhizuku_eligible_message">Este dispositivo no tiene ninguna cuenta configurada — Android permitiría activar Dhizuku (Device Owner) por ADB, sin instalar Shizuku ni ninguna otra app. Esta pantalla solo chequea elegibilidad: activarlo de verdad es una acción de alto riesgo (revertirla mal puede exigir resetear el dispositivo) que todavía no está implementada — se investigará más cuando se pueda probar en un dispositivo real dedicado.</string>
+    <string name="config_permission_dhizuku_not_eligible_message">Este dispositivo tiene al menos una cuenta configurada (Google u otra) — Android no permite activar Dhizuku (Device Owner) así, es una restricción real del sistema. Para usarlo haría falta un dispositivo sin ninguna cuenta (de fábrica, o tras quitarlas todas).</string>
+    <string name="config_permission_adb_floating_window">Ventana flotante</string>
+    <string name="config_permission_adb_floating_needs_overlay">Falta el permiso de superposición para la ventana flotante</string>
+    <string name="config_permission_adb_floating_hint">Mirá el código en Ajustes y escribilo aquí sin cambiar de app</string>
 </resources>

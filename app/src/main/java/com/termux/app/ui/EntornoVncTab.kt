@@ -22,24 +22,21 @@ import com.termux.app.util.ProgressDialogController
  */
 internal class EntornoVncTab(private val fragment: EntornoFragment) {
 
-    /** Pestaña "VNC" — mapeo 1:1 con las acciones que antes vivían bajo el sectionLabel "VNC — secundario/opcional". */
+    /** Sección VNC de la pestaña "Pantalla" (junto a X11) — filas con descripción, mismas 5 acciones de siempre. */
     fun render(parent: LinearLayout) {
         val ctx = fragment.requireContext()
-        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_lanzar))
-        tileGrid(ctx, parent, listOf(
-            TileAction(fragment.getString(R.string.entorno_tile_instalar_tigervnc), R.drawable.ic_install) { vncInstallWithProgress() },
-            TileAction(fragment.getString(R.string.entorno_tile_iniciar_vnc), R.drawable.ic_start, running = { fragment.vncRunning }) { fragment.runEntornoAction("vnc-start") },
-            TileAction(fragment.getString(R.string.entorno_tile_configurar_iniciar_vnc), R.drawable.ic_settings) { promptVncConfig() },
-            TileAction(fragment.getString(R.string.entorno_tile_abrir_visor_vnc), R.drawable.ic_vnc, running = { fragment.vncRunning }) { openVnc() }
-        ))
-        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_mantenimiento))
-        tileGrid(ctx, parent, listOf(
-            TileAction(fragment.getString(R.string.entorno_tile_detener_vnc), R.drawable.ic_stop, running = { fragment.vncRunning }) { fragment.runEntornoAction("vnc-stop") }
+        sectionLabel(ctx, parent, fragment.getString(R.string.entorno_seccion_vnc))
+        rowList(ctx, parent, listOf(
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_instalar_tigervnc), fragment.getString(R.string.entorno_row_desc_vnc_instalar), R.drawable.ic_install) { vncInstallWithProgress() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_iniciar_vnc), fragment.getString(R.string.entorno_row_desc_vnc_iniciar), R.drawable.ic_start, running = { fragment.vncRunning }) { fragment.runEntornoAction("vnc-start") }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_configurar_iniciar_vnc), fragment.getString(R.string.entorno_row_desc_vnc_configurar), R.drawable.ic_settings) { promptVncConfig() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_abrir_visor_vnc), fragment.getString(R.string.entorno_row_desc_vnc_visor), R.drawable.ic_vnc, running = { fragment.vncRunning }) { openVnc() }),
+            actionRow(ctx, RowAction(fragment.getString(R.string.entorno_tile_detener_vnc), fragment.getString(R.string.entorno_row_desc_vnc_detener), R.drawable.ic_stop, running = { fragment.vncRunning }) { fragment.runEntornoAction("vnc-stop") })
         ))
     }
 
     /**
-     * Fix real (bug: "no se sabe cuando esta listo vnc, no sale una barra de
+     * Fix real (bug 2: "no se sabe cuando esta listo vnc, no sale una barra de
      * progreso al instalar"). Mismo patrón que EntornoNativoTab.installDesktopWithProgress()
      * (ProgressDialogController) — la instalación de TigerVNC es igual de larga (paquete real
      * vía pkg) así que merece el mismo tratamiento. Comparte `nativePkgInstallKey` con las
@@ -107,7 +104,7 @@ internal class EntornoVncTab(private val fragment: EntornoFragment) {
             adapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, resolutionLabels)
             // Default 1280x720 (índice 2, no el 1920x1080 de índice 0) — pedido explícito del
             // usuario: "por defecto X11 y VNC debe estar en horizontal con 1280x720p"
-            // (2026-09-03). Mismo criterio en el fallback de
+            // (2026-09-03,). Mismo criterio en el fallback de
             // EntornoNative.vncStartWithConfig() para geometry inválido/vacío.
             setSelection(resolutionValues.indexOf("1280x720").coerceAtLeast(0))
         }

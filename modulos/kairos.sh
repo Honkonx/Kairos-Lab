@@ -48,13 +48,13 @@ export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:$PATH"
 export LD_LIBRARY_PATH="$TERMUX_PREFIX/lib"
 export DEBIAN_FRONTEND=noninteractive
 
-# Bug real (2026-08-06): este script llama a
+# Bug real (2026-08-06,): este script llama a
 # pkg_update_with_fallback() en el PASO 2 pero nunca importaba lib.sh (donde
 # vive esa función) — el error "command not found" se tragaba en silencio
 # (sin set -e) y el PASO 2 terminaba sin refrescar el índice de paquetes
 # contra ningún mirror, marcándose igual como completado.
 #
-# Bug real #2 (2026-08-27, reproducido de punta a punta con el
+# Bug real #2 (2026-08-27,, reproducido de punta a punta con el
 # wizard real en dispositivo): el fix de arriba asume que lib.sh vive en el MISMO
 # directorio que kairos.sh — pero KairosBootstrap.kt::doExtract() extrae kairos.sh
 # directo a ~/scripts/kairos.sh (caso especial) mientras que TODO el resto de scripts,
@@ -102,7 +102,7 @@ _kairos_help() {
 
   if [ "$_id" = "--install-glow" ]; then
     info "Instalando glow (renderer de markdown en terminal)..."
-    # Bug real, mismo patrón que bug #21 (VNC).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install glow -y || error "No se pudo instalar glow"
     log "glow instalado — usá: kairos help <módulo>"
@@ -157,7 +157,7 @@ mark_done()  { echo "$1" >> "$CHECKPOINT"; }
 
 # Helper: pkg install
 pkg_install() {
-  # Bug real, mismo patrón que bug #21 (VNC) — cubre
+  # Bug real, mismo patrón que bug #21 (VNC), ver — cubre
   # a todos los llamadores de este helper en un solo lugar (DRY).
   pkg_update_with_fallback
   # Corrección 2026-09-07 (auditoría de logs ocultos en módulos): antes esto pipeaba a
@@ -235,7 +235,7 @@ if check_done "pkg_update"; then
   log "Termux ya actualizado [checkpoint]"
 else
   info "Actualizando repositorios..."
-  # Quick win de la auditoría de referencia/ (2026-08-05) — antes
+  # Quick win de la auditoría de referencia/ (2026-08-05,) — antes
   # probaba solo 2 mirrors fijos en orden; ahora comparte la misma selección por
   # velocidad real que ya usaba entorno.sh (5 mirrors, medida vía curl).
   pkg_update_with_fallback
@@ -344,7 +344,7 @@ else
     patchelf-glibc \
     || warn "Algunos paquetes glibc tuvieron advertencias"
 
-  # Verificar ld.so — bug real confirmado (auditoría 2026-08-01):
+  # Verificar ld.so — bug real confirmado (auditoría 2026-08-01,):
   # esto antes era solo un warn() informativo, mark_done corría igual sin importar el
   # resultado. Mismo patrón de "checkpoint marcado sin verificar" ya corregido varias
   # veces esta sesión en scripts de módulo — acá vive en la infraestructura BASE
@@ -410,6 +410,24 @@ else
   mark_done "media_util_pkgs"
 fi
 
+# Complementos de compresión del Gestor de archivos (7z / zip / tar.zst) — orden del usuario
+# 2026-10-08: lo que cabe en el rootfs acorta lo que el wizard descarga, y el
+# wizard debe DETECTAR lo ya instalado y seguir con el resto. Por eso este bloque NO usa el checkpoint
+# de arriba (en un dispositivo que ya lo marcó, estos paquetes nuevos nunca se instalarían): mira
+# cada paquete con dpkg y baja solo los que faltan. 7zip 1.6 MB + zip 0.1 MB + zstd 0.4 MB (.deb
+# aarch64 reales, packages.termux.dev, 2026-10-08).
+_missing_archive=""
+for _p in 7zip zip zstd; do
+  dpkg -s "$_p" &>/dev/null || _missing_archive="$_missing_archive $_p"
+done
+if [ -n "$_missing_archive" ]; then
+  info "Instalando complementos de compresión:${_missing_archive}"
+  # shellcheck disable=SC2086
+  pkg_install $_missing_archive || warn "Algunos complementos de compresión tuvieron advertencias"
+else
+  log "Complementos de compresión ya instalados (7zip, zip, zstd)"
+fi
+
 # ============================================================
 # PASO 7 — Python pip upgrade
 # ============================================================
@@ -438,7 +456,7 @@ if check_done "npm_globals" && command -v pm2 &>/dev/null; then
   log "npm globales ya instalados [checkpoint]"
 else
   if command -v npm &>/dev/null; then
-    # Bug real (auditoría 2026-08-05): "npm install
+    # Bug real (auditoría 2026-08-05,): "npm install
     # -g npm" sobreescribe el npm parcheado para Termux (shebang sin /usr/bin/env, que
     # acá no existe) con uno genérico del registry — "bad interpreter" en cualquier
     # npm posterior (corepack/pm2 de abajo incluidos). El npm que ya trae nodejs-lts
@@ -833,7 +851,7 @@ registry_write kairos \
   "node=$(node --version 2>/dev/null || echo 'none')" \
   "npm=$(npm --version 2>/dev/null || echo 'none')"
 
-# 2026-08-11 (feedback real del usuario): python3 se instala como parte del bootstrap/rootfs
+# 2026-08-11 ( feedback): python3 se instala como parte del bootstrap/rootfs
 # (rootfs_package_list.txt), pero kairos.sh solo escribía kairos.python=<versión> y NUNCA
 # python.installed=true -> PythonFragment.isModuleInstalled() (registry) decía
 # "Python no está instalado" aunque el binario exista. El módulo python también registra

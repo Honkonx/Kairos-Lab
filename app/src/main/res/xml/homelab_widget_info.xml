@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Metadata del widget de home screen "Homelab" — ver HomelabWidgetProvider.kt.
+     updatePeriodMillis=1800000 (30 min) es el MÍNIMO real que Android respeta para
+     AppWidgetProvider.onUpdate() aunque se pida un valor menor (documentado oficialmente) — el
+     refresh manual real es el tap del propio widget (ver HomelabWidgetProvider.onReceive() /
+     ACTION_REFRESH), no la actualización periódica. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="90dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_homelab"
+    android:previewImage="@mipmap/ic_launcher"
+    android:description="@string/widget_homelab_description"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

@@ -1,36 +1,49 @@
 # Syncthing
 
-**Kairos module** — no Fragment of its own, managed by the app's generic module screen (Kairos
-already has everything needed to install/start/stop/open the web UI without a dedicated screen).
+> **Add-on (no longer a catalog module).** It lives in **Homelab → Services → Add-ons**
+> (`util/HomelabAddons.kt`). This document describes the design and behavior of the tool.
+
+No Fragment of its own, managed by `GenericModuleFragment.kt` (the
+`hasSwitch`+`tmuxSession`+`webviewUrl` contract in `modules.json` already covers installing/starting/stopping/opening
+the web UI without needing a dedicated screen).
 
 ---
 
-**App:** Kairos (termux-app fork)
-**Script:** `modulos/syncthing.sh`
-**Port:** `8384` (web UI, only reachable from the device itself — Kairos opens it embedded
-inside the app)
+**Script:** `modulos/syncthing.sh` (v1.0.0) — synchronized copy in
+`app/src/main/assets/scripts/syncthing.sh`.
+**Registry:** prefix `syncthing.*`
+**Port:** `8384` (web UI, `127.0.0.1` only — the app opens it embedded via `webviewUrl`)
 
 ---
 
-## 1. What it is
+## 1. Overview
 
-P2P file synchronization between devices, with no dependency on any cloud provider — unlike
-`rclone`, which syncs AGAINST an external provider (Drive, S3, Dropbox, etc.). It complements
-the `rclone` module rather than replacing it.
+P2P file synchronization between devices, with no dependency on any cloud provider.
 
 ## 2. Installation
 
-Native Termux package, installed directly with the same mechanism as `rclone`/`ffmpeg`.
+Native apt package installed through `install_single_pkg()` (see `modulos/lib.sh`), checked against
+the real `termux-packages` index (`packages/syncthing/build.sh`, `TERMUX_PKG_VERSION="2.1.5"`,
+regular package, no root). Syncthing 2.x requires the `serve` subcommand (1.x versions ran
+directly with just flags).
 
-## 3. Start and stop
+## 3. Start/stop (`hasSwitch: true`)
 
-The module has a real ON/OFF switch: turning it on starts the Syncthing server in the
-background with its web UI listening only on the device itself (`127.0.0.1:8384`). Turning it
-off stops the process.
+The module adds `~/scripts/syncthing/start.sh`/`stop.sh` (same tmux + fixed-port pattern as
+`cactus.sh` STEP 5 / `llamaserver.sh`):
 
-## 4. Configuration
+```
+tmux new-session -d -s syncthing-server \
+  "syncthing serve --no-browser --no-restart --gui-address=127.0.0.1:8384 > ~/kairos_logs/syncthing_serve.log 2>&1"
+```
 
-Pairing devices (sharing the device ID with another Syncthing instance) and choosing which
-folders to sync are inherently interactive steps, by the tool's own design — they're configured
-from Syncthing's web UI, which Kairos opens embedded automatically inside the app as soon as
-the switch is on, no separate browser needed.
+`ModuleController.kt` registers `syncthing` in its tables (`getModuleStartScript`/
+`getModuleStopInfo`/`getTmuxSession`/`getModulePort` → 8384) — same pattern as `cactus`,
+verified by `ModuleControllerTest.kt` (cross-consistency between `modules.json` and these
+tables).
+
+## 4. Configuration (stays in its own web UI)
+
+Device pairing (Device ID) and the folders to sync are inherently interactive by the upstream
+tool's design — the user configures them from `http://localhost:8384`, which
+`GenericModuleFragment` opens embedded when the switch is ON (`webviewUrl` field in `modules.json`).

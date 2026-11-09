@@ -31,7 +31,7 @@ private enum class DbEngine { SQLITE, MYSQL, POSTGRES }
 private enum class SchemaViewMode { CATEGORY, MINDMAP }
 
 /**
- * Pantalla "Estructura de la BD" (pedido explícito del usuario): muestra el
+ * Pantalla "Estructura de la BD" (pedido explícito,): muestra el
  * esquema REAL de una base — tablas agrupadas por categoría derivada del propio esquema, y un
  * mapa mental (Canvas) con nodos=tablas y líneas=relaciones FK reales. Primera versión
  * funcional: sin drag/zoom/pan propios (el pedido explícito los marca como no necesarios acá),
@@ -76,6 +76,7 @@ class DbSchemaFragment : Fragment() {
         }
         topBar.addView(ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            contentDescription = ctx.getString(R.string.a11y_close)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText))
             setOnClickListener { parentFragmentManager.popBackStack() }
@@ -499,7 +500,7 @@ class DbSchemaFragment : Fragment() {
     // para binarios de Termux (ver ProcessBuilderExt.applyTermuxEnv).
     // ────────────────────────────────────────────────────────────
 
-    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08 — mismo
+    // Causa raíz REAL confirmada por ADB en vivo (2026-09-08, ver — mismo
     // hallazgo aplicado en DbFragment.isAlive()): ningún flag de pgrep arregla esto — es una
     // restricción de Android (Yama ptrace_scope=1 + dominio SELinux "untrusted_app_27" del
     // proceso de la app, confirmado con `ps -Z`) que impide ver vía /proc procesos que no son

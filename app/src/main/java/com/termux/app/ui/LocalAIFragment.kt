@@ -41,7 +41,7 @@ import com.termux.app.util.kairosThemeColor
  * toggle separado de "engine".
  *
  * Decisión "tab independiente vs. chat de Ollama" (feedback directo del
- * usuario tras probar la pantalla): NO se
+ * usuario tras probar la pantalla, de esta ronda): NO se
  * crea una pantalla de chat nueva. ChatFragment YA es un chat unificado —
  * el mismo selector de modelo lista tanto los remotos de Ollama como los
  * .gguf locales (marcados con 📱), y decide qué motor usar según cuál se
@@ -56,7 +56,7 @@ class LocalAIFragment : Fragment() {
     /**
      * Modelo del catálogo curado — ver CATALOG más abajo. `creator` agrupa visualmente el
      * catálogo (headers de sección, mismo patrón que ModelsFragment.CatalogCategory para
-     * Ollama, misma ronda de paridad de catálogos) — el ORDEN de declaración
+     * Ollama, ver de la ronda de paridad de catálogos) — el ORDEN de declaración
      * de CATALOG es el orden real de renderizado (por creador, familia y tamaño ascendente
      * dentro de cada creador, ya resuelto a mano en la lista de abajo — no hay sort() en
      * runtime, ver comentario de CATALOG).
@@ -454,7 +454,7 @@ class LocalAIFragment : Fragment() {
         }
         scroll.addView(root, ViewGroup.LayoutParams(MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        // Título simple, sin ícono de Configuración propio (2026-08-24).
+        // Título simple, sin ícono de Configuración propio (2026-08-24,).
         // Corrección explícita del usuario: "en ia local ahi dos tuercas [...] deja todo dentro
         // de la tuerca en la pantalla principal" — este catálogo se abre DESDE la pantalla
         // principal de IA Local (LlamaServerFragment), que ya tiene su propia "⚙" única con
@@ -520,9 +520,9 @@ class LocalAIFragment : Fragment() {
             // Descubribilidad del soporte multimodal (2026-09-15) — "Importar" ya sirve para
             // traer un mmproj-*.gguf (mismo botón, se detecta por nombre, ver
             // LocalModelManager.isMmproj()); sin este texto no habría forma de que el usuario
-            // supiera que el chat puede adjuntar imágenes con el motor local (Kairos prioriza
-            // que toda función real tenga un camino de UI descubrible, no solo funcionar si el
-            // usuario ya sabía qué buscar).
+            // supiera que el chat puede adjuntar imágenes con el motor local (ver
+            // .claude/rules/kairos-product-philosophy.md — toda función real necesita un
+            // camino de UI descubrible, no solo funcionar si el usuario ya sabía qué buscar).
             addView(TextView(ctx).apply {
                 text = getString(R.string.localai_mmproj_hint)
                 textSize = 11f
@@ -677,7 +677,7 @@ class LocalAIFragment : Fragment() {
      * equivalente más directo en Android que ActivityManager.MemoryInfo sin permisos extra).
      * Duplicado deliberado en vez de extraído a un helper compartido: son 5 líneas triviales,
      * cada Fragment ya tiene su propio requireContext()/ActivityManager, y no vale la pena la
-     * indirección de un objeto util nuevo para esto (principio KISS).
+     * indirección de un objeto util nuevo para esto (ver clean-code-principles.md § KISS).
      */
     private fun totalRamGb(): Double {
         val activityManager = requireContext().getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
@@ -823,6 +823,11 @@ class LocalAIFragment : Fragment() {
         // usuario vea el progreso real aunque haya navegado a otra pantalla.
         val notificationTitle = getString(entry.nameResId)
         val notificationId = ("localai_download_" + entry.fileName).hashCode()
+        // Protección de proceso real (hallazgo de docs/referencias/ia/
+        // REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md) -- una notificación ongoing sola NO evita que
+        // Android mate el proceso completo bajo presión de memoria; stop() se llama en los 2
+        // caminos de salida (éxito/error) de abajo, nunca se omite.
+        com.termux.app.util.GgufDownloadService.start(appContext, notificationId, notificationTitle)
         Thread {
             try {
                 LocalModelManager.downloadModel(
@@ -834,6 +839,7 @@ class LocalAIFragment : Fragment() {
                     handler.post { if (isAdded) updateCatalogProgress(p) }
                 }
                 com.termux.app.util.DownloadProgressNotifier.cancel(appContext, notificationId)
+                com.termux.app.util.GgufDownloadService.stop(appContext, notificationId)
                 if (!isAdded) {
                     com.termux.app.util.ModuleEventBridge.notifyDirect(
                         appContext, appContext.getString(entry.nameResId), "install_done", appContext.getString(R.string.localai_notify_model_downloaded)
@@ -849,6 +855,7 @@ class LocalAIFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 com.termux.app.util.DownloadProgressNotifier.cancel(appContext, notificationId)
+                com.termux.app.util.GgufDownloadService.stop(appContext, notificationId)
                 if (!isAdded) {
                     com.termux.app.util.ModuleEventBridge.notifyDirect(
                         appContext, appContext.getString(entry.nameResId), "install_failed", e.message ?: appContext.getString(R.string.localai_unknown_error)
@@ -996,6 +1003,7 @@ class LocalAIFragment : Fragment() {
         // notificación es la vista cuando el usuario mandó la descarga a 2do plano o navegó a
         // otra pantalla — ambas conviven sin pisarse (ids/canales distintos).
         val notificationId = ("localai_url_download_" + name).hashCode()
+        com.termux.app.util.GgufDownloadService.start(appContext, notificationId, name)
         Thread {
             try {
                 LocalModelManager.downloadModel(ctx, url, name) { p ->
@@ -1008,6 +1016,7 @@ class LocalAIFragment : Fragment() {
                     handler.post { if (isAdded) progress.updateProgress(pct, p) }
                 }
                 com.termux.app.util.DownloadProgressNotifier.cancel(appContext, notificationId)
+                com.termux.app.util.GgufDownloadService.stop(appContext, notificationId)
                 if (progress.isBackgrounded) {
                     com.termux.app.util.ModuleEventBridge.notifyDirect(
                         appContext, name, "install_done", appContext.getString(R.string.localai_notify_model_downloaded)
@@ -1021,6 +1030,7 @@ class LocalAIFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 com.termux.app.util.DownloadProgressNotifier.cancel(appContext, notificationId)
+                com.termux.app.util.GgufDownloadService.stop(appContext, notificationId)
                 if (progress.isBackgrounded) {
                     com.termux.app.util.ModuleEventBridge.notifyDirect(
                         appContext, name, "install_failed", e.message ?: appContext.getString(R.string.localai_unknown_error)

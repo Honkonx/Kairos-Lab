@@ -33,19 +33,22 @@ import com.termux.app.util.kairosThemeColor
  * necesitaba gestos de swipe/grilla). Éste sí es el patrón real: una hoja deslizable con una
  * grilla de accesos, que un `AlertDialog`/`PopupMenu` de lista no puede dar.
  *
- * Fusión Sistema→Monitor (2026-08-26): el ítem "Sistema" salió
+ * Fusión Sistema→Monitor (2026-08-26,): el ítem "Sistema" salió
  * de la grilla — SystemFragment.kt se eliminó por completo, su contenido (RAM, almacenamiento,
- * info de dispositivo) se portó a MonitorFragment.kt como sección "DISPOSITIVO". Mismo criterio
- * que la salida de "X11" documentada arriba: si more_nav_menu.xml gana/pierde un ítem, esta
- * lista se actualiza a mano en la misma ronda.
+ * info de dispositivo) se portó al entonces MonitorFragment.kt como sección "DISPOSITIVO".
+ * Monitor a su vez se fusionó dentro de Homelab el 2026-10-30 (MonitorFragment.kt ya no
+ * existe) — mismo criterio que la salida de "X11" documentada arriba: si more_nav_menu.xml
+ * gana/pierde un ítem, esta lista se actualiza a mano en la misma ronda.
  *
  * "Homelab" agregado 2026-09-15 (pedido explícito del usuario, ver `docs/modulos/HOMELAB.md`) —
  * pantalla de panel/dashboard con servicios self-hosted externos + accesos rápidos a lo que
  * Kairos ya expone (Remote/SSH, módulos con servicio HTTP corriendo).
  *
- * "Automatizaciones" agregado 2026-09-15 (pedido explícito del usuario, ver
- * `docs/modulos/AUTOMATIZACIONES.md`) — triggers registrables (arranque del dispositivo,
- * horario) que disparan iniciar/detener un módulo sin que el usuario abra la app.
+ * "Automatizaciones" salió de esta grilla el 2026-09-16 (rediseño explícito del usuario, ver
+ * `docs/modulos/HOMELAB.md` sección "Fusión con Automatizaciones") — su UI (antes un tile propio
+ * acá) ahora vive embebida como pestaña DENTRO de Homelab (`AutomationsFragment` montado vía
+ * `childFragmentManager` en `HomelabFragment`), porque el usuario la consideró redundante como
+ * destino de navegación de primer nivel ("automatizar puede ir dentro de homelab").
  */
 class MoreBottomSheetFragment : BottomSheetDialogFragment() {
 
@@ -62,13 +65,12 @@ class MoreBottomSheetFragment : BottomSheetDialogFragment() {
     private val menuItems by lazy {
         val ctx = requireContext()
         listOf(
-            MoreItem(R.id.nav_monitor, R.drawable.ic_monitor, ctx.getString(R.string.more_sheet_monitor)),
             MoreItem(R.id.nav_files, R.drawable.ic_files, ctx.getString(R.string.more_sheet_files)),
             MoreItem(R.id.nav_tunnel, R.drawable.ic_tunnel, ctx.getString(R.string.more_sheet_tunnel)),
             MoreItem(R.id.nav_nube, R.drawable.ic_cloud, ctx.getString(R.string.more_sheet_nube)),
             MoreItem(R.id.nav_plugins, R.drawable.ic_store, ctx.getString(R.string.more_sheet_plugins)),
             MoreItem(R.id.nav_homelab, R.drawable.ic_homelab, ctx.getString(R.string.more_sheet_homelab)),
-            MoreItem(R.id.nav_automations, R.drawable.ic_automation, ctx.getString(R.string.more_sheet_automations)),
+            MoreItem(R.id.nav_agent, R.drawable.ic_agent, ctx.getString(R.string.more_sheet_agent)),
             MoreItem(R.id.nav_settings, R.drawable.ic_settings, ctx.getString(R.string.more_sheet_config))
         )
     }

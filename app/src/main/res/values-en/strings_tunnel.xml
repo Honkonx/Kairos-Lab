@@ -13,17 +13,21 @@
     <string name="tunnel_config_panel_title">⚙ Tunnel configuration</string>
     <string name="tunnel_provider_cloudflare">Cloudflare</string>
     <string name="tunnel_provider_ngrok">ngrok</string>
+    <string name="tunnel_provider_frp">frp (self-hosted)</string>
     <string name="tunnel_btn_editar">Edit</string>
     <string name="tunnel_btn_borrar">Delete</string>
     <string name="tunnel_provider_state_sin_configurar">%1$s %2$s — not configured</string>
     <string name="tunnel_provider_state_configurado">%1$s %2$s — %3$s</string>
     <string name="tunnel_state_token_ok">token ✓</string>
     <string name="tunnel_state_dominio_ok">domain ✓</string>
+    <string name="tunnel_state_servidor_ok">server ✓</string>
 
     <!-- promptProviderConfig -->
     <string name="tunnel_hint_token_guardado">Saved token (leave empty to keep it)</string>
     <string name="tunnel_hint_token_cloudflare">Cloudflare Tunnel token</string>
     <string name="tunnel_hint_authtoken_ngrok">ngrok authtoken</string>
+    <string name="tunnel_hint_token_frp">Token (auth.token on your frps, optional if your server doesn\'t require it)</string>
+    <string name="tunnel_hint_servidor_frp">Your frps server (host:port, e.g. myserver.com:7000)</string>
     <string name="tunnel_hint_dominio_propio_opcional">Custom domain (optional)</string>
     <string name="tunnel_dialog_title_configurar">Configure %1$s</string>
     <string name="tunnel_dialog_msg_configurar">Saved in the registry and reused by each module\'s quick buttons.</string>
@@ -82,6 +86,7 @@
     <string name="tunnel_btn_ngrok">🚇 ngrok</string>
     <string name="tunnel_btn_ngrok_tcp_auth">🔑 ngrok tcp+auth</string>
     <string name="tunnel_btn_ngrok_dominio">🔑 ngrok+domain</string>
+    <string name="tunnel_btn_frp">🔀 frp</string>
     <string name="tunnel_btn_detener">⏹ Stop</string>
 
     <!-- Statuses -->

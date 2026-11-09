@@ -64,10 +64,27 @@ object ModuleController {
     // a ejercitar para el caso de doble-tap — evita la notificación falsa de raíz.
     fun isInstalling(moduleId: String): Boolean = activeInstalls.contains(moduleId)
 
+    // Guard anti-carrera start/stop (auditoría de comunicación entre componentes, 2026-09-16):
+    // a diferencia de [activeInstalls] (que ya protegía installModule() desde 2026-08-27), NADA
+    // impedía que dos componentes distintos dispararan startModule()/stopModule() para el MISMO
+    // moduleId al mismo tiempo — escenario real desde que existe HomelabServer.kt (panel web,
+    // POST /module) además de la UI nativa (BaseModuleFragment) y TelegramBotService (/start,
+    // /stop): el dueño del teléfono toca "Iniciar n8n" en la UI nativa justo cuando también lo
+    // pide desde el panel web de Homelab (o desde Telegram) — ambas llamadas lanzan su propio
+    // Thread + ProcessBuilder corriendo el mismo script de arranque/parada en simultáneo, con el
+    // mismo riesgo de fondo ya confirmado en vivo para instalaciones (: dos
+    // pkg/npm/apt peleando por el mismo flock, ambas fallando en cascada) — acá además puede
+    // dejar dos sesiones tmux del mismo módulo compitiendo, o un start y un stop pisándose. El
+    // criterio es el mismo que activeInstalls: se puebla ANTES de lanzar el Thread, se libera
+    // SIEMPRE en el finally() (éxito, fallo, o excepción) — mientras el entry existe, cualquier
+    // otro caller (web, Telegram, UI nativa) recibe un onResult(false, "...") inmediato en vez
+    // de arrancar un segundo proceso en paralelo.
+    private val activeModuleActions = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
     // Antes duplicaba a mano el mismo bloque de env vars que ya vive en
-    // util/ProcessBuilderExt.kt.applyTermuxEnv() (bug real: 2 copias del mismo fix que podían
-    // quedar desincronizadas si una se corregía y la otra no) — ahora delega en la función
-    // compartida y solo agrega
+    // util/ProcessBuilderExt.kt.applyTermuxEnv() (bug real de esta sesión, ver
+    //: 2 copias del mismo fix que podían quedar desincronizadas si
+    // una se corregía y la otra no) — ahora delega en la función compartida y solo agrega
     // TERM/LANG, que ese helper no necesita para el resto de la app.
     private fun applyTermuxEnv(pb: ProcessBuilder) {
         pb.applyTermuxEnvShared()
@@ -84,14 +101,14 @@ object ModuleController {
      * escuchando: una race de cientos de ms mientras el proceso hijo termina de bindear el
      * puerto, o un caso donde el script "tiene éxito" según su propia lógica interna sin que
      * el puerto real llegue a abrirse. Mismo patrón de "checkpoint marcado sin verificar" que
-     * ya se corrigió del lado bash en varios módulos (n8n/OpenCode/Ollama) — esto agrega una
-     * SEGUNDA capa de verificación real, del lado Kotlin, independiente de que el script haya
-     * hecho bien o mal su propio chequeo.
+     * ya se corrigió del lado bash en varios módulos esta sesión (n8n/OpenCode/Ollama, ver
+     * rondas 38-41) — esto agrega una SEGUNDA capa de verificación real, del
+     * lado Kotlin, independiente de que el script haya hecho bien o mal su propio chequeo.
      */
     // n8n corre en proot (n8n_start.sh) — el boot completo del entorno proot + node.js puede
-    // tardar bien más de 8s (bug real reportado: "n8n... dura mucho" y el switch reportaba
-    // error aunque el módulo seguía arrancando bien, solo más lento que el timeout). Sin esto,
-    // waitForPortOpen() cortaba a los 8s y startModule()
+    // tardar bien más de 8s (bug real reportado,: "n8n... dura
+    // mucho" y el switch reportaba error aunque el módulo seguía arrancando bien, solo más
+    // lento que el timeout). Sin esto, waitForPortOpen() cortaba a los 8s y startModule()
     // reportaba una falla falsa mientras n8n todavía estaba subiendo.
     private fun startTimeoutMsFor(moduleId: String): Long = when (moduleId) {
         "n8n" -> 60_000L
@@ -114,8 +131,8 @@ object ModuleController {
         return false
     }
 
-    // Bug real (2026-08-07): "Ollama queda atascado en Iniciando…" — una de las causas
-    // encontradas es que process.waitFor() acá (y en
+    // Bug real (2026-08-07,): "Ollama queda atascado en
+    // Iniciando…" — una de las causas encontradas es que process.waitFor() acá (y en
     // stopModule() abajo) es SIN timeout, a diferencia de ManagerNativeUtils.runExec()/
     // runShell() (mismo proyecto), que sí usan waitFor(timeout, TimeUnit) +
     // destroyForcibly() como red de seguridad. Si el script o algún hijo suyo se cuelga sin
@@ -139,6 +156,17 @@ object ModuleController {
     // depender de @JvmOverloads acá.
     fun startModule(moduleId: String, context: android.content.Context? = null, onResult: (Boolean, String) -> Unit) {
         val script = getModuleStartScript(moduleId) ?: return onResult(false, "Unknown module")
+        // Los scripts de arranque los crea la instalación del módulo (ej. Remote → ssh_start.sh). Sin ellos bash solo
+        // dice "No such file" y el usuario ve un error sin pista; en el teléfono de pruebas ~/scripts/remote/ estaba
+        // vacío porque el módulo nunca se instaló.
+        if (!File(script).isFile) return onResult(false, "El módulo \"$moduleId\" no está instalado (falta ${File(script).name}). Instálalo primero.")
+        // Ver comentario de [activeModuleActions] arriba — rechaza de inmediato si YA hay un
+        // start/stop en curso para este mismo moduleId (web/Telegram/UI nativa pisándose).
+        if (!activeModuleActions.add(moduleId)) {
+            context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "startModule($moduleId) — rechazado, ya hay una acción en curso") }
+            onResult(false, "Ya hay una acción en curso para este módulo — esperá a que termine.")
+            return
+        }
         // Log interno de Kairos, nivel NORMAL — ciclo de vida de módulos.
         // context puede ser null en el overload legacy de 2 argumentos; sin Context no hay forma
         // de leer las SharedPreferences del nivel configurado, así que ese caso queda sin
@@ -151,9 +179,9 @@ object ModuleController {
                 pb.redirectErrorStream(true)
                 val process = pb.start()
                 val outputBuilder = StringBuilder()
-                // Bug real confirmado por ADB (2026-08-24 — probando el switch de n8n desde la
-                // UI real, la app entera crasheaba y reiniciaba en loop cada ~2min): sin
-                // try/catch acá, destroyForcibly() más abajo cierra los
+                // Bug real confirmado por ADB (2026-08-24, ver — probando
+                // el switch de n8n desde la UI real, la app entera crasheaba y reiniciaba en
+                // loop cada ~2min): sin try/catch acá, destroyForcibly() más abajo cierra los
                 // streams del proceso mientras este Thread está bloqueado en readText() —
                 // igual que el bug ya arreglado en ManagerNativeUtils.runShell(), pero acá el
                 // problema no es un hang, es una excepción (InterruptedIOException) sin capturar
@@ -210,6 +238,11 @@ object ModuleController {
             } catch (e: Exception) {
                 context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "startModule($moduleId) — excepción: ${e.message}") }
                 onResult(false, e.message ?: "Error desconocido")
+            } finally {
+                // Libera el guard SIEMPRE (éxito, fallo, timeout, o excepción) — ver comentario
+                // de [activeModuleActions] arriba. Sin este finally, una excepción no capturada
+                // dejaría el moduleId "trabado" como en curso para siempre.
+                activeModuleActions.remove(moduleId)
             }
         }.start()
     }
@@ -222,26 +255,51 @@ object ModuleController {
 
     fun stopModule(moduleId: String, context: android.content.Context? = null, onResult: (Boolean) -> Unit) {
         val script = getModuleStopInfo(moduleId) ?: return onResult(false)
+        // Ver comentario de [activeModuleActions] arriba — rechaza de inmediato si YA hay un
+        // start/stop en curso para este mismo moduleId (web/Telegram/UI nativa pisándose).
+        if (!activeModuleActions.add(moduleId)) {
+            context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "stopModule($moduleId) — rechazado, ya hay una acción en curso") }
+            onResult(false)
+            return
+        }
         context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "stopModule($moduleId) — deteniendo") }
         Thread {
             try {
                 val pb = ProcessBuilder(TERMUX_BASH_PATH, script)
                 applyTermuxEnv(pb)
+                pb.redirectErrorStream(true)
                 val process = pb.start()
+                // Auditoría 2026-10-07: sin leer stdout, un script de
+                // stop con salida grande podía bloquearse en el pipe y agotar el timeout.
+                Thread {
+                    try {
+                        process.inputStream.bufferedReader().readText()
+                    } catch (_: Exception) {
+                        // Esperado cuando destroyForcibly() cierra el stream mientras se lee.
+                    }
+                }.start()
                 if (!process.waitFor(SCRIPT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                     process.destroyForcibly()
                     context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "stopModule($moduleId) — timeout, forzado") }
                     onResult(false)
                     return@Thread
                 }
+                // Un script de stop puede salir != 0 si no había nada corriendo; lo que importa
+                // es el estado final real, así que solo se reporta fallo si además el módulo
+                // sigue corriendo (antes se devolvía true sin mirar ni exit code ni estado).
+                val stopped = process.exitValue() == 0 || !isRunning(moduleId)
                 context?.let {
-                    ModuleEventBridge.notifySessionEvent(it, moduleId, ModuleEventBridge.SessionEvent.STOPPED)
-                    com.termux.app.util.KairosLogger.log(it, "Module", "stopModule($moduleId) — OK")
+                    if (stopped) {
+                        ModuleEventBridge.notifySessionEvent(it, moduleId, ModuleEventBridge.SessionEvent.STOPPED)
+                    }
+                    com.termux.app.util.KairosLogger.log(it, "Module", "stopModule($moduleId) — ${if (stopped) "OK" else "falló, el módulo sigue corriendo"} (exit=${process.exitValue()})")
                 }
-                onResult(true)
+                onResult(stopped)
             } catch (e: Exception) {
                 context?.let { com.termux.app.util.KairosLogger.log(it, "Module", "stopModule($moduleId) — excepción: ${e.message}") }
                 onResult(false)
+            } finally {
+                activeModuleActions.remove(moduleId)
             }
         }.start()
     }
@@ -255,9 +313,9 @@ object ModuleController {
     /**
      * "Salir" (Config) — pedido explícito del usuario: detener todos los servicios en
      * ejecución y cerrar la app, "como si pusiera exit en la terminal" (a diferencia de un
-     * botón de "cerrar app" genérico, que el propio usuario descartó: eso no se puede lograr
-     * de forma confiable desde dentro de la app, requiere "Forzar cierre" de Android). Esto sí
-     * es real: para cada módulo con
+     * botón de "cerrar app" genérico, que el propio usuario descartó — ver
+     *: eso no se puede lograr de forma confiable desde dentro de la
+     * app, requiere "Forzar cierre" de Android). Esto sí es real: para cada módulo con
      * script de stop conocido (los mismos de [getModuleStopInfo]) que esté corriendo, corre
      * su stop script real — el mismo camino que usa el switch de cada módulo, uno por uno.
      * onComplete llega siempre en background thread, no en UI — el caller decide cómo cerrar
@@ -265,7 +323,7 @@ object ModuleController {
      */
     fun stopAllModules(onComplete: () -> Unit) {
         Thread {
-            listOf("ollama", "n8n", "openclaw", "opencode", "remote", "llamaserver", "db").forEach { id ->
+            listOf("ollama", "n8n", "openclaw", "opencode", "remote", "llamaserver", "db", "cactus", "gitea", "dsh").forEach { id ->
                 if (isRunning(id)) {
                     getModuleStopInfo(id)?.let { stopScript ->
                         try {
@@ -292,8 +350,8 @@ object ModuleController {
         // "pgrep -f redis-server &>/dev/null && REDIS_RUNNING=true"): tres servidores
         // independientes (mariadbd, postgres, redis-server) — el módulo cuenta como
         // "corriendo" si CUALQUIERA de los tres está vivo. Causa raíz REAL confirmada por ADB
-        // en vivo (2026-09-08): no era un tema de nombre de binario ni de flags de pgrep —
-        // ningún flag de pgrep
+        // en vivo (2026-09-08,, ronda de consolidación de módulos): no
+        // era un tema de nombre de binario ni de flags de pgrep — ningún flag de pgrep
         // funciona acá, porque el pgrep que lanza la app (dominio SELinux "untrusted_app_27")
         // nunca es ancestro de mariadbd/postgres/redis-server (viven en el árbol de la sesión
         // de terminal de TermuxService, un árbol hermano) y Yama ptrace_scope=1 bloquea ver
@@ -353,8 +411,8 @@ object ModuleController {
         // Fallback para un futuro módulo con nombre de proceso fijo pero SIN puerto conocido
         // (hoy ningún caller real llega hasta acá — "db" usa checkPort() directo y "remote" ya
         // tiene puerto vía getModulePort(), ver isRunning() arriba). Causa raíz REAL confirmada
-        // por ADB en vivo (2026-09-08): ningún flag de pgrep ("-x", sin flag, "-f") es
-        // confiable acá — es una restricción de Android (Yama ptrace_scope=1 +
+        // por ADB en vivo (2026-09-08,): ningún flag de pgrep ("-x", sin
+        // flag, "-f") es confiable acá — es una restricción de Android (Yama ptrace_scope=1 +
         // dominio SELinux "untrusted_app_27" del proceso de la app, confirmado con `ps -Z`) que
         // impide ver vía /proc procesos que no son descendientes directos del propio pgrep,
         // aunque compartan UID — no hay forma de arreglar esto solo con flags. Se deja "-f"
@@ -395,6 +453,9 @@ object ModuleController {
     // no debería pasar con el JSON real, ver comentario de installScriptFile() arriba.
     private fun legacyScriptFileFallback(moduleId: String): String = when (moduleId) {
         "remote" -> "ssh.sh"
+        // El id lleva guion pero el script usa guion bajo (media_downloader.sh) — lo detectó
+        // ModuleControllerTest al compilar (2026-10-07).
+        "media-downloader" -> "media_downloader.sh"
         else -> "$moduleId.sh"
     }
 
@@ -406,7 +467,7 @@ object ModuleController {
     fun installLogFile(moduleId: String): File =
         File(HOME, "kairos_logs").apply { mkdirs() }.resolve("install_$moduleId.log")
 
-    // Bug real (auditoría 2026-08-05): instalar un
+    // Bug real (auditoría 2026-08-05,): instalar un
     // módulo con 2 variantes (ej. Ollama gpu/standard, n8n proot/udocker) hacía que el
     // segundo intento SOBREESCRIBIERA el log del primero en installLogFile() — si el
     // primer intento (ej. Ollama GPU) fallaba y el usuario reintentaba con otra
@@ -421,8 +482,8 @@ object ModuleController {
 
     // force=false (default) preserva el comportamiento de BottomSheetInstalacion.kt (una
     // instalación nueva no debe forzar nada). force=true es lo que usa
-    // BaseModuleFragment.reinstallModuleService() — bug real (auditoría 2026-08-05): sin
-    // --force, re-ejecutar el script de instalación de
+    // BaseModuleFragment.reinstallModuleService() — bug real (auditoría 2026-08-05, ver
+    //): sin --force, re-ejecutar el script de instalación de
     // un módulo YA instalado es casi siempre un no-op (todos los scripts chequean
     // "command -v X && ! $FORCE" y salen temprano) — el botón "Reinstalar/Actualizar" que
     // ya existía en 7 módulos no actualizaba nada en la práctica, solo lo aparentaba.
@@ -439,8 +500,8 @@ object ModuleController {
         onProgress: (String) -> Unit,
         onComplete: (Boolean) -> Unit
     ) {
-        // Bug real confirmado (auditoría ADB 2026-08-22, bug #26): módulos CONTENEDOR
-        // ("languages"/"packages" — ver ModuleInstalled.kt línea ~95, sin
+        // Bug real confirmado (auditoría ADB 2026-08-22,, bug #26):
+        // módulos CONTENEDOR ("languages"/"packages" — ver ModuleInstalled.kt línea ~95, sin
         // instalador propio a propósito, script="" en el catálogo) llegaban hasta acá igual
         // que un módulo normal — installScriptFile() interpreta CUALQUIER script en blanco
         // (catálogo no disponible O deliberadamente vacío) como "usar el fallback
@@ -492,8 +553,8 @@ object ModuleController {
         InstallQueueManager.submit(onQueued = { onProgress(INSTALL_QUEUED_MESSAGE) }) {
         Thread {
             // Reintento automático de UNA sola vez para la excepción transitoria real
-            // confirmada en dispositivo (2026-09-03): instalaciones concurrentes bajo carga
-            // pesada (varios módulos a la vez) a veces
+            // confirmada en dispositivo (2026-09-03,):
+            // instalaciones concurrentes bajo carga pesada (varios módulos a la vez) a veces
             // fallan con InterruptedIOException("read interrupted by close() on another
             // thread!") dentro de process.inputStream.bufferedReader().forEachLine — investigado
             // a fondo sin encontrar un cancelInstall()/destroyForcibly() explícito responsable;
@@ -518,7 +579,7 @@ object ModuleController {
                         pb.redirectErrorStream(true)
                         val process = pb.start()
                         runningInstalls[moduleId] = process
-                        // Bug real (2026-08-06): BufferedWriter solo
+                        // Bug real (2026-08-06,): BufferedWriter solo
                         // vuelca a disco cuando su buffer interno se llena o el bloque .use{}
                         // cierra el writer (o sea, cuando el proceso hijo termina). Si el script
                         // se cuelga sin terminar (ej. "pkg install" sin timeout esperando red), el
@@ -547,8 +608,8 @@ object ModuleController {
                         installLogFileForVariant(moduleId, effectiveVariant)?.let { variantLog ->
                             try { logFile.copyTo(variantLog, overwrite = true) } catch (_: Exception) {}
                         }
-                        // Bug real ("al instalar un plugin no sale instalado y todavía da la
-                        // opción de instalar"): ModuleInstalled cachea el
+                        // Bug real (ver "al instalar un plugin no sale
+                        // instalado y todavía da la opción de instalar"): ModuleInstalled cachea el
                         // registry (30s) y el binario/verificación en vivo (10s/30s) — sin invalidar acá,
                         // un fragment que releía el estado justo después de que este script terminara
                         // (y ya escribiera "<id>.installed=true" en el registry en disco) seguía viendo
@@ -647,7 +708,9 @@ object ModuleController {
     // su clave acá también o el mismo bug se reproduce silenciosamente.
     private val VARIANT_REQUIRED_REGISTRY_KEY = mapOf(
         "claude" to "method",
-        "ollama" to "install_mode"
+        "ollama" to "install_mode",
+        // Cactus: motor elegido (native|proot); la reinstalación/actualización lo conserva
+        "cactus" to "runtime"
     )
 
     private fun resolveInstalledVariant(moduleId: String): String? =
@@ -703,9 +766,9 @@ object ModuleController {
     }
 
     /**
-     * Desinstala un módulo — pedido explícito del usuario (auditoría 2026-08-05: "en ningún
-     * tab o menú... sale para desinstalar módulos"). Alcance DELIBERADAMENTE conservador:
-     * detiene el módulo si está corriendo,
+     * Desinstala un módulo — pedido explícito del usuario (auditoría 2026-08-05, ver
+     *: "en ningún tab o menú... sale para desinstalar
+     * módulos"). Alcance DELIBERADAMENTE conservador: detiene el módulo si está corriendo,
      * borra su carpeta de scripts propia (~/scripts/<id>/, y ~/scripts/<id>-udocker/ para
      * n8n), borra su(s) checkpoint(s) de instalación y sus líneas del registry — deja el
      * módulo como si nunca se hubiera instalado desde el punto de vista de la app, lista
@@ -850,20 +913,48 @@ object ModuleController {
             "Paquete npm '@qwen-code/qwen-code' desinstalado"
         )
         "mimocode" -> DeepUninstallPlan("npm uninstall -g @mimo-ai/cli", "Paquete npm '@mimo-ai/cli' desinstalado")
-        // mistralvibe.sh instala con "$PIP_PYTHON -m pip install", donde PIP_PYTHON
-        // prefiere el binario "python" y cae a "python3" si no existe (mismo criterio
-        // acá, para desinstalar con el mismo intérprete que instaló). Solo se desinstala
-        // el paquete pip 'mistral-vibe' — nunca Python en sí, que es un módulo/runtime
-        // compartido.
-        "mistralvibe" -> DeepUninstallPlan(
-            "PIP_PY=\$(command -v python 2>/dev/null || command -v python3 2>/dev/null); " +
-                "\"\$PIP_PY\" -m pip uninstall -y mistral-vibe",
-            "Paquete pip 'mistral-vibe' desinstalado"
-        )
         "minimaxcli" -> DeepUninstallPlan("npm uninstall -g mmx-cli", "Paquete npm 'mmx-cli' desinstalado")
         "copilotcli" -> DeepUninstallPlan(
             "npm uninstall -g @github/copilot",
             "Paquete npm '@github/copilot' desinstalado"
+        )
+        // kimi.sh/pi.sh: npm install -g directo (sin wrapper propio ni runtime aparte, a
+        // diferencia de kilo/cursor/ohmypi más abajo) — "npm uninstall" alcanza.
+        "kimi" -> DeepUninstallPlan(
+            "npm uninstall -g @moonshot-ai/kimi-code",
+            "Paquete npm '@moonshot-ai/kimi-code' desinstalado"
+        )
+        "pi" -> DeepUninstallPlan(
+            "npm uninstall -g @earendil-works/pi-coding-agent",
+            "Paquete npm '@earendil-works/pi-coding-agent' desinstalado"
+        )
+        // kilo.sh (2026-08-24, ver cabecera del script): ya NO usa npm — descarga el binario
+        // nativo ARM64 real a $HOME/.local/share/kilo y crea un wrapper en
+        // $TERMUX_PREFIX/bin/kilo que lo invoca con la capa glibc. No hay "npm/pkg uninstall"
+        // real disponible, se borran los 2 artefactos propios (glibc/patchelf quedan, son
+        // runtimes compartidos con cursor/ohmypi, mismo criterio que perl/python en el resto
+        // de este archivo).
+        "kilo" -> DeepUninstallPlan(
+            "rm -rf \"$HOME/.local/share/kilo\"; rm -f \"$TERMUX_PREFIX_PATH/bin/kilo\"",
+            "Binario y wrapper de Kilo Code eliminados (~/.local/share/kilo, $TERMUX_PREFIX_PATH/bin/kilo)",
+            backupPaths = listOf("$HOME/.local/share/kilo", "$TERMUX_PREFIX_PATH/bin/kilo")
+        )
+        // cursor.sh: instalador oficial (curl https://cursor.com/install | bash) — deja el
+        // binario real en ~/.local/share/cursor-agent/ y un wrapper/symlink en
+        // ~/.local/bin/cursor-agent. $HOME/.cursor_install es el workdir temporal del propio
+        // instalador — se borra también por si quedó algo sin limpiar de una corrida anterior.
+        "cursor" -> DeepUninstallPlan(
+            "rm -rf \"$HOME/.local/share/cursor-agent\" \"$HOME/.cursor_install\"; rm -f \"$HOME/.local/bin/cursor-agent\"",
+            "Binario de Cursor CLI eliminado (~/.local/share/cursor-agent, ~/.local/bin/cursor-agent)",
+            backupPaths = listOf("$HOME/.local/share/cursor-agent", "$HOME/.local/bin/cursor-agent")
+        )
+        // ohmypi.sh: helper nativo compilado con clang directo a $PREFIX/bin/omp (PASO real del
+        // script, no un wrapper sobre un paquete externo) + su payload de datos propio en
+        // ~/.local/share/kairos-data/oh-my-pi.
+        "ohmypi" -> DeepUninstallPlan(
+            "rm -f \"$TERMUX_PREFIX_PATH/bin/omp\"; rm -rf \"$HOME/.local/share/kairos-data/oh-my-pi\"",
+            "Helper nativo de Oh-my-pi eliminado ($TERMUX_PREFIX_PATH/bin/omp, ~/.local/share/kairos-data/oh-my-pi)",
+            backupPaths = listOf("$TERMUX_PREFIX_PATH/bin/omp", "$HOME/.local/share/kairos-data/oh-my-pi")
         )
         // ollama.sh: variante "standard" instala vía "pkg install ollama" (paquete real de
         // Termux); variante "termux_npm" (GPU) instala el wrapper vía npm
@@ -914,6 +1005,10 @@ object ModuleController {
             "Paquete de Termux 'rust' desinstalado (+ caché ~/.cargo eliminada)"
         )
         "clang" -> DeepUninstallPlan("pkg uninstall -y clang", "Paquete de Termux 'clang' desinstalado")
+        // ruby.sh/kotlin.sh: install_single_pkg() directo (pkg install real), sin runtime ni
+        // caché propia documentada aparte del paquete apt en sí — mismo caso que perl/php/clang.
+        "ruby" -> DeepUninstallPlan("pkg uninstall -y ruby", "Paquete de Termux 'ruby' desinstalado")
+        "kotlin" -> DeepUninstallPlan("pkg uninstall -y kotlin", "Paquete de Termux 'kotlin' desinstalado")
         "golang" -> DeepUninstallPlan(
             "pkg uninstall -y golang; rm -rf \"$HOME/.cache/go\" \"$HOME/.cache/go-build\"",
             "Paquete de Termux 'golang' desinstalado (+ caché de build eliminada)"
@@ -964,7 +1059,18 @@ object ModuleController {
             applyTermuxEnv(pb)
             pb.redirectErrorStream(true)
             val process = pb.start()
-            process.inputStream.bufferedReader().readText()
+            // Auditoría 2026-10-07: readText bloqueaba ANTES de
+            // waitFor(timeout), así que un comando colgado nunca llegaba al timeout. Mismo
+            // patrón de hilo lector que startModule() (arriba) — y su catch evita que el
+            // cierre del stream por destroyForcibly() mate el proceso de la app.
+            val readerThread = Thread {
+                try {
+                    process.inputStream.bufferedReader().readText()
+                } catch (_: Exception) {
+                    // Esperado cuando destroyForcibly() cierra el stream mientras se lee.
+                }
+            }
+            readerThread.start()
             val finished = process.waitFor(SCRIPT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             if (!finished) {
                 process.destroyForcibly()
@@ -1030,12 +1136,12 @@ object ModuleController {
      * llamar a [deepUninstallModule] — o sea, ANTES de que borre nada — se respalda todo lo que
      * esa función va a tocar ([ModuleBackupManager.createBackup]). Si la reinstalación
      * posterior falla su misma verificación de siempre (exitCode != 0 del script, que ya corre
-     * `verify_binary_installed()` de lib.sh del lado bash — post-condición real, no solo el
-     * exit code del instalador), el respaldo se restaura solo
+     * `verify_binary_installed()` de lib.sh del lado bash — ver
+     * `.claude/rules/empirical-verification-before-fix.md`), el respaldo se restaura solo
      * ([ModuleBackupManager.restoreBackup]); si la reinstalación sale bien, el respaldo se
      * descarta ([ModuleBackupManager.discardBackup]) — no se acumula historial (v1: una sola
      * copia de la última reinstalación). Genérico para cualquier módulo que pase por acá,
-     * incluidos los módulos marcados como "no tocar sin permiso explícito" — esta
+     * incluidos los "protegidos" (`.claude/rules/kairos-protected-modules-no-touch.md`) — esta
      * capa vive enteramente en Kotlin, no toca ningún script de modulos/.
      *
      * Ambos pasos ya son thread-safe por su cuenta (cada uno lanza su propio Thread) — acá solo
@@ -1076,7 +1182,7 @@ object ModuleController {
         }.start()
     }
 
-    // Bug real (2026-08-06): n8n tiene 2 variantes (proot/udocker,
+    // Bug real (2026-08-06,): n8n tiene 2 variantes (proot/udocker,
     // ver modulos/n8n.sh) con scripts de control y nombre de sesión tmux DISTINTOS
     // ("scripts/n8n/*_servidor.sh" + sesión "n8n-server" para proot vs.
     // "scripts/n8n-udocker/*.sh" + sesión "n8n-udocker" para udocker) — pero
@@ -1099,7 +1205,7 @@ object ModuleController {
         "openclaw" -> "$HOME/scripts/openclaw/openclaw_start.sh"
         "opencode" -> "$HOME/scripts/opencode/opencode_start.sh"
         "remote" -> "$HOME/scripts/remote/ssh_start.sh"
-        // Rama "llama-server-and-terminal-ux" (2026-08-05).
+        // Rama "llama-server-and-terminal-ux" (2026-08-05,).
         "llamaserver" -> "$HOME/scripts/llamaserver/start.sh"
         // Módulo Base de Datos (2026-08-10): wrappers en ~/scripts/db/ que arrancan
         // ambos servidores (mysql_start.sh + postgres_start.sh, ver modulos/db.sh).
@@ -1108,14 +1214,16 @@ object ModuleController {
         // apagado por defecto, solo arranca cuando el usuario prende el switch en
         // CactusFragment.kt (docs/arquitectura/PROPUESTA_ORQUESTACION_CRUZADA_2026-08-25.md).
         "cactus" -> "$HOME/scripts/cactus/start.sh"
-        // Servicio Syncthing (ronda 2026-09-15, ver MEJORAS_PENDIENTES.md "Módulos nuevos") —
-        // mismo patrón tmux+start/stop que cactus, sin Fragment propio (GenericModuleFragment
-        // ya cubre hasSwitch+webviewUrl genéricamente, ver modulos/syncthing.sh PASO 2).
-        "syncthing" -> "$HOME/scripts/syncthing/start.sh"
-        // Gitea y Tor (ronda 2026-09-15, sección "propuestos" de MEJORAS_PENDIENTES.md
-        // implementada) — mismo patrón tmux+start/stop que syncthing/cactus.
+        // Gitea (ronda 2026-09-15) — mismo patrón tmux+start/stop que cactus. Syncthing y Tor
+        // se retiraron del catálogo (2026-10-07,) y sus ramas muertas
+        // se quitaron de estas tablas.
         "gitea" -> "$HOME/scripts/gitea/start.sh"
-        "tor" -> "$HOME/scripts/tor/start.sh"
+        // DeepSeek Harness (ronda 2026-11-05, ver docs/referencias/REFERENCIA_DEEPSEEK_HARNESS.md)
+        // -- mismo patrón tmux+start/stop que cactus/gitea/llamaserver.
+        "dsh" -> "$HOME/scripts/dsh/start.sh"
+        // Reverse proxy propio (ronda 2026-11-05) -- ver modulos/nginx.sh y
+        // com.termux.app.util.NginxProxyManager.kt.
+        "nginx" -> "$HOME/scripts/nginx/start.sh"
         else -> null
     }
 
@@ -1128,9 +1236,9 @@ object ModuleController {
         "llamaserver" -> "$HOME/scripts/llamaserver/stop.sh"
         "db" -> "$HOME/scripts/db/stop.sh"
         "cactus" -> "$HOME/scripts/cactus/stop.sh"
-        "syncthing" -> "$HOME/scripts/syncthing/stop.sh"
         "gitea" -> "$HOME/scripts/gitea/stop.sh"
-        "tor" -> "$HOME/scripts/tor/stop.sh"
+        "dsh" -> "$HOME/scripts/dsh/stop.sh"
+        "nginx" -> "$HOME/scripts/nginx/stop.sh"
         else -> null
     }
 
@@ -1141,15 +1249,19 @@ object ModuleController {
         "opencode" -> "opencode"
         "llamaserver" -> "llamaserver"
         "cactus" -> "cactus-server"
-        "syncthing" -> "syncthing-server"
         "gitea" -> "gitea-server"
-        "tor" -> "tor-server"
+        "dsh" -> "dsh-server"
         else -> null
     }
 
     // sshd no corre en tmux (ver ssh_start.sh/ssh_stop.sh — usan pgrep/pkill directo).
     private fun getProcessName(id: String): String? = when (id) {
         "remote" -> "sshd"
+        // Nginx se daemoniza solo (master + workers, pid file propio) -- no corre en tmux, ver
+        // modulos/nginx.sh start.sh. getModulePort() de abajo ya cubre isRunning() vía checkPort
+        // (mismo patrón que remote/sshd); este nombre solo importa como fallback de último
+        // recurso si getModulePort() alguna vez no aplicara.
+        "nginx" -> "nginx: master"
         else -> null
     }
 
@@ -1174,7 +1286,11 @@ object ModuleController {
     // ModuleControllerTest.kt ("el puerto de ModuleController coincide con el de modules_json
     // cuando modules_json trae uno") — falla ruidosamente si un módulo nuevo se agrega con
     // valores distintos entre las dos tablas.
-    private fun getModulePort(id: String): Int? = when (id) {
+    // Visibilidad ampliada (2026-10-26,) — AppModuleOps.summary
+    // (GatewayAppBridge.kt) necesita el puerto para exponerlo en module.list y que el panel del
+    // gateway pueda chequear automáticamente si ya hay algo escuchando ahí (system.port_check),
+    // sin que el usuario tenga que escribir ningún puerto a mano.
+    fun getModulePort(id: String): Int? = when (id) {
         "ollama" -> 11434
         "n8n" -> 5678
         "openclaw" -> 18789
@@ -1183,11 +1299,11 @@ object ModuleController {
         "llamaserver" -> 8085
         "db" -> 3306
         "cactus" -> 8977
-        "syncthing" -> 8384
         // Gitea (3001, no 3000 — el 3000 default de Gitea choca con opencode, ver
-        // modulos/gitea.sh) y Tor (9050, SOCKS proxy) — ronda 2026-09-15.
+        // modulos/gitea.sh) — ronda 2026-09-15.
         "gitea" -> 3001
-        "tor" -> 9050
+        "dsh" -> 3080
+        "nginx" -> 8099
         else -> null
     }
 

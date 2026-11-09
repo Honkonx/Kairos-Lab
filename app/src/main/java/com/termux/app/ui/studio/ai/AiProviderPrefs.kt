@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.termux.app.util.AiCompany
 
 /**
  * Persistencia de la elección de proveedor de IA + la API key BYO de cada uno.
@@ -28,23 +29,42 @@ class AiProviderPrefs(context: Context) {
         )
     }
 
-    fun getSelectedProvider(): AiProvider =
-        AiProvider.fromId(prefs.getString(KEY_SELECTED_PROVIDER, null))
+    fun getSelectedProvider(): AiCompany =
+        AiCompany.fromId(prefs.getString(KEY_SELECTED_PROVIDER, null))
 
-    fun setSelectedProvider(provider: AiProvider) {
+    fun setSelectedProvider(provider: AiCompany) {
         prefs.edit().putString(KEY_SELECTED_PROVIDER, provider.id).apply()
     }
 
-    fun getApiKey(provider: AiProvider): String =
+    fun getApiKey(provider: AiCompany): String =
         prefs.getString(apiKeyPrefKey(provider), "") ?: ""
 
-    fun setApiKey(provider: AiProvider, apiKey: String) {
+    fun setApiKey(provider: AiCompany, apiKey: String) {
         prefs.edit().putString(apiKeyPrefKey(provider), apiKey).apply()
     }
 
-    private fun apiKeyPrefKey(provider: AiProvider) = "api_key_${provider.id}"
+    private fun apiKeyPrefKey(provider: AiCompany) = "api_key_${provider.id}"
+
+    /** Base URL + modelo del proveedor "Personalizado (OpenAI-compatible)" (hallazgo real de
+     *  docs/referencias/ia/REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md) — solo relevante cuando
+     *  [getSelectedProvider] es [AiCompany.CUSTOM]. No secretos, no necesitan el mismo
+     *  cifrado reforzado que la API key, pero igual viven en el mismo EncryptedSharedPreferences
+     *  por simplicidad (no vale la pena un segundo almacén para 2 strings). */
+    fun getCustomBaseUrl(): String = prefs.getString(KEY_CUSTOM_BASE_URL, "") ?: ""
+
+    fun setCustomBaseUrl(url: String) {
+        prefs.edit().putString(KEY_CUSTOM_BASE_URL, url).apply()
+    }
+
+    fun getCustomModel(): String = prefs.getString(KEY_CUSTOM_MODEL, "") ?: ""
+
+    fun setCustomModel(model: String) {
+        prefs.edit().putString(KEY_CUSTOM_MODEL, model).apply()
+    }
 
     companion object {
         private const val KEY_SELECTED_PROVIDER = "selected_provider"
+        private const val KEY_CUSTOM_BASE_URL = "custom_base_url"
+        private const val KEY_CUSTOM_MODEL = "custom_model"
     }
 }

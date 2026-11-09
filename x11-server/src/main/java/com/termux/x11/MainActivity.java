@@ -96,6 +96,17 @@ import java.util.concurrent.Executors;
 @SuppressLint("ApplySharedPref")
 @SuppressWarnings({"deprecation", "unused"})
 public class MainActivity extends LoriePreferences implements View.OnApplyWindowInsetsListener {
+    /**
+     * Kairos: null = acepta el ACTION_START de CUALQUIER instancia de CmdEntryPoint
+     * (comportamiento upstream original, sin cambios). Una subclase (KairosX11MainActivity)
+     * puede sobreescribir esto para pedir un display específico (":1"/":2") cuando hay 2
+     * instancias de X11 corriendo a la vez -- ver "2 instancias X11 conmutables" en
+     * MEJORAS_PENDIENTES.md y el filtro en el receiver de abajo.
+     */
+    protected String expectedKairosDisplay() {
+        return null;
+    }
+
     static final String ACTION_STOP = "com.termux.x11.ACTION_STOP";
     static final String REQUEST_LAUNCH_EXTERNAL_DISPLAY = "request_launch_external_display";
     public TermuxX11ExtraKeys mExtraKeys;
@@ -117,6 +128,16 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
         @Override
         public void onReceive(Context context, Intent intent) {
             if (ACTION_START.equals(intent.getAction())) {
+                // Kairos: cuando este visor pide un display específico (ver expectedKairosDisplay(),
+                // KairosX11MainActivity -- "2 instancias X11 conmutables"), ignora broadcasts de
+                // CUALQUIER OTRA instancia de CmdEntryPoint -- sin esto, con 2 servidores X corriendo
+                // a la vez (nativo en :1 + distro en :2), este visor podría conectarse al que no
+                // pidió. null (default, comportamiento upstream sin cambios) = acepta cualquiera.
+                String expected = expectedKairosDisplay();
+                if (expected != null && !expected.equals(intent.getStringExtra("kairos_display"))) {
+                    Log.v("LorieBroadcastReceiver", "Ignorando ACTION_START de otro display (esperado " + expected + ")");
+                    return;
+                }
 //                mClientStartedFromShell = true;
                 try {
                     Log.v("LorieBroadcastReceiver", "Got new ACTION_START intent");
@@ -245,7 +266,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
             return mInputHandler.sendKeyEvent(v, e);
         };
         // Kairos: bug real (reporte usuario 2026-08-14, "no funciona el tactil, ni al
-        // tocar o deslizar"). Este listener venia stub desde el commit
+        // tocar o deslizar" — ver docs/humano/). Este listener venia stub desde el commit
         // original que embebio el modulo (fc62af1, heredado del fork Linbox, ver
         // referencia/emuladores/linbox-main/termux-x11/.../MainActivity.java) — consumia
         // TODO evento touch (devuelve true) sin reenviarlo nunca a mInputHandler, dejando
@@ -289,7 +310,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
             }
         });
 
-        // Bug real (2026-08-13): la llamada de 3 argumentos
+        // Bug real (2026-08-13,): la llamada de 3 argumentos
         // Context.registerReceiver(receiver, filter, int flags) recién existe desde API 33
         // (Tiramisu) — con minSdk=24, invocarla directo (aunque el flag pasado para SDK menor
         // fuera 0) tira NoSuchMethodError en dispositivos Android 7-12. Además, exportar el
@@ -353,7 +374,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
 
     /**
      * Kairos: el botón atrás del visor X11 ofrece un diálogo con dos acciones
-     * (feedback del usuario 2026-08-11):
+     * (feedback del usuario 2026-08-11, ver punto 7):
      * - **Minimizar** → moveTaskToBack(true): la app pasa a segundo plano pero el
      *   servidor X11 sigue corriendo (patrón del visor de termux-x11/linbox).
      * - **Cerrar servidor X11** → detiene el servicio :xserver (X11Service) y cierra
@@ -375,7 +396,7 @@ public class MainActivity extends LoriePreferences implements View.OnApplyWindow
      * Kairos: diálogo Minimizar/Cerrar servidor X11 — compartido entre el back del sistema
      * (onBackPressed()) y el botón flotante transparente (x11_float_menu_button, ver
      * main_activity.xml) agregado a pedido explícito del usuario ("boton tranparente dentro
-     * de x11 para minimizar, cerrar etc"). Antes solo era
+     * de x11 para minimizar, cerrar etc",). Antes solo era
      * alcanzable con el gesto/botón back del sistema — el botón flotante da acceso al mismo
      * menú sin depender de eso (útil con teclado/mouse externos, donde back no siempre está
      * a mano).

@@ -2,6 +2,16 @@
 <resources>
     <string name="cactus_module_name">Cactus Needle</string>
     <string name="cactus_installed">Cactus Needle installed</string>
+    <string name="cactus_engine_label">Engine</string>
+    <string name="cactus_engine_native_title">Native (recommended)</string>
+    <string name="cactus_engine_native_desc">Fast and light: uses the Android Needle binary, no proot.</string>
+    <string name="cactus_engine_proot_title">Proot (Ubuntu)</string>
+    <string name="cactus_engine_proot_desc">Compatible: runs Needle inside an Ubuntu distro. Heavier.</string>
+    <string name="cactus_engine_choose">Choose the Needle engine</string>
+    <string name="cactus_engine_change">Change engine</string>
+    <string name="cactus_engine_fallback_note">If the chosen one fails, the other is tried automatically.</string>
+    <string name="cactus_engine_native">Native</string>
+    <string name="cactus_engine_proot">Proot</string>
     <string name="cactus_install_failed">Installation failed — check the log in Modules</string>
 
     <!-- Tabs (2026-09-08 reorg, same pattern as QemuFragment/RemoteFragment) -->

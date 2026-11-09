@@ -3,7 +3,7 @@
     <attr name="termuxActivityDrawerBackground" format="reference" />
     <attr name="termuxActivityDrawerImageTint" format="reference" />
 
-    <!-- Atributos de tema Kairos (2026-08-22) — permiten elegir entre
+    <!-- Atributos de tema Kairos (2026-08-22,) — permiten elegir entre
          3 temas (Oscuro/Señal/Claro, ver themes_kairos.xml) sin tocar los layouts/Kotlin que ya
          referencian estos colores: primero usaban @color/kairos_* fijo (un solo tema posible);
          ahora ?attr/kairos* resuelve contra el tema activo de la Activity. La migración es
@@ -22,6 +22,13 @@
     <attr name="kairosGreen" format="color" />
     <attr name="kairosRed" format="color" />
     <attr name="kairosAmber" format="color" />
+    <!-- Acento "marca" violeta/índigo — agregado 2026-09-16 (rediseño de NubeFragment sobre
+         ver/nube/nube_personal_web.html, ver de esta ronda) porque el mockup
+         real de Nube usa un violeta/índigo (#6366f1, "brand-*" en el Tailwind config del HTML)
+         como color primario de marca en botones de subida, nav activa e iconografía, y ninguno
+         de los 5 acentos ?attr/kairos* existentes (blue/green/red/amber) lo cubre sin pisar su
+         propio significado semántico (blue ya es "info/instalando", green "activo/ok"). -->
+    <attr name="kairosPurple" format="color" />
     <attr name="kairosBorder" format="color" />
     <attr name="kairosDivider" format="color" />
     <attr name="kairosStatusRunning" format="color" />
@@ -30,7 +37,7 @@
     <attr name="kairosStatusError" format="color" />
     <attr name="kairosStatusNotInstalled" format="color" />
 
-    <!-- Atributos de tema de Estudio/IDE (2026-08-22, ver
+    <!-- Atributos de tema de Estudio/IDE (2026-08-22, ver y
          docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §3) — sistema de temas
          INDEPENDIENTE del tema del apk (?attr/kairos*): pedido explícito del usuario, "el tema
          del ide/estudio no debe ser el mismo que el del apk". Fase mínima (StudioThemePrefs.kt):

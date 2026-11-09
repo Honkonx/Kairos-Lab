@@ -41,6 +41,7 @@ class OllamaFragment : BaseModuleFragment() {
             ) {
                 addView(TextView(requireContext()).apply {
                     text = "⚙"
+                    contentDescription = requireContext().getString(R.string.a11y_settings)
                     textSize = 17f
                     setTextColor(requireContext().kairosThemeColor(R.attr.kairosText2))
                     setPadding(dp(6), dp(4), dp(10), dp(4))

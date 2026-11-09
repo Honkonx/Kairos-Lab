@@ -162,3 +162,129 @@ internal fun distroIconView(ctx: Context, name: String, sizeDp: Int): ImageView 
         }
     }
 }
+
+// ── Filas de lista con descripción (rediseño de Mini PC aprobado por el usuario 2026-10-08,
+// mensaje 6: "Sistema — audio y GPU con interruptor y descripción, [...]
+// Pantalla — X11 y VNC juntos, en lista con descripción"). Reemplazan a los tiles de 92dp sin
+// contexto en las pestañas Pantalla y Sistema. Mismo estilo de card que actionTile().
+
+/** Una fila: ícono + título + descripción opcional + punto verde si `running` + flecha. */
+internal data class RowAction(
+    val title: String,
+    val description: String? = null,
+    val iconRes: Int,
+    val running: () -> Boolean = { false },
+    val onClick: () -> Unit
+)
+
+/** Card con las [rows] una debajo de otra, separadas por una línea fina. */
+internal fun rowList(ctx: Context, parent: LinearLayout, rows: List<View>) {
+    val card = MaterialCardView(ctx).apply {
+        radius = dp(ctx, 12).toFloat()
+        cardElevation = 0f
+        strokeWidth = dp(ctx, 1)
+        strokeColor = ctx.kairosThemeColor(R.attr.kairosBorder)
+        setCardBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg2))
+        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+            setMargins(dp(ctx, 2), dp(ctx, 4), dp(ctx, 2), dp(ctx, 8))
+        }
+    }
+    val list = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+    rows.forEachIndexed { i, row ->
+        if (i > 0) {
+            list.addView(View(ctx).apply {
+                setBackgroundColor(ctx.kairosThemeColor(R.attr.kairosDivider))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(ctx, 1))
+            })
+        }
+        list.addView(row)
+    }
+    card.addView(list)
+    parent.addView(card)
+}
+
+private fun rowShell(ctx: Context, iconRes: Int, title: String, description: String?, trailing: View?): LinearLayout {
+    return LinearLayout(ctx).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = dp(ctx, 56)
+        setPadding(dp(ctx, 14), dp(ctx, 10), dp(ctx, 14), dp(ctx, 10))
+        addView(ImageView(ctx).apply {
+            setImageResource(iconRes)
+            imageTintList = ColorStateList.valueOf(ctx.kairosThemeColor(R.attr.kairosText))
+            // Ícono decorativo: TalkBack ya lee el título y la descripción de la fila.
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            layoutParams = LinearLayout.LayoutParams(dp(ctx, 24), dp(ctx, 24)).apply { marginEnd = dp(ctx, 14) }
+        })
+        addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            addView(TextView(ctx).apply {
+                // Los títulos de los tiles viejos traen "\n" ("Instalar\ndistro"): en una fila de ancho
+                // completo partían el título en dos líneas con la descripción mucho más ancha.
+                text = title.replace("\n", " ")
+                textSize = 13.5f
+                setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
+            })
+            if (!description.isNullOrBlank()) {
+                addView(TextView(ctx).apply {
+                    text = description
+                    textSize = 11f
+                    setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+                    setPadding(0, dp(ctx, 2), 0, 0)
+                })
+            }
+        })
+        trailing?.let { addView(it) }
+    }
+}
+
+/** Fila que navega/ejecuta: flecha "›" a la derecha y punto verde si está activa. */
+internal fun actionRow(ctx: Context, row: RowAction): View {
+    val trailing = LinearLayout(ctx).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        if (row.running()) {
+            addView(View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(ctx, 9), dp(ctx, 9)).apply { marginEnd = dp(ctx, 10) }
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(ctx.kairosThemeColor(R.attr.kairosGreen))
+                }
+            })
+        }
+        addView(TextView(ctx).apply {
+            text = "›"
+            textSize = 20f
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosText3))
+        })
+    }
+    return rowShell(ctx, row.iconRes, row.title, row.description, trailing).apply {
+        isClickable = true
+        isFocusable = true
+        setOnClickListener { row.onClick() }
+    }
+}
+
+/**
+ * Fila con interruptor (ej. PulseAudio). `checked` es el estado real al momento de dibujar; el
+ * listener se agrega DESPUÉS de fijarlo para que dibujar la fila nunca dispare la acción.
+ */
+internal fun switchRow(
+    ctx: Context,
+    iconRes: Int,
+    title: String,
+    description: String?,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit
+): View {
+    val toggle = androidx.appcompat.widget.SwitchCompat(ctx).apply {
+        isChecked = checked
+        setOnCheckedChangeListener { _, isOn -> onToggle(isOn) }
+    }
+    return rowShell(ctx, iconRes, title, description, toggle).apply {
+        isClickable = true
+        setOnClickListener { toggle.toggle() }
+    }
+}

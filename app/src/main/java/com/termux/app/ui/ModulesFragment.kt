@@ -52,6 +52,13 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
             "codex" to android.graphics.Color.parseColor("#10A37F"),
             "opencode" to android.graphics.Color.parseColor("#6366F1")
         )
+
+        // Indicador de root/SSH (hallazgo real de docs/referencias/terminal/REFERENCIA_TTYX.md,
+        // "root tint"/"ssh tint" de ttyx_) — colores de advertencia reales, distintos a la
+        // paleta de identidad de CLI de arriba a propósito (son indicadores de seguridad, no de
+        // marca). Toman precedencia sobre el punto de CLI de IA si ambos aplicarían a la vez.
+        private val SSH_DOT_COLOR = android.graphics.Color.parseColor("#3B82F6")
+        private val ROOT_DOT_COLOR = android.graphics.Color.parseColor("#EF4444")
     }
 
     private lateinit var recyclerView: RecyclerView
@@ -154,7 +161,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
         terminalSessionsRow.setOnClickListener { showTerminalSessionsMenu() }
         refreshTerminalSessionsIndicator()
 
-        // Bug real (2026-08-06): fragment_modules.xml
+        // Bug real (2026-08-06,): fragment_modules.xml
         // define este SwipeRefreshLayout pero nunca se conectaba desde Kotlin — el
         // widget nativo arranca su animación al deslizar hacia abajo sin necesitar
         // ningún listener (es comportamiento propio de Android), pero sin
@@ -179,8 +186,8 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
 
         recyclerView = view.findViewById(R.id.modules_recycler)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        // Bug #27 real confirmado en dispositivo 3 veces
-        // ("tocar la fila N abre la fila N-1"): el DiffCallback del adapter ya compara por ID
+        // Bug #27 real confirmado en dispositivo 3 veces (
+        // "tocar la fila N abre la fila N-1"): el DiffCallback del adapter ya compara por ID
         // estable (no por posición), así que no era un bug de identidad de datos — el
         // candidato real era el ItemAnimator por defecto de RecyclerView. Con el poll de
         // estado cada 5s (pollStatus() más abajo) llamando a submitList() periódicamente, cada
@@ -214,7 +221,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
 
     override fun onResume() {
         super.onResume()
-        // Bug real confirmado en dispositivo (2026-08-27 — "pantalla
+        // Bug real confirmado en dispositivo (2026-08-27, ver — "pantalla
         // principal dice 3 instalados" tras instalar 50 módulos por script fuera de la app):
         // esto SOLO agendaba pollRunnable con postDelayed(5000) — el primer re-chequeo real al
         // volver a esta pantalla (ej. la Activity vuelve de background tras pausarse con la
@@ -273,12 +280,24 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
      * sesión activa (ForegroundProcessDetector, potencialmente varias decenas de /proc/<pid>/stat
      * si el dispositivo tiene muchos procesos vivos) — mismo criterio de "trabajo de I/O fuera
      * del hilo principal" que el resto del Fragment, guard `isAdded` antes y después del salto
-     * de hilo.
+     * de hilo (.claude/rules/kotlin-kairos-android-patterns.md).
      */
     private fun refreshTerminalSessionsForegroundDots(names: List<String>) {
         val act = activity as? TermuxActivity ?: return
         Thread {
             val colors = names.mapNotNull { name ->
+                // Indicador de seguridad (SSH/root) tiene precedencia sobre el punto de CLI de
+                // IA — mismo criterio que docs/referencias/terminal/REFERENCIA_TTYX.md.
+                val securityIndicator = try {
+                    act.getSessionSecurityIndicatorForSession(name)
+                } catch (_: Exception) {
+                    null
+                }
+                when (securityIndicator) {
+                    "ssh" -> return@mapNotNull SSH_DOT_COLOR
+                    "root" -> return@mapNotNull ROOT_DOT_COLOR
+                    else -> {} // sigue al chequeo de CLI de IA abajo
+                }
                 val moduleId = try {
                     act.getForegroundAiModuleForSession(name)
                 } catch (_: Exception) {
@@ -496,7 +515,7 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
                 previousStatuses = installed.toMap()
 
                 // Subconjunto visible: solo los instalados (RUNNING o INSTALLED_STOPPED).
-                // 2026-08-11 (pedido explícito del usuario): los módulos ocultos desde la Tienda
+                // 2026-08-11 ( punto 4): los módulos ocultos desde la Tienda
                 // ("Desactivar" = ocultar del home SIN desinstalar, registry <id>.hidden=true)
                 // se restan del subconjunto visible — el módulo sigue instalado y reactivable
                 // desde la Tienda (ver PluginsFragment.manageModule).
@@ -698,8 +717,8 @@ class ModulesFragment : Fragment(), ModuleManager.ModuleListener {
                 if (!isAdded) return@startModule
                 requireActivity().runOnUiThread {
                     if (!isAdded) return@runOnUiThread
-                    // Libera el guard "pendiente" (gap real reportado en auditoría 2026-08-27)
-                    // — sin esto, un start/stop que tarda más de 5s (el poll
+                    // Libera el guard "pendiente" (gap real reportado en auditoría 2026-08-27,
+                    //) — sin esto, un start/stop que tarda más de 5s (el poll
                     // periódico) reactivaba el switch antes de que la operación terminara de
                     // verdad, permitiendo un doble-tap real.
                     adapter.setPending(module.id, false)

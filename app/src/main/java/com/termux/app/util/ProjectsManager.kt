@@ -12,8 +12,8 @@ import java.io.File
  * Migración nativa de `_handle_project_actions()` (kairos_manager.py) — symlinks +
  * file locking + registro de "orígenes" de proyecto (usado por Claude/OpenCode/Codex/
  * Antigravity, y en Python también por OpenClaw vía workspace-*). Portado completo
- * porque python3 está confirmado roto/no confiable en dispositivo real —
- * a diferencia de ClaudeNative/OpenCodeNative (que dejaron
+ * porque python3 está confirmado roto/no confiable en dispositivo real (ver
+ *) — a diferencia de ClaudeNative/OpenCodeNative (que dejaron
  * projects-* en Python a propósito por ser symlinks+fcntl "de riesgo"), acá se hace la
  * migración completa pedida explícitamente.
  *
@@ -96,7 +96,7 @@ object ProjectsManager {
     }
 
     // ════════════════════════════════════════════════════════════
-    //  Visibilidad de módulos — "Activar/Desactivar" de la Tienda (2026-08-11, humano97
+    // Visibilidad de módulos — "Activar/Desactivar" de la Tienda (2026-08-11,
     //  punto 4): Desactivar OCULTA el módulo de la pantalla Módulos SIN desinstalarlo
     //  (el registro <id>.installed sigue intacto). Se persiste en el mismo registry real
     //  (clave <id>.hidden=true), con el mismo lock que el resto de escrituras del proyecto.

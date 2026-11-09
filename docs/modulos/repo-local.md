@@ -1,133 +1,174 @@
-# Repo local (.deb) — empaquetado de módulos (`repo`)
+# REPO.md — Repo apt local + empaquetado `.deb` (`repo.sh` + `moduledeb.sh`)
 
-**Módulo de Kairos** — gestionado desde la UI (pestaña Módulos, `RepoFragment.kt`). Instalación
-manejada por la app vía `ProcessBuilder` → `modulos/repo.sh`; la misma pantalla también expone un
-mecanismo hermano, `modulos/moduledeb.sh`, para empaquetar módulos propios de Kairos que no pasan
-por `dpkg`.
+## Qué son (2 mecanismos hermanos, no confundir)
 
-**Qué resuelve**: reinstalar en otro dispositivo (u otro Kairos) sin volver a descargar ni
-reparchear nada desde cero — un paquete `apt` ya instalado, o una instalación propia de un módulo
-de Kairos ya hecha y funcionando, se reempaquetan en un `.deb` real que después se instala con
-`pkg install`.
+Kairos tiene **dos** scripts de empaquetado `.deb`, con propósitos distintos:
 
----
+| Script | Empaqueta | Consumidor típico | UI |
+|---|---|---|---|
+| `modulos/repo.sh` | Paquetes **apt/pkg reales** ya instalados en el dispositivo (`repo pack <paquete>`, ej. `nano`) — usa `dpkg -L` + `dpkg-deb -b`, preserva scripts de mantenimiento reales (`postinst`/`prerm`/etc.) leídos de `$PREFIX/var/lib/dpkg/info/` | Reinstalar el MISMO paquete apt en otro dispositivo, vía `pkg install kairos-<id>` desde el repo local propio | `RepoFragment.kt` |
+| `modulos/moduledeb.sh` | **Instaladores propios de Kairos** que NO pasan por `dpkg` (Claude Code, OpenCode, n8n — descargan binarios sueltos, los parchean con `patchelf`, escriben scripts propios en `$HOME/scripts/`) | Reempaquetar una instalación de módulo YA HECHA y parcheada, para reinstalarla en otro dispositivo sin re-descargar/re-parchear desde cero | `RepoFragment.kt` (misma pantalla, sección separada) |
 
-**Script:** `modulos/repo.sh` (+ `modulos/moduledeb.sh`) — espejo en `app/src/main/assets/scripts/`
-**Fragment:** `app/src/main/java/com/termux/app/ui/RepoFragment.kt`
-**`id` en `modules.json`:** `repo` — sin switch (herramienta de empaquetado, no un servicio con
-proceso persistente), categoría desarrollo, comando de terminal `repo`
+Ambos reusan el mismo formato de `.deb` real (`debian-binary` + `control.tar.xz` + `data.tar.xz`,
+vía `dpkg-deb -b` con fallback manual `ar`+`tar`) pero son código independiente — `moduledeb.sh`
+reimplementa `_moduledeb_build_deb` en vez de sourcear `repo.sh`, porque `repo.sh` parsea `"$@"`
+del proceso que lo invoca para su propio dispatch de subcomandos (ver comentario de cabecera de
+`moduledeb.sh`).
 
----
+## `repo.sh` — repo apt local
 
-## 1. Descripción general
+Subcomandos: `init` (crea `$PREFIX/../kairos-repo` con estructura `dists/stable/main/
+binary-aarch64`), `add <módulo_id>` (empaqueta un binario+scripts de un módulo de Kairos con
+prefijo `kairos-<id>`), `pack <paquete>` (repackea CUALQUIER paquete apt ya instalado, sin
+prefijo — reinstala el mismo paquete), `publish` (regenera `Packages`/`Packages.gz`/`Release`),
+`remove <paquete>` (saca uno o más `.deb` del repo local, busca tanto `<paquete>_*.deb` como
+`kairos-<paquete>_*.deb`), `source` (imprime la línea `deb [trusted=yes] file://...` para agregar
+a `sources.list.d/`), `keys` y `sign <KEYID>`.
 
-Kairos tiene dos mecanismos hermanos de empaquetado `.deb`, con propósitos distintos pero que
-comparten pantalla:
+Registro de paquetes empaquetados con `repo pack` en `$HOME/kairos_local/repo_registry.json`
+(upsert por paquete: `package`, `version`, `date`, `deb_path`, `scripts_preserved`) — separado
+del registry global de módulos de Kairos (`$HOME/.android_server_registry`).
 
-| Mecanismo | Qué empaqueta | Para qué sirve |
+No usa `dpkg-repack` (no está empaquetado para Termux) — replica manualmente lo que
+hace por dentro: `dpkg -L <paquete>` para los archivos ya instalados + lectura directa de
+`$PREFIX/var/lib/dpkg/info/<paquete>.{preinst,postinst,prerm,postrm,conffiles}` para los scripts
+de mantenimiento reales (`dpkg -e`/`--control` no sirve acá porque opera sobre un `.deb` real en
+disco, no sobre un paquete instalado por nombre — no existe el `.deb` original, ese es justo el
+problema que resuelve este subcomando).
+
+El formato del repo es Debian real (`Packages`/`Packages.gz`/`Release` con checksums MD5/SHA1/
+SHA256), con firma GPG opt-in (`InRelease` clearsign + `Release.gpg` detached, mismo mecanismo que
+`apt-secure(8)`; nunca genera una clave nueva).
+
+## `moduledeb.sh` — empaquetado de módulos propios de Kairos
+
+Subcomandos: `pack <id>` (empaqueta según el manifest del módulo), `install <ruta.deb>`
+(instala/aplica — hoy en un solo paso: `dpkg -i`, o fallback manual `ar`+`tar` que extrae y corre
+el `postinst` en la misma pasada), `list` (lista manifests disponibles).
+
+El `.deb` generado lleva el manifest completo embebido como `DEBIAN/manifest.json`, y un
+`postinst` genérico (el mismo para cualquier módulo) que en el dispositivo destino:
+
+1. Corre `dependencies[].check_cmd` de cada dependencia y avisa qué falta (con `install_hint`)
+2. Corre `verify_cmd` — si ya pasa, termina sin tocar nada más
+3. Si hay dependencias faltantes, se detiene ahí (no intenta parchear sin las dependencias)
+4. Si no, corre `patch_cmd` (si el manifest lo define) y vuelve a verificar
+
+Hay manifests escritos a mano en `modulos/manifests/` para tres módulos:
+
+| Manifest | Variante cubierta | Parche real | Limitación (`not_covered`) |
+|---|---|---|---|
+| `claude.json` | `native` (ELF+glibc-runner) | `patchelf --set-interpreter` sobre glibc-runner | Variante `legacy` (npm) sin cubrir |
+| `opencode.json` | única (nativo glibc) | ninguno real, solo re-`chmod` | No captura libs/assets nuevos si el paquete upstream crece — solo binario+runtime conocidos |
+| `n8n.json` | `udocker` | ninguno real (`setup --execmode=P2` best-effort) | La imagen udocker (~800MB) y el contenedor NO se empaquetan — solo scripts de control; datos/workflows del usuario tampoco |
+
+Tres manifests a mano no escalan a todo el catálogo de módulos, por eso existe el diseño del
+mecanismo genérico (sección "Diseño: manifest genérico + instalación en 2 fases").
+
+## UI — `RepoFragment.kt`
+
+Una sola pantalla cubre ambos mecanismos: sección "Repositorio propio" (`repo init`/`publish`/
+`source`, tabla de paquetes instalados con botón "Empaquetar" por fila → `repo pack <paquete>`) y
+sección "Crear .deb de módulo" (un botón "Crear .deb de <módulo>" por cada módulo instalado, que
+invoca `moduledeb.sh pack <id> --silent`). El registro de `.deb` ya generados se lee de
+`repo_registry.json` para mostrar tamaño/fecha reales.
+
+## Diseño: manifest genérico + instalación en 2 fases
+
+Documentado en detalle en **`docs/paquetes_deb/index.md`**:
+
+- Los manifests se generan dinámicamente llamando `modulos/<id>.sh --describe-files` (extensión
+  del contrato `--describe` existente) en vez de leer JSON escrito a mano — así el mecanismo
+  escala a cualquier módulo del catálogo sin mantener un archivo por módulo.
+- `moduledeb install` se separa en 3 fases explícitas — `extract` (solo descomprime, no ejecuta
+  nada) → `verify` (compara el manifest contra el estado real del dispositivo, muestra un resumen)
+  → `apply` (recién ahí copia archivos y corre `patch_cmd` si hace falta). `install` se mantiene
+  como atajo que encadena las 3 para uso desde terminal.
+- Los manifests a mano quedan como fallback opcional (siguen funcionando si un módulo todavía no
+  implementa `--describe-files`).
+
+Ver ese documento para el contrato JSON completo.
+
+## Referencias
+
+- `modulos/repo.sh`, `modulos/moduledeb.sh` — código real
+- `modulos/manifests/{claude,opencode,n8n}.json` — manifests a mano
+- `app/src/main/java/com/termux/app/ui/RepoFragment.kt` — UI
+- `docs/paquetes_deb/index.md` — diseño del mecanismo genérico
+
+## Controles de la pantalla (`RepoFragment.kt`)
+
+| Control | Qué hace | Por qué |
 |---|---|---|
-| `repo.sh` | Paquetes **apt/pkg reales** ya instalados en el dispositivo (ej. `nano`, `nmap`, cualquier paquete de Termux) | Reinstalar el mismo paquete apt en otro dispositivo, vía `pkg install kairos-<paquete>` desde el repo local propio |
-| `moduledeb.sh` | **Instaladores propios de Kairos** que no pasan por `dpkg` (Claude Code, OpenCode, n8n — módulos que descargan binarios sueltos y los parchean, en vez de instalar vía `pkg`) | Reempaquetar una instalación de módulo ya hecha y parcheada, para reinstalarla en otro dispositivo sin re-descargar/re-parchear desde cero |
+| Card "REPO APT LOCAL" — texto | Aclara que este repo (`pkg install kairos-<módulo>`) es distinto de "Crear .deb" (empaqueta paquetes YA instalados de cualquier tipo) | Los 2 flujos comparten pantalla pero resuelven cosas distintas |
+| "⚙ Inicializar/reparar repo (init)" | `repo.sh init` — crea la estructura `dists/stable/...` del repo apt local | — |
+| "📑 Publicar índice (publish)" | `repo.sh publish` — regenera `Release`/`Packages` tras agregar o quitar `.deb` | — |
+| "🔗 Ver línea de sources.list (source)" | `repo.sh source` — muestra la línea real para agregar el repo local a `sources.list.d` | — |
+| Card "FIRMA GPG (opcional)" — "🔏 Firmar repo con GPG" | Lista claves secretas propias (`gpg --list-secret-keys`); si no hay ninguna, explica cómo crearla a mano (nunca genera la clave por el usuario); si hay, firma (`repo.sh sign <keyid>`) reemplazando `[trusted=yes]` por `signed-by=` | Kairos nunca controla una clave privada del usuario — la firma es 100% opt-in |
+| Card "PAQUETES INSTALADOS" — fila "📦 Crear .deb" (por paquete) | `repo.sh pack <paquete>` — reconstruye un `.deb` real desde un paquete ya instalado (`dpkg -L` + `dpkg-deb -b`, sin `dpkg-repack`) | Permite reempaquetar CUALQUIER paquete apt del sistema, no solo módulos de Kairos |
+| Card "CREAR .DEB DE UN MÓDULO" — "📦 Crear .deb de <módulo>" | `moduledeb.sh pack <id> --silent` — arma un `.deb` con el contenido YA instalado/parcheado del módulo + su manifest, reutilizable sin reinstalar de cero | — |
+| Card ".DEB GENERADOS" — fila "👁 Ver" | `dpkg-deb --info`/`--contents` sobre el `.deb` real — muestra control file + árbol de archivos | Solo lectura, vista previa antes de instalar |
+| Card ".DEB GENERADOS" — fila "🗑 Eliminar" | `repo.sh remove <paquete>` — borra el `.deb` del repo local y republica el índice | No afecta el paquete ya instalado en el sistema — aclarado en el diálogo de confirmación |
+| Card MANTENIMIENTO (genérica) | `addMaintenanceCard()` — Actualizar/Desinstalar estándar | — |
 
-Ambos generan el mismo formato de `.deb` real (`debian-binary` + `control.tar.xz` +
-`data.tar.xz`, el formato estándar de Debian/Ubuntu/Termux) — son independientes entre sí, cada
-uno con su propia lógica de construcción.
+**Detalle no obvio**: el registro de `.deb` generados (`~/kairos_local/repo_registry.json`) es
+un archivo JSON plano — `RepoFragment` lo lee directo sin pasar por el script (`readRegistry()`),
+porque listar es una operación de solo lectura y no justifica un `ProcessBuilder` extra.
 
-## 2. Permisos
+---
 
-- **Android**: ninguno específico — corre en el mismo proceso Termux del asistente de
-  configuración, sin permisos adicionales.
-- **Termux interno**: lee archivos ya instalados en el propio filesystem de Termux (`dpkg -L`,
-  metadata de `dpkg`) y escribe `.deb`/índices del repo en `$HOME` — no requiere root, no abre
-  puertos, no depende de red salvo que se quiera exportar/compartir el resultado.
+## Ficha técnica
 
-## 3. `repo.sh` — repo apt local en el dispositivo
+> Basada en la lectura de `modulos/repo.sh` (773 líneas), `RepoFragment.kt` (703) y la entrada de `modules.json`.
 
-Arma un repositorio apt real dentro del propio dispositivo (estructura estándar
-`dists/stable/main/binary-aarch64`), con estos subcomandos:
+**1. Qué es.** Repo apt local en `$PREFIX/../kairos-repo` (`/data/data/com.termux/files/kairos-repo`)
+más empaquetado de `.deb`: `repo add <módulo>` (binario + `~/scripts/<id>`), `repo pack <paquete>`
+(cualquier paquete apt instalado, conservando postinst/prerm/conffiles), `publish`, `remove`,
+`source`, `keys`, `sign <KEYID>` (`repo.sh:12-60`). Id `repo`, `type: "DevOps"`,
+`terminalCommand: "repo"`.
 
-| Subcomando | Qué hace |
-|---|---|
-| `init` | Crea la estructura del repo local |
-| `add <módulo>` | Empaqueta un binario+scripts de un módulo de Kairos con el prefijo `kairos-<id>` |
-| `pack <paquete>` | Reempaqueta **cualquier** paquete apt ya instalado en el dispositivo, sin prefijo — permite reinstalar exactamente ese mismo paquete en otro lado |
-| `publish` | Regenera los índices del repo (`Packages`/`Packages.gz`/`Release`, con checksums MD5/SHA1/SHA256) tras agregar o quitar un `.deb` |
-| `remove <paquete>` | Saca uno o más `.deb` del repo local y republica el índice |
-| `source` | Imprime la línea lista para agregar el repo local a la configuración de apt del dispositivo |
+**2. Clasificación: MÓDULO FUNCIONAL (herramienta con estado, sin servicio).** `RepoFragment`
+(`ModuleDetailNavigator.kt:43`) tiene estado del repo, 3 botones fijos (inicializar, publicar,
+ver línea `sources.list`), firma GPG, lista dinámica de paquetes instalados con "Crear .deb",
+lista de .deb generados (ver/borrar) y un botón "Crear .deb de <módulo>" por cada módulo instalado
+(vía `moduledeb.sh pack`, `RepoFragment.kt:163-215`) + mantenimiento. ~4 botones fijos + 3 listas
+dinámicas con acciones por fila (~10+ controles reales).
 
-`pack` reconstruye el `.deb` sin depender de herramientas externas de repaquetado (no
-disponibles en este entorno): lee la lista real de archivos instalados del paquete y los scripts
-de mantenimiento reales que ya trae Debian/Termux (los que se ejecutan antes/después de
-instalar o quitar un paquete), y los preserva en el `.deb` reconstruido — el paquete resultante
-se comporta igual que uno instalado desde el repo oficial.
+**3. Instalación.** Sin binarios ni descargas: el "instalar" sin subcomando en modo `--silent`
+ejecuta `repo init` (`repo.sh:~733-742`: crea `deb/` y `dists/stable/main/binary-aarch64`,
+`Packages` vacío y `Release`, registry `repo.*`). Usa `dpkg-deb` (o `ar`+`tar` de respaldo),
+`jq` para el JSON `~/kairos_local/repo_registry.json`, `gpg` solo si se firma. `--force` se acepta
+pero no hace nada (comentario del propio script, y el manifiesto declara `supports_force:false`).
 
-**Firma GPG (opcional)**: el repo local se puede firmar con una clave GPG propia del usuario —
-Kairos nunca genera ni controla esa clave, es 100% decisión y responsabilidad del usuario. Sin
-firma, el repo se agrega como "confiable" explícitamente (comportamiento estándar para un repo
-local propio); con firma, usa el mismo mecanismo de verificación que cualquier repo apt oficial.
+**4. Ejecución.** Sin servicio/puerto. Cada botón lanza `bash repo.sh <subcmd> --silent` con
+`ProcessBuilder` y muestra la última línea `[OK]`/`[ERROR]` (`RepoFragment.kt:654-675`).
 
-Cada paquete empaquetado con `pack` queda registrado (paquete, versión, fecha, ruta del `.deb`)
-en un índice local propio, separado del registro general de módulos de Kairos.
+**5. UI.** Ver punto 2. La firma GPG solo ofrece claves secretas ya existentes
+(`repo keys`/`gpg --list-secret-keys`); nunca genera claves (decisión documentada en el script).
 
-## 4. `moduledeb.sh` — empaquetado de módulos propios de Kairos
+**6. Archivos.** `…/files/kairos-repo/{deb,dists/stable/{Release,InRelease,Release.gpg},repo-key.gpg|.asc}`,
+`~/kairos_local/repo_registry.json`, registry `repo.*`, checkpoint `~/.install_repo_checkpoint`.
+Los `.deb` llevan rutas absolutas de prefijo de Termux (`./data/data/com.termux/files/usr/...`).
 
-Cubre el caso que `repo.sh` no puede resolver: un módulo de Kairos que instaló su binario
-descargándolo directo (no vía `pkg`) y aplicándole parches propios para que corra en Termux —
-sin un paquete `dpkg` de origen, no hay nada que `dpkg -L` pueda leer.
+**7. Seguridad.**
+- Sin firma, `repo source` imprime `deb [trusted=yes] file://…` (desactiva verificación apt para
+  ese repo; es local y propio, el script lo declara a propósito).
+- La clave privada nunca se toca ni se pide passphrase en UI. Firmar con `--batch --yes` requiere
+  que gpg-agent ya tenga la clave desbloqueada (inferencia: no probado con passphrase).
+- `repo add/pack` interpolan `<id>`/`<paquete>` en rutas sin validar caracteres (`repo.sh:300+`),
+  pero la UI solo pasa ids del catálogo o nombres de `dpkg-query`.
+- `repo pack` empaqueta archivos reales instalados: un `.deb` de un módulo con credenciales
+  guardadas en `~/scripts/<id>` las incluiría (inferencia, no revisado por módulo).
 
-| Subcomando | Qué hace |
-|---|---|
-| `pack <id>` | Empaqueta la instalación ya hecha y funcionando de un módulo en un `.deb` |
-| `install <ruta.deb>` | Instala/aplica ese `.deb` en el dispositivo destino |
-| `list` | Lista qué módulos tienen soporte de empaquetado disponible |
+**8. Limitaciones.**
+- `runScript`/`runModuleDebPack` leen stdout con `readText()` sin timeout; un `dpkg-deb`
+  colgado deja el hilo bloqueado y el Snackbar nunca aparece.
+- `repo publish` borra silenciosamente `InRelease`/`Release.gpg` (con warn) y exige volver a
+  firmar a mano; la UI no encadena publish+sign.
+- `repo add` etiqueta la versión desde el registry (`<id>.version`), con 1.0.0 por defecto;
+  no refleja la versión real del binario si no está registrada.
+- `_repo_binary_name` solo traduce `remote→ssh`; para el resto asume binario = id.
+- Inferencia: el repo es `file://` local; no existe servidor HTTP para consumirlo desde otro
+  dispositivo (la nota de `repo source` pide copiar `repo-key.gpg` a mano).
 
-El `.deb` generado incluye la información de qué dependencias necesita el módulo y cómo
-verificar que quedó funcionando — al instalarlo en otro dispositivo, primero confirma que las
-dependencias estén presentes (avisando cuáles faltan si no), después verifica si el módulo ya
-funciona tal cual, y solo si hace falta aplica el parche correspondiente antes de volver a
-verificar.
-
-Cobertura actual: un conjunto inicial de módulos con soporte de empaquetado (incluye variantes
-de Claude Code, OpenCode y n8n) — cada uno documenta honestamente sus propias limitaciones (por
-ejemplo, qué variante de instalación cubre, o qué archivos no llegan a capturarse si el proyecto
-original creció respecto a lo que se conocía al momento de escribir el soporte). El mecanismo
-está pensado para escalar a cualquier módulo del catálogo con el tiempo, no solo a los que ya lo
-tienen hoy.
-
-## 5. Detección de estado
-
-- **Instalación del módulo `repo` en sí**: registry (`repo.installed=true`).
-- No hay concepto de "corriendo"/"detenido" — es una herramienta de empaquetado que se invoca
-  bajo demanda, sin proceso de fondo propio.
-
-## 6. Pantalla real de la app (`RepoFragment.kt`)
-
-Una sola pantalla cubre ambos mecanismos, con dos secciones claramente separadas para no
-confundir al usuario sobre cuál de los dos flujos está usando:
-
-**Sección "Repositorio propio"**:
-- Inicializar/reparar el repo local.
-- Publicar el índice (tras agregar o quitar paquetes).
-- Ver la línea para agregar el repo local a la configuración de apt.
-- Firmar el repo con una clave GPG propia (opcional; si el usuario no tiene una clave, se
-  explica cómo crearla — Kairos nunca la genera por él).
-- Tabla de paquetes apt instalados en el dispositivo, con un botón "Empaquetar" por fila que
-  corre `repo pack <paquete>`.
-
-**Sección "Crear .deb de módulo"**: botones para los módulos con soporte de empaquetado
-disponible hoy, que invocan `moduledeb pack <id>`.
-
-**Sección ".deb generados"**: lista de los paquetes ya empaquetados (tamaño y fecha reales),
-con acciones para ver el contenido del `.deb` (metadata + árbol de archivos, antes de instalar)
-o eliminarlo del repo local (no afecta el paquete que ya está instalado en el dispositivo, solo
-saca el `.deb` del repo).
-
-## 7. Notas técnicas
-
-- Los dos mecanismos (`repo.sh`/`moduledeb.sh`) son independientes entre sí — no comparten
-  código de construcción del `.deb`, aunque ambos producen el mismo formato real.
-- El registro de `.deb` generados se lee directo del índice local (JSON plano) sin invocar
-  ningún script — es una operación de solo lectura.
-- La cobertura de `moduledeb.sh` (qué módulos tienen soporte de empaquetado) es un conjunto que
-  crece con el tiempo — un módulo del catálogo que todavía no tiene soporte simplemente no
-  aparece como opción en la sección "Crear .deb de módulo" hasta que se agregue.
+**9. Alta.** `modulos/repo.sh` agregado el **2026-08-14**.

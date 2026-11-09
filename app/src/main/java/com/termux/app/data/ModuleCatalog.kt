@@ -19,7 +19,7 @@ import java.net.URL
  * 1. **Remote cache** (`context.filesDir/modules_catalog.json`) — resultado del último
  *    refresco remoto exitoso. Sobrevive reinicios sin red.
  * 2. **Remote live** — `https://raw.githubusercontent.com/Honkonx/kairos-lab/<branch>/app/src/main/assets/modules.json`
- *    (apunta al futuro repo PÚBLICO kairos-lab a propósito — ningún
+ * (apunta al futuro repo PÚBLICO kairos-lab a propósito, ver — ningún
  *    link de descarga debe quedar apuntando al privado kairos-dev, ni siquiera antes de que
  *    kairos-lab exista de verdad)
  *    cuando el usuario toca "Buscar actualizaciones" en la Tienda.
@@ -43,6 +43,18 @@ object ModuleCatalog {
     private const val DEFAULT_BRANCH = "main"
     private const val CATALOG_PATH = "app/src/main/assets/modules.json"
     private const val CACHE_FILE = "modules_catalog.json"
+
+    /**
+     * Módulos retirados del catálogo por orden del usuario:
+     * Tor, Syncthing y Restic pasaron a ser complementos (Ciberseguridad / Homelab), rclone y Wine
+     * se eliminaron y el Agente Kairos es ahora una pantalla de "Más". Se filtran SIEMPRE, también
+     * del catálogo remoto: el modules.json publicado en Kairos-Lab todavía los lista y, una vez
+     * guardado en la caché local (modules_catalog.json), "revivía" estos módulos en la Tienda tras
+     * actualizar la app (confirmado en el dispositivo: 70 ids en la caché, 5 de ellos retirados).
+     */
+    internal val RETIRED_IDS = setOf("tor", "syncthing", "restic", "rclone", "wine", "kairos_agent")
+
+    internal fun withoutRetired(modules: List<ModuleInfo>): List<ModuleInfo> = modules.filter { it.id !in RETIRED_IDS }
 
     // Caché en memoria del catálogo base (cache remoto o bundled, ANTES de mergeLocal()) —
     // load() se llama en cada apertura de pantalla/detalle de módulo (~7 call-sites reales:
@@ -77,14 +89,14 @@ object ModuleCatalog {
     /**
      * Carga el catálogo con precedencia: cache remoto → bundled, y después mergea los
      * plugins locales (paquetes .tar.gz/.deb instalados por LocalPluginManager desde la
-     * Tienda, ronda 2026-08-13). El local gana por id.
+     * Tienda, ronda 2026-08-13 —). El local gana por id.
      * Corre en el hilo que lo llame (los callers usan background thread).
      */
     @JvmStatic
     fun load(context: Context): List<ModuleInfo> {
         val base = baseCache ?: run {
             val cached = loadCache(context)
-            (if (cached.isNotEmpty()) cached else loadBundled(context)).also { baseCache = it }
+            withoutRetired(if (cached.isNotEmpty()) cached else loadBundled(context)).also { baseCache = it }
         }
         return com.termux.app.util.LocalPluginManager.mergeLocal(base)
     }
@@ -131,7 +143,7 @@ object ModuleCatalog {
         val byId = linkedMapOf<String, ModuleInfo>()
         bundled.forEach { byId[it.id] = it }
         remote.forEach { byId[it.id] = it }
-        return byId.values.toList()
+        return withoutRetired(byId.values.toList())
     }
 
     private fun saveCache(context: Context, modules: List<ModuleInfo>) {
@@ -219,7 +231,7 @@ object ModuleCatalog {
     /**
      * Un solo objeto JSON → ModuleInfo. La versión para catálogo local (LocalPluginManager
      * lee manifest.json de un .tar.gz con este mismo schema) reusa este parseo en vez de
-     * duplicarlo.
+     * duplicarlo — ver deduplicación en.
      */
     @JvmStatic
     @JvmOverloads

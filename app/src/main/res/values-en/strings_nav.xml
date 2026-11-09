@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_modules">Modules</string>
+    <string name="nav_chat">AI Chat</string>
+    <string name="nav_minipc">Mini PC</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_more">More</string>
+    <string name="nav_monitor">Monitor</string>
+    <string name="nav_files">Files</string>
+    <string name="nav_tunnel">Tunnel</string>
+    <string name="nav_nube">Cloud</string>
+    <string name="nav_plugins">Plugins</string>
+    <string name="nav_homelab">Homelab</string>
+    <string name="nav_settings">Settings</string>
+</resources>

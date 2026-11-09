@@ -143,6 +143,7 @@
     <string name="monitor_hint_pairing_port">Puerto de emparejamiento (ej. 39555)</string>
     <string name="monitor_hint_code">Código de 6 dígitos</string>
     <string name="monitor_hint_connect_port">Puerto de conexión (ej. 35541)</string>
+    <string name="monitor_hint_connect_port_optional">Puerto de conexión (opcional — se detecta solo)</string>
     <string name="monitor_guided_step2_message">Dentro de \"Depuración inalámbrica\": el puerto de conexión está arriba de la pantalla principal, junto a la IP. El puerto de emparejamiento y el código de 6 dígitos aparecen al tocar \"Vincular dispositivo con código de emparejamiento\".</string>
     <string name="monitor_guided_step2_title">Paso 2 de 3 — Datos de emparejamiento</string>
     <string name="monitor_apply_fix">Aplicar fix</string>

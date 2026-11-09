@@ -1,36 +1,64 @@
 # Tor
 
-**Kairos module** — no Fragment of its own, managed by the app's generic module screen (Kairos
-already has everything needed to install/start/stop it without a dedicated screen — with no web
-UI, a SOCKS proxy isn't something you browse to).
+> **Add-on (no longer a catalog module).** It is the "Tor" tab of **Cybersecurity**
+> (`util/TorManager.kt`). This document describes the design and behavior of the tool.
+
+No Fragment of its own, managed by `GenericModuleFragment.kt` (the `hasSwitch`+`tmuxSession` contract
+in `modules.json` already covers installing/starting/stopping without needing a dedicated screen — with no
+`webviewUrl`, since the SOCKS proxy is not browsable HTTP).
 
 ---
 
-**App:** Kairos (termux-app fork)
-**Script:** `modulos/tor.sh`
-**Port:** `9050` (SOCKS5 proxy, only reachable from the device itself)
+**Script:** `modulos/tor.sh` (v1.0.0) — synchronized copy in
+`app/src/main/assets/scripts/tor.sh`.
+**Registry:** prefix `tor.*`
+**Port:** `9050` (SOCKS5 proxy, `127.0.0.1` — no web UI; point any SOCKS5-compatible
+app/CLI at it once the switch is ON).
 
 ---
 
-## 1. What it is
+## 1. Overview
 
-The Tor network (The Onion Router) — layered traffic routing for anonymous browsing. Running
-inside Kairos, it exposes a local SOCKS5 proxy that any compatible app or tool can connect to so
-its traffic routes through the Tor network. It's a separate module from Kairos's Cybersecurity
-kit (which covers auditing/pentesting, not network anonymity) — the two solve different
-problems.
+Anonymity network / onion routing (The Onion Router) — exposes a local SOCKS5 proxy.
+Checked against the real `termux-packages` index (`packages/tor/build.sh`,
+`TERMUX_PKG_VERSION="0.4.9.12"`, regular package, no root).
 
-## 2. Installation
+## 2. SOCKS port
 
-Native Termux package, with the SOCKS proxy explicitly configured on port 9050 during install —
-no manual steps.
+Upstream Tor itself documents in its `torrc.sample` (the one `termux_step_post_make_install`
+copies to `$PREFIX/etc/tor/torrc` after installing) that it opens a SOCKS proxy on port **9050** by
+default even without an explicit `SocksPort` line in the config — behavior of the `tor` binary
+itself (not specific to Android/Termux), with no patches in the `termux-packages` `build.sh`
+altering it. To avoid relying on that implicit default, `tor.sh` STEP 2 explicitly adds
+`SocksPort 9050` to `torrc` if it does not already detect an active `SocksPort` line
+(idempotent, same spirit as the port patching in `gitea.sh`).
 
-## 3. Start and stop
+## 3. Installation
 
-The module has a real ON/OFF switch: turning it on starts the Tor process in the background with
-its SOCKS proxy listening on `127.0.0.1:9050`. Turning it off stops it.
+Native apt package (`install_single_pkg "tor" "tor" tor`) + idempotent `torrc` patching
+(STEP 2, checkpoint `torrc_patch`).
 
-## 4. Usage
+## 4. Start/stop (`hasSwitch: true`)
 
-No interface of its own — once the switch is on, any SOCKS5-compatible app or command-line tool
-(curl, browsers, other CLIs) can be pointed at `127.0.0.1:9050` to route its traffic through Tor.
+The module adds `~/scripts/tor/start.sh`/`stop.sh` (same tmux + fixed-port pattern as
+`syncthing.sh`/`gitea.sh`):
+
+```
+tmux new-session -d -s tor-server \
+  "tor -f $PREFIX/etc/tor/torrc > ~/kairos_logs/tor_serve.log 2>&1"
+```
+
+`ModuleController.kt` registers `tor` in its tables (`getModuleStartScript`/`getModuleStopInfo`/
+`getTmuxSession`/`getModulePort` → 9050) — same pattern as `syncthing`/`gitea`, verified by
+`ModuleControllerTest.kt` (cross-consistency between `modules.json` and these tables).
+
+**Note:** the real `termux-packages` `build.sh` uses `TERMUX_PKG_SERVICE_SCRIPT` (the
+`termux-services` framework, `sv-enable tor`) — Kairos does not use that framework in any module, so
+`tor.sh` follows the same tmux pattern as the rest of the modules with a switch, not the native
+`termux-services` mechanism.
+
+## 5. Usage
+
+Once the switch is ON, any SOCKS5-compatible app/tool
+(curl, browsers, other CLIs) can be pointed at `127.0.0.1:9050` to route its traffic through
+Tor.

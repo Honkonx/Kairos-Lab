@@ -76,7 +76,7 @@ class ApkFragment : BaseModuleFragment() {
     private var selectedApkPath: String? = null
     private var selectedApkValueText: TextView? = null
 
-    // ── Instrumentación sin root (fuente VictorH028/no-root-logger) —
+    // ── Instrumentación sin root (fuente VictorH028/no-root-logger,) —
     //    decompila con apktool el APK elegido arriba (reusa selectedApkPath/selectedApkName,
     //    no hace falta elegir el APK dos veces), permite buscar una clase Smali, elegir un
     //    método e inyectar un hook que manda logs a un servidor local (127.0.0.1:9999).

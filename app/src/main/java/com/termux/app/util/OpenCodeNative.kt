@@ -23,7 +23,7 @@ object OpenCodeNative {
     // archivo directo en vez de invocar grep por subproceso, mismo resultado sin el fork extra.
     private val URL_REGEX = Regex("""http://127\.0\.0\.1:\d+/\S*""")
 
-    // Bug real: el botón "Servidor web :4096" usaba la
+    // Bug real (ver de esta ronda): el botón "Servidor web:4096" usaba la
     // MISMA sesión tmux fija "opencode" que la que abre el botón ":3000" (ModuleController +
     // scripts/opencode/opencode_start.sh, ver ModuleController.getTmuxSession("opencode")).
     // Resultado: iniciar el de :4096 hacía que ModuleController.isRunning("opencode")
@@ -50,7 +50,7 @@ object OpenCodeNative {
         val reg = ManagerNativeUtils.readRegistry()
         var version = reg["opencode.version"] ?: ""
         if (version.isBlank()) {
-            // Bug real confirmado por ADB (2026-08-24): nombre relativo,
+            // Bug real confirmado por ADB (2026-08-24,): nombre relativo,
             // mismo patrón que Hermes/vncserver/udocker — ruta absoluta confirmada instalando
             // opencode.sh de verdad en el dispositivo (ver TERMUX_OPENCODE_PATH).
             val (rc, out, _) = ManagerNativeUtils.runExec(listOf(TERMUX_OPENCODE_PATH, "--version"), 10)
@@ -167,17 +167,12 @@ object OpenCodeNative {
 
     fun ollamaConfig(model: String): JSONObject {
         return try {
-            configFile.parentFile?.mkdirs()
             val provider = JSONObject()
                 .put("npm", "@ai-sdk/openai-compatible")
                 .put("name", "Ollama (local)")
                 .put("options", JSONObject().put("baseURL", "http://127.0.0.1:11434/v1").put("apiKey", "ollama"))
                 .put("models", JSONObject().put(model, JSONObject().put("name", model)))
-            val cfg = JSONObject()
-                .put("\$schema", "https://opencode.ai/config.json")
-                .put("model", "ollama/$model")
-                .put("provider", JSONObject().put("ollama", provider))
-            configFile.writeText(cfg.toString(2) + "\n")
+            mergeProviderConfig("ollama", provider, "ollama/$model")
             JSONObject().put("ok", true).put("message", "Ollama: $model")
                 .put("ollama_running", ManagerNativeUtils.checkPort(11434))
         } catch (e: Exception) {
@@ -186,30 +181,66 @@ object OpenCodeNative {
     }
 
     fun ollamaRemoveConfig(): JSONObject {
-        if (configFile.exists()) configFile.delete()
-        return JSONObject().put("ok", true).put("message", "Config eliminado")
+        return try {
+            if (configFile.isFile) {
+                val cfg = JSONObject(configFile.readText())
+                cfg.optJSONObject("provider")?.remove("ollama")
+                if (cfg.optString("model").startsWith("ollama/")) cfg.remove("model")
+                if (cfg.optJSONObject("provider")?.length() == 0) cfg.remove("provider")
+                // Auditoría 2026-10-07: antes se borraba el archivo entero y
+                // se perdían los MCP y demás ajustes del usuario. Solo se borra si no queda nada
+                // más que el "$schema".
+                if (cfg.keys().asSequence().all { it == "\$schema" }) configFile.delete()
+                else configFile.writeText(cfg.toString(2) + "\n")
+            }
+            JSONObject().put("ok", true).put("message", "Config eliminado")
+        } catch (e: Exception) {
+            JSONObject().put("ok", false).put("error", e.message ?: "error desconocido")
+        }
+    }
+
+    /**
+     * Escribe el proveedor local en `opencode.json` FUSIONANDO con lo que ya hay (MCP, otros
+     * proveedores, tema, etc.) en vez de sobrescribir todo el archivo — auditoría 2026-10-07
+     *: `ollamaConfig`/`llamaServerConfig` hacían `writeText` de un objeto
+     * nuevo y pisaban cualquier configuración previa. Si el archivo existente no es JSON válido
+     * se respalda como `.bak` antes de reemplazarlo, nunca se descarta en silencio.
+     */
+    private fun mergeProviderConfig(providerKey: String, provider: JSONObject, model: String) {
+        configFile.parentFile?.mkdirs()
+        val cfg = if (configFile.isFile) {
+            try {
+                JSONObject(configFile.readText())
+            } catch (_: Exception) {
+                configFile.copyTo(File(configFile.parentFile, "opencode.json.bak"), overwrite = true)
+                JSONObject()
+            }
+        } else {
+            JSONObject()
+        }
+        if (!cfg.has("\$schema")) cfg.put("\$schema", "https://opencode.ai/config.json")
+        cfg.put("model", model)
+        val providers = cfg.optJSONObject("provider") ?: JSONObject()
+        providers.put(providerKey, provider)
+        cfg.put("provider", providers)
+        configFile.writeText(cfg.toString(2) + "\n")
     }
 
     /**
      * Equivalente a [ollamaConfig] pero apuntando al llama-server local en vez de Ollama —
-     * rama "llama-server-and-terminal-ux" (2026-08-05). El
+     * rama "llama-server-and-terminal-ux" (2026-08-05,). El
      * mecanismo baseURL genérico compatible OpenAI es el MISMO, solo cambia el puerto/nombre
      * — confirmado que OpenCode no está atado a Ollama específicamente. `modelLabel` es
      * cosmético (OpenCode no valida el nombre contra el servidor real, solo lo etiqueta).
      */
     fun llamaServerConfig(modelLabel: String): JSONObject {
         return try {
-            configFile.parentFile?.mkdirs()
             val provider = JSONObject()
                 .put("npm", "@ai-sdk/openai-compatible")
                 .put("name", "llama-server (local)")
                 .put("options", JSONObject().put("baseURL", "http://127.0.0.1:8085/v1").put("apiKey", "llamaserver"))
                 .put("models", JSONObject().put(modelLabel, JSONObject().put("name", modelLabel)))
-            val cfg = JSONObject()
-                .put("\$schema", "https://opencode.ai/config.json")
-                .put("model", "llamaserver/$modelLabel")
-                .put("provider", JSONObject().put("llamaserver", provider))
-            configFile.writeText(cfg.toString(2) + "\n")
+            mergeProviderConfig("llamaserver", provider, "llamaserver/$modelLabel")
             JSONObject().put("ok", true).put("message", "llama-server: $modelLabel")
                 .put("llamaserver_running", ManagerNativeUtils.checkPort(8085))
         } catch (e: Exception) {

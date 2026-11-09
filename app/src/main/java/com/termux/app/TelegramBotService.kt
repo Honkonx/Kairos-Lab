@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.termux.R
 import com.termux.app.util.KairosLogger
+import com.termux.app.util.SystemMetrics
 import com.termux.app.util.TelegramNotifier
 import org.json.JSONArray
 import org.json.JSONObject
@@ -294,6 +295,7 @@ class TelegramBotService : Service() {
             "start" -> if (arg.isBlank()) sendHelp(botToken, chatId) else handleStartCommand(botToken, chatId, arg)
             "stop" -> handleStopCommand(botToken, chatId, arg)
             "status" -> sendModulesStatus(botToken, chatId)
+            "metrics" -> sendSystemMetrics(botToken, chatId)
             "ssh" -> sendSshStatus(botToken, chatId)
             "help" -> sendHelp(botToken, chatId)
             else -> sendPlainMessage(botToken, chatId, getString(R.string.telegram_bot_unknown_command))
@@ -335,26 +337,77 @@ class TelegramBotService : Service() {
         sendMessageWithKeyboard(botToken, chatId, getString(R.string.telegram_bot_confirm_stop, moduleId), keyboard)
     }
 
+    // Reusa SystemMetrics.moduleStates() (misma fuente de verdad que ModuleController/ModuleCatalog,
+    // ver KDoc de SystemMetrics.kt) en vez de re-parsear modules.json a mano acá — antes de esta
+    // ronda esta función duplicaba exactamente la misma lógica que ya vive en SystemMetrics.kt
+    // (extraído para Homelab, ronda), un caso real de DRY sin cubrir
+    // (.claude/rules/clean-code-principles.md).
     private fun sendModulesStatus(botToken: String, chatId: Long) {
         Thread {
             val lines = StringBuilder()
             try {
-                val json = assets.open("modules.json").bufferedReader().use { it.readText() }
-                val modules = JSONArray(json)
-                var any = false
-                for (i in 0 until modules.length()) {
-                    val m = modules.getJSONObject(i)
-                    if (!m.optBoolean("hasSwitch", false)) continue
-                    val id = m.optString("id")
-                    if (!com.termux.app.ModuleController.isRunning(id)) continue
-                    any = true
-                    lines.append("🟢 ").append(m.optString("name", id)).append('\n')
+                val running = SystemMetrics.moduleStates(applicationContext).filter { it.running }
+                if (running.isEmpty()) {
+                    lines.append(getString(R.string.telegram_bot_status_none))
+                } else {
+                    running.forEach { lines.append("🟢 ").append(it.name).append('\n') }
                 }
-                if (!any) lines.append(getString(R.string.telegram_bot_status_none))
             } catch (e: Exception) {
                 lines.append(getString(R.string.telegram_bot_status_error, e.message ?: ""))
             }
             sendPlainMessage(botToken, chatId, getString(R.string.telegram_bot_status_header) + "\n" + lines.toString().trim())
+        }.start()
+    }
+
+    /**
+     * `/metrics` — CPU/RAM/almacenamiento/batería/red vía SystemMetrics.kt (nuevo esta ronda,
+     * ver sección Homelab), gap real encontrado en la auditoría de esta ronda:
+     * el bot no exponía NINGUNA métrica de sistema, solo estado de módulos — justo el tipo de
+     * chequeo remoto ("¿cómo está el teléfono ahora mismo?") para el que existe un bot de
+     * Telegram en primer lugar.
+     *
+     * El % de CPU no existe de una sola lectura (contadores acumulados desde el boot, ver KDoc
+     * de `SystemMetrics.sampleCpu()`) — se toman 2 muestras separadas por 400ms, igual que
+     * `MonitorFragment`. Corre en un Thread propio (nunca el hilo de polling del bot ni el UI
+     * thread) porque el delay + las lecturas de /proc son bloqueantes.
+     */
+    private fun sendSystemMetrics(botToken: String, chatId: Long) {
+        Thread {
+            val ctx = applicationContext
+            val ram = SystemMetrics.readRam()
+            val storage = SystemMetrics.readStorage()
+            val cpuBefore = SystemMetrics.sampleCpu()
+            Thread.sleep(400)
+            val cpuAfter = SystemMetrics.sampleCpu()
+            val cpuPercent = SystemMetrics.cpuPercent(cpuBefore, cpuAfter)
+            val batteryLevel = SystemMetrics.batteryLevel(ctx)
+            val batteryTemp = SystemMetrics.batteryTemperatureC(ctx)
+            val network = SystemMetrics.networkInfo(ctx)
+
+            val lines = StringBuilder()
+            lines.append(
+                if (ram != null) getString(R.string.telegram_bot_metrics_ram, ram.percent, ram.usedMb, ram.totalMb)
+                else getString(R.string.telegram_bot_metrics_ram_unavailable)
+            ).append('\n')
+            lines.append(
+                if (cpuPercent != null) getString(R.string.telegram_bot_metrics_cpu, cpuPercent)
+                else getString(R.string.telegram_bot_metrics_cpu_unavailable)
+            ).append('\n')
+            lines.append(
+                if (storage.hasPermission) getString(R.string.telegram_bot_metrics_storage, storage.percent, storage.usedGb, storage.totalGb)
+                else getString(R.string.telegram_bot_metrics_storage_no_permission)
+            ).append('\n')
+            lines.append(
+                if (batteryLevel != null && batteryTemp != null) getString(R.string.telegram_bot_metrics_battery, batteryLevel, batteryTemp)
+                else getString(R.string.telegram_bot_metrics_battery_unavailable)
+            ).append('\n')
+            lines.append(
+                getString(
+                    R.string.telegram_bot_metrics_network, network.type,
+                    if (network.internetOk) "" else getString(R.string.telegram_bot_metrics_network_no_internet)
+                )
+            )
+            sendPlainMessage(botToken, chatId, getString(R.string.telegram_bot_metrics_header) + "\n" + lines.toString())
         }.start()
     }
 

@@ -40,8 +40,8 @@
 #  Python (maturin, PyO3 abi3-py310) del crate Rust "anydoc", sin wheel
 #  publicado para Android/Bionic (solo manylinux/musllinux/macOS/Windows),
 #  así que pip siempre cae a compilar el sdist en el dispositivo — confirmado
-#  fallando en vivo con el mismo patrón de error exacto que hf_xet.
-#  PASO 3.5 (nuevo) busca un wheel ya
+#  fallando en vivo con el mismo patrón de error exacto que hf_xet
+# (sección 5.3). PASO 3.5 (nuevo) busca un wheel ya
 #  cross-compilado en Releases de kairos-lab (mismo mecanismo/convención de
 #  nombre que hf.sh PASO 1.5, ".github/workflows/build-firecrawl-anydoc.yml"
 #  es el workflow que lo produce) ANTES de que PASO 4 (pip install -e
@@ -251,7 +251,7 @@ else
     ripgrep ffmpeg nodejs-lts
   )
   info "Instalando: ${TERMUX_PKGS[*]}"
-  # Bug real, mismo patrón que bug #21 (VNC).
+  # Bug real, mismo patrón que bug #21 (VNC),.
   pkg_update_with_fallback
   pkg update -y \
     -o Dpkg::Options::="--force-confdef" \
@@ -384,7 +384,7 @@ else
   python -c "import psutil" &>/dev/null || _HERMES_PKG_DEPS+=("python-psutil")
   python -c "import cryptography" &>/dev/null || _HERMES_PKG_DEPS+=("python-cryptography")
   if [ "${#_HERMES_PKG_DEPS[@]}" -gt 0 ]; then
-    # Bug real, mismo patrón que bug #21 (VNC).
+    # Bug real, mismo patrón que bug #21 (VNC),.
     pkg_update_with_fallback
     pkg install -y "${_HERMES_PKG_DEPS[@]}" || \
       warn "No se pudieron instalar algunos paquetes del sistema: ${_HERMES_PKG_DEPS[*]}"
@@ -460,7 +460,7 @@ else
   #     --version` no responde tras el install, en vez de solo advertir — así
   #     el registry no reporta "instalado" cuando el binario está roto.
   #
-  #     CONFIRMADO EN VIVO 2026-08-31 (ver comentario de
+  # CONFIRMADO EN VIVO 2026-08-31 (ver comentario de
   #     PASO 5 más abajo): el escenario (b) — crash real en runtime por
   #     incompatibilidad de Python 3.14 — NO ocurre en la práctica. Una
   #     instalación completa (sin interrumpir, con tiempo real para que
@@ -469,18 +469,29 @@ else
   #     — que la compilación tarde varios minutos y algo (timeout, contención
   #     de pip con otro módulo) la interrumpa antes de terminar — no una
   #     incompatibilidad de runtime genuina.
+  # constraints-termux.txt ya no existe en el repo oficial (log del teléfono 2026-10-10: "Could not open constraint
+  # file" en los 3 perfiles). Se usa solo si está; si no, pip resuelve con las versiones del pyproject.
+  HERMES_CONSTRAINTS=()
+  [ -f constraints-termux.txt ] && HERMES_CONSTRAINTS=(-c constraints-termux.txt)
   info "Instalando Hermes (perfil .[termux-all])..."
-  if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux-all]' -c constraints-termux.txt; then
+  if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux-all]' "${HERMES_CONSTRAINTS[@]}"; then
     log "Instalado con perfil .[termux-all]"
   else
     warn "termux-all falló — probando .[termux]..."
-    if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux]' -c constraints-termux.txt; then
+    if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.[termux]' "${HERMES_CONSTRAINTS[@]}"; then
       log "Instalado con perfil .[termux]"
     else
       warn "termux falló — probando instalación base..."
-      pip_install "$PIP_PYTHON" --ignore-requires-python -e '.' -c constraints-termux.txt || \
-        error "Instalación falló en los 3 perfiles"
-      log "Instalado con perfil base"
+      if pip_install "$PIP_PYTHON" --ignore-requires-python -e '.' "${HERMES_CONSTRAINTS[@]}"; then
+        log "Instalado con perfil base"
+      else
+        # core-termux (referencia/termux/core-termux-*/core/tools/hermes-agent/termux/install.sh) usa el instalador
+        # oficial de Nous Research como camino principal y pip solo como respaldo; aquí es al revés, así que si los
+        # 3 perfiles fallan se prueba el oficial antes de rendirse.
+        warn "Los 3 perfiles fallaron — probando el instalador oficial de Hermes..."
+        curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash || error "Instalación falló (perfiles pip e instalador oficial)"
+        log "Instalado con el instalador oficial"
+      fi
     fi
   fi
   mark_done "deps"
@@ -505,7 +516,7 @@ SHIM
 chmod +x "$LINK_DIR/hermes"
 log "Shim instalado → $LINK_DIR/hermes"
 
-# Bug #12 arreglado (auditoría ADB) — el script usaba "hermes version"
+# Bug #12 arreglado (auditoría ADB,) — el script usaba "hermes version"
 # (sintaxis inválida, sin "--") en las 7 ocurrencias de este archivo. Confirmado en vivo:
 # "hermes --version" funciona perfecto, "hermes version" siempre falla.
 if hermes --version &>/dev/null; then

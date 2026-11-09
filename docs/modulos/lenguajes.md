@@ -3,38 +3,43 @@
 ## Qué es
 
 `languages` es un módulo **contenedor** — no tiene script de instalación propio
-(`modules.json` campo `"script": ""`). Su Fragment (`LanguagesFragment.kt`) muestra una fila
-por lenguaje con un `SwitchCompat` real:
+(`modules.json`: `"script": ""`, `type: Contenedor`, `hasSwitch: false`). Se mapea en
+`ModuleDetailNavigator.kt:48` a `LanguagesFragment` (extiende `ConsolidatedModuleFragment`), que muestra
+una fila por lenguaje con un `SwitchCompat` real:
 
 - **ON** → `ModuleController.installModule(id, null, force=false, ...)` — el mismo mecanismo
   real que usa el resto de la app (corre `bash <id>.sh --silent`, log en
   `~/kairos_logs/install_<id>.log`).
-- **OFF** → `ModuleController.deepUninstallModule(id, ...)` — desinstalación REAL del paquete
-  (`pkg uninstall -y <paquete>`), con confirmación previa (AlertDialog simple, sin checkbox de
-  "desinstalación profunda" — acá siempre es profunda, es lo único que tiene sentido para un
-  paquete pkg nativo).
+- **OFF** → confirmación previa (AlertDialog simple, sin checkbox de "desinstalación profunda" —
+  acá siempre es profunda) + `ModuleController.deepUninstallModule(id, ...)`, que ejecuta
+  `deepUninstallPlan(id)` (desinstalación real del paquete: `pkg uninstall -y <paquete>`).
 
 Cada fila muestra el estado real: "No instalado" / "Instalado — `<versión real>`" (leída del
 registry `<id>.version`, escrita por `install_single_pkg()` en `modulos/lib.sh` al instalar; si
 el registry no tiene el valor —binario instalado a mano en terminal, bypaseando la app— se
 corre `<comando> --version` en vivo como fallback).
 
+Es un módulo funcional de UI (catálogo con estado real), pero cada lenguaje es un complemento.
+Opciones de UI: 8 switches + 5-6 botones de acción (ver la tabla de controles) + 1 fila de acceso a `PythonFragment` = ~15 controles.
+
 ## Los lenguajes
 
-| Lenguaje | id | Script real | Paquete pkg | Comando de versión |
-|---|---|---|---|---|
-| Node.js LTS | `nodejs` | `modulos/nodejs.sh` | `nodejs-lts` (+ Corepack) | `node --version` |
-| Perl | `perl` | `modulos/perl.sh` | `perl` | `perl --version` |
-| PHP | `php` | `modulos/php.sh` | `php` | `php --version` |
-| Rust | `rust` | `modulos/rust.sh` | `rust` (rustc + cargo) | `rustc --version` |
-| C/C++ (Clang) | `clang` | `modulos/clang.sh` | `clang` | `clang --version` |
-| Go | `golang` | `modulos/golang.sh` | `golang` | `go version` |
-| Ruby | `ruby` | `modulos/ruby.sh` | `ruby` | `ruby --version` |
-| Kotlin | `kotlin` | `modulos/kotlin.sh` | `kotlin` (dependencia apt `openjdk-17`) | `kotlinc -version` |
+| Lenguaje | id | Script real | Paquete pkg | Comando de versión | Ficha |
+|---|---|---|---|---|---|
+| Node.js LTS | `nodejs` | `modulos/nodejs.sh` | `nodejs-lts` (+ Corepack) | `node --version` | `nodejs.md` |
+| Perl | `perl` | `modulos/perl.sh` | `perl` | `perl --version` | — |
+| PHP | `php` | `modulos/php.sh` | `php` | `php --version` | — |
+| Rust | `rust` | `modulos/rust.sh` | `rust` (rustc + cargo) | `rustc --version` | — |
+| C/C++ (Clang) | `clang` | `modulos/clang.sh` | `clang` | `clang --version` | — |
+| Go | `golang` | `modulos/golang.sh` | `golang` | `go version` | — |
+| Ruby | `ruby` | `modulos/ruby.sh` | `ruby` | `ruby --version` | — |
+| Kotlin | `kotlin` | `modulos/kotlin.sh` | `kotlin` (dependencia apt `openjdk-17`) | `kotlinc -version` | `kotlin.md` |
 
 Los scripts (`modulos/<id>.sh`) son independientes entre sí — usan todos `install_single_pkg()`
-de `modulos/lib.sh`. Lo que unifica su presentación es este Fragment: antes eran tarjetas
-sueltas en la Tienda, ahora son filas dentro de "Lenguajes".
+de `modulos/lib.sh` (salvo Kotlin, que verifica con `kotlinc -version` porque `kotlinc` no acepta
+`--version`). Lo que unifica su presentación es este Fragment: antes eran tarjetas sueltas en la
+Tienda, ahora son filas dentro de "Lenguajes". Python se enlaza, no se duplica
+(`LanguagesFragment.kt:81-104`).
 
 ## Python — no duplicado, a propósito
 
@@ -56,7 +61,7 @@ una distro proot, se instala a mano ahí, igual que cualquier paquete de esa dis
 ## Campo `internal` en modules.json
 
 Los objetos correspondientes en `app/src/main/assets/modules.json` llevan `"internal": true` —
-un campo en `ModuleInfo.kt`/`ModuleCatalog.kt` que oculta el módulo de la Tienda
+un campo de `ModuleInfo.kt`/`ModuleCatalog.kt` que oculta el módulo de la Tienda
 (`PluginsFragment`) y de la pantalla Módulos (`ModulesFragment`) como entrada propia, **sin**
 borrar ni modificar el objeto JSON en sí. Distinto del campo `hidden` en tiempo de ejecución
 (`ProjectsManager.hiddenModuleIds()`, el usuario ocultando un módulo YA instalado desde el home)
@@ -72,6 +77,10 @@ borrar ni modificar el objeto JSON en sí. Distinto del campo `hidden` en tiempo
 "clang"  -> DeepUninstallPlan("pkg uninstall -y clang", ...)
 "golang" -> DeepUninstallPlan("pkg uninstall -y golang", ...)
 ```
+
+(`ModuleController.kt:959-974`.) `ruby` y `kotlin` **no** tienen entrada en `deepUninstallPlan`;
+con `plan == null`, `deepUninstallModule` solo borra estado/registro y devuelve "desinstalación
+real no soportada" (`ModuleController.kt:1067-1068`) — el paquete queda instalado en Termux.
 
 ## Detección de instalado (`ModuleInstalled.BINARY_FALLBACK`)
 
@@ -108,7 +117,7 @@ requiresConfirmation`/`requiresTextInput`).
 
 | Lenguaje | Switch (versión) | RunAction(s) | Por qué (si aplica) |
 |---|---|---|---|
-| Node.js LTS | `node --version` | "Paquetes npm -g" (`npm list -g --depth=0`) | — |
+| Node.js LTS | `node --version` | "Paquetes npm -g" (`npm list -g --depth=0`, 20 s) | — |
 | Perl | `perl --version` | "Config" (`perl -V`) | Dependencia de PSQL Format (módulo Paquetes) |
 | PHP | `php --version` | "Módulos cargados" (`php -m`) | — |
 | Rust | `rustc --version` | "Binarios cargo install" (`cargo install --list`) | — |
@@ -124,3 +133,13 @@ pero queda visible para que el catálogo se sienta centralizado.
 **Detalle no obvio**: estos lenguajes corren NATIVOS en Termux (bionic, sin proot) — cada uno
 también funciona por separado dentro de una distro Linux completa (Debian/Ubuntu vía Entorno,
 proot) con su propio `apt install`, pero ese segundo camino NO lo gestiona este módulo.
+
+## Limitaciones conocidas
+
+- `ruby` y `kotlin` no tienen desinstalación real (ver arriba).
+- `terminalCommand` de modules.json no se usa en la pantalla (sin "Abrir en terminal").
+- Ningún lenguaje avisa de dependencias cruzadas al desinstalar (node, perl, clang y rust son
+  usados por otros módulos).
+- Un comentario en `ModuleInstalled.kt:161` sobre kotlin/`install_single_pkg` quedó obsoleto.
+
+`LanguagesFragment.kt` agregado el 2026-08-18.

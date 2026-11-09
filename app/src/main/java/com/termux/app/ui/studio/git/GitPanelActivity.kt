@@ -38,6 +38,9 @@ class GitPanelActivity : AppCompatActivity() {
     private var operationInProgress = false
     /** Cancela el polling del diálogo de Device Flow en curso, si hay uno (ver [showGitHubConnectDialog]). */
     private var deviceFlowCancelled: AtomicBoolean? = null
+    /** Archivos "unmerged" del último `git status` (ver [GitBridge.FileChange.isConflict]) --
+     * lo que alimenta el botón/diálogo de resolución de conflictos. */
+    private var conflictedFiles: List<GitBridge.FileChange> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +58,8 @@ class GitPanelActivity : AppCompatActivity() {
         binding.stashButton.setOnClickListener { confirmAndStash() }
         binding.stashPopButton.setOnClickListener { confirmAndStashPop() }
         binding.githubConnectButton.setOnClickListener { onGithubConnectClicked() }
+        binding.resolveConflictsButton.setOnClickListener { showConflictListDialog() }
+        binding.viewDiffButton.setOnClickListener { onViewDiffClicked() }
     }
 
     override fun onStart() {
@@ -228,6 +233,7 @@ class GitPanelActivity : AppCompatActivity() {
         binding.stashButton.isEnabled = canInteract
         binding.stashPopButton.isEnabled = canInteract
         binding.commitMessageInput.isEnabled = canInteract
+        binding.resolveConflictsButton.isEnabled = canInteract
     }
 
     private fun showBanner(message: String, actionLabel: String?) {
@@ -279,6 +285,116 @@ class GitPanelActivity : AppCompatActivity() {
                 "${change.statusLabel.padEnd(12)} ${change.path}"
             }
         }
+
+        conflictedFiles = status.changes.filter { it.isConflict }
+        if (conflictedFiles.isEmpty()) {
+            binding.resolveConflictsButton.visibility = android.view.View.GONE
+        } else {
+            binding.resolveConflictsButton.visibility = android.view.View.VISIBLE
+            binding.resolveConflictsButton.text =
+                getString(R.string.git_resolve_conflicts_button, conflictedFiles.size)
+        }
+    }
+
+    // ── Resolución de conflictos v1 (patrón adoptado de ver/vibeworks, ver docstring de
+    //    GitBridge.resolveConflictTakingOurs) ───────────────────────────────────────────
+
+    /**
+     * "Ver diff" (hallazgo real, docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §
+     * quick-wins): [GitBridge.diff] existía sin ningún caller en la UI. Diálogo simple y
+     * desplazable con texto seleccionable — v1 scoped, no una pestaña nueva del editor con
+     * resaltado `.diff` (eso queda para una ronda futura si se decide que vale la pena).
+     */
+    private fun onViewDiffClicked() {
+        val path = projectPath ?: return
+        GitBridge.diff(path) { result ->
+            if (isFinishing || isDestroyed) return@diff
+            runOnUiThread {
+                val text = when (result) {
+                    is GitBridge.GitResult.Success -> result.value.ifBlank { getString(R.string.git_diff_empty) }
+                    is GitBridge.GitResult.Failure -> result.message
+                }
+                val scrollableText = android.widget.TextView(this).apply {
+                    setText(text)
+                    setTextIsSelectable(true)
+                    typeface = android.graphics.Typeface.MONOSPACE
+                    textSize = 12f
+                    val pad = (16 * resources.displayMetrics.density).toInt()
+                    setPadding(pad, pad, pad, pad)
+                }
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.git_diff_dialog_title))
+                    .setView(android.widget.ScrollView(this).apply { addView(scrollableText) })
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+            }
+        }
+    }
+
+    private fun showConflictListDialog() {
+        val path = projectPath ?: return
+        val files = conflictedFiles
+        if (files.isEmpty()) return
+        val labels = files.map { it.path }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.git_resolve_conflicts_dialog_title)
+            .setItems(labels) { _, index -> showConflictFileDialog(path, files[index].path) }
+            .setNegativeButton(R.string.git_confirm_cancel, null)
+            .show()
+    }
+
+    private fun showConflictFileDialog(path: String, file: String) {
+        val options = arrayOf(
+            getString(R.string.git_resolve_take_ours),
+            getString(R.string.git_resolve_take_theirs),
+            getString(R.string.git_resolve_edit_manually),
+            getString(R.string.git_resolve_mark_resolved),
+            getString(R.string.git_resolve_abort_merge)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.git_resolve_conflict_file_dialog_title, file))
+            .setItems(options) { _, index ->
+                when (index) {
+                    0 -> runOperation {
+                        GitBridge.resolveConflictTakingOurs(path, file) { result ->
+                            onOperationFinished(result) { loadStatusAndLog(path) }
+                        }
+                    }
+                    1 -> runOperation {
+                        GitBridge.resolveConflictTakingTheirs(path, file) { result ->
+                            onOperationFinished(result) { loadStatusAndLog(path) }
+                        }
+                    }
+                    2 -> AlertDialog.Builder(this)
+                        .setTitle(R.string.git_resolve_edit_manually)
+                        .setMessage(getString(R.string.git_resolve_edit_manually_hint, file))
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                    3 -> runOperation {
+                        GitBridge.markConflictResolved(path, file) { result ->
+                            onOperationFinished(result) { loadStatusAndLog(path) }
+                        }
+                    }
+                    4 -> confirmAndAbortMerge(path)
+                }
+            }
+            .setNegativeButton(R.string.git_confirm_cancel, null)
+            .show()
+    }
+
+    private fun confirmAndAbortMerge(path: String) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.git_abort_merge_confirm_title)
+            .setMessage(R.string.git_abort_merge_confirm_message)
+            .setPositiveButton(R.string.git_confirm_yes) { _, _ ->
+                runOperation {
+                    GitBridge.abortMerge(path) { result ->
+                        onOperationFinished(result) { loadStatusAndLog(path) }
+                    }
+                }
+            }
+            .setNegativeButton(R.string.git_confirm_cancel, null)
+            .show()
     }
 
     private fun renderLog(entries: List<GitBridge.LogEntry>) {

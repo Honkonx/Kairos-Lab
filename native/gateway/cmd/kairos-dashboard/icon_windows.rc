@@ -1,0 +1,6 @@
+// Icono real de Kairos (pedido del usuario 2026-10-30, docs/humano369.md) -- compilado a
+// icon_windows_amd64.syso por windres (MinGW), que `go build` linkea automaticamente en
+// builds windows/amd64 por convencion de nombre de archivo (sufijo _windows_amd64, mismo
+// mecanismo que un .go con build tags). Ver tools/build-gateway-windows.ps1 para el paso de
+// compilacion real.
+IDI_ICON1 ICON "kairos_logo.ico"

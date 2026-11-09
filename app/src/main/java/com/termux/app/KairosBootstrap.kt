@@ -2,10 +2,13 @@ package com.termux.app
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.util.Log
 import com.termux.shared.termux.TermuxConstants
 import java.io.File
 
 object KairosBootstrap {
+
+    private const val TAG = "KairosBootstrap"
 
     private val HOME get() = TermuxConstants.TERMUX_HOME_DIR_PATH
 
@@ -28,7 +31,9 @@ object KairosBootstrap {
     private fun currentVersion(context: Context): String {
         return try {
             val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
-            "${pkg.versionCode}"
+            // lastUpdateTime cambia en cada instalación del APK: con solo versionCode, un build nuevo con el mismo
+            // número no refrescaba ~/scripts/install y los scripts corregidos no llegaban al teléfono.
+            "${pkg.versionCode}-${pkg.lastUpdateTime}"
         } catch (_: PackageManager.NameNotFoundException) {
             "0"
         }
@@ -55,6 +60,16 @@ object KairosBootstrap {
             loggerDir.mkdirs()
 
             if (isAlreadyExtracted(context)) return
+            failedAssets.clear()
+
+            // modules.json (raíz de assets/, no assets/scripts/) — antes solo vivía
+            // adentro del APK, ilegible por cualquier script/proceso corriendo dentro
+            // de Termux. El Agente Kairos (modulos/kairos_agent.sh, ver
+            // docs/agente-kairos/) lo necesita como fuente de catálogo real (puerto,
+            // descripción, tmuxSession, hasSwitch, etc.) en vez de reconstruir esos
+            // datos a mano — se extrae acá, junto al resto del bootstrap, así queda
+            // disponible en $HOME/scripts/modules.json para cualquier proceso nativo.
+            extractAsset(context, "modules.json", File(scriptsDir, "modules.json"))
 
             val assetNames = try {
                 context.assets.list("scripts") ?: emptyArray()
@@ -74,9 +89,10 @@ object KairosBootstrap {
                     name == "smali_hook.py" || name == "RemoteLogger.java" ||
                     name == "native_logger.c" || name == "log_server.py" -> {
                         // Payload de la instrumentación "sin root" de compil-apk-termux (ver
-                        // modulos/apk.sh, cmd_instrument) — fuente VictorH028/no-root-logger.
-                        // loggerDir se crea una sola vez más abajo (no existe todavía en este
-                        // punto del extractor, a diferencia de installDir).
+                        // modulos/apk.sh, cmd_instrument) — fuente VictorH028/no-root-logger,
+                        //. loggerDir se crea una sola vez más abajo (no
+                        // existe todavía en este punto del extractor, a diferencia de
+                        // installDir).
                         extractAsset(context, "scripts/$name", File(loggerDir, name))
                     }
                     name == "rootfs_package_list.txt" -> {
@@ -86,9 +102,9 @@ object KairosBootstrap {
                     }
                     name.endsWith(".sh") -> {
                         // Scripts de módulo (ollama.sh, opencode.sh, etc. — sin prefijo
-                        // install_). Antes este filtro pedía startsWith("install_") pero
-                        // ningún asset real tiene ese prefijo — el instalador nunca encontraba
-                        // el script (fix 2026-07-24).
+                        // install_, ver .claude/rules/scripts-rule.md). Antes este filtro
+                        // pedía startsWith("install_") pero ningún asset real tiene ese
+                        // prefijo — el instalador nunca encontraba el script (fix 2026-07-24).
                         extractAsset(context, "scripts/$name", File(installDir, name))
                     }
                     name == "llama-server" -> {
@@ -104,18 +120,36 @@ object KairosBootstrap {
                         // Bibliotecas dinámicas de las que llama-server depende en runtime
                         // (libggml-base.so, libllama.so, libllama-common.so, libmtmd.so,
                         // libllama-server-impl.so — ver CMakeLists.txt, BUILD_SHARED_LIBS=ON,
-                        // bug real 2026-08-06: "CANNOT LINK EXECUTABLE" por faltar estos .so).
-                        // Se extraen al mismo directorio que llama-server
+                        // bug real 2026-08-06,: "CANNOT LINK EXECUTABLE"
+                        // por faltar estos .so). Se extraen al mismo directorio que llama-server
                         // — modulos/llamaserver.sh los copia de ahí a $PREFIX/lib/ al instalar.
                         extractAsset(context, "scripts/$name", File(installDir, name))
                     }
                 }
             }
 
-            versionFile().writeText(currentVersion(context))
-        } catch (_: Exception) {
+            // Auditoría 2026-10-07: scripts de módulos retirados del
+            // catálogo (ej. croc, tor, syncthing) quedaban para siempre en scripts/install/
+            // tras actualizar la app, porque solo se escribía y nunca se limpiaba.
+            val bundledShellScripts = assetNames.filter { it.endsWith(".sh") }.toSet()
+            installDir.listFiles { f -> f.extension == "sh" }
+                ?.filter { it.name !in bundledShellScripts }
+                ?.forEach { it.delete() }
+
+            // Antes el marker se escribía aunque extractAsset() hubiera fallado, así que una
+            // extracción parcial pasaba por completa para siempre (isAlreadyExtracted solo
+            // verifica que exista algún .sh). Ahora sin marker se reintenta al próximo arranque.
+            if (failedAssets.isEmpty()) {
+                versionFile().writeText(currentVersion(context))
+            } else {
+                Log.w(TAG, "Extracción incompleta, se reintentará: $failedAssets")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Fallo extrayendo assets de Kairos", e)
         }
     }
+
+    private val failedAssets = java.util.Collections.synchronizedList(mutableListOf<String>())
 
     private fun extractAsset(ctx: Context, assetPath: String, dest: File) {
         try {
@@ -125,7 +159,9 @@ object KairosBootstrap {
                 }
             }
             dest.setExecutable(true, false)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            failedAssets.add(assetPath)
+            Log.w(TAG, "No se pudo extraer $assetPath", e)
         }
     }
 }

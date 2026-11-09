@@ -30,7 +30,8 @@ import com.termux.app.util.kairosThemeColor
  * N8nFragment) y Remote/SSH (RemoteManager, sesión cf-ssh-tunnel). No los reemplaza ni
  * los toca — es una superficie de control nueva y unificada para CUALQUIER módulo con
  * puerto, vía TunnelManager (ronda 2026-07-31: migrado de kairos_manager.py cmd_tunnel /
- * python3 a Kotlin puro).
+ * python3 a Kotlin puro — ver docs/humano/humano.md / INVESTIGACION_FASE4.md para el diseño
+ * original del mecanismo).
  */
 class TunnelFragment : Fragment() {
 
@@ -71,6 +72,7 @@ class TunnelFragment : Fragment() {
         val startTokenBtn: TextView,
         val ngrokBtn: TextView,
         val ngrokTokenBtn: TextView,
+        val frpBtn: TextView,
         val stopBtn: TextView
     )
 
@@ -108,7 +110,7 @@ class TunnelFragment : Fragment() {
     /**
      * Panel de configuración persistente de proveedores (Cloudflare/ngrok) — dominios y
      * tokens guardados en el registry vía TunnelManager (pedido explícito del usuario,
-     * 2026-08-13). Arriba de las cards de módulos: cada
+     * 2026-08-13,). Arriba de las cards de módulos: cada
      * proveedor muestra si tiene token/dominio guardados y permite editarlos o borrarlos.
      */
     private fun buildConfigPanel() {
@@ -135,6 +137,7 @@ class TunnelFragment : Fragment() {
 
         inner.addView(buildProviderRow(ctx, "cloudflared", getString(R.string.tunnel_provider_cloudflare), "🔑") { refreshConfigPanel(inner) })
         inner.addView(buildProviderRow(ctx, "ngrok", getString(R.string.tunnel_provider_ngrok), "🚇") { refreshConfigPanel(inner) })
+        inner.addView(buildProviderRow(ctx, "frp", getString(R.string.tunnel_provider_frp), "🔀") { refreshConfigPanel(inner) })
 
         card.addView(inner)
         container.addView(card)
@@ -167,24 +170,28 @@ class TunnelFragment : Fragment() {
 
     private fun refreshConfigPanel(inner: LinearLayout) {
         runInBackground({
-            TunnelManager.getConfig("cloudflared") to TunnelManager.getConfig("ngrok")
-        }) { (cf, ng) ->
+            Triple(TunnelManager.getConfig("cloudflared"), TunnelManager.getConfig("ngrok"), TunnelManager.getConfig("frp"))
+        }) { (cf, ng, frp) ->
             for (i in 0 until inner.childCount) {
                 val row = inner.getChildAt(i) as? LinearLayout ?: continue
                 val tag = row.tag as? ProviderRowTag ?: continue
-                val cfg = if (tag.provider == "cloudflared") cf else ng
+                val cfg = when (tag.provider) { "cloudflared" -> cf; "ngrok" -> ng; else -> frp }
                 tag.stateText.text = formatProviderState(tag.provider, cfg)
             }
         }
     }
 
     private fun formatProviderState(provider: String, cfg: TunnelManager.ProviderConfig): String {
-        val icon = if (provider == "cloudflared") "🔑" else "🚇"
-        val label = if (provider == "cloudflared") getString(R.string.tunnel_provider_cloudflare) else getString(R.string.tunnel_provider_ngrok)
+        val icon = when (provider) { "cloudflared" -> "🔑"; "ngrok" -> "🚇"; else -> "🔀" }
+        val label = when (provider) {
+            "cloudflared" -> getString(R.string.tunnel_provider_cloudflare)
+            "ngrok" -> getString(R.string.tunnel_provider_ngrok)
+            else -> getString(R.string.tunnel_provider_frp)
+        }
         if (!cfg.configured) return getString(R.string.tunnel_provider_state_sin_configurar, icon, label)
         val parts = mutableListOf<String>()
         if (cfg.token.isNotBlank()) parts.add(getString(R.string.tunnel_state_token_ok))
-        if (cfg.domain.isNotBlank()) parts.add(getString(R.string.tunnel_state_dominio_ok))
+        if (cfg.domain.isNotBlank()) parts.add(getString(if (provider == "frp") R.string.tunnel_state_servidor_ok else R.string.tunnel_state_dominio_ok))
         return getString(R.string.tunnel_provider_state_configurado, icon, label, parts.joinToString(" · "))
     }
 
@@ -201,14 +208,14 @@ class TunnelFragment : Fragment() {
         val tokenEdit = EditText(ctx).apply {
             hint = if (existing.token.isNotBlank()) {
                 getString(R.string.tunnel_hint_token_guardado)
-            } else if (provider == "cloudflared") {
-                getString(R.string.tunnel_hint_token_cloudflare)
-            } else {
-                getString(R.string.tunnel_hint_authtoken_ngrok)
+            } else when (provider) {
+                "cloudflared" -> getString(R.string.tunnel_hint_token_cloudflare)
+                "frp" -> getString(R.string.tunnel_hint_token_frp)
+                else -> getString(R.string.tunnel_hint_authtoken_ngrok)
             }
         }
         val domainEdit = EditText(ctx).apply {
-            hint = getString(R.string.tunnel_hint_dominio_propio_opcional)
+            hint = if (provider == "frp") getString(R.string.tunnel_hint_servidor_frp) else getString(R.string.tunnel_hint_dominio_propio_opcional)
             setText(existing.domain)
         }
         val layout = LinearLayout(ctx).apply {
@@ -355,6 +362,7 @@ class TunnelFragment : Fragment() {
         }
         val deleteBtn = TextView(ctx).apply {
             text = "🗑"
+            contentDescription = ctx.getString(R.string.a11y_delete)
             textSize = 14f
             setPadding(dp(10), dp(4), dp(10), dp(4))
             setOnClickListener { confirmDeleteSaved(provider, entry, section) }
@@ -470,8 +478,7 @@ class TunnelFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-        // tokens de tunneling (ngrok/cloudflared) — un secreto guardado nunca vuelve a
-        // mostrarse en la UI.
+        // tokens de tunneling (ngrok/cloudflared) — ver .claude/rules/kairos-secrets-never-revealed.md.
         view.filterTouchesWhenObscured = true
         refreshAll()
     }
@@ -549,7 +556,7 @@ class TunnelFragment : Fragment() {
         inner.addView(urlRow)
 
         // HorizontalScrollView en vez de pesos iguales (0, WRAP_CONTENT, 1f) — con 5
-        // chips (se agregó "ngrok+dominio" esta ronda)
+        // chips (se agregó "ngrok+dominio" esta ronda,)
         // repartir el ancho en partes iguales dejaba cada chip demasiado angosto para
         // su texto en una pantalla de celular; con scroll horizontal cada chip mantiene
         // su ancho natural y el que no entra queda a un swipe de distancia.
@@ -564,6 +571,12 @@ class TunnelFragment : Fragment() {
         // el resto de los módulos (ngrok tcp, no ngrok http) — ver TunnelManager.start().
         val ngrokBtn = actionChip(ctx, if (m.tcpOnly) getString(R.string.tunnel_btn_ngrok_tcp) else getString(R.string.tunnel_btn_ngrok)) { confirmAndStart(m, "ngrok", null, null) }
         val ngrokTokenBtn = actionChip(ctx, if (m.tcpOnly) getString(R.string.tunnel_btn_ngrok_tcp_auth) else getString(R.string.tunnel_btn_ngrok_dominio)) { promptNgrokTokenAndStart(m) }
+        // frp (self-hosted, hallazgo real "alternativa sin depender de un servicio en la nube
+        // de terceros") -- un solo botón, siempre usa la config guardada (servidor+token del
+        // panel de proveedores de arriba), mismo criterio que startBtn (cloudflared sin token
+        // nuevo) -- TunnelManager.start() ya devuelve un error claro si todavía no se guardó
+        // ninguna config de frp.
+        val frpBtn = actionChip(ctx, getString(R.string.tunnel_btn_frp)) { confirmAndStart(m, "frp", null, null) }
         val stopBtn = actionChip(ctx, getString(R.string.tunnel_btn_detener)) { stopTunnel(m) }
         // El quick-tunnel anónimo de Cloudflare es HTTP-only (`--url http://...`) — no
         // sirve para SSH, así que ni se muestra para módulos tcpOnly (evita un botón que
@@ -572,6 +585,7 @@ class TunnelFragment : Fragment() {
         btnRow.addView(startTokenBtn)
         btnRow.addView(ngrokBtn)
         btnRow.addView(ngrokTokenBtn)
+        btnRow.addView(frpBtn)
         btnRow.addView(stopBtn)
         btnScroll.addView(btnRow)
         inner.addView(btnScroll)
@@ -579,7 +593,7 @@ class TunnelFragment : Fragment() {
         card.addView(inner)
         container.addView(card)
 
-        rowViews[m.port] = RowViews(statusLabel, urlRow, urlText, startBtn, startTokenBtn, ngrokBtn, ngrokTokenBtn, stopBtn)
+        rowViews[m.port] = RowViews(statusLabel, urlRow, urlText, startBtn, startTokenBtn, ngrokBtn, ngrokTokenBtn, frpBtn, stopBtn)
     }
 
     private fun actionChip(ctx: Context, text: String, onClick: () -> Unit): TextView {
@@ -620,11 +634,13 @@ class TunnelFragment : Fragment() {
         rv.startTokenBtn.isEnabled = serviceUp && !running && !ownTunnel
         rv.ngrokBtn.isEnabled = serviceUp && !running && !ownTunnel
         rv.ngrokTokenBtn.isEnabled = serviceUp && !running && !ownTunnel
+        rv.frpBtn.isEnabled = serviceUp && !running && !ownTunnel
         rv.stopBtn.isEnabled = running && !ownTunnel
         rv.startBtn.alpha = if (rv.startBtn.isEnabled) 1f else 0.4f
         rv.startTokenBtn.alpha = if (rv.startTokenBtn.isEnabled) 1f else 0.4f
         rv.ngrokBtn.alpha = if (rv.ngrokBtn.isEnabled) 1f else 0.4f
         rv.ngrokTokenBtn.alpha = if (rv.ngrokTokenBtn.isEnabled) 1f else 0.4f
+        rv.frpBtn.alpha = if (rv.frpBtn.isEnabled) 1f else 0.4f
         rv.stopBtn.alpha = if (rv.stopBtn.isEnabled) 1f else 0.4f
         rv.statusLabel.text = when {
             !serviceUp -> getString(R.string.tunnel_status_modulo_detenido)

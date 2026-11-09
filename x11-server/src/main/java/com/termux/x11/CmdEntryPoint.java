@@ -33,6 +33,17 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
     private static final Handler handler;
     public static Context ctx;
     public static boolean initFlag = false;
+    // Kairos: "display" real de ESTA instancia (ej. ":1"/":2") -- antes el comentario de
+    // sendBroadcast() decía textualmente "We should not care about multiple instances" porque
+    // termux-x11 standalone nunca corre 2 a la vez. Kairos sí lo hace (ver EntornoNative.kt,
+    // "2 instancias X11 conmutables" -- nativa en :1 vía X11Service, distro en :2 vía
+    // X11Service2, cada una en su propio proceso Android, mismo .so prebuilt libXlorie
+    // cargado 2 veces en 2 espacios de memoria distintos -- sin colisión esperada porque el
+    // display number ya es lo que el binario nativo usa para derivar rutas de socket/recursos
+    // propias de X, confirmado por el propio uso existente de args[0] en main()). Sin esto, el
+    // visor (KairosX11MainActivity) no tendría forma de saber de CUÁL de las 2 instancias vino
+    // un broadcast — las 2 usan la MISMA action ACTION_START.
+    private final String display;
 
     static {
         try {
@@ -56,6 +67,7 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
 
     CmdEntryPoint(String[] args) {
         Log.i("CmdEntryPoint", "x11 port: " + Arrays.toString(args));
+        this.display = (args.length > 0 && args[0] != null) ? args[0] : ":1";
         if (!start(args))
             System.exit(1);
 
@@ -69,12 +81,16 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
         if (targetPackage == null)
             targetPackage = "com.termux";
         // We should not care about multiple instances, it should be called only by `Termux:X11` app
-        // which is single instance...
+        // which is single instance... (Kairos SÍ corre múltiples instancias a propósito -- ver
+        // el campo "display" arriba. El extra "kairos_display" abajo es lo que distingue una
+        // broadcast de la otra sin romper el contrato original de termux-x11 -- una app que no
+        // lo lea (comportamiento upstream) simplemente lo ignora.)
         Bundle bundle = new Bundle();
         bundle.putBinder("", this);
 
         Intent intent = new Intent(ACTION_START);
         intent.putExtra("", bundle);
+        intent.putExtra("kairos_display", display);
         intent.setPackage(targetPackage);
 
         if (getuid() == 0 || getuid() == 2000)

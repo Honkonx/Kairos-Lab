@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/kairosBg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/media_downloader_title"
+            android:textColor="?attr/kairosText"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="20dp"
+            android:text="@string/media_downloader_subtitle"
+            android:textColor="?attr/kairosText2"
+            android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="@string/media_downloader_url_label"
+            android:textColor="?attr/kairosText"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/et_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autofillHints=""
+            android:background="?attr/kairosBg2"
+            android:hint="@string/media_downloader_url_hint"
+            android:inputType="textUri"
+            android:padding="12dp"
+            android:singleLine="true"
+            android:textColor="?attr/kairosText"
+            android:textColorHint="?attr/kairosText3" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/media_downloader_format_label"
+            android:textColor="?attr/kairosText"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/rg_format"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/rb_video_with_audio"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="@string/media_downloader_video_with_audio"
+                android:textColor="?attr/kairosText" />
+
+            <RadioButton
+                android:id="@+id/rb_video_silent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/media_downloader_video_silent"
+                android:textColor="?attr/kairosText" />
+
+            <RadioButton
+                android:id="@+id/rb_audio_only"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/media_downloader_audio_only"
+                android:textColor="?attr/kairosText" />
+        </RadioGroup>
+
+        <LinearLayout
+            android:id="@+id/ll_video_quality"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/media_downloader_quality"
+                android:textColor="?attr/kairosText" />
+
+            <Spinner
+                android:id="@+id/sp_video_quality"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="6dp"
+            android:text="@string/media_downloader_destination_label"
+            android:textColor="?attr/kairosText"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tv_path"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="?attr/kairosBg2"
+                android:ellipsize="middle"
+                android:padding="12dp"
+                android:text="/storage/emulated/0/Movies"
+                android:textColor="?attr/kairosText2" />
+
+            <Button
+                android:id="@+id/btn_change_path"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/media_downloader_change" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_download"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="@string/media_downloader_download" />
+
+        <LinearLayout
+            android:id="@+id/ll_progress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tv_progress_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:text="@string/media_downloader_working"
+                android:textColor="?attr/kairosText2" />
+
+            <ProgressBar
+                android:id="@+id/progress_bar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:indeterminate="true" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

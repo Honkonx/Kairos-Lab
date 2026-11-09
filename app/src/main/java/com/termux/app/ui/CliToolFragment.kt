@@ -20,8 +20,8 @@ import org.json.JSONObject
 /**
  * Describe qué soporta realmente cada CLI de agente de IA que cae en [CliToolFragment] —
  * confirmado leyendo cada `modulos/<id>.sh` + docs oficiales reales de cada proyecto (nunca
- * asumido), ver reporte de la ronda 2026-08-17 que originó este archivo. NO agregar una
- * entrada nueva sin confirmar la sintaxis real del CLI.
+ * asumido), ver reporte de la ronda 2026-08-17 (docs/humano/ pendiente de numeración) que
+ * originó este archivo. NO agregar una entrada nueva sin confirmar la sintaxis real del CLI.
  *
  * - [authCommand] es un subcomando real de shell confirmado (ej. "kimi login"). Cuando es
  *   `null` pero [hasAuth] es `true`, el CLI SÍ soporta autenticarse (env var de API key y/o un
@@ -32,8 +32,8 @@ import org.json.JSONObject
  *   simples) antes de pasarse a [BaseModuleFragment.launchTerminalCommand].
  * - [localProviderCapable] replica el mismo botón "PROVEEDOR IA LOCAL" (Ollama/llama-server)
  *   que ya vive en GenericModuleFragment.kt para qwencode/mimocode/mistralvibe (investigación
- *   2026-08-13) — se repite acá porque esos 3 módulos migran de fragment, no porque el
- *   original se haya tocado.
+ * 2026-08-13,) — se repite acá porque esos 3 módulos migran de
+ *   fragment, no porque el original se haya tocado.
  */
 // Nota i18n: los campos de texto puro (labels/hints que el usuario LEE) se guardan como
 // @StringRes Int en vez de String — CLI_MODULE_CONFIGS es un val de nivel de archivo,
@@ -65,7 +65,7 @@ data class CliModuleConfig(
     // status") sobre la carpeta del proyecto. null si el CLI no tiene esta capacidad.
     val analyzeProjectTemplate: String? = null,
     // Bug real confirmado 2026-08-24 por PRUEBA REAL en el dispositivo, vía la terminal
-    // real de la app (no solo por ADB directo): toda sesión de
+    // real de la app (no solo por ADB directo,): toda sesión de
     // terminal real de Kairos hereda LD_PRELOAD=.../libtermux-exec-ld-preload.so (confirmado
     // con "env | sort" DENTRO de una sesión real) — necesario para que los shims npm con
     // shebang "#!/usr/bin/env" (ver bug #8, ExpoFragment.kt) resuelvan bien, pero ROMPE
@@ -212,20 +212,6 @@ val CLI_MODULE_CONFIGS: Map<String, CliModuleConfig> = mapOf(
         needsGlibcCompat = true,
         continueSessionCommand = "mimo --continue",
         extraCommands = listOf(R.string.clitool_cfg_extra_sessions to "mimo session list")
-    ),
-
-    // Mistral Vibe — docs.mistral.ai confirma "--prompt" para modo no interactivo. Sin
-    // subcomando de shell de login confirmado (configuración vía config.toml/MISTRAL_API_KEY,
-    // ver mistralvibe.sh) — no se agrega botón de login sin comando real detrás.
-    // Ronda 2026-08-25: docs.mistral.ai/vibe confirma "--continue" (retoma sesión más
-    // reciente) — campo ya existía, faltaba llenarlo. MCP/modelo activo son config-file
-    // (~/.vibe/config.toml), no flags de shell — no se agrega botón sin un comando real detrás.
-    "mistralvibe" to CliModuleConfig(
-        baseCommand = "vibe",
-        supportsDirectPrompt = true,
-        promptTemplate = "vibe --prompt '{PROMPT}'",
-        localProviderCapable = true,
-        continueSessionCommand = "vibe --continue"
     ),
 
     // Qwen Code — QwenLM/qwen-code confirma que el subcomando standalone "qwen auth" fue
@@ -850,7 +836,6 @@ class CliToolFragment : BaseModuleFragment() {
             val json = when (moduleId) {
                 "qwencode" -> LocalCliProviderNative.configureQwenCode(baseUrl, model)
                 "mimocode" -> LocalCliProviderNative.configureMimoCode(baseUrl, model)
-                "mistralvibe" -> LocalCliProviderNative.configureMistralVibe(baseUrl, model)
                 else -> JSONObject().put("ok", false).put("error", getString(R.string.clitool_toast_no_local_provider_support))
             }
             if (!isAdded) return@Thread

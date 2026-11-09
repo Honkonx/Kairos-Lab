@@ -10,8 +10,10 @@ import com.google.android.material.tabs.TabLayout
 import com.termux.app.data.ModuleRegistry
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.PRIMARY
+import com.termux.app.util.AddonEngine
 import com.termux.app.util.ManagerNativeUtils
 import com.termux.app.util.RemoteManager
+import com.termux.app.util.TorManager
 import com.termux.app.util.kairosThemeColor
 
 /**
@@ -37,7 +39,7 @@ import com.termux.app.util.kairosThemeColor
  * ciberseguridad.sh — este fragment solo LEE ese estado para decidir qué botones mostrar
  * (ej. "Entrar a Kali" solo si el registry dice que el contenedor existe).
  *
- * Ampliado 2026-08-19 (auditoría de conversión terminal→UI nativa): antes
+ * Ampliado 2026-08-19 (auditoría de conversión terminal→UI nativa,): antes
  * los botones de nmap/nikto/dirb solo abrían el binario SIN argumentos en la terminal — sin un
  * target no hacen nada útil por sí solos, así que en la práctica el usuario terminaba escribiendo
  * el comando completo a mano igual. Se agregan 3 paneles nativos de "escaneo rápido" (target por
@@ -130,10 +132,12 @@ class CiberseguridadFragment : BaseModuleFragment() {
     // de buildContent() (ej. tras instalar Pro) para no volver siempre a la pestaña 0.
     private var tabContentContainer: LinearLayout? = null
     private var activeTabIndex = 0
+    private val TOR_TAB_INDEX = 3
 
     // sqlmap tiene 4 acciones mutuamente excluyentes (scan/dbs/tables/dump), cada una con
     // targets/params propios — no es un simple encendido/apagado, así que no encaja en
-    // dropdownSwitchRow(). Con dropdownRow() (nuevo componente) se reemplazan los 4 botones sueltos por 1 dropdown + 1 botón "Ejecutar"
+    // dropdownSwitchRow. Con dropdownRow (nuevo componente, ver /
+    //) se reemplazan los 4 botones sueltos por 1 dropdown + 1 botón "Ejecutar"
     // que despacha al prompt correcto según la opción elegida.
     private val SQLMAP_ACTIONS = arrayOf(
         "Prueba rápida de SQLi (--batch)",
@@ -144,11 +148,12 @@ class CiberseguridadFragment : BaseModuleFragment() {
     private var sqlmapActionRow: DropdownRow? = null
 
     override fun buildContent() {
-        // Instalación silenciosa en segundo plano (pedido explícito: "en n8n, hermes y ciberseguridad,
-        // en la ventana de instalar debe salir la opción o un switch para la instalación silenciosa
-        // que al tocar se empiece a instalar pero se cierre la ventana y el usuario pueda seguir
-        // utilizando el apk, además cuando termine debe avisar" — Hermes/n8n ya lo tenían desde
-        // 2026-08-13, a Ciberseguridad le faltaba: mismo patrón que N8nFragment.showSilentInstallVariantDialog(), con las 3
+        // Instalación silenciosa en segundo plano (pedido explícito,:
+        // "en n8n, hermes y ciberseguridad, en la ventana de instalar debe salir la opción o un
+        // switch para la instalación silenciosa que al tocar se empiece a instalar pero se
+        // cierre la ventana y el usuario pueda seguir utilizando el apk, además cuando termine
+        // debe avisar" — Hermes/n8n ya lo tenían desde 2026-08-13, a Ciberseguridad
+        // le faltaba: mismo patrón que N8nFragment.showSilentInstallVariantDialog(), con las 3
         // variantes reales de modulos/ciberseguridad.sh (básico/pro-headless/pro-gui).
         if (!isModuleInstalled()) {
             showNotInstalled(getModuleName()) { showSilentInstallVariantDialog() }
@@ -366,7 +371,8 @@ class CiberseguridadFragment : BaseModuleFragment() {
         listOf(
             getString(com.termux.R.string.ciberseguridad_tab_reconocimiento),
             getString(com.termux.R.string.ciberseguridad_tab_web),
-            getString(com.termux.R.string.ciberseguridad_tab_pro)
+            getString(com.termux.R.string.ciberseguridad_tab_pro),
+            getString(com.termux.R.string.ciberseguridad_tab_tor)
         ).forEach { tabLayout.addTab(tabLayout.newTab().setText(it)) }
         container.addView(tabLayout)
 
@@ -390,8 +396,106 @@ class CiberseguridadFragment : BaseModuleFragment() {
         when (index) {
             0 -> renderReconocimientoTab(content)
             1 -> renderWebTab(content)
-            else -> renderProTab(content, isPro, kaliContainer, kaliGui)
+            2 -> renderProTab(content, isPro, kaliContainer, kaliGui)
+            else -> renderTorTab(content)
         }
+    }
+
+    // ── Pestaña "Tor" (complemento, antes módulo propio) — ver TorManager.kt y
+    // mensaje 6. El estado se consulta en un Thread (corre binarios y abre un socket) y recién ahí
+    // se dibuja el contenido; cada acción (instalar/iniciar/detener) vuelve a renderizar la pestaña.
+    private fun refreshTorTab() {
+        val content = tabContentContainer ?: return
+        content.removeAllViews()
+        renderTorTab(content)
+    }
+
+    private fun renderTorTab(parent: LinearLayout) {
+        tabCard(parent) {
+            addView(infoRow(getString(com.termux.R.string.ciberseguridad_tor_label_status), getString(com.termux.R.string.ciberseguridad_tor_status_loading)))
+        }
+        Thread {
+            val status = TorManager.status()
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded || activeTabIndex != TOR_TAB_INDEX) return@runOnUiThread
+                parent.removeAllViews()
+                buildTorTabContent(parent, status)
+            }
+        }.start()
+    }
+
+    private fun buildTorTabContent(parent: LinearLayout, status: AddonEngine.Status) {
+        val ctx = requireContext()
+        val statusText = when {
+            !status.installed -> getString(com.termux.R.string.ciberseguridad_tor_status_not_installed)
+            status.running -> getString(com.termux.R.string.ciberseguridad_tor_status_running)
+            else -> getString(com.termux.R.string.ciberseguridad_tor_status_stopped)
+        }
+        tabCard(parent) {
+            addView(TextView(ctx).apply {
+                text = getString(com.termux.R.string.ciberseguridad_tor_description)
+                textSize = 12f
+                setTextColor(ctx.kairosThemeColor(com.termux.R.attr.kairosText3))
+                setPadding(dp(14), dp(12), dp(14), dp(6))
+            })
+            addView(infoRow(getString(com.termux.R.string.ciberseguridad_tor_label_status), statusText))
+            status.version?.let { addView(infoRow(getString(com.termux.R.string.ciberseguridad_tor_label_version), it)) }
+            addView(infoRow(getString(com.termux.R.string.ciberseguridad_tor_label_proxy), TorManager.SOCKS_URL))
+        }
+        tabCard(parent) {
+            when {
+                !status.installed -> addView(createActionButton(getString(com.termux.R.string.ciberseguridad_tor_btn_install), PRIMARY) { runTorAction(com.termux.R.string.ciberseguridad_tor_toast_installing, com.termux.R.string.ciberseguridad_tor_toast_install_ok, com.termux.R.string.ciberseguridad_tor_toast_install_failed) { TorManager.install() } })
+                status.running -> addView(createActionButton(getString(com.termux.R.string.ciberseguridad_tor_btn_stop), GHOST) { runTorAction(null, com.termux.R.string.ciberseguridad_tor_toast_stopped, com.termux.R.string.ciberseguridad_tor_toast_stop_failed) { TorManager.stop() } })
+                else -> addView(createActionButton(getString(com.termux.R.string.ciberseguridad_tor_btn_start), PRIMARY) { runTorAction(com.termux.R.string.ciberseguridad_tor_toast_starting, com.termux.R.string.ciberseguridad_tor_toast_started, com.termux.R.string.ciberseguridad_tor_toast_start_failed) { TorManager.start() } })
+            }
+            if (status.installed) {
+                addView(createActionButton(getString(com.termux.R.string.ciberseguridad_tor_btn_test), GHOST) { testTorConnection(status.running) })
+                addView(createActionButton(getString(com.termux.R.string.ciberseguridad_tor_btn_copy), GHOST) { copyTorProxy() })
+            }
+        }
+    }
+
+    /** Corre [action] fuera del hilo principal, avisa con toasts y vuelve a dibujar la pestaña. */
+    private fun runTorAction(startingRes: Int?, okRes: Int, failedRes: Int, action: () -> AddonEngine.Result) {
+        startingRes?.let { toast(getString(it)) }
+        Thread {
+            val result = try { action() } catch (e: Exception) { AddonEngine.Result(false, e.message ?: "error") }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                toast(if (result.ok) getString(okRes) else getString(failedRes, result.message))
+                if (activeTabIndex == TOR_TAB_INDEX) refreshTorTab()
+            }
+        }.start()
+    }
+
+    private fun testTorConnection(running: Boolean) {
+        if (!running) {
+            toast(getString(com.termux.R.string.ciberseguridad_tor_toast_needs_running))
+            return
+        }
+        toast(getString(com.termux.R.string.ciberseguridad_tor_toast_testing))
+        Thread {
+            val result = try { TorManager.testConnection() } catch (e: Exception) { AddonEngine.Result(false, e.message ?: "error") }
+            if (!isAdded) return@Thread
+            requireActivity().runOnUiThread {
+                if (!isAdded) return@runOnUiThread
+                toast(
+                    when {
+                        result.ok -> getString(com.termux.R.string.ciberseguridad_tor_toast_test_ok, result.message)
+                        result.message.matches(Regex("""\d{1,3}(\.\d{1,3}){3}|[0-9a-fA-F:]+""")) -> getString(com.termux.R.string.ciberseguridad_tor_toast_test_not_tor, result.message)
+                        else -> getString(com.termux.R.string.ciberseguridad_tor_toast_test_failed, result.message)
+                    }
+                )
+            }
+        }.start()
+    }
+
+    private fun copyTorProxy() {
+        val cm = requireContext().getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cm.setPrimaryClip(android.content.ClipData.newPlainText("Tor SOCKS", TorManager.SOCKS_URL))
+        toast(getString(com.termux.R.string.ciberseguridad_tor_toast_copied, TorManager.SOCKS_URL))
     }
 
     /**
@@ -440,6 +544,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
     private fun renderReconocimientoTab(parent: LinearLayout) {
         tabCard(parent) {
             addView(createActionButton(getString(com.termux.R.string.ciberseguridad_nmap_native_button), GHOST) { promptNmapScan() })
+            addView(createActionButton(getString(com.termux.R.string.ciberseguridad_nmap_overlay_button), GHOST) { promptNmapScanOverlay() })
             addView(createActionButton(getString(com.termux.R.string.ciberseguridad_nmap_terminal_button), GHOST) { launchTerminalCommand("nmap") })
             addView(createActionButton(getString(com.termux.R.string.ciberseguridad_theharvester_native_button), GHOST) { promptTheHarvesterScan() })
             addView(createActionButton(getString(com.termux.R.string.ciberseguridad_theharvester_terminal_button), GHOST) { launchTerminalCommand("theHarvester") })
@@ -476,7 +581,14 @@ class CiberseguridadFragment : BaseModuleFragment() {
         if (isPro) {
             tabCard(parent, kaliTabTitle) {
                 addView(createActionButton(getString(com.termux.R.string.ciberseguridad_kali_enter_button), PRIMARY) {
-                    launchTerminalCommand("proot-distro login $kaliContainer", sessionName = getString(com.termux.R.string.ciberseguridad_kali_session_name))
+                    // Antes: "proot-distro login $kaliContainer" a secas, sin los binds de
+                    // ~/scripts y ~/proyectos ni --shared-tmp/--shared-home que sí usa el mismo
+                    // login desde Mini PC (EntornoNative.distroLoginCommand) — único desvío real
+                    // encontrado en la auditoría de (2026-10-26). Se unifica.
+                    launchTerminalCommand(
+                        com.termux.app.util.EntornoNative.distroLoginCommand(kaliContainer ?: return@createActionButton),
+                        sessionName = getString(com.termux.R.string.ciberseguridad_kali_session_name)
+                    )
                 })
                 if (kaliGui) {
                     addView(createActionButton(getString(com.termux.R.string.ciberseguridad_kali_gui_start_button), GHOST) {
@@ -551,7 +663,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
         if (octets.size != 4) return LanScanResult.Error(getString(com.termux.R.string.ciberseguridad_invalid_local_ip, ip))
         val subnet = "${octets[0]}.${octets[1]}.${octets[2]}.0/24"
 
-        val (exitCode, stdout, stderr) = ManagerNativeUtils.runShell("nmap -sn $subnet", 25)
+        val (exitCode, stdout, stderr) = ManagerNativeUtils.runExec(listOf("nmap", "-sn", subnet), 25)
         if (exitCode != 0) return LanScanResult.Error(stderr.ifBlank { getString(com.termux.R.string.ciberseguridad_nmap_error) })
 
         // "Nmap scan report for host.lan (192.168.1.5)" o "Nmap scan report for 192.168.1.5"
@@ -656,12 +768,15 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 val (code, _, _) = ManagerNativeUtils.runShell("command -v nmap", 5)
                 if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "nmap"))
                 val useRoot = com.termux.app.util.RootAccess.hasRoot()
-                val scanFlags = if (useRoot) "-F -T4 -sV -sS" else "-F -T4 -sV"
+                val scanFlags = if (useRoot) listOf("-F", "-T4", "-sV", "-sS") else listOf("-F", "-T4", "-sV")
                 val (exitCode, stdout, stderr) = if (useRoot) {
-                    val r = com.termux.app.util.RootAccess.runAsRoot("nmap $scanFlags '$target'", 45)
+                    // su -c corre vía shell real -- a diferencia de runExec(), acá sí hace falta
+                    // escapar [target] a mano (ver KDoc de RootAccess.shellQuote).
+                    val quotedTarget = com.termux.app.util.RootAccess.shellQuote(target)
+                    val r = com.termux.app.util.RootAccess.runAsRoot("nmap ${scanFlags.joinToString(" ")} $quotedTarget", 45)
                     Triple(if (r.ok) 0 else 1, r.stdout, r.stderr)
                 } else {
-                    ManagerNativeUtils.runShell("nmap $scanFlags '$target'", 45)
+                    ManagerNativeUtils.runExec(listOf("nmap") + scanFlags + target, 45)
                 }
                 if (exitCode != 0 && stdout.isBlank()) return@runQuickScan listOf(stderr.ifBlank { getString(com.termux.R.string.ciberseguridad_nmap_error) })
                 val portRegex = Regex("""^(\d+/\w+)\s+(\S+)\s+(\S+)(?:\s+(.*))?$""")
@@ -672,6 +787,43 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 }
                 if (results.isEmpty()) listOf(getString(com.termux.R.string.ciberseguridad_nmap_no_ports)) else results
             }
+        }
+    }
+
+    /**
+     * "Minimizar y ver en vivo" — hallazgo real de MEJORAS_PENDIENTES.md ("Overlay flotante de
+     * escaneo de Ciberseguridad en vivo"): a diferencia de [promptNmapScan] (bloqueante, el
+     * resultado solo aparece al terminar), esto arranca [com.termux.app.CiberScanOverlayService]
+     * — una burbuja+panel sobre otras apps con el stdout real de nmap línea por línea, sin
+     * seguir mirando la app. Alcance de esta ronda: solo nmap; nikto/sqlmap/theHarvester
+     * quedan con su diálogo de siempre (ver KDoc del servicio).
+     */
+    private fun promptNmapScanOverlay() {
+        promptTarget(getString(com.termux.R.string.ciberseguridad_nmap_prompt_title), getString(com.termux.R.string.ciberseguridad_nmap_prompt_hint)) { target ->
+            val hasOverlayPermission = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M ||
+                android.provider.Settings.canDrawOverlays(requireContext())
+            if (!hasOverlayPermission) {
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(com.termux.R.string.ciberseguridad_overlay_permiso_titulo))
+                    .setMessage(getString(com.termux.R.string.ciberseguridad_overlay_permiso_mensaje))
+                    .setPositiveButton(getString(com.termux.R.string.ciberseguridad_overlay_permiso_ir_ajustes)) { _, _ ->
+                        startActivity(android.content.Intent(
+                            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            android.net.Uri.parse("package:${requireContext().packageName}")
+                        ))
+                    }
+                    .setNegativeButton(getString(com.termux.R.string.ciberseguridad_cancel), null)
+                    .show()
+                return@promptTarget
+            }
+            val useRoot = com.termux.app.util.RootAccess.hasRoot()
+            val scanFlags = if (useRoot) listOf("-F", "-T4", "-sV", "-sS") else listOf("-F", "-T4", "-sV")
+            com.termux.app.CiberScanOverlayService.start(
+                requireContext(),
+                listOf("nmap") + scanFlags + target,
+                getString(com.termux.R.string.ciberseguridad_nmap_result_title, target)
+            )
+            toast(getString(com.termux.R.string.ciberseguridad_overlay_iniciado_toast))
         }
     }
 
@@ -732,8 +884,8 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 runQuickScan(getString(com.termux.R.string.ciberseguridad_nikto_scanning_progress, target, tuning), getString(com.termux.R.string.ciberseguridad_nikto_result_title, target)) {
                     val (code, _, _) = ManagerNativeUtils.runShell("command -v nikto", 5)
                     if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "nikto"))
-                    val (_, stdout, stderr) = ManagerNativeUtils.runShell(
-                        "nikto -h '$target' -Tuning $tuning -maxtime 30s", 45
+                    val (_, stdout, stderr) = ManagerNativeUtils.runExec(
+                        listOf("nikto", "-h", target, "-Tuning", tuning, "-maxtime", "30s"), 45
                     )
                     val findings = stdout.lines().filter { it.trim().startsWith("+") }
                     if (findings.isEmpty()) {
@@ -798,12 +950,12 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 val target = targetEdit.text.toString().trim()
                 if (target.isEmpty()) { toast(getString(com.termux.R.string.ciberseguridad_target_empty)); return@setPositiveButton }
                 val wordlistId = selectedWordlist.first
-                val wordlistArg = if (wordlistId == "big") " \"\$PREFIX/share/dirb/wordlists/big.txt\"" else ""
+                val wordlistArgs = if (wordlistId == "big") listOf("${com.termux.app.util.TERMUX_PREFIX_PATH}/share/dirb/wordlists/big.txt") else emptyList()
                 runQuickScan(getString(com.termux.R.string.ciberseguridad_dirb_scanning_progress, target, wordlistId), getString(com.termux.R.string.ciberseguridad_dirb_result_title, target)) {
                     val (code, _, _) = ManagerNativeUtils.runShell("command -v dirb", 5)
                     if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "dirb"))
-                    val (_, stdout, stderr) = ManagerNativeUtils.runShell(
-                        "dirb '$target'$wordlistArg -S -w -r", 45
+                    val (_, stdout, stderr) = ManagerNativeUtils.runExec(
+                        listOf("dirb", target) + wordlistArgs + listOf("-S", "-w", "-r"), 45
                     )
                     val findings = stdout.lines().filter { it.trim().startsWith("+") }
                     if (findings.isEmpty()) {
@@ -872,8 +1024,8 @@ class CiberseguridadFragment : BaseModuleFragment() {
                 ) {
                     val (code, _, _) = ManagerNativeUtils.runShell("command -v sqlmap", 5)
                     if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "sqlmap"))
-                    val (_, stdout, stderr) = ManagerNativeUtils.runShell(
-                        "sqlmap -u '$target' --batch --level=$level --risk=$risk", 90
+                    val (_, stdout, stderr) = ManagerNativeUtils.runExec(
+                        listOf("sqlmap", "-u", target, "--batch", "--level=$level", "--risk=$risk"), 90
                     )
                     val findings = stdout.lines()
                         .map { it.trim() }
@@ -942,15 +1094,15 @@ class CiberseguridadFragment : BaseModuleFragment() {
             .setPositiveButton(getString(com.termux.R.string.ciberseguridad_theharvester_search_button)) { _, _ ->
                 val domain = domainEdit.text.toString().trim()
                 if (domain.isEmpty()) { toast(getString(com.termux.R.string.ciberseguridad_theharvester_domain_empty)); return@setPositiveButton }
-                val limit = limitEdit.text.toString().trim().ifEmpty { "100" }
+                val limit = (limitEdit.text.toString().trim().toIntOrNull() ?: 100).coerceIn(1, 1000).toString()
                 runQuickScan(
                     getString(com.termux.R.string.ciberseguridad_theharvester_progress, domain, selectedSource, limit),
                     getString(com.termux.R.string.ciberseguridad_theharvester_result_title, domain)
                 ) {
                     val (code, _, _) = ManagerNativeUtils.runShell("command -v theHarvester", 5)
                     if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "theHarvester"))
-                    val (_, stdout, stderr) = ManagerNativeUtils.runShell(
-                        "theHarvester -d '$domain' -b $selectedSource -l $limit", 60
+                    val (_, stdout, stderr) = ManagerNativeUtils.runExec(
+                        listOf("theHarvester", "-d", domain, "-b", selectedSource, "-l", limit), 60
                     )
                     val findings = stdout.lines()
                         .map { it.trim() }
@@ -1005,7 +1157,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
             runQuickScan(getString(com.termux.R.string.ciberseguridad_sqlmap_dbs_progress, target), getString(com.termux.R.string.ciberseguridad_sqlmap_dbs_result_title, target)) {
                 val (code, _, _) = ManagerNativeUtils.runShell("command -v sqlmap", 5)
                 if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "sqlmap"))
-                val (_, stdout, stderr) = ManagerNativeUtils.runShell("sqlmap -u '$target' --batch --dbs", 120)
+                val (_, stdout, stderr) = ManagerNativeUtils.runExec(listOf("sqlmap", "-u", target, "--batch", "--dbs"), 120)
                 val findings = stdout.lines().map { it.trim() }.filter { it.startsWith("[*]") }
                 if (findings.isEmpty()) {
                     listOf(stderr.ifBlank { getString(com.termux.R.string.ciberseguridad_sqlmap_dbs_no_results) })
@@ -1021,8 +1173,8 @@ class CiberseguridadFragment : BaseModuleFragment() {
             runQuickScan(getString(com.termux.R.string.ciberseguridad_sqlmap_tables_progress, db, target), getString(com.termux.R.string.ciberseguridad_sqlmap_tables_result_title, db)) {
                 val (code, _, _) = ManagerNativeUtils.runShell("command -v sqlmap", 5)
                 if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "sqlmap"))
-                val (_, stdout, stderr) = ManagerNativeUtils.runShell(
-                    "sqlmap -u '$target' --batch -D '$db' --tables", 120
+                val (_, stdout, stderr) = ManagerNativeUtils.runExec(
+                    listOf("sqlmap", "-u", target, "--batch", "-D", db, "--tables"), 120
                 )
                 val findings = stdout.lines().map { it.trim() }.filter { it.startsWith("|") && !it.matches(Regex("^\\|[- ]+\\|$")) }
                 if (findings.isEmpty()) {
@@ -1052,8 +1204,8 @@ class CiberseguridadFragment : BaseModuleFragment() {
                     ) {
                         val (code, _, _) = ManagerNativeUtils.runShell("command -v sqlmap", 5)
                         if (code != 0) return@runQuickScan listOf(getString(com.termux.R.string.ciberseguridad_tool_not_installed, "sqlmap"))
-                        val (_, stdout, stderr) = ManagerNativeUtils.runShell(
-                            "sqlmap -u '$target' --batch -D '$db' -T '$table' --dump", 150
+                        val (_, stdout, stderr) = ManagerNativeUtils.runExec(
+                            listOf("sqlmap", "-u", target, "--batch", "-D", db, "-T", table, "--dump"), 150
                         )
                         val findings = stdout.lines().map { it.trim() }.filter { it.startsWith("|") }
                         if (findings.isEmpty()) {
@@ -1094,7 +1246,7 @@ class CiberseguridadFragment : BaseModuleFragment() {
     }
 
     // Mismo patrón que N8nFragment.showSilentInstallVariantDialog() — ver comentario de
-    // buildContent() más arriba para el pedido original.
+    // buildContent más arriba para el pedido original.
     private fun showSilentInstallVariantDialog() {
         androidx.appcompat.app.AlertDialog.Builder(requireContext())
             .setTitle(getString(com.termux.R.string.ciberseguridad_silent_install_dialog_title))

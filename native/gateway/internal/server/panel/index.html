@@ -1,0 +1,1254 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel — Kairos Gateway</title>
+<style>
+:root{--bg:#050505;--bg2:#0A0A0A;--bg3:#111;--el:#1A1A1A;--nav:#080808;--tx:#E8E8E8;--t2:#888;--t3:#555;--bl:#3B82F6;--gr:#22C55E;--rd:#EF4444;--am:#F59E0B;--bd:#1F1F1F}
+@media(prefers-color-scheme:light){:root{--bg:#F7F6F3;--bg2:#fff;--bg3:#EFEDE8;--el:#fff;--nav:#fff;--tx:#1A1A1C;--t2:#5B5B60;--t3:#8C8C90;--bl:#2563EB;--gr:#16A34A;--rd:#DC2626;--am:#D97706;--bd:#E2DFD8}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,sans-serif}
+.app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+.side{background:var(--nav);border-right:1px solid var(--bd);padding:14px 10px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{font-weight:800;font-size:15px;padding:2px 8px 12px;display:flex;align-items:center;gap:8px}.brand i{width:10px;height:10px;border-radius:50%;background:var(--t3)}.brand i.on{background:var(--gr);box-shadow:0 0 8px var(--gr)}
+.side button.nav{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;color:var(--t2);cursor:pointer;font:600 13px system-ui;background:none;border:0;text-align:left;width:100%}
+.side button.nav:hover{background:var(--bg3);color:var(--tx)}.side button.nav.on{background:var(--bg3);color:var(--tx);box-shadow:inset 3px 0 0 var(--bl)}
+.side .grp{font-size:10px;font-weight:700;letter-spacing:.8px;color:var(--t3);padding:12px 10px 4px}
+.side .me{margin-top:auto;font-size:11.5px;color:var(--t3);padding:10px 8px 0;border-top:1px solid var(--bd)}
+main{padding:18px 22px 40px;min-width:0}.view{display:none}.view.on{display:block}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}.top h3{margin:0;font-size:18px}.sp{flex:1}
+.pill{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--bg3);border:1px solid var(--bd);color:var(--t2)}.pill.g{color:var(--gr)}.pill.y{color:var(--am)}.pill.r{color:var(--rd)}
+.grid{display:grid;gap:12px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:1fr 1fr}
+.cd{background:var(--bg2);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;min-width:0;margin-bottom:12px}
+.cd h4{margin:0 0 8px;font-size:11px;letter-spacing:.7px;font-weight:700;color:var(--t3);text-transform:uppercase}
+.big{font-size:26px;font-weight:700;line-height:1.1}.sub{font-size:11.5px;color:var(--t2);margin-top:2px}
+.bar{height:5px;border-radius:99px;background:var(--bg3);margin-top:7px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--bl);border-radius:99px;transition:width .3s}.bar i.warn{background:var(--am)}.bar i.crit{background:var(--rd)}
+table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;font-size:11px;color:var(--t3);letter-spacing:.5px;padding:6px 8px;border-bottom:1px solid var(--bd)}td{padding:8px;border-bottom:1px solid var(--bd);color:var(--t2)}td:first-child{color:var(--tx);font-weight:600}tr:last-child td{border:0}
+tr.click{cursor:pointer}tr.click:hover td{background:var(--bg3)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--t3)}.dot.g{background:var(--gr)}.dot.r{background:var(--rd)}
+button.btn,.btn{font:700 12px system-ui;padding:6px 12px;border-radius:7px;background:var(--bg3);border:1px solid var(--bd);color:var(--tx);margin:2px 4px 2px 0;cursor:pointer}.btn.pr{background:var(--bl);border-color:var(--bl);color:#fff}.btn.dg{color:var(--rd)}.btn:disabled{opacity:.45;cursor:default}
+input.t,textarea.t,select.t{width:100%;background:var(--bg3);border:1px solid var(--bd);border-radius:7px;padding:8px 10px;color:var(--tx);font:13px ui-monospace,Consolas,monospace}
+textarea.t{min-height:340px;resize:vertical;white-space:pre}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);flex-wrap:wrap}.tabs button{padding:7px 14px;font:700 12.5px system-ui;color:var(--t2);background:none;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;cursor:pointer}.tabs button.on{background:#0b0e0b;color:var(--gr);border-color:var(--bd)}
+.term{background:#0b0d0b;color:#cfe8cf;font:12px/1.5 ui-monospace,Consolas,monospace;padding:12px 14px;border:1px solid var(--bd);border-top:0;min-height:300px;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-all;border-radius:0 0 8px 8px}
+.inp{display:flex;gap:6px;margin-top:8px}
+.crumbs{font:12.5px ui-monospace,Consolas,monospace;color:var(--t2);margin-bottom:8px}.crumbs a{color:var(--bl);cursor:pointer}
+.msg{padding:9px 12px;border-radius:9px;font-size:13px;margin-bottom:12px;border:1px solid var(--bd);background:var(--bg3)}.msg.err{color:var(--rd);border-color:#ef444466}.msg.warn{color:var(--am);border-color:#f59e0b66}
+.dis{border:1px dashed #8886;border-radius:9px;padding:12px;color:var(--t2);font-size:12.5px;margin-bottom:12px}
+#login{max-width:420px;margin:12vh auto;padding:0 16px}
+.row2{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}.row2 span{color:var(--t2)}.row2:last-child{border:0}
+@media(max-width:900px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap}.side .grp,.side .me{display:none}.g4,.g2{grid-template-columns:1fr 1fr}}
+</style></head><body>
+
+<div id="login"><div class="cd"><h3 style="margin-top:0">Panel del gateway de Kairos</h3>
+<p class="sub">Pega un token creado en la app (Homelab → Gateway → Permisos). Se guarda solo en esta pestaña.</p>
+<input id="tok" class="t" type="password" placeholder="Token" autocomplete="off">
+<div style="margin-top:10px"><button class="btn pr" id="enter">Entrar</button></div><div id="loginErr" class="msg err" style="display:none;margin-top:10px"></div></div></div>
+
+<div class="app" id="app" style="display:none">
+<nav class="side" id="nav"><div class="brand"><i id="gdot"></i>Kairos Gateway</div></nav>
+<main>
+<div id="toast" class="msg" style="display:none"></div>
+
+<section class="view" id="v-inicio"><div class="top"><h3>Inicio</h3><span class="pill" id="p-ver"></span><span class="pill" id="p-lvl"></span></div>
+<div class="grid g4">
+<div class="cd"><h4>Módulos</h4><div class="big" id="i-mods">—</div><div class="sub" id="i-mods2"></div></div>
+<div class="cd"><h4>Temperatura CPU</h4><div class="big" id="i-temp">—</div><div class="sub">system.thermal</div></div>
+<div class="cd"><h4>Sesiones de terminal</h4><div class="big" id="i-sess">—</div><div class="sub">session.list</div></div>
+<div class="cd"><h4>Distros instaladas</h4><div class="big" id="i-dist">—</div><div class="sub">distro.list</div></div>
+</div>
+<div class="grid g4">
+<div class="cd"><h4>CPU</h4><div class="big" id="i-cpu">—</div><div class="bar"><i id="i-cpu-bar"></i></div><div class="sub">system.metrics</div></div>
+<div class="cd"><h4>RAM</h4><div class="big" id="i-ram">—</div><div class="bar"><i id="i-ram-bar"></i></div><div class="sub" id="i-ram-sub"></div></div>
+<div class="cd"><h4>Almacenamiento</h4><div class="big" id="i-disk">—</div><div class="bar"><i id="i-disk-bar"></i></div><div class="sub" id="i-disk-sub"></div></div>
+<div class="cd"><h4>Batería</h4><div class="big" id="i-bat">—</div><div class="bar"><i id="i-bat-bar"></i></div><div class="sub">system.metrics</div></div>
+</div>
+<div class="cd"><h4>Cómo conectarte desde otra máquina</h4>
+<div class="sub">3 caminos reales, sin instalar nada más: red local (si el acceso está en modo LAN), túnel público (tarjeta de abajo), o USB con <code>adb forward</code>.</div>
+<div class="row2" style="margin-top:6px"><span>Red local (LAN)</span><b id="gw-lan">—</b></div>
+<div class="row2"><span>USB (con el cable conectado)</span><b id="gw-usb" style="font-family:monospace"></b></div>
+<div style="margin-top:8px"><button class="btn pr" id="gw-scan-go">Buscar otros teléfonos Kairos en esta red</button></div>
+<div class="sub" id="gw-scan-out" style="margin-top:4px">Recorre tu red local buscando otros gateways Kairos — solo encuentra dónde están, no da acceso: igual hace falta el token real de cada uno.</div>
+</div>
+<div class="cd"><h4>Túnel (acceso público)</h4>
+<div class="sub">Expone un puerto de este teléfono a internet vía cloudflared/ngrok (<code>tunnel.*</code>, mismo mecanismo que usa Homelab en la app) — pensado para el puerto del propio gateway (8973), pero sirve con cualquier puerto.</div>
+<div class="row2" style="margin-top:6px"><span>Estado</span><b id="tn-status">—</b></div>
+<div style="margin-top:6px"><input id="tn-port" class="t" placeholder="puerto" value="8973" style="display:inline-block;width:90px">
+<select id="tn-provider" class="t" style="display:inline-block;width:auto;margin-left:6px"><option value="cloudflared">cloudflared</option><option value="ngrok">ngrok</option></select>
+<button class="btn pr" id="tn-start" style="margin-left:6px">Iniciar</button><button class="btn dg" id="tn-stop">Detener</button></div>
+</div></section>
+
+<section class="view" id="v-modulos"><div class="top"><h3>Módulos y servicios</h3><span class="sp"></span><input id="mfilter" class="t" placeholder="Buscar módulo" style="max-width:240px"></div>
+<div class="cd"><table><thead><tr><th>MÓDULO</th><th>ESTADO</th><th>ACCIONES</th></tr></thead><tbody id="mbody"></tbody></table></div>
+<div class="cd"><h4>Ollama — modelos</h4>
+<div class="sub">Opciones propias de este módulo (<code>ollama.*</code>, 2026-10-16) — descargar/borrar/liberar un modelo, igual que hace <code>OllamaFragment</code> en la app.</div>
+<table style="margin-top:8px"><thead><tr><th>MODELO</th><th>TAMAÑO</th><th>ACCIONES</th></tr></thead><tbody id="ol-body"></tbody></table>
+<div class="inp" style="margin-top:8px"><input id="ol-pull-name" class="t" placeholder="modelo a bajar (ej. llama3:8b)"><button class="btn pr" id="ol-pull-go">Bajar</button></div>
+<div class="sub" id="ol-pull-status" style="margin-top:4px"></div>
+</div>
+<div class="cd"><h4>OpenClaw — su propio gateway</h4>
+<div class="sub">OpenClaw tiene adentro su propio servidor (<code>openclaw.status</code>) — el token real NUNCA sale por el gateway (ver <code>.claude/rules/kairos-secrets-never-revealed.md</code>), solo una versión enmascarada, igual que ya muestra <code>OpenClawFragment</code> en la app.</div>
+<div class="row2" style="margin-top:6px"><span>Estado</span><b id="oc-status">—</b></div>
+</div>
+<div class="cd"><h4>Hermes — su propio gateway</h4>
+<div class="sub">Igual patrón que OpenClaw (<code>hermes.*</code>) — gateway de mensajería propio, sin ningún secreto expuesto (la API key del proveedor de IA nunca sale por el gateway).</div>
+<div class="row2" style="margin-top:6px"><span>Estado</span><b id="hm-status">—</b></div>
+<div style="margin-top:6px"><button class="btn pr" id="hm-start">Iniciar gateway</button><button class="btn dg" id="hm-stop">Detener</button></div>
+</div>
+<div class="cd"><h4>Remote — SSH y túnel</h4>
+<div class="sub">Estado real de SSH/Cloudflare (<code>remote.*</code>) — nunca expone contraseñas ni tokens, solo huellas/booleans/config (ver <code>.claude/rules/kairos-secrets-never-revealed.md</code>). Agregar claves/contraseñas nuevas por acá: pendiente, se deja para una ronda propia.</div>
+<div class="row2" style="margin-top:6px"><span>SSH</span><b id="rm-ssh">—</b></div>
+<div class="row2"><span>Túnel Cloudflare</span><b id="rm-cf">—</b></div>
+<div style="margin-top:6px"><button class="btn pr" id="rm-cf-start">Iniciar túnel</button><button class="btn dg" id="rm-cf-stop">Detener túnel</button></div>
+</div>
+<div class="cd"><h4>Interfaces web de módulos (vía proxy del gateway)</h4>
+<div class="sub">El gateway ya hace de proxy inverso a estos puertos loopback (<code>/proxy/&lt;nombre&gt;/...</code>, humano365 lote 31) — se abren con el MISMO token de esta sesión, sin exponer su puerto aparte en la red.</div>
+<div id="svc-links" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px"></div>
+</div></section>
+
+<section class="view" id="v-terminales"><div class="top"><h3>Terminales</h3><span class="sp"></span><button class="btn pr" id="t-new">+ Nueva sesión</button><button class="btn" id="t-mod">Terminal de un módulo</button></div>
+<div class="tabs" id="t-tabs"></div><div class="term" id="t-screen">Sin sesión abierta.</div>
+<div class="inp"><input id="t-text" class="t" placeholder="Escribe y pulsa Enter"><button class="btn pr" id="t-send">Enviar</button><button class="btn dg" id="t-kill">Cerrar</button></div>
+<div class="sub" style="margin-top:8px">La pantalla se actualiza cada 2 s. Teclas especiales (Ctrl+C) y salida en vivo: pendientes.</div>
+<div class="cd"><h4>Sandbox (Termux nativo)</h4>
+<div class="sub">Corre un comando con un HOME y carpeta de trabajo nuevos y vacíos (<code>sandbox.run</code>) — nunca toca tu HOME real. No es aislamiento de seguridad (eso ya lo dan udocker/proot-distro por diseño, ver Distros/Contenedores) — es solo un lugar descartable para probar algo sin ensuciar nada.</div>
+<textarea class="t" id="sb-cmd" placeholder="comando a correr" style="min-height:60px;margin-top:6px"></textarea>
+<label style="display:block;margin-top:6px;font-size:12px;color:var(--t3)"><input type="checkbox" id="sb-keep"> Conservar la carpeta del sandbox al terminar</label>
+<button class="btn pr" id="sb-go" style="margin-top:6px">Correr</button>
+<pre class="term" id="sb-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin correr nada todavía.</pre>
+</div>
+<div class="cd"><h4>Engram (memoria del Agente)</h4>
+<div class="sub">CLI puro, sin API propia (<code>engram.run</code>) — ej. <code>context</code>, <code>stats</code>, <code>search mi búsqueda</code>, <code>save "título" "mensaje"</code>.</div>
+<input class="t" id="eg-args" placeholder="argumentos (ej. stats)" style="margin-top:6px">
+<button class="btn pr" id="eg-go" style="margin-top:6px">Correr</button>
+<pre class="term" id="eg-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin correr nada todavía.</pre>
+</div>
+<div class="cd"><h4>Base de datos (db.*)</h4>
+<div class="sub">Crear/respaldar/borrar una base MySQL o Postgres — <b>borrar exige marcar la casilla de confirmación</b>, no hay forma de hacerlo sin querer.</div>
+<div class="row2" style="margin-top:6px"><span>MySQL</span><b id="db-mysql">—</b></div>
+<div class="row2"><span>Postgres</span><b id="db-pg">—</b></div>
+<div style="margin-top:6px"><select id="db-engine" class="t" style="display:inline-block;width:auto"><option value="mysql">mysql</option><option value="postgres">postgres</option></select>
+<input id="db-name" class="t" placeholder="nombre de la base" style="display:inline-block;width:auto;margin-left:6px"></div>
+<div style="margin-top:6px"><button class="btn pr" id="db-create">Crear</button><button class="btn" id="db-backup">Respaldar</button>
+<label style="margin-left:10px;font-size:12px;color:var(--t3)"><input type="checkbox" id="db-confirm"> confirmar borrado</label>
+<button class="btn dg" id="db-drop" style="margin-left:6px">Borrar</button></div>
+<div style="margin-top:6px"><input id="db-restore-file" class="t" placeholder="archivo en ~/backups/db (ej. mysql_x_20261021_120000.sql)" style="display:inline-block;width:320px">
+<button class="btn" id="db-restore" style="margin-left:6px">Restaurar</button></div>
+<div class="sub" id="db-out" style="margin-top:6px"></div>
+</div>
+<div class="cd"><h4>QEMU (qemu.*)</h4>
+<div class="sub">Arrancar de verdad SÍ es posible (modo consola, vía la sesión de terminal genérica — no hace falta una acción nueva de riesgo): revisá la RAM libre primero.</div>
+<div class="row2" style="margin-top:6px"><span>Binarios</span><b id="qm-status">—</b></div>
+<div class="row2"><span>RAM libre ahora</span><b id="qm-ram">—</b></div>
+<table style="margin-top:6px"><thead><tr><th>IMAGEN</th><th>TAMAÑO</th></tr></thead><tbody id="qm-body"></tbody></table>
+<div style="margin-top:8px"><input id="qm-ram-mb" class="t" placeholder="RAM para la VM (MB)" value="512" style="display:inline-block;width:auto">
+<input id="qm-arch" class="t" placeholder="arquitectura (ej. x86_64)" value="x86_64" style="display:inline-block;width:auto;margin-left:6px">
+<button class="btn pr" id="qm-boot" style="margin-left:6px">Arrancar en consola (elegí una imagen de la tabla primero)</button></div>
+<div class="sub" id="qm-boot-out" style="margin-top:4px"></div>
+</div>
+<div class="cd"><h4>Ciberseguridad — red local</h4>
+<div class="sub">Mismo <code>nmap -sn</code> real que el botón "Escanear" de la app — descubre hosts vivos en tu propia red, nunca corre sola.</div>
+<button class="btn pr" id="cb-scan" style="margin-top:6px">Escanear red local</button>
+<pre class="term" id="cb-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin escanear todavía.</pre>
+</div>
+<div class="cd"><h4>Descargar video/audio (<code>media.download</code>)</h4>
+<div class="sub">Mismo <code>yt-dlp</code> real que la app — se guarda en <code>~/kairos_downloads/</code> (la app usa un selector de carpeta de Android, que una acción HTTP no puede ofrecer).</div>
+<input class="t" id="md-url" placeholder="URL del video" style="margin-top:6px">
+<div style="margin-top:6px"><select id="md-format" class="t" style="display:inline-block;width:auto"><option value="video">video+audio</option><option value="video_silent">solo video</option><option value="audio_only">solo audio (mp3)</option></select>
+<input id="md-height" class="t" placeholder="calidad máx (ej. 1440)" value="1440" style="display:inline-block;width:auto;margin-left:6px">
+<button class="btn pr" id="md-go" style="margin-left:6px">Descargar</button></div>
+<pre class="term" id="md-out" style="min-height:40px;max-height:160px;margin-top:8px">Sin descargar todavía.</pre>
+</div>
+<div class="cd"><h4>Stacks — proyectos registrados (<code>stacks.projects</code>)</h4>
+<div class="sub">Solo lectura — mismo estado real que ya usa la app (ruta, destino nativo/distro/udocker, subproyectos de un monorepo). Instalar dependencias o correr el proyecto ya es posible con <code>distro.run</code>/<code>udocker.run</code>/<code>sandbox.run</code> según el destino de cada uno.</div>
+<table style="margin-top:6px"><thead><tr><th>RUTA</th><th>DESTINO</th><th>SUBPROYECTOS</th></tr></thead><tbody id="stk-body"></tbody></table>
+</div>
+<div class="cd"><h4>APK — info y decompilar (<code>apk.*</code>)</h4>
+<div class="sub">Mismo <code>compil-apk-termux</code> real que la app. Subí el APK primero (reusa el mismo mecanismo que Archivos → Subir, con su mismo límite real de ~2 MB por archivo — un APK más grande todavía no se puede subir por acá) y después corré info/decompilar sobre esa ruta.</div>
+<input type="file" id="apk-file" accept=".apk" style="margin-top:6px">
+<div class="sub" id="apk-upload-status" style="margin-top:4px"></div>
+<div style="margin-top:6px"><button class="btn pr" id="apk-info-go">Info</button><button class="btn" id="apk-decode-go">Decompilar</button></div>
+<pre class="term" id="apk-out" style="min-height:60px;max-height:220px;margin-top:8px">Subí un APK primero.</pre>
+</div>
+<div class="cd"><h4>Automatizaciones (<code>automations.*</code>)</h4>
+<div class="sub">Triggers reales (arranque, horario, batería) que inician/detienen un módulo sin abrir la app — mismo motor real que ya usa la app (<code>AutomationManager</code>), nada reimplementado.</div>
+<table style="margin-top:6px"><thead><tr><th>NOMBRE</th><th>TRIGGER</th><th>ACCIÓN</th><th>ESTADO</th><th></th></tr></thead><tbody id="au-body"></tbody></table>
+<div style="margin-top:8px"><input id="au-name" class="t" placeholder="nombre (opcional)" style="display:inline-block;width:auto">
+<select id="au-trigger" class="t" style="display:inline-block;width:auto;margin-left:6px"><option value="BOOT">al arrancar</option><option value="SCHEDULE">horario</option><option value="BATTERY_LEVEL">batería</option></select>
+<input id="au-schedule" class="t" placeholder="HH:MM" style="display:inline-block;width:70px;margin-left:6px">
+<select id="au-action" class="t" style="display:inline-block;width:auto;margin-left:6px"><option value="START_MODULE">iniciar</option><option value="STOP_MODULE">detener</option></select>
+<select id="au-module" class="t" style="display:inline-block;width:auto;margin-left:6px"><option value="">(cargando módulos…)</option></select>
+<button class="btn pr" id="au-add" style="margin-left:6px">Crear</button></div>
+<div class="sub" id="au-out" style="margin-top:4px"></div>
+</div></section>
+
+<section class="view" id="v-archivos"><div class="top"><h3>Archivos</h3><span class="sp"></span>
+<button class="btn" id="f-mkdir">Nueva carpeta</button><button class="btn" id="f-new">Nuevo archivo</button><button class="btn" id="f-up">Subir (texto)</button><button class="btn" id="f-compress">Comprimir…</button><button class="btn" id="f-extract">Extraer…</button><input type="file" id="f-file" style="display:none"></div>
+<div class="crumbs" id="f-crumbs"></div>
+<div class="grid" style="grid-template-columns:minmax(260px,1fr) 1.4fr">
+<div class="cd"><table><thead><tr><th>NOMBRE</th><th>TAMAÑO</th></tr></thead><tbody id="f-body"></tbody></table></div>
+<div class="cd"><h4 id="f-name">Editor</h4><textarea id="f-edit" class="t" spellcheck="false" disabled></textarea>
+<div style="margin-top:10px"><button class="btn pr" id="f-save" disabled>Guardar</button><button class="btn" id="f-down" disabled>Descargar</button><button class="btn" id="f-ren" disabled>Renombrar</button><button class="btn dg" id="f-del" disabled>Borrar</button></div>
+<div class="sub" style="margin-top:8px">Texto hasta 60 KB con el editor de arriba; otros archivos (binarios, o más grandes) hasta 2 MB con "Subir" o un clic en la lista, que descarga directo sin pasar por el editor. Está vedado todo lo que sale del HOME y las carpetas con credenciales. Borrar solo admite archivos o carpetas vacías.</div></div></div></section>
+
+<section class="view" id="v-almacenamiento"><div class="top"><h3>Almacenamiento</h3></div>
+<div class="cd"><h4>Volúmenes del dispositivo</h4><table><thead><tr><th>VOLUMEN</th><th>ESTADO</th><th>ACCIONES</th></tr></thead><tbody id="st-body"></tbody></table>
+<div class="sub">El HOME de Termux ya se administra desde <i>Archivos</i>. Esta tabla muestra TODOS los volúmenes reales del dispositivo (almacenamiento interno completo, microSD, USB-OTG si Android lo monta como almacenamiento) — "Explorar" es de solo lectura (ver, no editar ni borrar). En Android 10-12 sin la vía pública para la ruta de un volumen secundario, puede aparecer "sin acceso" aunque el volumen esté montado — limitación real de la plataforma, no un bug.</div></div>
+<div class="cd" id="st-browse" style="display:none"><h4 id="st-browse-title">Explorando</h4><table><thead><tr><th>NOMBRE</th><th>TAMAÑO</th></tr></thead><tbody id="st-browse-body"></tbody></table></div>
+<div class="cd"><h4>Servidor FTP</h4><div class="row2"><span>Estado</span><b id="ft-running">—</b></div><div class="row2"><span>Puerto</span><b id="ft-port">—</b></div><div class="row2"><span>Usuario</span><b id="ft-user">—</b></div>
+<div style="margin-top:10px"><button class="btn pr" id="ft-start">Iniciar</button><button class="btn dg" id="ft-stop">Detener</button></div>
+<div style="margin-top:10px"><input id="ft-u" class="t" placeholder="Usuario nuevo" style="margin-bottom:6px"><input id="ft-p" class="t" type="password" placeholder="Contraseña nueva (mín. 6)" style="margin-bottom:6px"><button class="btn" id="ft-save">Guardar credenciales</button></div>
+<div class="sub">Comparte el mismo HOME que <i>Archivos</i> (nunca más). La contraseña se elige acá y nunca se vuelve a mostrar — anotala en tu cliente FTP al crearla, Kairos no la guarda en texto plano. El FTP no usa TLS (protocolo en claro): usalo solo en tu red local o por cable USB, nunca expuesto a internet.</div></div></section>
+
+<section class="view" id="v-nube"><div class="top"><h3>Nube</h3><span class="pill" id="n-pill">—</span></div>
+<div class="cd"><h4>Estado</h4><div class="row2"><span>Servidor</span><b id="n-running">—</b></div><div class="row2"><span>Puerto</span><b id="n-port">—</b></div><div class="row2"><span>Archivos en $HOME/nube</span><b id="n-files">—</b></div>
+<div style="margin-top:10px"><button class="btn pr" id="n-start">Iniciar</button><button class="btn dg" id="n-stop">Detener</button><button class="btn" id="n-open">Abrir en Archivos</button></div></div>
+<div class="cd"><h4>Enlace</h4>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><input id="n-link" class="t" readonly placeholder="Iniciá Nube para generar el enlace" style="flex:1;min-width:220px;font-size:12px">
+<button class="btn" id="n-copy" disabled>Copiar</button><button class="btn pr" id="n-open-link" disabled>Abrir Nube</button></div>
+<div class="sub" style="margin-top:6px">El enlace ya trae el token de Nube incluido — es justo lo pensado para compartir (mismo criterio que usa la pantalla Nube de la app). Si lo movés a otra carpeta, pedí un enlace nuevo con <code>cloud.share_link</code> pasando esa ruta.</div></div>
+<div class="cd"><h4>Subir a $HOME/nube</h4>
+<input type="file" id="n-file" style="display:none"><button class="btn pr" id="n-upload" disabled>Elegir archivo…</button>
+<div class="sub" style="margin-top:6px">Sube directo a la raíz de Nube (hasta 2 MB) reusando <code>fs.write</code> — el mismo mecanismo de <i>Archivos</i>, sin un camino de subida separado. Para archivos más grandes o subcarpetas, usá el enlace de arriba o la propia app.</div></div>
+<div class="sub">El cifrado por contraseña de quien sube desde el enlace público sigue siendo cosa de la propia app (Homelab → Nube). El token de Nube nunca se muestra suelto en este panel — solo embebido en la URL de arriba, igual que en la app.</div></section>
+
+<section class="view" id="v-distros"><div class="top"><h3>Distros (proot-distro)</h3></div>
+<div class="cd"><table><thead><tr><th>DISTRO</th><th>ESTADO</th><th>ACCIONES</th></tr></thead><tbody id="d-body"></tbody></table></div>
+<div class="sub">Instalar y abrir terminal crean una sesión en Terminales; el progreso se ve allí.</div>
+<div class="cd"><h4>Correr un comando sin abrir terminal</h4>
+<div class="sub">Instalar un programa y verificarlo de una (<code>distro.run</code>) — ej. alias <code>debian</code>, comando <code>apt-get install -y python3 &amp;&amp; python3 --version</code>. Corre dentro de la distro con <code>proot-distro login --shared-tmp --shared-home</code>, igual que el resto de Kairos.</div>
+<select class="t" id="d-run-alias" style="margin-top:6px"><option value="">(cargando distros…)</option></select>
+<textarea class="t" id="d-run-cmd" placeholder="comando a correr dentro de la distro" style="min-height:70px;margin-top:6px"></textarea>
+<label style="display:block;margin-top:6px;font-size:12px;color:var(--t3)"><input type="checkbox" id="d-run-sandbox"> sandbox (<code>--isolated</code>, aísla la vista de filesystem en vez de compartir HOME/tmp)</label>
+<button class="btn pr" id="d-run-go" style="margin-top:6px">Correr</button>
+<pre class="term" id="d-run-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin correr nada todavía.</pre>
+</div></section>
+
+<section class="view" id="v-udocker"><div class="top"><h3>Contenedores (udocker)</h3></div>
+<div class="cd"><table><thead><tr><th>IMAGEN</th><th>ACCIONES</th></tr></thead><tbody id="u-body"></tbody></table></div>
+<div class="sub">Lista las imágenes ya descargadas. Descargar imágenes nuevas desde el panel: pendiente.</div>
+<div class="cd"><h4>Correr un comando sin abrir terminal</h4>
+<div class="sub">Igual que arriba pero dentro de una imagen de udocker (<code>udocker.run</code>, <code>udocker run &lt;imagen&gt; sh -c ...</code>) — cada corrida arranca de la imagen base, no guarda estado entre una y otra.</div>
+<input class="t" id="u-run-image" placeholder="imagen (ej. debian:12)" style="margin-top:6px">
+<textarea class="t" id="u-run-cmd" placeholder="comando a correr dentro del contenedor" style="min-height:70px;margin-top:6px"></textarea>
+<button class="btn pr" id="u-run-go" style="margin-top:6px">Correr</button>
+<pre class="term" id="u-run-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin correr nada todavía.</pre>
+</div>
+<div class="cd"><h4>Contenedores nombrados (persistentes, <code>udocker.container_*</code>)</h4>
+<div class="sub">Distinto de lo de arriba — estos SÍ guardan estado entre corridas (<code>udocker create</code> ya hecho desde la app). Borrar exige marcar la casilla de confirmación.</div>
+<table style="margin-top:6px"><thead><tr><th>CONTENEDOR</th><th>IMAGEN</th><th>ESTADO</th></tr></thead><tbody id="uc-body"></tbody></table>
+<input class="t" id="uc-name" placeholder="nombre del contenedor" style="margin-top:6px">
+<textarea class="t" id="uc-cmd" placeholder="comando a correr dentro (déjalo vacío para solo inspeccionar/borrar)" style="min-height:50px;margin-top:6px"></textarea>
+<div style="margin-top:6px"><button class="btn pr" id="uc-run">Correr</button><button class="btn" id="uc-inspect">Inspeccionar</button>
+<label style="margin-left:10px;font-size:12px;color:var(--t3)"><input type="checkbox" id="uc-confirm"> confirmar borrado</label>
+<button class="btn dg" id="uc-remove" style="margin-left:6px">Borrar</button></div>
+<pre class="term" id="uc-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin correr nada todavía.</pre>
+</div></section>
+
+<section class="view" id="v-ide"><div class="top"><h3>IDE</h3><span class="sp"></span><select class="t" id="ide-proj" style="display:inline-block;width:auto;max-width:260px"><option value="">(sin proyectos)</option></select></div>
+<div class="sub">Este es <b>Estudio</b>, el IDE nativo de la app (<code>ui/studio/</code>) — proyectos, árbol de archivos y editor real, vía <code>ide.project_info</code>/<code>ide.tree</code>/<code>ide.read</code>/<code>ide.write</code>. Solo funciona para un proyecto ya abierto en Estudio en el teléfono y cuya carpeta resolvió a una ruta real de almacenamiento interno — un proyecto que vive solo en un URI SAF (fuera de almacenamiento primario) todavía no se puede leer/escribir desde acá, el panel lo marca como "sin ruta real" en vez de fallar en silencio.</div>
+<div class="crumbs" id="ide-crumbs"></div>
+<div class="grid" style="grid-template-columns:minmax(220px,1fr) 1.4fr">
+<div class="cd"><table><thead><tr><th>NOMBRE</th><th>TAMAÑO</th></tr></thead><tbody id="ide-body"></tbody></table></div>
+<div class="cd"><h4 id="ide-name">Editor</h4><textarea id="ide-edit" class="t" spellcheck="false" disabled></textarea>
+<div style="margin-top:10px"><button class="btn pr" id="ide-save" disabled>Guardar</button></div></div>
+</div>
+<div class="cd"><h4>Plugin: módulo "ide" (Neovim + NvChad)</h4>
+<div class="row2"><span>Instalado</span><b id="ide-installed">—</b></div>
+<div style="margin-top:6px"><button class="btn" id="ide-install" disabled>Instalar</button> <button class="btn" id="ide-open" disabled>Abrir terminal (nvim)</button></div>
+<div class="sub" style="margin-top:8px">El editor de terminal (Neovim) es un complemento aparte del IDE real de arriba — sin API propia, el gateway solo puede instalarlo y abrir su sesión de terminal (<code>session.open_module</code>), igual que cualquier módulo de <i>Módulos</i>.</div>
+</div></section>
+
+<section class="view" id="v-plugins"><div class="top"><h3>Plugins</h3></div>
+<div class="sub">Tor, Syncthing y Restic son "complementos" de Kairos (<code>AddonEngine.kt</code>) — viven dentro de sus pantallas anfitrionas de la app, no como módulos del catálogo. Desde 2026-10-16 (<code>plugins.*</code>) Tor y Syncthing YA tienen estado/inicio/detención real acá — Restic no (son operaciones puntuales de backup con una contraseña de entrada, se deja para una ronda propia, ver <code>docs/humano365.md</code>).</div>
+<div class="dis"><b>Bot Kairos (Telegram)</b> — YA EXISTE (<code>TelegramBotService.kt</code>, ver <code>docs/modulos/TELEGRAM_BOT.md</code>): long-polling, lista blanca por <code>from.id</code>, <code>/start &lt;módulo&gt;</code>/<code>/stop &lt;módulo&gt;</code> (con confirmación en 2 pasos). Se activa desde la app (Config → el switch del bot), no desde el gateway todavía.</div>
+<div class="cd"><h4>Tor</h4>
+<div class="row2" style="margin-top:6px"><span>Estado</span><b id="pl-tor-status">—</b></div>
+<div style="margin-top:6px"><button class="btn pr" id="pl-tor-start">Iniciar</button><button class="btn dg" id="pl-tor-stop">Detener</button></div>
+</div>
+<div class="cd"><h4>Syncthing</h4>
+<div class="row2" style="margin-top:6px"><span>Estado</span><b id="pl-st-status">—</b></div>
+<div style="margin-top:6px"><button class="btn pr" id="pl-st-start">Iniciar</button><button class="btn dg" id="pl-st-stop">Detener</button></div>
+</div>
+<div class="cd"><h4>Restic (<code>restic.*</code>)</h4>
+<div class="sub">Respaldar una carpeta o listar snapshots de un repositorio restic — la contraseña viaja directo a <code>RESTIC_PASSWORD</code> (nunca al argv, nunca a un log) y nunca vuelve en la respuesta. No hay "restaurar" todavía (la app tampoco lo tiene).</div>
+<input class="t" id="rs-repo" placeholder="repositorio (ruta absoluta)" style="margin-top:6px">
+<input class="t" id="rs-folder" placeholder="carpeta a respaldar (solo para Respaldar)" style="margin-top:6px">
+<input class="t" id="rs-pass" type="password" placeholder="contraseña del repositorio" style="margin-top:6px">
+<div style="margin-top:6px"><button class="btn pr" id="rs-backup">Respaldar</button><button class="btn" id="rs-snaps">Ver snapshots</button></div>
+<pre class="term" id="rs-out" style="min-height:60px;max-height:200px;margin-top:8px">Sin correr nada todavía.</pre>
+</div></section>
+
+<section class="view" id="v-seguridad"><div class="top"><h3>Seguridad y accesos</h3></div>
+<div class="cd"><h4>Mi acceso</h4><div id="s-me"></div></div>
+<div class="cd"><h4>Acciones disponibles con este token</h4><table><thead><tr><th>ACCIÓN</th><th>RIESGO</th><th>DECISIÓN</th></tr></thead><tbody id="s-body"></tbody></table></div>
+<div class="cd"><h4>Proveedores de privilegio (ShizukuPlus)</h4><table><thead><tr><th>PROVEEDOR</th><th>DISPONIBLE</th></tr></thead><tbody id="s-priv-body"></tbody></table>
+<div class="row2" style="margin-top:8px"><span>¿Elegible para Dhizuku/Device Owner?</span><b id="s-dhizuku">—</b></div>
+<div class="sub" style="margin-top:4px">Solo lectura — ningún chequeo de esta tarjeta activa ni otorga nada por sí mismo.</div></div>
+<div class="sub">Tokens, política y auditoría se administran desde la app (solo desde el propio teléfono).</div></section>
+
+<section class="view" id="v-minipc"><div class="top"><h3>Mini PC</h3></div>
+<div class="cd"><b>Escritorio gráfico</b> (nativo en Termux, o dentro de una distro ya preparada) — arranca sobre el mismo servidor X11 embebido que usa la app (<code>minipc.desktop_start</code>/<code>_stop</code>). No hace falta nada nuevo para VERLO: una vez arrancado, conectá la pestaña "Pantalla" — el espejo captura la pantalla completa del dispositivo, incluido lo que dibuje el escritorio.
+<div class="row2" style="margin-top:6px"><span>Estado</span><b id="de-status">—</b></div>
+<div style="margin-top:6px"><select id="de-select" class="t" style="display:inline-block;width:auto"><option value="xfce4">XFCE4</option><option value="lxqt">LXQt</option><option value="mate">MATE</option></select>
+<select id="de-distro" class="t" style="display:inline-block;width:auto;margin-left:6px"><option value="">(nativo, sin distro)</option></select>
+<button class="btn pr" id="de-start" style="margin-left:6px">Iniciar</button><button class="btn dg" id="de-stop">Detener</button></div>
+</div>
+<div class="cd"><b>VNC</b> — sigue siendo el camino de la app (<code>EntornoVncTab</code>), sin cambios (<code>.claude/rules/kairos-vnc-scope.md</code>). Estado real del servidor VNC: <span id="pr-vnc">—</span></div>
+</section>
+
+<section class="view" id="v-ia"><div class="top"><h3>IA</h3></div>
+<div class="cd"><b>Chat con IA</b> — conversación cruda con el modelo de IA local/externo configurado (<code>ai.chat</code>; llama-server, Ollama, o la API de "configurar-ia" en la app), sin ningún catálogo de intents: nunca instala, inicia ni detiene nada — solo responde texto. Distinto del "Chat con el Agente" de abajo.
+<div class="term" id="ai-log" style="min-height:90px;max-height:220px;margin-top:8px">Sin mensajes.</div>
+<div class="inp"><input id="ai-text" class="t" placeholder="Escribe cualquier mensaje"><button class="btn pr" id="ai-send">Enviar</button></div>
+</div>
+<div class="cd"><b>Chat con el Agente</b> — habla con el Agente de Kairos (<code>agent.ask</code>; exige nivel total y que el motor esté instalado en el teléfono, Más → Agente). Solo entiende su catálogo fijo de pedidos (estado, procesos, instalar/iniciar/detener un módulo, historial) — nunca ejecuta comandos libres.
+<div class="term" id="ag-log" style="min-height:90px;max-height:220px;margin-top:8px">Sin mensajes.</div>
+<div class="inp"><input id="ag-text" class="t" placeholder="Escribe un pedido (ej. &quot;estado de n8n&quot;, &quot;inicia ollama&quot;)"><button class="btn pr" id="ag-send">Enviar</button></div>
+</div>
+</section>
+
+<section class="view" id="v-pantalla"><div class="top"><h3>Pantalla</h3></div>
+<div class="cd"><b>Espejo y control táctil</b> real de la pantalla del teléfono (ver <code>docs/homelab/ESPEJO_PANTALLA_FUNCIONAL_2026-10-13.md</code>) usando un servidor propio adaptado de scrcpy (Apache-2.0, con crédito — ver <code>docs/CREDITOS.md</code>), sin ADB ni red: todo por un socket local del propio dispositivo. "Conectar" abre el relay del gateway (<code>/v1/screen/ws</code>); si no hay ninguna sesión de pantalla arrancada todavía (botón "Iniciar" más abajo), el relay responde con error hasta que se arranque una — arrancar el gateway con <code>KAIROS_GATEWAY_SCREEN_STUB=1</code> deja probar el relay completo (websocket, control, reconexión) con datos simulados, sin tocar la pantalla real. Exige nivel total (con la casilla de responsabilidad marcada): controlar la pantalla es controlar el dispositivo entero.
+<div style="margin-top:8px"><button class="btn pr" id="scr-connect">Conectar</button><button class="btn dg" id="scr-disconnect" disabled>Desconectar</button> <button class="btn" id="scr-popup">Abrir en ventana aparte</button> <span class="pill" id="scr-status">desconectado</span></div>
+<canvas id="scr-canvas" width="320" height="180" style="background:#000;border:1px solid var(--bd);border-radius:8px;margin-top:8px;max-width:100%;cursor:crosshair"></canvas>
+<div class="sub">Clic o arrastre en el lienzo manda toques/gestos reales (mismo formato que <code>ScreenControlMessage</code>) por el websocket — con una sesión de pantalla real corriendo (control=true), el dispositivo los recibe de verdad.</div>
+<div class="term" id="scr-log" style="min-height:70px;max-height:160px;margin-top:8px">Sin conectar.</div>
+</div>
+
+<div class="cd"><h4>Configuración (screen.config)</h4>
+<div class="sub">Se guarda con <code>screen.config</code> y la toma el próximo <code>screen.start</code> (no afecta una sesión ya corriendo — hay que detener y volver a iniciar). "Detectar" corre el servidor real un momento (sin mostrar video) para listar los códecs/encoders/pantallas que el dispositivo soporta de verdad — <code>screen.codecs</code>.</div>
+<div class="grid g2" style="margin-top:8px">
+  <div><label class="sub">Resolución máx. (max_size, lado más largo en px)</label><select class="t" id="scr-maxsize"><option value="854">854 (bajo consumo)</option><option value="1280" selected>1280</option><option value="1920">1920 (Full HD)</option><option value="2560">2560</option></select></div>
+  <div><label class="sub">FPS (max_fps)</label><select class="t" id="scr-fps"><option value="15" selected>15</option><option value="24">24</option><option value="30">30</option><option value="60">60</option></select></div>
+  <div><label class="sub">Bitrate de video (bps)</label><select class="t" id="scr-bitrate"><option value="2000000">2 Mbps</option><option value="4000000" selected>4 Mbps</option><option value="8000000">8 Mbps</option><option value="16000000">16 Mbps</option></select></div>
+  <div><label class="sub">Orientación (capture_orientation)</label><select class="t" id="scr-orientation"><option value="">automática</option><option value="0">0° (normal)</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option><option value="flip0">espejada 0°</option><option value="flip90">espejada 90°</option></select></div>
+  <div><label class="sub">Códec de video (video_codec)</label><select class="t" id="scr-vcodec"><option value="">por defecto del dispositivo (h264)</option><option value="h264">h264</option><option value="h265">h265</option><option value="av1">av1</option><option value="vp8">vp8</option><option value="vp9">vp9</option></select></div>
+  <div><label class="sub">Audio</label><div style="margin-top:6px"><label><input type="checkbox" id="scr-audio"> incluir audio del dispositivo</label></div><select class="t" id="scr-acodec" style="margin-top:6px" disabled><option value="">códec de audio por defecto (opus)</option><option value="opus">opus</option><option value="aac">aac</option><option value="flac">flac</option><option value="raw">raw (sin comprimir)</option></select></div>
+</div>
+<div style="margin-top:8px"><button class="btn pr" id="scr-cfg-save">Guardar configuración</button><button class="btn" id="scr-cfg-detect">Detectar códecs del dispositivo</button></div>
+<div class="term" id="scr-codecs-log" style="min-height:50px;max-height:160px;margin-top:8px">Sin detectar todavía.</div>
+</div>
+
+<div class="cd"><h4>Grabación (screen.record_start / screen.record_stop)</h4>
+<div class="sub">Graba, mientras el espejo esté activo, el video que pasa por el relay a un archivo <code>.h264</code> crudo en <code>~/kairos-grabaciones/</code> del lado del gateway (no es un .mp4 — convertir con <code>ffmpeg -i archivo.h264 -c copy salida.mp4</code>). No depende de tener el lienzo de arriba conectado: graba lo que llegue del lado real, lo esté mostrando este navegador o no.</div>
+<div style="margin-top:8px"><button class="btn pr" id="scr-rec-start">Grabar</button><button class="btn dg" id="scr-rec-stop" disabled>Detener grabación</button> <span class="pill" id="scr-rec-status">sin grabar</span></div>
+</div>
+
+<div class="cd"><h4>Transporte por USB (además de la red local)</h4>
+<div class="sub">Este panel ya habla por un WebSocket normal (<code>/v1/screen/ws</code> sobre el puerto 8973 del gateway) — por USB no hace falta nada especial del lado de Kairos: en la PC, con el cable conectado y la depuración por USB habilitada, <code>adb forward tcp:8973 tcp:8973</code> (o <code>adb reverse</code> si el sentido fuera al revés) deja usar <code>http://127.0.0.1:8973/</code> en la PC como si fuera la red local — mismo token, mismas acciones, sin Wi-Fi. No se implementó nada nuevo para esto: es el mismo mecanismo de cualquier app que hable HTTP/WebSocket por el gateway, solo reenviado por el cable en vez de por la red — ver <code>docs/homelab/ESPEJO_PANTALLA_FUNCIONAL_2026-10-13.md</code> para el detalle completo (incluye lo que SÍ falta confirmar en un dispositivo real).</div>
+</div></section>
+</main></div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+function h(tag,attrs,...kids){const e=document.createElement(tag);for(const k in(attrs||{})){if(k==='on')for(const ev in attrs.on)e.addEventListener(ev,attrs.on[ev]);else if(k==='class')e.className=attrs[k];else e.setAttribute(k,attrs[k])}for(const c of kids.flat())e.append(c==null?'':c);return e}
+let token=sessionStorage.getItem('kx_token')||'',acts={},me=null;
+
+async function api(path,opt){opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+token},opt.headers||{});const r=await fetch(path,opt);let b={};try{b=await r.json()}catch(e){}return{status:r.status,body:b}}
+function toast(t,kind){const e=$('toast');e.textContent=t;e.className='msg '+(kind||'');e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',6000)}
+// Ejecuta una acción. Devuelve {ok,data,error}. Si queda pendiente de aprobación, espera hasta 45 s a que la persona la apruebe en la app.
+async function act(id,params){
+  if(acts[id]&&acts[id].decision==='pregunta')toast('Esperando tu aprobación en la app…','warn');
+  const r=await api('/v1/actions/'+encodeURIComponent(id)+'?wait=45',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({params:params||{}})});
+  if(r.status===401){logout();return{ok:false,error:'token inválido'}}
+  if(r.status===403)return{ok:false,error:r.body.error||'permiso denegado'};
+  if(r.status===202)return{ok:false,error:'sigue pendiente de aprobación'};
+  if(r.status!==200||!r.body.result)return{ok:false,error:r.body.error||('error '+r.status)};
+  let data={};try{data=JSON.parse(r.body.result.output||'{}')}catch(e){data={raw:r.body.result.output}}
+  return r.body.result.ok?{ok:true,data}:{ok:false,error:data.error||data.message||'falló',data}
+}
+const can=id=>!!acts[id]&&acts[id].decision!=='denegada';
+function fail(r){toast(r.error,'err')}
+
+const VIEWS=[['inicio','Inicio'],['modulos','Módulos'],['terminales','Terminales'],['archivos','Archivos'],['almacenamiento','Almacenamiento'],['nube','Nube'],['distros','Distros'],['minipc','Mini PC'],['udocker','Contenedores'],['ide','IDE'],['ia','IA'],['pantalla','Pantalla'],['plugins','Plugins'],['seguridad','Seguridad']];
+let cur='inicio',timers=[];
+// window.__kairosDesktop + window.kairosOpenInBrowser los inyecta kairos-dashboard.exe ANTES de
+// navegar a esta página — nunca presentes cuando el panel se abre desde un navegador normal
+// (local o remoto), donde el botón no tendría sentido. Pedido real del usuario: "para abrir el
+// de navegador debe tener una opcion/boton para abrirlo". Buscar/conectar un teléfono nuevo
+// (kairosOpenDiscover) y la lista de ya emparejados viven en la pantalla de inicio PROPIA del
+// escritorio (desktopShellDataURL() en main.go, 2026-10-31: "la interfaz del gateway de pc debe
+// ser distinto al de movil [...] con mas opciones bien organizadas") — este panel sigue siendo
+// el mismo que ve cualquier navegador, el botón de buscar ya no vive acá.
+function buildNav(){const n=$('nav');VIEWS.forEach(([id,t],i)=>{if(i===6)n.append(h('div',{class:'grp'},'SISTEMAS'));if(i===13)n.append(h('div',{class:'grp'},'ADMINISTRACIÓN'));n.append(h('button',{class:'nav',id:'n-'+id,on:{click:()=>show(id)}},t))});
+  if(window.__kairosDesktop&&window.kairosOpenInBrowser){n.append(h('button',{class:'nav',on:{click:()=>window.kairosOpenInBrowser()}},'🌐 Abrir en el navegador'))}
+  n.append(h('div',{class:'me',id:'me'}))}
+function show(id){cur=id;timers.forEach(clearInterval);timers=[];VIEWS.forEach(([v])=>{$('v-'+v).classList.toggle('on',v===id);$('n-'+v).classList.toggle('on',v===id)});({inicio:loadInicio,modulos:loadModulos,terminales:loadTerminales,archivos:()=>loadDir(dir),almacenamiento:loadAlmacenamiento,nube:loadNube,distros:loadDistros,minipc:loadMinipc,udocker:loadUdocker,ide:loadIde,ia:()=>{},pantalla:loadPantalla,plugins:loadPlugins,seguridad:loadSeguridad})[id]()}
+async function loadMinipc(){
+  if(can('minipc.vnc_status')){
+    const v=await act('minipc.vnc_status');
+    $('pr-vnc').textContent=v.ok?(v.data.installed?(v.data.running?'corriendo en :'+v.data.port:'instalado, detenido'):'TigerVNC no instalado'):(v.error||'sin dato');
+  }
+  loadDesktopStatus();
+  if(can('distro.list'))loadDistros(); // puebla de-distro con las distros reales, ver loadDistros()
+}
+async function loadPantalla(){
+  loadScreenConfig();
+  loadRecordStatus();
+}
+// Escritorio gráfico nativo/de distro (minipc.desktop_start/_stop/_status, 2026-10-16, ver
+// docs/humano365.md meta 5) — delega en EntornoNative, lo mismo que ya usa EntornoFragment.
+async function loadDesktopStatus(){
+  if(!can('minipc.desktop_status')){$('de-status').textContent='sin permiso';return}
+  const r=await act('minipc.desktop_status');
+  $('de-status').textContent=r.ok?('servidor X11: '+(r.data.x11_running?'activo':'apagado')+' · escritorios instalados: '+((r.data.installed_desktops||[]).join(', ')||'ninguno')):(r.error||'sin dato');
+}
+$('de-start').onclick=async()=>{
+  if(!can('minipc.desktop_start')){toast('No tienes permiso para iniciar el escritorio (exige nivel total).','err');return}
+  const r=await act('minipc.desktop_start',{de:$('de-select').value,distro:$('de-distro').value.trim()});
+  if(r.ok)toast(r.data.message||'Escritorio iniciado'); else fail(r);
+  loadDesktopStatus();
+};
+$('de-stop').onclick=async()=>{
+  const r=await act('minipc.desktop_stop',{});
+  if(r.ok)toast(r.data.message||'Escritorio detenido'); else fail(r);
+  loadDesktopStatus();
+};
+
+// Chat con IA directo (ai.chat) — ver AppAiChatOps en GatewayAppBridge.kt. Sin catálogo de
+// intents: solo conversación cruda con el modelo configurado. El historial de turnos se
+// mantiene acá (el puente no guarda estado entre llamadas) y se manda como un JSON
+// stringificado en el param "history" (el gateway Go solo transporta texto, ver el mismo
+// comentario en handleAiChat()).
+let aiHistory=[],aiBusy=false;
+function aiLog(line){const e=$('ai-log');e.textContent=(e.textContent==='Sin mensajes.'?'':e.textContent+'\n\n')+line;e.scrollTop=e.scrollHeight}
+async function aiSend(){
+  if(aiBusy)return;
+  const box=$('ai-text'),text=box.value.trim();if(!text)return;
+  if(!can('ai.chat')){aiLog('Tú: '+text);aiLog('IA: no tienes permiso para esto (la acción ai.chat).');box.value='';return}
+  box.value='';aiBusy=true;box.disabled=true;$('ai-send').disabled=true;
+  aiLog('Tú: '+text);
+  const r=await act('ai.chat',{text,history:JSON.stringify(aiHistory)});
+  const reply=r.ok?(r.data.reply||'(sin respuesta)'):(r.error||'no hay un modelo de IA disponible');
+  aiLog('IA: '+reply);
+  if(r.ok){aiHistory.push({role:'user',content:text},{role:'assistant',content:reply});if(aiHistory.length>20)aiHistory=aiHistory.slice(-20)}
+  aiBusy=false;box.disabled=false;$('ai-send').disabled=false;box.focus();
+}
+$('ai-send').onclick=aiSend;
+$('ai-text').addEventListener('keydown',e=>{if(e.key==='Enter')aiSend()});
+
+// Chat con el Agente de Kairos (agent.ask) — ver AppAgentOps en GatewayAppBridge.kt.
+function agLog(line){const e=$('ag-log');e.textContent=(e.textContent==='Sin mensajes.'?'':e.textContent+'\n\n')+line;e.scrollTop=e.scrollHeight}
+let agBusy=false;
+async function agSend(){
+  if(agBusy)return;
+  const box=$('ag-text'),text=box.value.trim();if(!text)return;
+  if(!can('agent.ask')){agLog('Tú: '+text);agLog('Agente: no tienes permiso para esto (la acción agent.ask exige nivel total).');box.value='';return}
+  box.value='';agBusy=true;box.disabled=true;$('ag-send').disabled=true;
+  agLog('Tú: '+text);
+  const r=await act('agent.ask',{text});
+  agLog('Agente: '+(r.ok?(r.data.reply||'(sin respuesta)'):(r.error||'no entendí el pedido')));
+  agBusy=false;box.disabled=false;$('ag-send').disabled=false;box.focus();
+}
+$('ag-send').onclick=agSend;
+$('ag-text').addEventListener('keydown',e=>{if(e.key==='Enter')agSend()});
+
+// Metricas en vivo (docs/humano369.md) -- antes system.metrics/system.thermal se pedian una sola
+// vez al entrar a Inicio y quedaban congeladas; ahora se repiten cada 4s mientras la pestaña esta
+// abierta, mismo patron que refreshScreen (timers.push + show() limpia los timers al cambiar de
+// pestaña, asi que nunca queda un intervalo corriendo de fondo sin verse).
+async function refreshInicioMetrics(){
+  if(can('system.thermal')){const r=await act('system.thermal');if(r.ok)$('i-temp').textContent=(r.data.celsius!=null?r.data.celsius+' °C':JSON.stringify(r.data).slice(0,24))}
+  if(can('system.metrics')){const r=await act('system.metrics');if(r.ok)renderMetrics(r.data)}
+}
+async function loadInicio(){
+  const g=await fetch('/healthz').then(r=>r.json()).catch(()=>null);$('gdot').className=g?'on':'';$('p-ver').textContent=g?'gateway '+g.version:'sin respuesta';
+  $('p-lvl').textContent='nivel: '+(me&&me.effective_level);
+  if(can('module.list')){const r=await act('module.list');if(r.ok){const m=r.data.modules||[];$('i-mods').textContent=m.filter(x=>x.running).length+' activos';$('i-mods2').textContent=m.filter(x=>x.installed).length+' instalados de '+m.length}}
+  if(can('session.list')){const r=await act('session.list');if(r.ok)$('i-sess').textContent=(r.data.sessions||[]).length}
+  if(can('distro.list')){const r=await act('distro.list');if(r.ok)$('i-dist').textContent=(r.data.distros||[]).filter(d=>d.installed).length}
+  await refreshInicioMetrics();
+  timers.push(setInterval(refreshInicioMetrics,4000));
+  loadTunnelStatus();
+  loadNetworkInfo();
+}
+// gateway.network_info (humano365 lote 25, meta 7) -- muestra la IP LAN real y el comando exacto
+// de adb forward; las 3 vías ya funcionaban, esto solo las hace descubribles sin salir del panel.
+async function loadNetworkInfo(){
+  if(!can('gateway.network_info')){$('gw-lan').textContent='sin permiso';$('gw-usb').textContent='';return}
+  const r=await act('gateway.network_info');
+  if(!r.ok){$('gw-lan').textContent=r.error||'sin dato';return}
+  const ips=r.data.lan_ips||[];
+  $('gw-lan').textContent=ips.length?ips.map(ip=>'http://'+ip+':'+r.data.port+'/panel').join('  ·  '):'sin IP de red detectada (¿solo localhost?)';
+  $('gw-usb').textContent=r.data.usb_hint||'';
+}
+// network.scan_gateways (docs/humano369.md) -- solo ubicación, nunca crea confianza por sí sola:
+// cada IP encontrada sigue necesitando el token real de ESE teléfono para hacer algo. Pensado
+// sobre todo para el dashboard de escritorio (sin app Android del otro lado), pero disponible acá
+// también porque es el mismo panel.
+$('gw-scan-go').onclick=async()=>{
+  if(!can('network.scan_gateways')){toast('No tienes permiso para buscar en la red (exige nivel total).','err');return}
+  const btn=$('gw-scan-go');btn.disabled=true;btn.textContent='Buscando… (puede tardar unos segundos)';
+  const r=await act('network.scan_gateways',{});
+  btn.disabled=false;btn.textContent='Buscar otros teléfonos Kairos en esta red';
+  if(!r.ok){$('gw-scan-out').textContent='Error: '+(r.error||'');return}
+  const found=r.data.found||[];
+  $('gw-scan-out').textContent=found.length
+    ? 'Encontrados: '+found.map(ip=>ip+':'+(r.data.port||'')).join(', ')+' — pegá su token en una pestaña nueva para conectarte.'
+    : 'No se encontró ningún otro gateway Kairos en esta red.';
+};
+// Túnel (tunnel.status/start/stop, 2026-10-16, ver docs/humano365.md).
+async function loadTunnelStatus(){
+  if(!can('tunnel.status')){$('tn-status').textContent='sin permiso';return}
+  const port=$('tn-port').value.trim()||'8973';
+  const r=await act('tunnel.status',{port});
+  $('tn-status').textContent=r.ok?(r.data.running?('activo: '+(r.data.url||'(sin URL detectada todavía)')):'detenido'):(r.error||'sin dato');
+}
+$('tn-start').onclick=async()=>{
+  if(!can('tunnel.start')){toast('No tienes permiso para iniciar el túnel (exige nivel total).','err');return}
+  const r=await act('tunnel.start',{port:$('tn-port').value.trim(),provider:$('tn-provider').value});
+  if(!r.ok)fail(r);
+  loadTunnelStatus();
+};
+$('tn-stop').onclick=async()=>{
+  const r=await act('tunnel.stop',{port:$('tn-port').value.trim()});
+  if(!r.ok)fail(r);
+  loadTunnelStatus();
+};
+function bar(id,pct){const e=$(id);if(pct==null){e.style.width='0';e.className='';return}e.style.width=Math.min(100,Math.max(0,pct))+'%';e.className=pct>=85?'crit':(pct>=65?'warn':'')}
+function renderMetrics(d){
+  $('i-cpu').textContent=d.cpu_percent!=null?d.cpu_percent+'%':'sin dato';bar('i-cpu-bar',d.cpu_percent);
+  if(d.ram_used_mb!=null&&d.ram_total_mb){const pct=Math.round(d.ram_used_mb/d.ram_total_mb*100);$('i-ram').textContent=pct+'%';$('i-ram-sub').textContent=d.ram_used_mb+' / '+d.ram_total_mb+' MB';bar('i-ram-bar',pct)}else{$('i-ram').textContent='sin dato';$('i-ram-sub').textContent=''}
+  if(d.storage_has_permission===false){$('i-disk').textContent='sin permiso';$('i-disk-sub').textContent='falta el permiso de almacenamiento en la app';bar('i-disk-bar',null)}
+  else if(d.storage_total_gb){const pct=Math.round(d.storage_used_gb/d.storage_total_gb*100);$('i-disk').textContent=pct+'%';$('i-disk-sub').textContent=d.storage_used_gb.toFixed(1)+' / '+d.storage_total_gb.toFixed(1)+' GB';bar('i-disk-bar',pct)}
+  else{$('i-disk').textContent='sin dato';$('i-disk-sub').textContent=''}
+  $('i-bat').textContent=d.battery_percent!=null?d.battery_percent+'%':'sin dato';bar('i-bat-bar',d.battery_percent)
+}
+
+async function loadModulos(){
+  const r=await act('module.list');if(!r.ok)return fail(r);const f=$('mfilter').value.toLowerCase();const body=$('mbody');body.textContent='';
+  (r.data.modules||[]).filter(m=>!f||(m.id+m.name).toLowerCase().includes(f)).forEach(m=>{
+    const a=h('td');
+    const b=(t,cls,fn)=>a.append(h('button',{class:'btn '+cls,on:{click:async()=>{const x=await fn();if(x.ok)toast(t+': hecho (pendiente de tu confirmación visual)');else fail(x);loadModulos()}}},t));
+    if(m.installed&&!m.running&&can('module.start'))b('Iniciar','pr',()=>act('module.start',{id:m.id}));
+    if(m.running&&can('module.stop'))b('Detener','dg',()=>act('module.stop',{id:m.id}));
+    if(!m.installed&&can('module.install'))b('Instalar','pr',()=>act('module.install',{id:m.id}));
+    if(m.installed&&can('module.uninstall'))a.append(h('button',{class:'btn dg',on:{click:async()=>{if(!confirm('¿Desinstalar '+m.name+'?'))return;const x=await act('module.uninstall',{id:m.id,confirm:'true'});if(x.ok)toast('Desinstalado');else fail(x);loadModulos()}}},'Desinstalar'));
+    if(m.installed&&can('session.open_module'))b('Abrir terminal','',async()=>{const x=await act('session.open_module',{id:m.id});if(x.ok){curSess=m.id.slice(0,24);show('terminales')}return x});
+    const statusTd=h('td',null,h('span',{class:'dot '+(m.running?'g':(m.installed?'':'r'))}),m.running?'activo':(m.installed?'detenido':'no instalado'));
+    body.append(h('tr',null,h('td',null,m.name+' ('+m.id+')'),statusTd,a));
+    // Chequeo automático (nunca le pedimos al usuario que escriba un puerto, ver
+    // docs/humano369.md): un módulo instalado y detenido con puerto conocido, pero YA ocupado
+    // por otra cosa, va a fallar al arrancar de una forma confusa — avisamos antes de que haga
+    // clic en Iniciar, en vez de que se enteré por un error genérico después.
+    if(m.installed&&!m.running&&m.port!=null&&can('system.port_check')){
+      act('system.port_check',{port:String(m.port)}).then(x=>{
+        if(x.ok&&x.data&&x.data.open)statusTd.append(h('span',{style:'color:var(--am);margin-left:6px'},'⚠ puerto '+m.port+' ya ocupado por otro proceso'));
+      });
+    }
+  })
+  loadOllamaModels();
+  loadOpenClawStatus();
+  loadHermesStatus();
+  loadRemoteStatus();
+  loadDbStatus();
+  loadQemuStatus();
+  loadStacksProjects();
+  loadAutomations();
+  loadServiceLinks();
+}
+// Interfaces web de modulos via el proxy generico del gateway (humano365 lote 31) -- nombres
+// fijos a proposito: coinciden con los "services" registrados en default_manifest.json
+// (n8n/openclaw/opencode/gitea), no hay (todavia) un endpoint que los liste dinamicamente.
+function loadServiceLinks(){
+  const el=$('svc-links');el.textContent='';
+  [['n8n','n8n'],['openclaw','OpenClaw'],['opencode','OpenCode'],['gitea','Gitea']].forEach(([name,label])=>{
+    el.append(h('a',{class:'btn',href:'/proxy/'+name+'/?token='+encodeURIComponent(token),target:'_blank'},label))
+  });
+}
+async function loadStacksProjects(){
+  if(!can('stacks.projects')){return}
+  const r=await act('stacks.projects');const body=$('stk-body');body.textContent='';
+  const ps=(r.ok&&r.data.projects)||[];
+  if(!ps.length)body.append(h('tr',null,h('td',{colspan:'3'},'Sin proyectos registrados todavía.')));
+  ps.forEach(p=>{
+    const dest=p.target==='distro'?('distro: '+(p.selected_distro||'?')):(p.target==='udocker'?('udocker ('+p.udocker_mode+')'):'nativo');
+    body.append(h('tr',null,h('td',null,p.path),h('td',null,dest),h('td',null,String((p.sub_projects||[]).length))));
+  });
+}
+let apkUploadedPath='';
+$('apk-file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>2*1024*1024){$('apk-upload-status').textContent='Máximo ~2 MB por ahora (límite real de fs.write).';return}
+  if(!can('fs.write')){$('apk-upload-status').textContent='No tienes permiso para subir archivos.';return}
+  const safeName=f.name.replace(/[^A-Za-z0-9._-]/g,'_');
+  const path='apk_tools/'+safeName;
+  $('apk-upload-status').textContent='Subiendo...';
+  const r=await act('fs.write',{path,content:bytesToB64(new Uint8Array(await f.arrayBuffer())),encoding:'base64'});
+  if(r.ok){apkUploadedPath=path;$('apk-upload-status').textContent='Subido: '+path}
+  else{apkUploadedPath='';$('apk-upload-status').textContent='Error: '+(r.error||'')}
+};
+async function apkRun(action,timeoutNote){
+  if(!apkUploadedPath){$('apk-out').textContent='Subí un APK primero.';return}
+  if(!can(action)){toast('No tienes permiso para esto (exige nivel total).','err');return}
+  $('apk-out').textContent=timeoutNote;
+  const r=await act(action,{path:apkUploadedPath});
+  $('apk-out').textContent=r.ok?(r.data.output||'Listo'):('Error: '+(r.error||''));
+}
+$('apk-info-go').onclick=()=>apkRun('apk.info','Consultando...');
+$('apk-decode-go').onclick=()=>apkRun('apk.decode','Decompilando... puede tardar varios minutos.');
+
+// Filosofía Kairos: nunca un campo vacío para escribir algo que ya se puede detectar/listar
+// (docs/humano369.md) — el id de módulo de una automatización se elige de module.list real, en
+// vez de tipearlo a mano y arriesgar un id inexistente o mal escrito.
+async function loadAutomationModuleOptions(){
+  const sel=$('au-module');sel.textContent='';
+  if(!can('module.list')){sel.append(h('option',{value:''},'(sin permiso para listar módulos)'));return}
+  const r=await act('module.list');if(!r.ok){sel.append(h('option',{value:''},'(no se pudo listar módulos)'));return}
+  const mods=(r.data.modules||[]).slice().sort((a,b)=>(a.name||a.id).localeCompare(b.name||b.id));
+  if(!mods.length){sel.append(h('option',{value:''},'(sin módulos)'));return}
+  mods.forEach(m=>sel.append(h('option',{value:m.id},m.name||m.id)));
+}
+async function loadAutomations(){
+  if(!can('automations.list')){return}
+  loadAutomationModuleOptions();
+  const r=await act('automations.list');const body=$('au-body');body.textContent='';
+  const list=(r.ok&&r.data.automations)||[];
+  if(!list.length)body.append(h('tr',null,h('td',{colspan:'5'},'Sin automatizaciones todavía.')));
+  list.forEach(a=>{
+    const trig=a.trigger==='SCHEDULE'?('horario '+a.schedule_time):(a.trigger==='BATTERY_LEVEL'?('batería '+a.battery_direction+' '+a.battery_threshold+'%'):'al arrancar');
+    const act_=a.action==='START_MODULE'?'iniciar':'detener';
+    const btns=h('td');
+    if(can('automations.set_enabled'))btns.append(h('button',{class:'btn',on:{click:async()=>{const x=await act('automations.set_enabled',{id:a.id,enabled:a.enabled?'false':'true'});if(!x.ok)fail(x);loadAutomations()}}},a.enabled?'Desactivar':'Activar'));
+    if(can('automations.delete'))btns.append(h('button',{class:'btn dg',on:{click:async()=>{if(!confirm('¿Borrar '+(a.name||a.id)+'?'))return;const x=await act('automations.delete',{id:a.id});if(!x.ok)fail(x);loadAutomations()}}},'Borrar'));
+    body.append(h('tr',null,h('td',null,a.name),h('td',null,trig),h('td',null,act_+' '+a.module_id),h('td',null,a.enabled?'activa':'desactivada'),btns));
+  });
+}
+$('au-add').onclick=async()=>{
+  if(!can('automations.add')){toast('No tienes permiso para crear automatizaciones (exige nivel total).','err');return}
+  const moduleId=$('au-module').value;if(!moduleId){$('au-out').textContent='Elegí un módulo de la lista.';return}
+  const r=await act('automations.add',{name:$('au-name').value.trim(),trigger:$('au-trigger').value,schedule_time:$('au-schedule').value.trim(),action:$('au-action').value,module_id:moduleId});
+  $('au-out').textContent=r.ok?'Creada':('Error: '+(r.error||''));
+  if(r.ok){$('au-name').value='';$('au-module').value='';loadAutomations()}
+};
+let qmSelectedImage='';
+async function loadQemuStatus(){
+  if(!can('qemu.status')){$('qm-status').textContent='sin permiso';return}
+  const s=await act('qemu.status');
+  $('qm-status').textContent=s.ok?(['user_mode_available','system_aarch64_available','system_x86_available'].filter(k=>s.data[k]).length+' de 3 disponibles'):(s.error||'sin dato');
+  if(can('qemu.ram_available')){const rm=await act('qemu.ram_available');$('qm-ram').textContent=rm.ok?(rm.data.available_mb+' MB'):(rm.error||'sin dato')}
+  if(!can('qemu.images'))return;
+  const r=await act('qemu.images');const body=$('qm-body');body.textContent='';
+  if(r.ok&&(r.data.images||[]).length)r.data.images.forEach(i=>{
+    const row=h('tr',{style:'cursor:pointer',on:{click:()=>{qmSelectedImage=i.name;$('qm-boot-out').textContent='Imagen elegida: '+i.name}}},h('td',null,i.name),h('td',null,Math.round(i.size_bytes/1048576)+' MB'));
+    body.append(row);
+  });
+  else body.append(h('tr',null,h('td',{colspan:'2'},'Sin imágenes todavía.')));
+}
+$('qm-boot').onclick=async()=>{
+  if(!qmSelectedImage){$('qm-boot-out').textContent='Hacé clic en una imagen de la tabla primero.';return}
+  if(!can('session.open')){toast('No tienes permiso para abrir sesiones (exige nivel total).','err');return}
+  const ramMb=parseInt($('qm-ram-mb').value.trim()||'512',10);
+  const ramCheck=can('qemu.ram_available')?await act('qemu.ram_available'):null;
+  if(ramCheck&&ramCheck.ok&&ramMb>ramCheck.data.available_mb-100){
+    if(!confirm('Pediste '+ramMb+' MB pero solo hay '+ramCheck.data.available_mb+' MB libres — Android podría matar el proceso de Kairos. ¿Seguir igual?'))return;
+  }
+  const arch=$('qm-arch').value.trim()||'x86_64';
+  const name='qemu-vm';
+  // Mismo comando real que QemuFragment.bootVmConsole() -- run_vm.sh '<imagen>' <ram_mb> 2222 console '' <arch>.
+  const cmd="bash \"$HOME/scripts/qemu/run_vm.sh\" \"$HOME/qemu_images/"+qmSelectedImage+"\" "+ramMb+" 2222 console '' '"+arch+"'";
+  const r=await act('session.open',{name,command:cmd});
+  if(r.ok){curSess=name;show('terminales')}else fail(r);
+};
+$('cb-scan').onclick=async()=>{
+  if(!can('ciberseguridad.lan_scan')){toast('No tienes permiso para escanear la red (exige nivel total).','err');return}
+  $('cb-scan').disabled=true;$('cb-out').textContent='Escaneando...';
+  const r=await act('ciberseguridad.lan_scan',{});
+  $('cb-scan').disabled=false;
+  $('cb-out').textContent=r.ok?('Red '+r.data.subnet+':\n'+((r.data.hosts||[]).join('\n')||'(sin hosts encontrados)')):('Error: '+(r.error||''));
+};
+$('md-go').onclick=async()=>{
+  const url=$('md-url').value.trim();if(!url)return;
+  if(!can('media.download')){toast('No tienes permiso para descargar (exige nivel total).','err');return}
+  $('md-go').disabled=true;$('md-out').textContent='Descargando... puede tardar varios minutos.';
+  const r=await act('media.download',{url,format:$('md-format').value,max_height:$('md-height').value.trim()});
+  $('md-go').disabled=false;
+  $('md-out').textContent=r.ok?('Guardado en '+(r.data.output||'~/kairos_downloads')):('Error: '+(r.error||''));
+};
+
+async function loadRemoteStatus(){
+  if(!can('remote.info')){$('rm-ssh').textContent='sin permiso';$('rm-cf').textContent='sin permiso';return}
+  const r=await act('remote.info');
+  if(!r.ok){$('rm-ssh').textContent=r.error||'sin dato';$('rm-cf').textContent=r.error||'sin dato';return}
+  $('rm-ssh').textContent=(r.data.ssh_running?'corriendo en :'+r.data.ssh_port:'detenido')+' · '+r.data.connections+' conexión(es)';
+  $('rm-cf').textContent=r.data.cf_running?'activo':(r.data.cf_has_token?'detenido (token configurado)':'sin configurar');
+}
+$('rm-cf-start').onclick=async()=>{const r=await act('remote.cf_start',{});if(!r.ok)fail(r);loadRemoteStatus()};
+$('rm-cf-stop').onclick=async()=>{const r=await act('remote.cf_stop',{});if(!r.ok)fail(r);loadRemoteStatus()};
+
+async function loadHermesStatus(){
+  if(!can('hermes.info')){$('hm-status').textContent='sin permiso';return}
+  const r=await act('hermes.info');
+  $('hm-status').textContent=r.ok?(!r.data.installed?'no instalado':(r.data.running?'gateway activo'+(r.data.provider?' · '+r.data.provider:''):'detenido')):(r.error||'sin dato');
+}
+$('hm-start').onclick=async()=>{const r=await act('hermes.gateway_start',{});if(!r.ok)fail(r);loadHermesStatus()};
+$('hm-stop').onclick=async()=>{const r=await act('hermes.gateway_stop',{});if(!r.ok)fail(r);loadHermesStatus()};
+$('mfilter').addEventListener('input',()=>{if(cur==='modulos')loadModulos()});
+
+async function loadOpenClawStatus(){
+  if(!can('openclaw.status')){$('oc-status').textContent='sin permiso';return}
+  const r=await act('openclaw.status');
+  $('oc-status').textContent=r.ok?(r.data.running?('corriendo en :'+r.data.port+' · token '+(r.data.token_masked||'sin generar (falta onboarding)')):'detenido'):(r.error||'sin dato');
+}
+
+// Ollama — modelos (ollama.models/pull/delete/unload, 2026-10-16, ver docs/humano365.md).
+async function loadOllamaModels(){
+  if(!can('ollama.models')){$('ol-body').textContent='';return}
+  const r=await act('ollama.models');const body=$('ol-body');body.textContent='';
+  if(!r.ok){body.append(h('tr',null,h('td',{colspan:'3'},r.error||'Ollama no responde')));return}
+  if(!(r.data.models||[]).length)body.append(h('tr',null,h('td',{colspan:'3'},'Sin modelos descargados.')));
+  (r.data.models||[]).forEach(mo=>{
+    const a=h('td');
+    if(can('ollama.unload'))a.append(h('button',{class:'btn',on:{click:async()=>{const x=await act('ollama.unload',{name:mo.name});if(x.ok)toast('Liberado de memoria');else fail(x);loadOllamaModels()}}},'Liberar'));
+    if(can('ollama.delete'))a.append(h('button',{class:'btn dg',on:{click:async()=>{if(!confirm('¿Borrar '+mo.name+'?'))return;const x=await act('ollama.delete',{name:mo.name});if(x.ok)toast('Borrado');else fail(x);loadOllamaModels()}}},'Borrar'));
+    body.append(h('tr',null,h('td',null,mo.name),h('td',null,mo.size||'—'),a));
+  });
+}
+$('ol-pull-go').onclick=async()=>{
+  const name=$('ol-pull-name').value.trim();if(!name)return;
+  if(!can('ollama.pull')){toast('No tienes permiso para bajar modelos (exige nivel total).','err');return}
+  $('ol-pull-go').disabled=true;$('ol-pull-status').textContent='Bajando '+name+'… puede tardar varios minutos.';
+  const r=await act('ollama.pull',{name});
+  $('ol-pull-go').disabled=false;
+  $('ol-pull-status').textContent=r.ok?('Listo: '+(r.data.message||name)):('Error: '+(r.error||'sin detalle'));
+  loadOllamaModels();
+};
+
+let curSess='';
+async function loadTerminales(){
+  const r=await act('session.list');if(!r.ok)return fail(r);const list=(r.data.sessions||[]).map(s=>s.name);
+  if(!list.includes(curSess))curSess=list[0]||'';
+  const tabs=$('t-tabs');tabs.textContent='';list.forEach(n=>tabs.append(h('button',{class:n===curSess?'on':'',on:{click:()=>{curSess=n;loadTerminales()}}},n)));
+  refreshScreen();timers.push(setInterval(refreshScreen,2000));
+}
+async function refreshScreen(){if(!curSess){$('t-screen').textContent='Sin sesión abierta.';return}const r=await act('session.read',{name:curSess,lines:'80'});if(r.ok){const el=$('t-screen'),end=el.scrollTop+el.clientHeight>=el.scrollHeight-8;el.textContent=r.data.screen||'';if(end)el.scrollTop=el.scrollHeight}}
+$('t-new').onclick=async()=>{const name=prompt('Nombre de la sesión (a-z, 0-9, _ -):','shell');if(!name)return;const cmd=prompt('Comando a ejecutar:','bash');if(!cmd)return;const r=await act('session.open',{name,command:cmd});if(r.ok){curSess=name;loadTerminales()}else fail(r)};
+$('t-mod').onclick=async()=>{const id=prompt('Id del módulo (ej. claude):');if(!id)return;const r=await act('session.open_module',{id});if(r.ok){curSess=id.slice(0,24);loadTerminales()}else fail(r)};
+async function sendText(){if(!curSess)return;const t=$('t-text').value;const r=await act('session.send',{name:curSess,text:t,enter:'true'});if(r.ok){$('t-text').value='';setTimeout(refreshScreen,300)}else fail(r)}
+$('t-send').onclick=sendText;$('t-text').addEventListener('keydown',e=>{if(e.key==='Enter')sendText()});
+$('t-kill').onclick=async()=>{if(!curSess||!confirm('¿Cerrar la sesión '+curSess+'?'))return;const r=await act('session.kill',{name:curSess});if(r.ok){curSess='';loadTerminales()}else fail(r)};
+
+let dir='',openFile='';
+const join=(a,b)=>a?a+'/'+b:b;
+function crumbs(){const c=$('f-crumbs');c.textContent='';c.append(h('a',{on:{click:()=>loadDir('')}},'~'));let acc='';dir.split('/').filter(Boolean).forEach(p=>{acc=join(acc,p);const t=acc;c.append(' / ',h('a',{on:{click:()=>loadDir(t)}},p))})}
+function setEditor(name,text){openFile=name;$('f-name').textContent=name||'Editor';$('f-edit').value=text||'';['f-edit','f-save','f-down','f-ren','f-del'].forEach(i=>$(i).disabled=!name)}
+async function loadDir(d){
+  dir=d;crumbs();const r=await act('fs.list',{path:d});if(!r.ok)return fail(r);const body=$('f-body');body.textContent='';
+  if(d)body.append(h('tr',{class:'click',on:{click:()=>loadDir(d.split('/').slice(0,-1).join('/'))}},h('td',null,'📁 ..'),h('td')));
+  (r.data.entries||[]).forEach(e=>{const p=join(d,e.name);body.append(h('tr',{class:'click',on:{click:()=>e.dir?loadDir(p):openIt(p)}},h('td',null,(e.dir?'📁 ':'📄 ')+e.name),h('td',null,e.dir?'':(e.size>1024?Math.round(e.size/1024)+' KB':e.size+' B'))))})
+}
+const TEXT_EXT=/\.(txt|md|json|js|ts|html|htm|css|sh|py|yml|yaml|xml|csv|ini|conf|log|cfg|toml)$/i;
+const looksText=name=>TEXT_EXT.test(name)||!name.includes('.');
+function b64ToBytes(b64){const bin=atob(b64);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return bytes}
+function bytesToB64(bytes){let bin='';const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)bin+=String.fromCharCode.apply(null,bytes.subarray(i,i+chunk));return btoa(bin)}
+function triggerDownload(name,bytes){const a=h('a',{href:URL.createObjectURL(new Blob([bytes])),download:name});document.body.append(a);a.click();a.remove()}
+async function openIt(p){
+  if(!looksText(p)){
+    const r=await act('fs.read',{path:p,encoding:'base64'});if(!r.ok)return fail(r);
+    triggerDownload(p.split('/').pop(),b64ToBytes(r.data.content));toast('Descargado (binario)');return;
+  }
+  const r=await act('fs.read',{path:p});if(!r.ok)return fail(r);setEditor(p,r.data.content)
+}
+$('f-save').onclick=async()=>{const r=await act('fs.write',{path:openFile,content:$('f-edit').value});r.ok?toast('Guardado'):fail(r)};
+$('f-mkdir').onclick=async()=>{const n=prompt('Nombre de la carpeta:');if(!n)return;const r=await act('fs.mkdir',{path:join(dir,n)});r.ok?loadDir(dir):fail(r)};
+$('f-new').onclick=async()=>{const n=prompt('Nombre del archivo:');if(!n)return;const r=await act('fs.write',{path:join(dir,n),content:'\n'});if(r.ok){await loadDir(dir);openIt(join(dir,n))}else fail(r)};
+$('f-ren').onclick=async()=>{const n=prompt('Nueva ruta (desde el HOME):',openFile);if(!n||n===openFile)return;const r=await act('fs.rename',{path:openFile,to:n});if(r.ok){setEditor('','');loadDir(dir)}else fail(r)};
+$('f-del').onclick=async()=>{if(!confirm('¿Borrar '+openFile+'?'))return;const r=await act('fs.delete',{path:openFile});if(r.ok){setEditor('','');loadDir(dir)}else fail(r)};
+$('f-down').onclick=()=>triggerDownload(openFile.split('/').pop(),new TextEncoder().encode($('f-edit').value));
+// fs.compress/fs.extract (humano365 lote 23) -- sin selección múltiple en este panel (a diferencia
+// del gestor de archivos nativo de la app): se pide por prompt() la ruta de entrada/salida, con el
+// archivo/carpeta abierto como valor por defecto si hay uno. El servidor valida formato real.
+$('f-compress').onclick=async()=>{
+  const files=prompt('Archivo/carpeta a comprimir (relativo al HOME; varias líneas = varios):',openFile||dir);
+  if(!files)return;
+  const out=prompt('Ruta del archivo comprimido a crear:',join(dir,'archivo.zip'));
+  if(!out)return;
+  const format=(prompt('Formato (zip, 7z o tar.zst):','zip')||'zip').trim();
+  const r=await act('fs.compress',{files,path:out,format});
+  if(r.ok){toast('Comprimido: '+r.data.output);loadDir(dir)}else fail(r)
+};
+$('f-extract').onclick=async()=>{
+  const archive=prompt('Ruta del archivo a extraer (zip/7z/tar.zst):',openFile||'');
+  if(!archive)return;
+  const destination=prompt('Carpeta destino (debe existir):',dir);
+  if(destination===null)return;
+  const r=await act('fs.extract',{path:archive,destination});
+  if(r.ok){toast('Extraído en '+destination);loadDir(dir)}else fail(r)
+};
+$('f-up').onclick=()=>$('f-file').click();
+$('f-file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>2*1024*1024)return toast('Máximo 2 MB por archivo','err');
+  let r;
+  if(looksText(f.name)&&f.size<=60*1024){
+    const t=await f.text();
+    if(!t.includes('\u0000'))r=await act('fs.write',{path:join(dir,f.name),content:t});
+  }
+  if(!r)r=await act('fs.write',{path:join(dir,f.name),content:bytesToB64(new Uint8Array(await f.arrayBuffer())),encoding:'base64'});
+  r.ok?loadDir(dir):fail(r);e.target.value=''
+};
+
+// Almacenamiento (storage.volumes/storage.list_dir) + FTP (ftp.*) — ver GatewayStorageOps.kt/GatewayFtpOps.kt.
+async function loadAlmacenamiento(){
+  $('st-browse').style.display='none';
+  if(can('storage.volumes')){
+    const r=await act('storage.volumes');const body=$('st-body');body.textContent='';
+    if(!r.ok){fail(r)}else{
+      (r.data.volumes||[]).forEach(v=>{
+        const a=h('td');
+        if(v.accessible&&can('storage.list_dir'))a.append(h('button',{class:'btn',on:{click:()=>browseVolume(v.id,v.description,'')}},'Explorar'));
+        body.append(h('tr',null,h('td',null,v.description+(v.primary?' (interno)':'')),h('td',null,h('span',{class:'dot '+(v.accessible?'g':'r')}),v.accessible?v.state:'sin acceso ('+v.state+')'),a))
+      });
+    }
+  }
+  loadFtp();
+}
+let stVolId='',stVolTitle='';
+async function browseVolume(id,title,path){
+  stVolId=id;stVolTitle=title;
+  const r=await act('storage.list_dir',{volume_id:id,path:path});if(!r.ok)return fail(r);
+  $('st-browse').style.display='block';$('st-browse-title').textContent='Explorando '+title+' — /'+path;
+  const body=$('st-browse-body');body.textContent='';
+  if(path)body.append(h('tr',{class:'click',on:{click:()=>browseVolume(id,title,path.split('/').slice(0,-1).join('/'))}},h('td',null,'📁 ..'),h('td')));
+  (r.data.entries||[]).forEach(e=>{
+    const next=path?path+'/'+e.name:e.name;
+    body.append(h('tr',{class:e.dir?'click':'',on:e.dir?{click:()=>browseVolume(id,title,next)}:{}},h('td',null,(e.dir?'📁 ':'📄 ')+e.name),h('td',null,e.dir?'':(e.size>1024?Math.round(e.size/1024)+' KB':e.size+' B'))))
+  });
+}
+async function loadFtp(){
+  if(!can('ftp.status'))return;
+  const r=await act('ftp.status');if(!r.ok)return fail(r);
+  $('ft-running').textContent=r.data.running?'corriendo':'detenido';
+  $('ft-port').textContent=r.data.running?r.data.port:'—';
+  $('ft-user').textContent=r.data.configured?r.data.username:'sin configurar';
+  $('ft-start').disabled=r.data.running||!r.data.configured||!can('ftp.start');
+  $('ft-stop').disabled=!r.data.running||!can('ftp.stop');
+}
+$('ft-start').onclick=async()=>{const r=await act('ftp.start');r.ok?loadFtp():fail(r)};
+$('ft-stop').onclick=async()=>{if(!confirm('¿Detener el servidor FTP?'))return;const r=await act('ftp.stop');r.ok?loadFtp():fail(r)};
+$('ft-save').onclick=async()=>{
+  const u=$('ft-u').value.trim(),p=$('ft-p').value;
+  if(!u||p.length<10){toast('Usuario y contraseña (mínimo 10 caracteres) requeridos','err');return}
+  const r=await act('ftp.set_credentials',{username:u,password:p});
+  $('ft-u').value='';$('ft-p').value='';
+  if(r.ok){toast('Credenciales guardadas');loadFtp()}else fail(r)
+};
+
+async function loadNube(){
+  const r=await act('cloud.status');if(!r.ok)return fail(r);
+  const running=!!r.data.running;
+  $('n-pill').textContent=running?'activo':'detenido';$('n-pill').className='pill '+(running?'g':'');
+  $('n-running').textContent=running?'corriendo':'detenido';
+  $('n-port').textContent=running?r.data.port:'—';
+  $('n-files').textContent=running&&r.data.file_count!=null?r.data.file_count:'—';
+  $('n-start').disabled=running||!can('cloud.start');$('n-stop').disabled=!running||!can('cloud.stop');
+  $('n-upload').disabled=!running||!can('fs.write');
+  if(running&&can('cloud.share_link')){
+    const link=await act('cloud.share_link',{path:''});
+    if(link.ok){$('n-link').value=link.data.url;$('n-copy').disabled=false;$('n-open-link').disabled=false}
+    else{$('n-link').value='';$('n-link').placeholder=link.error||'no se pudo armar el enlace';$('n-copy').disabled=true;$('n-open-link').disabled=true}
+  }else{
+    $('n-link').value='';$('n-link').placeholder=running?'Sin permiso para cloud.share_link':'Iniciá Nube para generar el enlace';
+    $('n-copy').disabled=true;$('n-open-link').disabled=true
+  }
+}
+$('n-start').onclick=async()=>{const r=await act('cloud.start');r.ok?loadNube():fail(r)};
+$('n-stop').onclick=async()=>{if(!confirm('¿Detener Nube?'))return;const r=await act('cloud.stop');r.ok?loadNube():fail(r)};
+$('n-open').onclick=()=>{dir='nube';show('archivos')};
+$('n-copy').onclick=async()=>{if(!$('n-link').value)return;try{await navigator.clipboard.writeText($('n-link').value);toast('Enlace copiado')}catch(e){toast('No se pudo copiar — selecciona y copia a mano','err')}};
+$('n-open-link').onclick=()=>{if($('n-link').value)window.open($('n-link').value,'_blank')};
+$('n-upload').onclick=()=>$('n-file').click();
+$('n-file').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>2*1024*1024){toast('Máximo 2 MB por archivo','err');e.target.value='';return}
+  let r;
+  if(looksText(f.name)&&f.size<=60*1024){
+    const t=await f.text();
+    if(!t.includes('\u0000'))r=await act('fs.write',{path:'nube/'+f.name,content:t});
+  }
+  if(!r)r=await act('fs.write',{path:'nube/'+f.name,content:bytesToB64(new Uint8Array(await f.arrayBuffer())),encoding:'base64'});
+  if(r.ok){toast('Subido a Nube: '+f.name);loadNube()}else fail(r);
+  e.target.value=''
+};
+
+async function loadDistros(){
+  const r=await act('distro.list');if(!r.ok)return fail(r);const body=$('d-body');body.textContent='';
+  const distros=r.data.distros||[];
+  if(!distros.length)body.append(h('tr',null,h('td',{colspan:'3'},'No se encontró proot-distro o no hay distros.')));
+  distros.forEach(d=>{const a=h('td');
+    const go=async(id,label)=>{const x=await act(id,{alias:d.alias});if(x.ok){curSess=(id==='distro.open'?'d-':'i-')+d.alias.slice(0,20);show('terminales')}else fail(x)};
+    if(d.installed&&can('distro.open'))a.append(h('button',{class:'btn pr',on:{click:()=>go('distro.open')}},'Abrir terminal'));
+    if(!d.installed&&can('distro.install'))a.append(h('button',{class:'btn pr',on:{click:()=>{if(confirm('¿Instalar '+d.name+'? Puede tardar y ocupar espacio.'))go('distro.install')}}},'Instalar'));
+    body.append(h('tr',null,h('td',null,d.name+' ('+d.alias+')'),h('td',null,h('span',{class:'dot '+(d.installed?'g':'')}),d.installed?'instalada':'no instalada'),a))})
+  // Mismo criterio que automations.add (docs/humano369.md): elegir una distro instalada de la
+  // lista real, nunca tipear el alias a mano.
+  const installed=distros.filter(d=>d.installed);
+  const dRunSel=$('d-run-alias');
+  if(dRunSel){
+    dRunSel.textContent='';
+    if(installed.length)installed.forEach(d=>dRunSel.append(h('option',{value:d.alias},d.name+' ('+d.alias+')')));
+    else dRunSel.append(h('option',{value:''},'(sin distros instaladas)'));
+  }
+  const deSel=$('de-distro');
+  if(deSel){
+    deSel.textContent='';
+    deSel.append(h('option',{value:''},'(nativo, sin distro)'));
+    installed.forEach(d=>deSel.append(h('option',{value:d.alias},d.name+' ('+d.alias+')')));
+  }
+}
+async function loadUdocker(){
+  const r=await act('udocker.images');if(!r.ok)return fail(r);const body=$('u-body');body.textContent='';
+  if(!(r.data.images||[]).length)body.append(h('tr',null,h('td',{colspan:'2'},'No hay imágenes (¿udocker instalado?).')));
+  (r.data.images||[]).forEach(i=>{const a=h('td');if(can('udocker.open'))a.append(h('button',{class:'btn pr',on:{click:async()=>{const x=await act('udocker.open',{image:i.name});if(x.ok){curSess='u-'+i.name.split('/').pop().split(':')[0].toLowerCase().replace(/[^a-z0-9_-]/g,'-').slice(0,20);show('terminales')}else fail(x)}}},'Abrir terminal'));body.append(h('tr',null,h('td',null,i.name),a))})
+  loadUdockerContainers();
+}
+async function loadUdockerContainers(){
+  if(!can('udocker.containers')){return}
+  const r=await act('udocker.containers');const body=$('uc-body');body.textContent='';
+  const cs=(r.ok&&r.data.containers)||[];
+  if(!cs.length)body.append(h('tr',null,h('td',{colspan:'3'},'Sin contenedores nombrados todavía.')));
+  cs.forEach(c=>body.append(h('tr',null,h('td',null,c.name),h('td',null,c.image||'—'),h('td',null,c.status||'—'))));
+}
+$('uc-run').onclick=()=>runExec('udocker.container_run',{container:$('uc-name').value.trim(),command:$('uc-cmd').value},'uc-out','uc-run');
+$('uc-inspect').onclick=()=>runExec('udocker.container_inspect',{container:$('uc-name').value.trim()},'uc-out','uc-inspect');
+$('uc-remove').onclick=async()=>{
+  if(!$('uc-confirm').checked){$('uc-out').textContent='Marcá la casilla de confirmación primero.';return}
+  const r=await act('udocker.container_remove',{container:$('uc-name').value.trim(),confirm:'true'});
+  $('uc-out').textContent=r.ok?'Borrado':('Error: '+(r.error||''));$('uc-confirm').checked=false;loadUdockerContainers();
+};
+// Correr un comando dentro de una distro/contenedor sin terminal — distro.run/udocker.run
+// (2026-10-16, ver docs/humano365.md "instalar distro y poner ahí programa... y verificarlo").
+async function runExec(action,params,outId,goId){
+  if(!can(action)){$(outId).textContent='No tienes permiso para '+action+' (exige nivel total).';return}
+  $(goId).disabled=true;$(outId).textContent='Corriendo...';
+  const r=await act(action,params);
+  $(goId).disabled=false;
+  if(!r.ok){$(outId).textContent='Error: '+(r.error||'sin detalle');return}
+  $(outId).textContent='exit_code='+r.data.exit_code+'\n\n'+(r.data.output||'(sin salida)');
+}
+$('d-run-go').onclick=()=>runExec('distro.run',{alias:$('d-run-alias').value,command:$('d-run-cmd').value,sandbox:$('d-run-sandbox').checked?'true':'false'},'d-run-out','d-run-go');
+$('u-run-go').onclick=()=>runExec('udocker.run',{image:$('u-run-image').value.trim(),command:$('u-run-cmd').value},'u-run-out','u-run-go');
+$('sb-go').onclick=()=>runExec('sandbox.run',{command:$('sb-cmd').value,keep:$('sb-keep').checked?'true':'false'},'sb-out','sb-go');
+$('eg-go').onclick=()=>runExec('engram.run',{args:$('eg-args').value},'eg-out','eg-go');
+
+async function loadDbStatus(){
+  if(!can('db.status')){$('db-mysql').textContent='sin permiso';$('db-pg').textContent='sin permiso';return}
+  const r=await act('db.status');
+  if(!r.ok){$('db-mysql').textContent=r.error||'sin dato';$('db-pg').textContent=r.error||'sin dato';return}
+  $('db-mysql').textContent=r.data.mysql_running?'corriendo':'detenido';
+  $('db-pg').textContent=r.data.postgres_running?'corriendo':'detenido';
+}
+$('db-create').onclick=async()=>{const r=await act('db.create',{engine:$('db-engine').value,name:$('db-name').value.trim()});$('db-out').textContent=r.ok?'Creada':('Error: '+(r.error||r.data&&r.data.output||''));loadDbStatus()};
+$('db-backup').onclick=async()=>{const r=await act('db.backup',{engine:$('db-engine').value,name:$('db-name').value.trim()});$('db-out').textContent=r.ok?('Guardada en '+(r.data.output||'')):('Error: '+(r.error||''))};
+$('db-drop').onclick=async()=>{
+  if(!$('db-confirm').checked){$('db-out').textContent='Marcá la casilla de confirmación primero.';return}
+  const r=await act('db.drop',{engine:$('db-engine').value,name:$('db-name').value.trim(),confirm:'true'});
+  $('db-out').textContent=r.ok?'Borrada':('Error: '+(r.error||''));$('db-confirm').checked=false;loadDbStatus();
+};
+$('db-restore').onclick=async()=>{
+  const backup_file=$('db-restore-file').value.trim();
+  if(!backup_file){$('db-out').textContent='Escribí el nombre del archivo de respaldo.';return}
+  const r=await act('db.restore',{engine:$('db-engine').value,name:$('db-name').value.trim(),backup_file});
+  $('db-out').textContent=r.ok?'Restaurada':('Error: '+(r.error||''))
+};
+// IDE -- Estudio real (ide.project_info/tree/read/write, ver GatewayIdeOps.kt) + el plugin
+// Neovim (módulo "ide", sin API propia: solo module.status/module.install/session.open_module,
+// los mismos genéricos que ya usa la tabla de Módulos).
+let ideProjects=[],ideCur=null,ideDir='',ideOpenPath='';
+async function loadIde(){
+  await loadIdeProjects();
+  loadIdePlugin();
+}
+async function loadIdeProjects(){
+  const sel=$('ide-proj');
+  if(!can('ide.project_info')){sel.innerHTML='<option value="">(sin permiso — exige nivel semi-total)</option>';return}
+  const r=await act('ide.project_info');
+  if(!r.ok){sel.innerHTML='<option value="">(sin dato)</option>';return fail(r)}
+  ideProjects=r.data.projects||[];
+  if(ideProjects.length===0){sel.innerHTML='<option value="">(sin proyectos abiertos en Estudio)</option>';$('ide-body').innerHTML='';return}
+  sel.innerHTML='';
+  ideProjects.forEach(p=>sel.append(h('option',{value:p.id},p.display_name+(p.project_path?'':' (sin ruta real)'))));
+  const active=ideProjects.find(p=>p.active)||ideProjects[0];
+  sel.value=active.id;
+  loadIdeTree(active.id,'');
+}
+$('ide-proj').onchange=()=>loadIdeTree($('ide-proj').value,'');
+function ideSetEditor(name,text){ideOpenPath=name;$('ide-name').textContent=name||'Editor';$('ide-edit').value=text||'';['ide-edit','ide-save'].forEach(i=>$(i).disabled=!name)}
+async function loadIdeTree(projectId,path){
+  ideCur=projectId;ideDir=path;ideSetEditor('','');
+  const body=$('ide-body');body.textContent='';
+  const proj=ideProjects.find(p=>p.id===projectId);
+  if(proj&&!proj.project_path){$('ide-crumbs').textContent='Este proyecto vive solo en un URI SAF — sin ruta real de archivos, no se puede explorar desde el panel todavía.';return}
+  if(!can('ide.tree'))return;
+  const r=await act('ide.tree',{project_id:projectId,path});
+  if(!r.ok)return fail(r);
+  $('ide-crumbs').textContent='/'+path;
+  if(path)body.append(h('tr',{class:'click',on:{click:()=>loadIdeTree(projectId,path.split('/').slice(0,-1).join('/'))}},h('td',null,'📁 ..'),h('td')));
+  (r.data.entries||[]).forEach(e=>{const p=join(path,e.name);body.append(h('tr',{class:'click',on:{click:()=>e.dir?loadIdeTree(projectId,p):openIdeFile(projectId,p)}},h('td',null,(e.dir?'📁 ':'📄 ')+e.name),h('td',null,e.dir?'':(e.size>1024?Math.round(e.size/1024)+' KB':e.size+' B'))))});
+}
+async function openIdeFile(projectId,path){
+  if(!can('ide.read'))return;
+  const r=await act('ide.read',{project_id:projectId,path});
+  if(!r.ok)return fail(r);
+  ideSetEditor(path,r.data.content);
+}
+$('ide-save').onclick=async()=>{
+  if(!ideOpenPath||!ideCur)return;
+  const r=await act('ide.write',{project_id:ideCur,path:ideOpenPath,content:$('ide-edit').value});
+  r.ok?toast('Guardado'):fail(r);
+};
+async function loadIdePlugin(){
+  $('ide-installed').textContent='—';$('ide-install').disabled=true;$('ide-open').disabled=true;
+  if(!can('module.status')){$('ide-installed').textContent='sin permiso (module.status)';return}
+  const r=await act('module.status',{id:'ide'});
+  if(!r.ok){$('ide-installed').textContent=r.error||'sin dato';return fail(r)}
+  const installed=!!r.data.installed;
+  $('ide-installed').textContent=installed?'sí':'no';
+  $('ide-install').disabled=installed||!can('module.install');
+  $('ide-open').disabled=!installed||!can('session.open_module');
+}
+$('ide-install').onclick=async()=>{const r=await act('module.install',{id:'ide'});r.ok?loadIde():fail(r)};
+$('ide-open').onclick=async()=>{const r=await act('session.open_module',{id:'ide'});if(r.ok){curSess='ide';show('terminales')}else fail(r)};
+
+// Plugins (Tor/Syncthing/Restic, AddonEngine.kt): confirmado por grep que GatewayAppBridge.kt y
+// los demás Gateway*Ops.kt no exponen ninguna acción para complementos todavía — vista estática,
+// sin inventar datos.
+async function loadPlugins(){
+  const show=async(statusAction,statusId)=>{
+    if(!can(statusAction)){$(statusId).textContent='sin permiso';return}
+    const r=await act(statusAction);
+    $(statusId).textContent=r.ok?(!r.data.installed?'no instalado':(r.data.running?'corriendo'+(r.data.version?' · v'+r.data.version:''):'detenido')):(r.error||'sin dato');
+  };
+  show('plugins.tor_status','pl-tor-status');
+  show('plugins.syncthing_status','pl-st-status');
+}
+$('pl-tor-start').onclick=async()=>{const r=await act('plugins.tor_start',{});if(!r.ok)fail(r);loadPlugins()};
+$('pl-tor-stop').onclick=async()=>{const r=await act('plugins.tor_stop',{});if(!r.ok)fail(r);loadPlugins()};
+$('pl-st-start').onclick=async()=>{const r=await act('plugins.syncthing_start',{});if(!r.ok)fail(r);loadPlugins()};
+$('pl-st-stop').onclick=async()=>{const r=await act('plugins.syncthing_stop',{});if(!r.ok)fail(r);loadPlugins()};
+$('rs-backup').onclick=async()=>{
+  const r=await act('restic.backup',{repo:$('rs-repo').value.trim(),folder:$('rs-folder').value.trim(),password:$('rs-pass').value});
+  $('rs-out').textContent=r.ok?(r.data.message||'Listo'):('Error: '+(r.error||''));
+};
+$('rs-snaps').onclick=async()=>{
+  const r=await act('restic.snapshots',{repo:$('rs-repo').value.trim(),password:$('rs-pass').value});
+  $('rs-out').textContent=r.ok?(r.data.message||'Sin snapshots'):('Error: '+(r.error||''));
+};
+
+async function loadSeguridad(){
+  const m=$('s-me');m.textContent='';[['Token',me.name],['Nivel del token',me.level],['Nivel efectivo (política)',me.effective_level]].forEach(([k,v])=>m.append(h('div',{class:'row2'},h('span',null,k),h('b',null,v))));
+  const b=$('s-body');b.textContent='';Object.values(acts).forEach(a=>b.append(h('tr',null,h('td',null,a.title+' ('+a.id+')'),h('td',null,a.risk),h('td',null,a.decision))))
+  if(can('privilege.status')){
+    const pr=await act('privilege.status');
+    const pb=$('s-priv-body');pb.textContent='';
+    if(pr.ok)(pr.data.providers||[]).forEach(p=>pb.append(h('tr',null,h('td',null,p.title+' ('+p.id+')'),h('td',null,p.available?'sí':'no'))));
+    else pb.append(h('tr',null,h('td',{colspan:'2'},pr.error||'sin dato')));
+  }
+  if(can('privilege.dhizuku_status')){
+    const dz=await act('privilege.dhizuku_status');
+    $('s-dhizuku').textContent=dz.ok?(dz.data.eligible?'sí':'no'):(dz.error||'sin dato');
+  }
+}
+
+// Pantalla — relay de video/control propio (ver docs/homelab/PANTALLA_ANDROID_PROPIA_2026-10-10.md).
+// Formato espejo de ScreenFrameHeader.kt / screen.EncodeHeader (Go): 12 bytes, pts+flags en un
+// int64 big-endian (bit62=config, bit61=keyframe) seguido de un int32 big-endian con el tamaño.
+let scrWs=null;
+function scrLog(line){const e=$('scr-log');const t=new Date().toLocaleTimeString();e.textContent=(e.textContent==='Sin conectar.'?'':e.textContent+'\n')+'['+t+'] '+line;e.scrollTop=e.scrollHeight}
+function scrDecodeHeader(buf){const v=new DataView(buf);const b0=v.getUint8(0);return{config:(b0&0x40)!==0,keyFrame:(b0&0x20)!==0,size:v.getInt32(8)}}
+
+// Decodificar y dibujar el video de verdad (WebCodecs) — docs/humano369.md: pendiente desde que se
+// construyó el relay (2026-10-10/13), implementado esta ronda, NO verificado contra un dispositivo
+// real todavía (sin acceso a un teléfono en esta sesión) — revisar primero si algo no se ve.
+//
+// El paquete "config" (bit62) trae el CSD (SPS+PPS de H.264, Annex B con start codes) que el
+// MediaCodec del lado Android entrega como BUFFER_FLAG_CODEC_CONFIG — NO es una imagen decodificable
+// por sí sola. Por el spec de WebCodecs, cuando no se pasa `description` a configure() el decoder
+// asume formato Annex B, y CADA chunk de tipo "key" debe incluir sus parameter sets inline — por eso
+// acá se guarda el último paquete de config y se antepone al payload de cada keyframe antes de armar
+// el EncodedVideoChunk (ver W3C "AVC (H.264) WebCodecs Registration",
+// https://www.w3.org/TR/2022/DNOTE-webcodecs-avc-codec-registration-20221021/). Si el codec real no
+// es H.264 (configurable en "Configuración" más abajo, screen.config/video_codec), configure()
+// debería fallar y queda registrado en el log en vez de romper el resto del panel.
+function scrMakeDecoder(canvas, log) {
+  if (typeof VideoDecoder === 'undefined') { log('este navegador no soporta WebCodecs — sin decodificar video (ver consola)'); return null }
+  let configured = false, lastConfigBytes = null, sizeKnown = false;
+  const decoder = new VideoDecoder({
+    output(frame) {
+      if (!sizeKnown && frame.displayWidth && frame.displayHeight) { canvas.width = frame.displayWidth; canvas.height = frame.displayHeight; sizeKnown = true }
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+      frame.close();
+    },
+    error(e) { log('error del decodificador de video: ' + e.message); configured = false },
+  });
+  return {
+    feed(f, payload) {
+      if (f.config) { lastConfigBytes = payload; return }
+      if (!configured) {
+        try { decoder.configure({ codec: 'avc1.42E01E', optimizeForLatency: true }); configured = true }
+        catch (e) { log('no se pudo configurar el decodificador (¿codec distinto de H.264?): ' + e.message); return }
+      }
+      let data = payload;
+      if (f.keyFrame && lastConfigBytes) { data = new Uint8Array(lastConfigBytes.length + payload.length); data.set(lastConfigBytes, 0); data.set(payload, lastConfigBytes.length) }
+      try { decoder.decode(new EncodedVideoChunk({ type: f.keyFrame ? 'key' : 'delta', timestamp: 0, data })) }
+      catch (e) { log('frame descartado (' + e.message + ')') }
+    },
+    close() { try { decoder.close() } catch (_) {} },
+  };
+}
+// Mismo layout que ScreenControlMessage.encodeTouch (Kotlin) / TOUCH_MESSAGE_SIZE=32 bytes.
+// action: 0=ACTION_DOWN, 1=ACTION_UP, 2=ACTION_MOVE (android.view.MotionEvent) — antes de esta
+// ronda (2026-10-16, ver docs/humano365.md) solo se mandaba ACTION_DOWN: un toque real quedaba
+// "presionado" para siempre del lado del dispositivo, nunca se soltaba. down()/move()/up() de
+// abajo arman el ciclo completo; un clic simple es down() seguido de up() en el mismo punto.
+function scrEncodeTouch(action,x,y,w,h){
+  const buf=new ArrayBuffer(32),v=new DataView(buf);let o=0;
+  v.setUint8(o,2);o+=1;            // TYPE_INJECT_TOUCH_EVENT
+  v.setUint8(o,action);o+=1;
+  v.setBigUint64(o,0n);o+=8;       // pointerId — un solo dedo (0), no hay soporte multitáctil en este panel
+  v.setInt32(o,Math.round(x));o+=4;
+  v.setInt32(o,Math.round(y));o+=4;
+  v.setUint16(o,w);o+=2;           // screenWidth
+  v.setUint16(o,h);o+=2;           // screenHeight
+  v.setUint16(o,0xFFFF);o+=2;      // pressure = 1.0 en punto fijo de 16 bits
+  v.setInt32(o,0);o+=4;            // actionButton
+  v.setInt32(o,1);                 // buttons
+  return buf;
+}
+let scrDecoder=null;
+function scrConnect(){
+  if(scrWs)return;
+  const proto=location.protocol==='https:'?'wss://':'ws://';
+  // Revisión de seguridad real (humano361): el token NUNCA va en la URL para esta acción (la de
+  // mayor riesgo del gateway) — queda en historial del navegador y logs de acceso de cualquier
+  // túnel/proxy en el medio. Va como subprotocolo WebSocket ("kairos-token.<token>"), que el
+  // navegador no guarda en el historial ni manda en el Referer.
+  scrWs=new WebSocket(proto+location.host+'/v1/screen/ws','kairos-token.'+token);
+  scrWs.binaryType='arraybuffer';
+  $('scr-status').textContent='conectando…';
+  scrDecoder=scrMakeDecoder(scrCanvasEl,scrLog);
+  scrWs.onopen=()=>{$('scr-status').textContent='conectado';$('scr-status').className='pill g';$('scr-connect').disabled=true;$('scr-disconnect').disabled=false;scrLog('websocket abierto')};
+  scrWs.onmessage=e=>{
+    if(!(e.data instanceof ArrayBuffer)||e.data.byteLength<12)return;
+    const f=scrDecodeHeader(e.data);
+    scrLog(f.config?'frame de configuración ('+e.data.byteLength+' bytes)':'frame'+(f.keyFrame?' (keyframe)':'')+', '+e.data.byteLength+' bytes');
+    if(scrDecoder)scrDecoder.feed(f,new Uint8Array(e.data,12));
+  };
+  scrWs.onerror=()=>scrLog('error de websocket');
+  // El rechazo por permiso/token (401/403/404) pasa a nivel HTTP, ANTES del upgrade a websocket
+  // (handleScreenWS en Go valida antes de llamar a wsutil.Accept) — el navegador nunca ve esos
+  // códigos, solo un cierre "anormal" (code 1006) sin más detalle, por las reglas de seguridad del
+  // propio WebSocket API. No hay forma de distinguir acá "sin permiso" de "se cortó la red".
+  scrWs.onclose=ev=>{$('scr-status').textContent='desconectado';$('scr-status').className='pill';$('scr-connect').disabled=false;$('scr-disconnect').disabled=true;scrLog('websocket cerrado (código '+ev.code+')'+(ev.code===1006?' — revisá tu nivel de permiso o que el token sea válido':''));scrWs=null;if(scrDecoder){scrDecoder.close();scrDecoder=null}};
+}
+function scrDisconnect(){if(scrWs){scrWs.close();scrWs=null}if(scrDecoder){scrDecoder.close();scrDecoder=null}}
+$('scr-connect').onclick=scrConnect;
+$('scr-disconnect').onclick=scrDisconnect;
+// Ventana aparte (2026-10-16, ver docs/humano365.md) — mismo token, viaja en el fragmento de la
+// URL ("#..."), que el navegador nunca manda al servidor (ni en esta petición ni en ninguna
+// posterior) — pensado para poder moverla a otro monitor o, a futuro, sacarla como pestaña propia
+// en el gateway de escritorio.
+$('scr-popup').onclick=()=>{window.open('/panel/screen#'+encodeURIComponent(token),'kairos-pantalla','width=420,height=560,resizable=yes')};
+
+// Configuración/códecs/grabación (screen.config, screen.codecs, screen.record_start/stop — humano364).
+function scrCodecsLog(line){const e=$('scr-codecs-log');e.textContent=(e.textContent==='Sin detectar todavía.'?'':e.textContent+'\n')+line;e.scrollTop=e.scrollHeight}
+$('scr-audio').addEventListener('change',()=>{$('scr-acodec').disabled=!$('scr-audio').checked});
+async function loadScreenConfig(){
+  if(!can('screen.config'))return;
+  const r=await act('screen.config',{});
+  if(!r.ok)return;
+  const c=r.data;
+  if(c.max_size)$('scr-maxsize').value=String(c.max_size);
+  if(c.max_fps)$('scr-fps').value=String(c.max_fps);
+  if(c.video_bit_rate)$('scr-bitrate').value=String(c.video_bit_rate);
+  $('scr-orientation').value=c.orientation||'';
+  $('scr-vcodec').value=c.video_codec||'';
+  $('scr-audio').checked=!!c.audio;
+  $('scr-acodec').value=c.audio_codec||'';
+  $('scr-acodec').disabled=!c.audio;
+}
+$('scr-cfg-save').onclick=async()=>{
+  if(!can('screen.config')){toast('No tienes permiso para screen.config (exige nivel total).','err');return}
+  const r=await act('screen.config',{
+    max_size:$('scr-maxsize').value,video_bit_rate:$('scr-bitrate').value,max_fps:$('scr-fps').value,
+    audio:$('scr-audio').checked?'true':'false',video_codec:$('scr-vcodec').value,
+    audio_codec:$('scr-audio').checked?$('scr-acodec').value:'',orientation:$('scr-orientation').value,
+  });
+  if(r.ok)toast('Configuración guardada — se aplica en el próximo "Arrancar" del espejo.');else fail(r)
+};
+$('scr-cfg-detect').onclick=async()=>{
+  if(!can('screen.codecs')){toast('No tienes permiso para screen.codecs (exige nivel total).','err');return}
+  scrCodecsLog('detectando… puede tardar unos segundos');
+  const r=await act('screen.codecs',{});
+  if(!r.ok){scrCodecsLog('error: '+r.error);return}
+  const d=r.data;
+  scrCodecsLog((d.video_encoders||[]).length+' encoders de video, '+(d.audio_encoders||[]).length+' de audio, '+(d.displays||[]).length+' pantalla(s):');
+  (d.video_encoders||[]).forEach(x=>scrCodecsLog('  video '+x.codec+' → '+x.encoder+(x.type?' ('+x.type+')':'')));
+  (d.audio_encoders||[]).forEach(x=>scrCodecsLog('  audio '+x.codec+' → '+x.encoder+(x.type?' ('+x.type+')':'')));
+  (d.displays||[]).forEach(x=>scrCodecsLog('  pantalla #'+x.id+' '+x.size));
+};
+// screen.record_status (humano365 lote 22) — al abrir/recargar el panel, reflejar si YA había una
+// grabación en curso de antes (ej. se arrancó desde otra pestaña/visor) en vez de asumir siempre
+// "sin grabar" — el Hub es quien manda, no el estado local de estos botones.
+async function loadRecordStatus(){
+  if(!can('screen.record_status'))return;
+  const r=await act('screen.record_status',{});
+  if(!r.ok)return;
+  if(r.data.recording){
+    $('scr-rec-status').textContent='grabando: '+r.data.path;$('scr-rec-status').className='pill r';
+    $('scr-rec-start').disabled=true;$('scr-rec-stop').disabled=false;
+  } else {
+    $('scr-rec-start').disabled=false;$('scr-rec-stop').disabled=true;
+  }
+}
+$('scr-rec-start').onclick=async()=>{
+  if(!can('screen.record_start')){toast('No tienes permiso para grabar (exige nivel total).','err');return}
+  const r=await act('screen.record_start',{});
+  if(r.ok){$('scr-rec-status').textContent='grabando: '+r.data.path;$('scr-rec-status').className='pill r';$('scr-rec-start').disabled=true;$('scr-rec-stop').disabled=false}
+  else fail(r)
+};
+$('scr-rec-stop').onclick=async()=>{
+  const r=await act('screen.record_stop',{});
+  if(r.ok){$('scr-rec-status').textContent='guardado: '+r.data.path;$('scr-rec-status').className='pill g';$('scr-rec-start').disabled=false;$('scr-rec-stop').disabled=true}
+  else fail(r)
+};
+// Toque real con arrastre (2026-10-16): mousedown=DOWN, mousemove mientras se mantiene
+// apretado=MOVE, mouseup/mouseleave=UP — un clic simple sin mover es down()+up() en el mismo
+// punto, un arrastre manda MOVE de punto en punto. touchstart/move/end cubren pantallas táctiles
+// (tablet/teléfono abriendo el panel), preventDefault() evita que el navegador haga scroll/zoom
+// mientras se arrastra sobre el lienzo.
+function scrCanvasPoint(e){
+  const c=$('scr-canvas'),r=c.getBoundingClientRect();
+  const t=e.touches&&e.touches[0]?e.touches[0]:e;
+  return {x:(t.clientX-r.left)*(c.width/r.width),y:(t.clientY-r.top)*(c.height/r.height),w:c.width,h:c.height};
+}
+function scrSendTouch(action,p){
+  const msg=scrEncodeTouch(action,p.x,p.y,p.w,p.h);
+  const label=['toque','suelte','arrastre'][action]||'control';
+  if(scrWs&&scrWs.readyState===WebSocket.OPEN){scrWs.send(msg);scrLog(label+' mandado: x='+Math.round(p.x)+' y='+Math.round(p.y))}
+  else scrLog('sin conexión — se habría mandado '+label+' en x='+Math.round(p.x)+' y='+Math.round(p.y))
+}
+let scrDragging=false;
+function scrDown(e){e.preventDefault();scrDragging=true;scrSendTouch(0,scrCanvasPoint(e))}
+function scrMove(e){if(!scrDragging)return;e.preventDefault();scrSendTouch(2,scrCanvasPoint(e))}
+function scrUp(e){if(!scrDragging)return;scrDragging=false;scrSendTouch(1,scrCanvasPoint(e))}
+const scrCanvasEl=$('scr-canvas');
+scrCanvasEl.addEventListener('mousedown',scrDown);
+scrCanvasEl.addEventListener('mousemove',scrMove);
+window.addEventListener('mouseup',scrUp);
+scrCanvasEl.addEventListener('mouseleave',e=>{if(scrDragging)scrUp(e)});
+scrCanvasEl.addEventListener('touchstart',scrDown,{passive:false});
+scrCanvasEl.addEventListener('touchmove',scrMove,{passive:false});
+scrCanvasEl.addEventListener('touchend',scrUp);
+
+function logout(){sessionStorage.removeItem('kx_token');token='';$('app').style.display='none';$('login').style.display='block'}
+async function start(){
+  const m=await api('/v1/me');if(m.status!==200)return false;me=m.body;
+  const l=await api('/v1/actions');if(l.status!==200)return false;acts={};(l.body.actions||[]).forEach(a=>acts[a.id]=a);
+  $('login').style.display='none';$('app').style.display='grid';if(!$('n-inicio'))buildNav();$('me').textContent='Token: '+me.name+' · nivel '+me.effective_level;
+  VIEWS.forEach(([id])=>{});show('inicio');return true
+}
+$('enter').onclick=async()=>{token=$('tok').value.trim();if(await start()){sessionStorage.setItem('kx_token',token)}else{$('loginErr').textContent='Token inválido o gateway sin respuesta';$('loginErr').style.display='block'}};
+$('tok').addEventListener('keydown',e=>{if(e.key==='Enter')$('enter').click()});
+if(token)start().then(ok=>{if(!ok)logout()});
+</script></body></html>

@@ -1,32 +1,33 @@
 # restic
 
-**Módulo Kairos** — sin Fragment propio ni switch, CLI puro invocado por el usuario vía
-terminal, mismo patrón que `rclone`.
+> **Complemento (ya no es un módulo del catálogo).** Vive en **Homelab → Servicios → Complementos**
+> (`util/HomelabAddons.kt`). Este documento describe el diseño y el comportamiento de la herramienta.
+
+CLI puro, sin Fragment propio ni switch (`hasSwitch: false`), invocado por el usuario vía terminal
+(`terminalCommand: "restic"` en `modules.json`).
 
 ---
 
-**App:** Kairos (fork termux-app)
-**Script:** `modulos/restic.sh`
-**Categoría:** nube
-**`hasSwitch`:** `false` — sin proceso de fondo, CLI puro
+**Script:** `modulos/restic.sh` (v1.0.0) — copia sincronizada en
+`app/src/main/assets/scripts/restic.sh`.
+**Registry:** prefijo `restic.*`
+**Puerto:** ninguno (CLI puro, sin servicio de fondo).
 
 ---
 
-## 1. Qué es
+## 1. Descripción general
 
-Backups incrementales cifrados con versionado real. Complementa al módulo `rclone` en vez de
-solaparlo: `rclone` sincroniza o monta un remote, `restic` respalda CON historial de snapshots y
-cifrado real — y puede usar un remote ya configurado con `rclone` como destino del propio
-repositorio de backup, sin tener que configurar el acceso al proveedor de nuevo.
+Backups incrementales cifrados con versionado real: respalda CON historial de snapshots y
+cifrado.
 
 ## 2. Instalación
 
-Paquete nativo de Termux — un único binario Go estático, sin dependencias extra.
+Paquete apt nativo instalado vía `install_single_pkg()` (mismo helper que `golang.sh`) — un único
+binario Go estático, sin dependencias extra. Verificado contra el índice real de `termux-packages`
+(`packages/restic/build.sh`, paquete normal, no root).
 
-## 3. Uso
+## 3. Uso (queda en terminal, por diseño de la herramienta upstream)
 
-`restic init` (crear el repositorio), `restic backup <ruta>` (respaldar), `restic snapshots`
-(ver el historial) y `restic restore` (recuperar) son inherentemente interactivos y específicos
-de cada backup — la ubicación del repositorio y la contraseña de cifrado las elige el usuario.
-Por diseño de la propia herramienta, este flujo queda en la terminal integrada de Kairos, sin
-una pantalla propia todavía.
+`restic init`/`restic backup <ruta>`/`restic snapshots`/`restic restore` son inherentemente
+interactivos y específicos de cada backup (ubicación del repositorio y contraseña de cifrado
+elegidas por el usuario). Sin pantalla propia todavía.

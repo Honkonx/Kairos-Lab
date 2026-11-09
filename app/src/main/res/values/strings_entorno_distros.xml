@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pestaña "Distros" rediseñada: una tarjeta por distro (aprobado 2026-10-08,
+         mensaje 6). Las acciones por distro reutilizan los textos de los tiles anteriores. -->
+    <string name="entorno_distros_seccion">DISTROS INSTALADAS</string>
+    <string name="entorno_distros_vacio">No hay distros instaladas. Usa «Instalar distro» o el perfil recomendado.</string>
+    <string name="entorno_distros_seccion_nueva">AGREGAR</string>
+    <string name="entorno_distro_estado_sesion">Sesión abierta</string>
+    <string name="entorno_distro_estado_sin_sesion">Sin sesión</string>
+    <string name="entorno_distro_btn_login">Login (terminal)</string>
+    <string name="entorno_distro_btn_escritorio">Iniciar escritorio</string>
+    <string name="entorno_distro_btn_instalar_escritorio">Instalar escritorio</string>
+    <string name="entorno_distro_btn_cerrar_sesion">✕ Cerrar sesión</string>
+    <string name="entorno_distro_menu_descripcion">Más opciones de %1$s</string>
+    <string name="entorno_distro_row_desc_instalar">Descarga una distro con proot-distro</string>
+    <string name="entorno_distro_row_desc_perfil">Instala una distro con su escritorio y un método de GPU sugerido</string>
+    <!-- "2 instancias X11 conmutables" (nativa + distro sin que una tenga que cerrarse para abrir
+         la otra): EntornoNative.startDistroDesktopDual()/stopDistroDesktopDual(), display :2
+         separado del nativo (:1). SIN VERIFICAR EN DISPOSITIVO REAL (2026-11-09). -->
+    <string name="entorno_tile_detener_distro_dual">⏹ Detener escritorio\n(2da instancia X11)</string>
+    <string name="entorno_distro_row_desc_detener_dual">Detiene el escritorio con distro que corre en la 2da instancia X11, sin tocar un escritorio nativo abierto a la vez</string>
+    <string name="entorno_distro_toast_sin_backups_de">No hay backups de %1$s en el almacenamiento de Termux</string>
+    <string name="entorno_distro_toast_sin_apps">%1$s no tiene apps instaladas desde Kairos</string>
+</resources>

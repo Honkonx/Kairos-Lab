@@ -4,8 +4,8 @@
 #  C/C++ (Clang) — paquete nativo de Termux (pkg install clang).
 #
 #  FUENTE: referencia/termux/core-termux-main/core/tools/lang/clang/install.sh
-#  (mismo comando real: pkg install clang) — parte de la ronda de "paquetes
-#  adicionales" adoptados desde core-termux.
+#  (mismo comando real: pkg install clang) — ver ronda "paquetes adicionales
+#  core-termux" en docs/humano/.
 #
 #  USO DESDE APP (KairosApp):
 #    bash clang.sh --silent

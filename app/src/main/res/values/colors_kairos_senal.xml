@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Tema "Señal" (2026-08-22) — azul-negro tipo panel de control,
+    <!-- Tema "Señal" (2026-08-22,) — azul-negro tipo panel de control,
          acento cian único en vez de los 4 colores saturados default de "Oscuro". Aplicado vía
          Theme.Kairos.Senal (themes_kairos.xml), nunca referenciado directo desde layouts. -->
     <color name="kairos_senal_bg">#0A0E14</color>
@@ -18,6 +18,7 @@
     <color name="kairos_senal_green">#48BB78</color>
     <color name="kairos_senal_red">#F56565</color>
     <color name="kairos_senal_amber">#ECC94B</color>
+    <color name="kairos_senal_purple">#818CF8</color>
 
     <color name="kairos_senal_border">#1E2733</color>
     <color name="kairos_senal_divider">#171F29</color>

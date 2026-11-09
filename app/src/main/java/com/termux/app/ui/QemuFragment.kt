@@ -16,6 +16,7 @@ import com.termux.app.qemu.QmpClient
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.GHOST
 import com.termux.app.ui.BaseModuleFragment.ButtonStyle.PRIMARY
 import com.termux.app.util.ManagerNativeUtils
+import com.termux.app.util.QemuProfiles
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -39,7 +40,7 @@ import com.termux.app.util.kairosThemeColor
  * ninguno de los dos existe sin root en este entorno, prometerlo sería UI aspiracional sin
  * respaldo real (mismo criterio de honestidad que qemu.sh y mimocode.sh).
  *
- * **Pregunta real del usuario (2026-09-03, ver
+ * **Pregunta real del usuario (2026-09-03, ver y
  * docs/arquitectura/PROPUESTA_QEMU_DISPLAY_2026-08-26.md sección "Resolución"): "inicié en VNC
  * sin haber instalado VNC, ¿tiene VNC dentro QEMU?"** — Sí. El modo VNC de este módulo NO usa
  * TigerVNC (el paquete que sí instala `modulos/entorno.sh` para Mini PC) ni ningún otro servidor
@@ -252,6 +253,7 @@ class QemuFragment : BaseModuleFragment() {
 
     private var binaryPathInput: EditText? = null
     private var vmImagePathInput: EditText? = null
+    private var profileSpinner: Spinner? = null
     private var vmRamInput: EditText? = null
 
     // Resolución del framebuffer VGA en modo VNC (pedido explícito del usuario 2026-09-03:
@@ -431,6 +433,13 @@ class QemuFragment : BaseModuleFragment() {
                     setPadding(dp(14), dp(4), dp(14), dp(0))
                 })
                 addView(guestArchChipRow())
+                addView(TextView(requireContext()).apply {
+                    text = getString(R.string.qemu_label_profile)
+                    textSize = 11f
+                    setTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
+                    setPadding(dp(14), dp(8), dp(14), dp(0))
+                })
+                addView(profileRow())
                 vmRamInput = EditText(requireContext()).apply {
                     hint = getString(R.string.qemu_vm_ram_hint)
                     setSingleLine(true)
@@ -476,7 +485,7 @@ class QemuFragment : BaseModuleFragment() {
             actionButton(getString(R.string.qemu_btn_qmp_change_media), GHOST) { promptChangeMedia() }
             actionButton(getString(R.string.qemu_btn_qmp_eject_media), GHOST) { promptEjectMedia() }
 
-            // SSH host→VM (ajustar SSH/X11 para QEMU): run_vm.sh ya arma
+            // SSH host→VM ( — ajustar SSH/X11 para QEMU): run_vm.sh ya arma
             // hostfwd tcp::2222-:22 en TODOS los modos de boot (console y vnc, ver más arriba). No
             // se reusa RemoteManager/RemoteFragment (conexiones SSH guardadas con alias/clave
             // propia) porque esa UI está pensada para hosts persistentes con credenciales
@@ -722,6 +731,101 @@ class QemuFragment : BaseModuleFragment() {
     }
 
     private fun ramLabel(mb: Int): String = if (mb >= 1024) "${mb / 1024}GB" else "${mb}MB"
+
+    /**
+     * Fila "Perfil guardado" (RAM+arquitectura+resolución bajo un nombre, hallazgo real:
+     * "Perfiles de recursos reusables ('Planes' de froxlor / límites de Coolify) -- aplicar
+     * primero a QEMU") -- un Spinner con los perfiles ya guardados (más "(ninguno)" al tope) +
+     * 2 botones chicos. Elegir un perfil distinto de "(ninguno)" aplica sus 3 valores a los
+     * campos reales de arriba de inmediato (mismo criterio que ramPresetRow(), un tap = listo).
+     */
+    private fun profileRow(): LinearLayout {
+        val ctx = requireContext()
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(14), dp(2), dp(14), dp(10))
+        }
+        val spinnerRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+        val spinner = Spinner(ctx).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        profileSpinner = spinner
+        refreshProfileSpinner()
+        spinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (position <= 0) return // "(ninguno)" -- no toca nada
+                val profile = QemuProfiles.listProfiles().getOrNull(position - 1) ?: return
+                vmRamInput?.setText(profile.ramMb.toString())
+                vmGuestArch = profile.guestArch
+                vmResolution = profile.resolution
+                // NO se llama a buildContent() acá a propósito: reconstruiría TODA la tarjeta
+                // desde cero, perdiendo cualquier otro campo que el usuario ya hubiera tipeado
+                // (ej. la ruta de la imagen). vmGuestArch/vmResolution SÍ quedan correctamente
+                // actualizados (son los valores reales que bootVm() lee) -- lo único que no se
+                // refresca es el color resaltado de los chips de arch/resolución hasta la
+                // próxima vez que se abra esta pantalla, un gap cosmético menor, no funcional.
+                toast(getString(R.string.qemu_toast_profile_applied, profile.name))
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+        spinnerRow.addView(spinner)
+        row.addView(spinnerRow)
+
+        val buttonsRow = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(6), 0, 0)
+        }
+        buttonsRow.addView(TextView(ctx).apply {
+            text = getString(R.string.qemu_btn_save_profile)
+            textSize = 12f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosBlue))
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+            setOnClickListener { promptSaveProfile() }
+        })
+        buttonsRow.addView(TextView(ctx).apply {
+            text = getString(R.string.qemu_btn_delete_profile)
+            textSize = 12f
+            setTextColor(ctx.kairosThemeColor(R.attr.kairosRed))
+            setPadding(dp(16), dp(6), dp(6), dp(6))
+            setOnClickListener { deleteSelectedProfile() }
+        })
+        row.addView(buttonsRow)
+        return row
+    }
+
+    private fun refreshProfileSpinner() {
+        val ctx = context ?: return
+        val labels = listOf(getString(R.string.qemu_profile_none)) + QemuProfiles.listProfiles().map { it.name }
+        profileSpinner?.adapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_dropdown_item, labels)
+    }
+
+    private fun promptSaveProfile() {
+        val ctx = requireContext()
+        val input = EditText(ctx).apply { hint = getString(R.string.qemu_dialog_profile_name_hint) }
+        AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.qemu_dialog_profile_name_title))
+            .setView(input)
+            .setPositiveButton(getString(R.string.qemu_btn_save_profile)) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isBlank()) { toast(getString(R.string.qemu_toast_profile_name_required)); return@setPositiveButton }
+                val ram = vmRamInput?.text?.toString()?.trim()?.toIntOrNull() ?: 512
+                val saved = QemuProfiles.saveProfile(QemuProfiles.Profile(name, ram, vmGuestArch, vmResolution))
+                if (!saved) { toast(getString(R.string.qemu_toast_profile_invalid)); return@setPositiveButton }
+                refreshProfileSpinner()
+                toast(getString(R.string.qemu_toast_profile_saved, name))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun deleteSelectedProfile() {
+        val position = profileSpinner?.selectedItemPosition ?: 0
+        if (position <= 0) return // "(ninguno)" -- nada que borrar
+        val profile = QemuProfiles.listProfiles().getOrNull(position - 1) ?: return
+        QemuProfiles.deleteProfile(profile.name)
+        refreshProfileSpinner()
+        toast(getString(R.string.qemu_toast_profile_deleted))
+    }
 
     /**
      * Fila de chips de arquitectura del guest (aarch64 recomendado / x86_64 cross-arch) — mismo
@@ -1168,7 +1272,7 @@ class QemuFragment : BaseModuleFragment() {
      *   - VNC — `run_vm.sh` arranca QEMU en background (sesión tmux detached, sin terminal
      *     visible — ver `bootVmVnc()`/`modulos/qemu.sh`) con `-vnc unix:<ruta>` (socket unix,
      *     v1.4.0) en vez de `-nographic`; se sondea la existencia real del socket (no un delay
-     *     fijo, corregido 2026-08-27) y recién entonces se abre
+     * fijo, corregido 2026-08-27 tras ``) y recién entonces se abre
      *     automáticamente `VncViewerActivity` (mismo visor RFB nativo que ya usa Mini PC/Entorno
      *     — `VncViewerActivity.EXTRA_SOCKET_PATH` es lo que permite reusarlo acá sin escribir un
      *     cliente VNC nuevo).
@@ -1241,13 +1345,13 @@ class QemuFragment : BaseModuleFragment() {
         )
     }
 
-    // Bug real confirmado por captura de pantalla del usuario (2026-08-27): esta función
-    // llamaba a launchTerminalCommand() — abría la terminal
+    // Bug real confirmado por captura de pantalla del usuario (2026-08-27, ver
+    //): esta función llamaba a launchTerminalCommand — abría la terminal
     // adaptada CRUDA con el script corriendo como texto plano, exactamente lo que el selector
     // de modo (agregado el día anterior) debía evitar en el camino VNC. Además corría en
     // paralelo un segundo camino (abrir VncViewerActivity tras un delay fijo) — dos caminos a
-    // la vez, ninguno exclusivo. Viola la filosofía de producto de Kairos: el modo VNC es
-    // justamente el que NO debería obligar a mirar una terminal.
+    // la vez, ninguno exclusivo. Viola kairos-product-philosophy.md: el modo VNC es justamente
+    // el que NO debería obligar a mirar una terminal.
     //
     // Fix real: correr run_vm.sh en background (silencioso, mismo patrón que
     // ModuleController.startModule — Thread + ProcessBuilder, sin abrir la terminal) — el
@@ -1350,8 +1454,8 @@ class QemuFragment : BaseModuleFragment() {
     }
 
     /**
-     * Diálogo de usuario + arranque de connectSsh() — pedido explícito del usuario
-     * ("ajustar lo del vcn, ssh y x11"). El campo de usuario no tiene default fijo porque varía
+     * Diálogo de usuario + arranque de connectSsh — pedido explícito (
+     * "ajustar lo del vcn, ssh y x11"). El campo de usuario no tiene default fijo porque varía
      * mucho según la imagen del catálogo (root en Alpine, debian/ubuntu en las cloud images).
      */
     private fun promptConnectSsh() {

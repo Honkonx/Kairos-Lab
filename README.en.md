@@ -122,6 +122,18 @@ programs directly on Android.
 | [`tools/`](./tools/) | Build and packaging scripts for the embedded rootfs |
 | [`.github/workflows/`](./.github/workflows/) | CI pipelines — build the APK on GitHub Actions |
 
+## Download ⬇️
+
+Each version is published in [Releases](https://github.com/Honkonx/Kairos-Lab/releases) for **`armv8`** (ARM64) only, in two variants:
+
+| Variant | File | When to pick it |
+|---|---|---|
+| **Without rootfs** | `Kairos_<version>_armv8_sin-rootfs.apk` | Lightweight (~100 MB). Downloads the rootfs on first launch, so setting up the environment takes longer |
+| **With rootfs** | `Kairos_<version>_armv8_con-rootfs.apk` | Heavier (~1 GB, includes the base packages). The environment is ready sooner |
+
+The current version is **beta 0.2.0**. The Release also contains the rootfs and the module `.deb` packages
+(see [`docs/paquetes_deb/`](./docs/paquetes_deb/index.en.md)).
+
 ## Minimum requirements 📋
 
 - 📱 Android 8.0 or higher (ARM64)

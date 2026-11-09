@@ -25,13 +25,13 @@ import com.termux.app.util.applyTermuxEnv
 import com.termux.app.util.setScreenSecure
 
 /**
- * Pantalla "⚙ Configuración" de IA Local — llama.cpp (2026-08-23,
+ * Pantalla "⚙ Configuración" de IA Local — llama.cpp (2026-08-23,,
  * pedido explícito del usuario: "contexto, token, threads entre otras opciones que estan en la
  * pantalla principal no pasaron a configuracion"). Recibe TODA la card "PARÁMETROS" que antes
  * vivía en `LlamaServerFragment.buildParamsCard()` — mismo archivo de config
  * (`~/.llamaserver_user_config`), mismas claves, mismo comportamiento, solo cambia la pantalla.
  *
- * 2026-08-24 (corrección explícita del usuario: "en ia local ahi dos tuercas una en
+ * 2026-08-24 (ver corrección explícita: "en ia local ahi dos tuercas una en
  * la pantalla principal y otra dentro de catalogo, deja todo dentro de la tuerca en la pantalla
  * principal") — absorbe también las cards MOTOR/PARÁMETROS que antes vivían en
  * `LocalAIConfigFragment` (ahora eliminado), reachable desde el "⚙" propio del catálogo GGUF
@@ -44,8 +44,7 @@ import com.termux.app.util.setScreenSecure
 class LlamaServerConfigFragment : BaseModuleFragment() {
 
     // Anti-tapjacking (auditoría referencia/ia/*, 2026-08-31): esta pantalla gestiona
-    // LLAMA_SERVER_API_KEY (apiKeyInput) — una vez guardada no se vuelve a mostrar,
-    // solo reemplazar/borrar.
+    // LLAMA_SERVER_API_KEY (apiKeyInput) — ver .claude/rules/kairos-secrets-never-revealed.md.
     override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         view.filterTouchesWhenObscured = true
@@ -64,6 +63,15 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
     override fun onPause() {
         super.onPause()
         setScreenSecure(false)
+    }
+
+    // Bug real (2026-11-02, "sigue sin dejar tirar capture"): hide/show
+    // NO dispara onPause()/onResume() — si esta pantalla llega a mostrarse alguna vez vía ese
+    // mecanismo (igual que el resto de pantallas con FLAG_SECURE de este proyecto), quedaría
+    // prendido para toda la app indefinidamente. onHiddenChanged() sí dispara con hide()/show().
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        if (hidden) setScreenSecure(false) else if (isResumed) setScreenSecure(true)
     }
 
     companion object {
@@ -113,6 +121,12 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
         var embeddingsSwitch: SwitchCompat? = null
         var lanSwitch: SwitchCompat? = null
         var systemPromptInput: EditText? = null
+        var mmprojLabel: TextView? = null
+        // "" = sin mmproj (multimodal desactivado) -- opción siempre presente, primera de la
+        // lista, ver kairos-ia-selector-nunca-vacio.md (acá no aplica igual porque esto no es
+        // un selector de proveedor de IA, pero el mismo criterio de "nunca dejar sin opción
+        // elegida" aplica: el selector arranca con un valor real, nunca en blanco).
+        var mmprojValue = ""
 
         addCard(getString(R.string.llamaserver_config_card_motor)) {
             addView(TextView(requireContext()).apply {
@@ -130,6 +144,40 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
                 setTextColor(requireContext().kairosThemeColor(R.attr.kairosText3))
                 setPadding(dp(14), dp(0), dp(14), dp(6))
             })
+            // Multimodal (--mmproj) -- hallazgo real de MEJORAS_PENDIENTES.md ("llama-server
+            // HTTP NO recibió soporte multimodal" en la ronda que sí se lo dio al motor JNI
+            // embebido). Reusa LocalModelManager.listMultimodalProjectors() -- el mismo
+            // directorio de modelos (context.filesDir/models) que llamaserver.sh ya lee.
+            mmprojLabel = TextView(requireContext()).apply {
+                textSize = 13f
+                setTextColor(requireContext().kairosThemeColor(R.attr.kairosText))
+                setPadding(dp(14), dp(6), dp(14), dp(10))
+            }
+            addView(mmprojLabel)
+            val projectors = com.termux.app.util.LocalModelManager.listMultimodalProjectors(requireContext())
+            mmprojValue = readConfigValue("LLAMA_SERVER_MMPROJ").takeIf { v -> projectors.any { it.name == v } } ?: ""
+            fun renderMmprojLabel() {
+                mmprojLabel?.text = getString(
+                    R.string.llamaserver_config_label_mmproj,
+                    mmprojValue.ifBlank { getString(R.string.llamaserver_config_mmproj_ninguno) }
+                )
+            }
+            renderMmprojLabel()
+            mmprojLabel?.setOnClickListener {
+                if (projectors.isEmpty()) {
+                    toast(getString(R.string.llamaserver_config_mmproj_sin_importar))
+                    return@setOnClickListener
+                }
+                val options = (listOf(getString(R.string.llamaserver_config_mmproj_ninguno)) + projectors.map { it.name }).toTypedArray()
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.llamaserver_config_label_mmproj_dialog_titulo))
+                    .setItems(options) { _, which ->
+                        mmprojValue = if (which == 0) "" else projectors[which - 1].name
+                        renderMmprojLabel()
+                    }
+                    .setNegativeButton(getString(R.string.llamaserver_config_mmproj_cancelar), null)
+                    .show()
+            }
         }
 
         addCard(getString(R.string.llamaserver_config_card_servidor)) {
@@ -148,10 +196,38 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
         ctxInput?.setText(readConfigValue("LLAMA_SERVER_CTX_SIZE").ifBlank { "0" })
         threadsInput?.setText(readConfigValue("LLAMA_SERVER_THREADS").ifBlank { "0" })
         nglInput?.setText(readConfigValue("LLAMA_SERVER_NGL").ifBlank { "0" })
-        apiKeyInput?.setText(readConfigValue("LLAMA_SERVER_API_KEY"))
+        // Regla kairos-secrets-never-revealed (auditoría 2026-10-07): una API key
+        // ya guardada NO se vuelve a mostrar. El campo arranca siempre vacío (y enmascarado); si
+        // ya hay una guardada solo cambia el hint, y dejarlo vacío al guardar la conserva.
+        val apiKeyAlreadySaved = readConfigValue("LLAMA_SERVER_API_KEY").isNotBlank()
+        apiKeyInput?.apply {
+            setText("")
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            hint = if (apiKeyAlreadySaved) getString(R.string.llamaserver_config_hint_api_key_saved) else ""
+        }
         parallelInput?.setText(readConfigValue("LLAMA_SERVER_PARALLEL").ifBlank { "0" })
         embeddingsSwitch?.isChecked = readConfigValue("LLAMA_SERVER_EMBEDDINGS") == "1"
         lanSwitch?.isChecked = readConfigValue("LLAMA_SERVER_LAN") == "1"
+        // Hallazgo real (MEJORAS_PENDIENTES.md, auditoría referencia/ia/Uncensored-Local-AI,
+        // 2026-11-02): el servidor queda expuesto en LAN sin autenticación si no se setea una
+        // API key -- antes solo había un texto descriptivo chico cerca del campo de la key, sin
+        // ninguna advertencia en el momento real de activar el riesgo (el switch LAN en sí).
+        // Ningún bloqueo (puede ser una red de confianza a propósito) -- solo una confirmación
+        // explícita cuando se activa SIN key guardada ni tipeada; revierte el switch si cancela.
+        lanSwitch?.setOnCheckedChangeListener { switchView, checked ->
+            val hasKey = apiKeyAlreadySaved || !apiKeyInput?.text?.toString().isNullOrBlank()
+            if (checked && !hasKey) {
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.llamaserver_config_lan_warning_title))
+                    .setMessage(getString(R.string.llamaserver_config_lan_warning_message))
+                    .setPositiveButton(getString(R.string.llamaserver_config_lan_warning_continue)) { _, _ -> }
+                    .setNegativeButton(getString(R.string.llamaserver_config_lan_warning_cancel)) { _, _ ->
+                        switchView.isChecked = false
+                    }
+                    .setOnCancelListener { switchView.isChecked = false }
+                    .show()
+            }
+        }
 
         // System prompt — clave compartida OLLAMA_SYSTEM_PROMPT (ver comentario grande en
         // strings_ollama.xml § llamaserver_config_card_system_prompt): antes solo alcanzable
@@ -266,10 +342,14 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
             writeConfigValue("LLAMA_SERVER_CTX_SIZE", ctx.toString())
             writeConfigValue("LLAMA_SERVER_THREADS", threads.toString())
             writeConfigValue("LLAMA_SERVER_NGL", ngl.toString())
-            writeConfigValue("LLAMA_SERVER_API_KEY", apiKeyInput?.text?.toString()?.trim() ?: "")
+            // Vacío = conservar la API key ya guardada (el campo nunca se pre-rellena).
+            apiKeyInput?.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                writeConfigValue("LLAMA_SERVER_API_KEY", it)
+            }
             writeConfigValue("LLAMA_SERVER_PARALLEL", parallel.toString())
             writeConfigValue("LLAMA_SERVER_EMBEDDINGS", if (embeddingsSwitch?.isChecked == true) "1" else "0")
             writeConfigValue("LLAMA_SERVER_LAN", if (lanSwitch?.isChecked == true) "1" else "0")
+            writeConfigValue("LLAMA_SERVER_MMPROJ", mmprojValue)
             Thread {
                 try {
                     com.termux.app.util.OllamaApiClient.writeConfigValue(
@@ -321,7 +401,10 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
             radioGroup.addView(rbCpu)
             radioGroup.setOnCheckedChangeListener { _, checkedId ->
                 val backend = if (checkedId == rbVulkan.id) GpuBackend.VULKAN_IF_AVAILABLE else GpuBackend.CPU_ONLY
-                embeddedPrefs.edit().putString(KEY_BACKEND, backend.name).apply()
+                // Elegir un backend a mano borra el aviso "el driver de Vulkan falló" (GpuBackend.PREF_VULKAN_DRIVER_FAILED):
+                // el usuario decidió, se vuelve a intentar lo que pida.
+                embeddedPrefs.edit().putString(KEY_BACKEND, backend.name)
+                    .putBoolean(GpuBackend.PREF_VULKAN_DRIVER_FAILED, false).apply()
             }
             addView(radioGroup)
         }
@@ -392,7 +475,7 @@ class LlamaServerConfigFragment : BaseModuleFragment() {
             // Paridad con OllamaConfigFragment's "Reiniciar"/"Detalle del proceso" (auditoría
             // de paridad de opciones, 2026-08-28) — antes solo llama.cpp tenía "Actualizar"/
             // "Desinstalar" acá, sin forma de reiniciar el servicio ni ver su estado real sin
-            // salir a la terminal (Kairos evita depender de la terminal para funciones reales).
+            // salir a la terminal (ver .claude/rules/kairos-product-philosophy.md).
             actionButton(getString(R.string.llamaserver_config_btn_reiniciar), GHOST) { restartService() }
             actionButton(getString(R.string.llamaserver_config_btn_detalle_proceso), GHOST) { showProcessDetail() }
             // Paridad con OllamaConfigFragment's "Info GPU" (auditoría de paridad de opciones,

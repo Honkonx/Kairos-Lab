@@ -18,13 +18,13 @@
 #
 #  VERSIÓN: 1.2.0 | Agosto 2026 (agrega install_single_pkg/ensure_node_installed/
 #  install_npm_global — helpers genéricos para "paquetes adicionales" de una sola
-#  línea: pkg install <x> o npm install -g <x>, parte de la ronda de incorporación
-#  de paquetes adicionales de core-termux. Evita repetir el mismo esqueleto de 40 líneas
+#  línea: pkg install <x> o npm install -g <x>, ver docs/humano/ ronda "paquetes
+#  adicionales core-termux". Evita repetir el mismo esqueleto de 40 líneas
 #  (dependencias/check/error/registry) en cada script de lenguaje/herramienta npm.)
 # ============================================================
 
 # ── PATH universal: cubre el prefix alternativo de npm ────────
-# Bug real confirmado (auditoría ADB 2026-08-22, bug #25):
+# Bug real confirmado (auditoría ADB 2026-08-22,, bug #25):
 # openclaw.sh corre "npm config set prefix ~/.npm-global", que muta ~/.npmrc GLOBAL
 # del usuario — desde ese momento TODO "npm install -g" de cualquier módulo instala
 # ahí en vez del prefix default de Termux. Cada script de modulos/ solo agrega
@@ -101,7 +101,7 @@ export KAIROS_MODULE_SCRIPT_ACTIVE=1
 # mensaje claro en vez de colgar el script para siempre.
 #
 # Self-heal de "dpkg was interrupted" (auditoría 2026-08-27, ver
-# docs/arquitectura/DEPURACION_COMPLETA_2026-08-26.md): este mismo
+# /docs/arquitectura/DEPURACION_COMPLETA_2026-08-26.md): este mismo
 # mecanismo (un `apt-get`/`pkg install` anterior matado a mitad de un dpkg — señal 15 por
 # falta de memoria durante una tanda masiva de instalaciones concurrentes, ver
 # InstallQueueManager.kt) ya se confirmó y arregló 3 veces, pero SOLO dentro de contenedores
@@ -346,7 +346,10 @@ notify_event() {
   local _module="$1" _event="$2" _detail="${3:-}"
   local _pipe="$HOME/.kairos_events"
   [ -p "$_pipe" ] || return 0
-  timeout 1 bash -c "echo '${_module}:${_event}:${_detail}' > '$_pipe'" 2>/dev/null || true
+  # Auditoría 2026-10-07: antes se interpolaba ${_detail} dentro de
+  # "bash -c \"echo '...'\"" — una comilla simple en el detalle rompía el comando o permitía
+  # inyección. Ahora el texto viaja como argumento posicional ($1/$2), nunca como código.
+  timeout 1 bash -c 'printf "%s\n" "$1" > "$2"' _ "${_module}:${_event}:${_detail}" "$_pipe" 2>/dev/null || true
 }
 
 # ── Detección de glibc (repetida en antigravity/claude/kairos/openclaw/opencode) ──
@@ -358,7 +361,7 @@ detect_glibc() {
 }
 
 # ── pkg update con selección de mirror por velocidad real ─────
-# Quick win de la auditoría de referencia/ (2026-08-05) —
+# Quick win de la auditoría de referencia/ (2026-08-05,) —
 # entorno.sh ya tenía esta lógica (5 mirrors + medición real de velocidad vía curl, idea
 # de sabamdarif/termux-desktop, auditoría de ver/ 2026-07-28) pero kairos.sh/ollama.sh/
 # n8n.sh seguían con "probar 2 mirrors fijos en orden", más lento y menos confiable.
@@ -414,7 +417,7 @@ pkg_update_with_fallback() {
   local out
   out=$(pkg update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" 2>&1)
   if echo "$out" | grep -q "unexpected size\|Mirror sync in progress\|Err:2\|No mirror or mirror group selected"; then
-    # Bug real reportado (2026-08-22): scripts como entorno.sh llaman a
+    # Bug real reportado (2026-08-22,): scripts como entorno.sh llaman a
     # esta función más de una vez en la MISMA corrida — sin este flag, cada llamada repetía la
     # ronda completa de probar los 5 mirrors candidatos (~8s de timeout cada uno) aunque la
     # anterior ya hubiera confirmado que TODOS fallan, sumando ~50-60s tirados por cada llamada
@@ -486,8 +489,8 @@ ensure_persisted_config() {
 
 # verify_binary_installed <comando> [flag_de_version]
 # Chequeo de POST-CONDICIÓN real (no solo exit code) — patrón encontrado auditando
-# referencia/termux/termux-desktop43-main/distro-container-setup (2026-08-22): ese
-# proyecto nunca confía en que "npm install"/"pkg install" haya
+# referencia/termux/termux-desktop43-main/distro-container-setup (2026-08-22, ver
+#): ese proyecto nunca confía en que "npm install"/"pkg install" haya
 # terminado sin error para declarar éxito — verifica en el filesystem/ejecutando el binario
 # real antes de escribir el registry. Kairos tuvo 3 bugs reales exactamente por NO hacer esto
 # (auditoría ADB 2026-08-22): #28 codegraph (directorio doble-anidado, MODULE_NOT_FOUND pese a
@@ -506,7 +509,13 @@ verify_binary_installed() {
 #   install_single_pkg "rust" "rustc" rust
 install_single_pkg() {
   local _id="$1" _check="$2"; shift 2
-  if command -v "$_check" &>/dev/null && [ "${FORCE:-false}" != "true" ]; then
+  # Hallazgo real de auditoría 2026-09-15 (MEJORAS_PENDIENTES.md): este atajo de "ya instalado"
+  # usaba solo `command -v` (confirma que el ARCHIVO existe, no que corre de verdad) -- a
+  # diferencia del post-install de abajo, que ya usa verify_binary_installed() desde el retrofit
+  # 2026-08-22. Un binario que quedó en disco pero roto (ej. tras una actualización de Termux que
+  # rompe un .so del que depende) reportaba éxito sin re-verificar ejecución real cada vez que el
+  # módulo se re-abría.
+  if verify_binary_installed "$_check" && [ "${FORCE:-false}" != "true" ]; then
     log "$_id ya instalado"
     registry_write "$_id" "installed=true"
     return 0
@@ -515,7 +524,7 @@ install_single_pkg() {
   if ! pkg install -y "$@"; then
     error "No se pudo instalar $_id (pkg install $* falló)"
   fi
-  # Bug real evitado (2026-08-22): retrofit de verify_binary_installed()
+  # Bug real evitado (2026-08-22,): retrofit de verify_binary_installed
   # a install_single_pkg() — cubre de una sola vez clang/golang/nodejs/perl/php/rust, los 6
   # módulos que llaman a este helper. Mismo criterio ya documentado arriba (command -v solo
   # confirma que el archivo existe, no que el binario corre de verdad).
@@ -544,8 +553,8 @@ ensure_node_installed() {
 #   install_npm_global "typescript" "typescript" "tsc"
 #   install_npm_global "psqlformat" "psqlformat" "psqlformat" perl
 # fix_npm_shebang_wrapper <check_cmd> <npm_pkg>
-# Bug real confirmado en dispositivo (auditoría ADB 2026-08-21): el symlink que
-# "npm install -g" genera para el binario final (shebang
+# Bug real confirmado en dispositivo (auditoría ADB 2026-08-21, ver y
+#): el symlink que "npm install -g" genera para el binario final (shebang
 # "#!/usr/bin/env node") no se puede ejecutar directamente en este dispositivo/Android —
 # probable restricción W^X sobre archivos escritos en runtime fuera del $PREFIX normal de
 # Termux ("timeout: failed to run command '.../<bin>': No such file or directory" pese a que
@@ -609,7 +618,9 @@ verify_sha256() {
 
 install_npm_global() {
   local _id="$1" _npm_pkg="$2" _check="$3"; shift 3
-  if command -v "$_check" &>/dev/null && [ "${FORCE:-false}" != "true" ]; then
+  # Mismo hallazgo real que install_single_pkg() arriba (auditoría 2026-09-15) -- el atajo de
+  # "ya instalado" usaba solo `command -v`.
+  if verify_binary_installed "$_check" && [ "${FORCE:-false}" != "true" ]; then
     log "$_id ya instalado"
     registry_write "$_id" "installed=true"
     return 0
@@ -624,7 +635,7 @@ install_npm_global() {
   fi
   command -v "$_check" &>/dev/null || error "$_id no disponible tras la instalación (npm)"
   fix_npm_shebang_wrapper "$_check" "$_npm_pkg"
-  # Bug real evitado (2026-08-22): retrofit de verify_binary_installed()
+  # Bug real evitado (2026-08-22,): retrofit de verify_binary_installed
   # a install_npm_global() — cubre de una sola vez livesrv/localtunnel/markserv/ncu/nestjs/
   # ngrok/prettier/psqlformat/typescript/vercel. Corre DESPUÉS de fix_npm_shebang_wrapper (no
   # antes) — antes del wrapper el symlink puede existir en PATH pero no ejecutar todavía (el

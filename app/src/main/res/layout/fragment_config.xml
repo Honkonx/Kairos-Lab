@@ -336,11 +336,13 @@
 
             </LinearLayout>
 
-            <!-- ═══════════════ Pestaña NOTIFICACIONES (Telegram) ═══════════════ -->
-            <!-- Poblada 100% en Kotlin por setupTelegramSection() — mismo criterio que ya
-                 usaba esta sección antes de la reorganización en tabs (sin XML propio). -->
+            <!-- ═══════════════ Pestaña PERMISOS (root / ADB inalámbrico / Shizuku / diagnóstico) ═══════════════ -->
+            <!-- Notificaciones (Telegram) se mudó a la pantalla de Agente, 2026-10-30
+                  — tab_notificaciones quitado de acá. -->
+            <!-- Poblada 100% en Kotlin por setupPermissionsSection() — mismo criterio sin XML
+                 propio que ya usa setupTelegramSection() para la pestaña de arriba. -->
             <LinearLayout
-                android:id="@+id/tab_notificaciones"
+                android:id="@+id/tab_permisos"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"

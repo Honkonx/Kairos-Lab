@@ -81,7 +81,8 @@
         </menu>
     </item>
 
-    <!-- Tema de Estudio, INDEPENDIENTE del tema del apk (ver StudioThemePrefs.kt). -->
+    <!-- Tema de Estudio, INDEPENDIENTE del tema del apk (ver StudioThemePrefs.kt,
+         -->
     <item
         android:id="@+id/action_group_settings"
         android:title="@string/menu_group_settings">

@@ -45,8 +45,7 @@
     </LinearLayout>
 
     <!-- Conectar/desconectar GitHub (Device Flow, ver GitHubDeviceAuth) — token cifrado, nunca
-         se vuelve a mostrar (principio de seguridad del proyecto: un secreto guardado no se
-         re-expone en la UI, solo se usa/reemplaza/borra). -->
+         se vuelve a mostrar (.claude/rules/kairos-secrets-never-revealed.md). -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -93,14 +92,34 @@
                 android:textSize="15sp"
                 android:text="@string/git_branch_placeholder" />
 
-            <TextView
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="@string/git_changes_title"
-                android:textColor="@color/ide_text_secondary"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/git_changes_title"
+                    android:textColor="@color/ide_text_secondary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <!-- Hallazgo real de docs/ide/PLAN_REDISENO_ESTUDIO_IDE_2026-08-22.md §
+                     quick-wins: GitBridge.diff() existía pero nadie lo llamaba. -->
+                <TextView
+                    android:id="@+id/view_diff_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/git_view_diff_button"
+                    android:textColor="@color/ide_accent"
+                    android:textSize="13sp"
+                    android:padding="4dp" />
+
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/changes_text"
@@ -112,6 +131,19 @@
                 android:textIsSelectable="true"
                 android:textSize="12sp"
                 android:text="@string/git_loading" />
+
+            <!-- Solo visible cuando `git status` reporta al menos un archivo "unmerged" (ver
+                 GitBridge.FileChange.isConflict) — abre el flujo de resolución v1 (tomar mío/
+                 tomar el otro/editar a mano), ver GitPanelActivity#showConflictListDialog. -->
+            <Button
+                android:id="@+id/resolve_conflicts_button"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/ide_error"
+                android:text="@string/git_resolve_conflicts_button"
+                android:visibility="gone" />
 
             <EditText
                 android:id="@+id/commit_message_input"

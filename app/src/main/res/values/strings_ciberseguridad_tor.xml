@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pestaña "Tor" de Ciberseguridad (complemento, antes módulo propio). Ver TorManager.kt y
+          mensaje 6. -->
+    <string name="ciberseguridad_tab_tor">Tor</string>
+    <string name="ciberseguridad_tor_description">Complemento de Ciberseguridad: levanta un proxy SOCKS local de la red Tor. Las herramientas que lo soporten pueden salir por ahí; Kairos no enruta nada por Tor por su cuenta.</string>
+    <string name="ciberseguridad_tor_label_status">Estado</string>
+    <string name="ciberseguridad_tor_label_version">Versión</string>
+    <string name="ciberseguridad_tor_label_proxy">Proxy SOCKS</string>
+    <string name="ciberseguridad_tor_status_loading">Consultando…</string>
+    <string name="ciberseguridad_tor_status_not_installed">No instalado</string>
+    <string name="ciberseguridad_tor_status_stopped">Instalado, detenido</string>
+    <string name="ciberseguridad_tor_status_running">Corriendo</string>
+    <string name="ciberseguridad_tor_btn_install">Instalar Tor</string>
+    <string name="ciberseguridad_tor_btn_start">Iniciar Tor</string>
+    <string name="ciberseguridad_tor_btn_stop">Detener Tor</string>
+    <string name="ciberseguridad_tor_btn_test">Probar que salgo por Tor</string>
+    <string name="ciberseguridad_tor_btn_copy">Copiar proxy SOCKS</string>
+    <string name="ciberseguridad_tor_toast_installing">Instalando Tor… puede tardar unos minutos</string>
+    <string name="ciberseguridad_tor_toast_install_ok">Tor instalado</string>
+    <string name="ciberseguridad_tor_toast_install_failed">No se pudo instalar Tor: %1$s</string>
+    <string name="ciberseguridad_tor_toast_starting">Iniciando Tor…</string>
+    <string name="ciberseguridad_tor_toast_started">Tor corriendo en 127.0.0.1:9050</string>
+    <string name="ciberseguridad_tor_toast_start_failed">No se pudo iniciar Tor: %1$s</string>
+    <string name="ciberseguridad_tor_toast_stopped">Tor detenido</string>
+    <string name="ciberseguridad_tor_toast_stop_failed">No se pudo detener Tor: %1$s</string>
+    <string name="ciberseguridad_tor_toast_testing">Probando la conexión (puede tardar hasta 30 s)…</string>
+    <string name="ciberseguridad_tor_toast_test_ok">Sales por Tor — IP de salida: %1$s</string>
+    <string name="ciberseguridad_tor_toast_test_not_tor">La conexión funciona pero NO sale por Tor (IP: %1$s)</string>
+    <string name="ciberseguridad_tor_toast_test_failed">No se pudo comprobar: %1$s</string>
+    <string name="ciberseguridad_tor_toast_needs_running">Inicia Tor primero</string>
+    <string name="ciberseguridad_tor_toast_copied">Proxy copiado: %1$s</string>
+</resources>

@@ -125,6 +125,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         if (!mActivity.isVisible()) return;
 
         if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated();
+
+        // Modo Simple de la terminal adaptada (ver terminal/simple/TerminalSimpleRenderer.kt) —
+        // no-op si el renderer nunca se creó o si changedSession no es la sesión que tiene
+        // Simple montado (el propio renderer filtra eso internamente).
+        mActivity.notifyTerminalSimpleTextChanged(changedSession);
     }
 
     @Override
@@ -143,7 +148,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
 
     @Override
     public void onSessionFinished(@NonNull TerminalSession finishedSession) {
-        // Log interno de Kairos, nivel FULL — actividad de terminal (ver
+        // Log interno de Kairos, nivel FULL — actividad de terminal (
         // ConfigFragment "Log Kairos"). Solo observa, no cambia el comportamiento real de cierre.
         com.termux.app.util.KairosLogger.log(
             mActivity, "Terminal",
@@ -190,7 +195,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // Once we have a separate launcher icon for the failsafe session, it
             // should be safe to auto-close session on exit code '0' or '130'.
             //
-            // Bug real confirmado por log de dispositivo (2026-08-27):
+            // Bug real confirmado por log de dispositivo (2026-08-27,):
             // "las terminales siguen sin cerrarse por completo... sale 'Process completed
             // (signal 9) - press enter'". kairos_app.log mostraba, para TODAS las sesiones
             // cerradas con el botón "Cerrar sesión"/"Salir" (killSessionProcessGroup(), agregado
@@ -218,7 +223,17 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void onCopyTextToClipboard(@NonNull TerminalSession session, String text) {
         if (!mActivity.isVisible()) return;
 
-        ShareUtils.copyTextToClipboard(mActivity, text);
+        // Hallazgo de seguridad real (auditoría referencia/terminal/, 2026-11-02,
+        //): OSC 52 deja que CUALQUIER programa dentro de la terminal escriba
+        // el portapapeles del teléfono sin ninguna confirmación del usuario — un CLI remoto o
+        // local podría pisar silenciosamente algo que el usuario copió a propósito (ej. una
+        // dirección de wallet). Bloqueado por defecto; el usuario lo activa a propósito en
+        // Ajustes > Terminal (pref_osc52_clipboard_enabled, ConfigFragment.kt).
+        boolean osc52Enabled = mActivity.getSharedPreferences("kairos_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("pref_osc52_clipboard_enabled", false);
+        if (!osc52Enabled) return;
+
+        ShareUtils.copyTextToClipboard(mActivity, text, mActivity.getString(R.string.toast_osc52_clipboard_copied));
     }
 
     @Override
@@ -435,7 +450,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             TerminalSession newTerminalSession = newTermuxSession.getTerminalSession();
             setCurrentSession(newTerminalSession);
 
-            // Log interno de Kairos, nivel FULL — actividad de terminal (ver
+            // Log interno de Kairos, nivel FULL — actividad de terminal (
             // ConfigFragment "Log Kairos"). Solo observa, no cambia ningún comportamiento real
             // de la sesión.
             com.termux.app.util.KairosLogger.log(
@@ -582,7 +597,7 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
             // invalidate() el cambio de tema quedaba "aplicado" pero invisible hasta
             // que otro evento (tipear, blink del cursor, scroll) disparara un redraw
             // por su cuenta — el usuario lo reportó como "vi la opción pero no
-            // funciona".
+            // funciona" (ver de esta ronda).
             mActivity.getTerminalView().invalidate();
 
             applyTerminalBackgroundImageOrColor(props);

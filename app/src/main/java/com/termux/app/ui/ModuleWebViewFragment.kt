@@ -100,6 +100,7 @@ class ModuleWebViewFragment : Fragment() {
         }
         val closeBtn = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+            contentDescription = ctx.getString(R.string.a11y_close)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText))
             setOnClickListener { parentFragmentManager.popBackStack() }
@@ -113,6 +114,7 @@ class ModuleWebViewFragment : Fragment() {
         })
         val webBack = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_media_rew)
+            contentDescription = ctx.getString(R.string.a11y_back)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText2))
             isEnabled = false
@@ -123,6 +125,7 @@ class ModuleWebViewFragment : Fragment() {
         webBackBtn = webBack
         val webForward = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_media_ff)
+            contentDescription = ctx.getString(R.string.a11y_forward)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText2))
             isEnabled = false
@@ -133,6 +136,7 @@ class ModuleWebViewFragment : Fragment() {
         webForwardBtn = webForward
         val reloadBtn = ImageButton(ctx).apply {
             setImageResource(android.R.drawable.ic_popup_sync)
+            contentDescription = ctx.getString(R.string.a11y_reload)
             background = null
             setColorFilter(ctx.kairosThemeColor(R.attr.kairosText2))
             setOnClickListener { webView?.reload() }
@@ -140,6 +144,7 @@ class ModuleWebViewFragment : Fragment() {
         topBar.addView(reloadBtn, LinearLayout.LayoutParams(dp(40), dp(40)))
         val menuBtn = TextView(ctx).apply {
             text = "⋮" // ⋮ — mismo patrón de íconos-texto que usa el resto de la UI de Kairos
+            contentDescription = ctx.getString(R.string.a11y_more_options)
             textSize = 18f
             gravity = Gravity.CENTER
             setTextColor(ctx.kairosThemeColor(R.attr.kairosText2))

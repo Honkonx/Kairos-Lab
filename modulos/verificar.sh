@@ -46,8 +46,8 @@
 #  (permite "re-endosar" un módulo que quedó en el registry sin binario real).
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.1.0 | Agosto 2026 (port de core-termux list.sh |
-#  v1.1.0: agrega MOD_STRAT para udocker/qemu/
+# VERSIÓN: 1.1.0 | Agosto 2026 (C7 — port de core-termux list.sh,
+# ver | v1.1.0: agrega MOD_STRAT para udocker/qemu/
 #  repo + los 11 módulos "tools" (typescript/nestjs/prettier/livesrv/
 #  localtunnel/vercel/markserv/psqlformat/ncu/ngrok) — todos caían en SKIP
 #  porque MOD_STRAT no tenía entrada, aunque core-termux-main::list.sh
@@ -164,7 +164,7 @@ MOD_STRAT[opencode]="cmd|opencode"
 MOD_STRAT[hermes]="cmd|hermes"
 MOD_STRAT[remote]="cmd|cloudflared"
 MOD_STRAT[ssh]="cmd|cloudflared"
-# Bug real encontrado 2026-08-24 (confirmado con pruebas funcionales reales por ADB en dispositivo):
+# Bug real encontrado 2026-08-24 (ver pruebas funcionales reales por ADB):
 # el binario real que instala expo.sh es "eas" (EAS CLI, @expo/eas-cli) — "expo" nunca fue el
 # comando real, así que este chequeo SIEMPRE reportaba "registry dice installed pero falla"
 # aunque el módulo estuviera perfectamente instalado y funcional (confirmado: "eas --version"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Caja de icono de marca (header, botón primario) — equivalente sólido del
+     "p-2.5 bg-gradient-to-tr from-brand-600 to-indigo-500" del mockup; Android Views no
+     tiene un atajo barato para gradiente de 2 stops ligado a ?attr de tema sin arriesgar
+     un color mal resuelto en shape <gradient>, así que se resuelve como sólido. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/kairosPurple" />
+    <corners android:radius="14dp" />
+</shape>

@@ -16,10 +16,34 @@
     <string name="automations_trigger_boot">Al arrancar el dispositivo</string>
     <string name="automations_trigger_schedule">A una hora fija</string>
     <string name="automations_trigger_schedule_fmt">Todos los días a las %1$s</string>
+    <string name="automations_trigger_battery">Según el nivel de batería</string>
+    <string name="automations_trigger_battery_below_fmt">Batería por debajo de %1$d%%</string>
+    <string name="automations_trigger_battery_above_fmt">Batería por encima de %1$d%%</string>
+    <string name="automations_hint_umbral_bateria">Umbral de batería (1-100)</string>
+    <string name="automations_battery_direction_below">Al bajar de</string>
+    <string name="automations_battery_direction_above">Al subir de</string>
+    <string name="automations_msg_umbral_invalido">Elegí un umbral de batería entre 1 y 100</string>
 
     <!-- Acciones -->
-    <string name="automations_action_start">Iniciar</string>
-    <string name="automations_action_stop">Detener</string>
+    <string name="automations_action_start">Iniciar módulo</string>
+    <string name="automations_action_stop">Detener módulo</string>
+    <!-- GATEWAY_ACTION (hallazgo real: "automatizaciones que ejecuten acciones del gateway,
+         hoy solo start/stop de módulos") -->
+    <string name="automations_action_gateway">Acción del gateway</string>
+    <string name="automations_gateway_action_restic_backup">Respaldo con restic</string>
+    <string name="automations_gateway_action_restic_snapshots">Listar snapshots de restic</string>
+    <string name="automations_gateway_action_db_backup">Respaldar base de datos</string>
+    <string name="automations_gateway_action_notify_send">Mandar notificación (ntfy)</string>
+    <string name="automations_hint_restic_repo">Carpeta del repositorio restic (ej. /sdcard/backups/fotos)</string>
+    <string name="automations_hint_restic_folder">Carpeta a respaldar (ej. /sdcard/DCIM)</string>
+    <string name="automations_hint_restic_password">Contraseña del repositorio restic</string>
+    <string name="automations_hint_restic_password_saved">Contraseña ya guardada (dejar vacío para no cambiarla)</string>
+    <string name="automations_hint_db_engine">Motor (mysql o postgres)</string>
+    <string name="automations_hint_db_name">Nombre de la base de datos</string>
+    <string name="automations_hint_notify_topic">Topic de ntfy (ej. kairos-backups)</string>
+    <string name="automations_hint_notify_title">Título (opcional)</string>
+    <string name="automations_hint_notify_message">Mensaje a enviar</string>
+    <string name="automations_msg_campos_gateway_incompletos">Completá los campos de esta acción del gateway</string>
 
     <string name="automations_never_run">Nunca se ejecutó</string>
     <string name="automations_last_run_fmt">Última ejecución: %1$s</string>

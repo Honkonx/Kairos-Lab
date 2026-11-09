@@ -40,6 +40,10 @@
     <string name="chat_custom_base_url_hint">https://api.ejemplo.com/v1</string>
     <string name="chat_custom_model_hint">Modelo (opcional, default: %1$s)</string>
     <string name="chat_custom_base_url_invalid_toast">La Base URL parece inválida — tiene que empezar con http</string>
+    <string name="chat_custom_test_connection">Probar conexión</string>
+    <string name="chat_custom_test_connection_testing">Probando %1$s/models…</string>
+    <string name="chat_custom_test_connection_ok">Endpoint responde (HTTP %1$d) — parece un servidor compatible con OpenAI</string>
+    <string name="chat_custom_test_connection_fail">No se pudo conectar: %1$s</string>
     <string name="chat_cloud_status">Cloud API · %1$s</string>
     <string name="chat_cloud_status_byo">Cloud API (BYO key)</string>
     <string name="chat_cloud_http_error">%1$s respondió HTTP %2$d</string>
@@ -60,6 +64,7 @@
     <string name="chat_image_discarded_no_vision">Imagen descartada: \"%1$s\" no soporta imágenes (confirmado por Ollama)</string>
     <string name="chat_temperature_label">Temperature: %1$.2f</string>
     <string name="chat_context_size_label">Tamaño de contexto: %1$d tokens</string>
+    <string name="chat_context_usage_indicator">%1$d/%2$d tokens</string>
     <string name="chat_history_limit_unlimited">Mensajes a retener: ∞ (sin límite)</string>
     <string name="chat_history_limit_label">Mensajes a retener: %1$d</string>
     <string name="chat_autoaccept_permissions">Autoaceptar permisos de herramientas</string>
@@ -85,6 +90,7 @@
     <string name="chat_attach_disabled_local">No disponible para modelos locales (📱) — el motor local (llama.cpp embebido) no tiene el vision projector necesario. Cambiá a un modelo de Ollama con soporte de imágenes.</string>
     <string name="chat_image_read_failed">No se pudo leer la imagen seleccionada</string>
     <string name="chat_local_model_not_found">Modelo local no encontrado: %1$s</string>
+    <string name="chat_local_ram_warning">⚠️ %1$s necesita ~%2$.1f GB de RAM y tu dispositivo tiene %3$.1f GB — podría cerrarse durante la respuesta</string>
     <string name="chat_loading_model">Cargando modelo…</string>
     <string name="chat_local_unavailable_fallback">Motor local no disponible — usando llama-server HTTP…</string>
     <string name="chat_llamaserver_http_error">llama-server respondió HTTP %1$d</string>
@@ -212,4 +218,6 @@
     <string name="chat_websearch_blocked">La búsqueda fue bloqueada por DuckDuckGo (motivo: %1$s) — no es que no haya resultados, es que el sitio detectó la búsqueda como automatizada. Probá de nuevo en unos minutos.</string>
     <string name="chat_websearch_circuit_open">Demasiados bloqueos seguidos — la búsqueda está en pausa por ~%1$d minuto(s) antes de reintentar, para no empeorar el bloqueo.</string>
     <string name="chat_websearch_error">Error de conexión buscando en la web: %1$s</string>
+    <string name="chat_vulkan_fallback_status">El driver de Vulkan de tu GPU falló; reintentando en CPU…</string>
+    <string name="chat_vulkan_fallback_next_toast">El driver de Vulkan falló en esta GPU: las próximas respuestas usarán CPU (puedes volver a elegir Vulkan en IA Local → Parámetros)</string>
 </resources>

@@ -51,4 +51,24 @@
             android:name="android.shortcut.conversation"/>
     </shortcut>
 
+    <!-- Homelab (panel de métricas del sistema + módulos corriendo, ver HomelabFragment.kt) —
+         ronda 2026-09-16 "comunicación externa con Android": antes solo era alcanzable abriendo
+         la app y tocando el ícono "Más". Usa TermuxActivity.EXTRA_SHORTCUT_NAV_ID en vez de un
+         targetClass propio (Homelab es un Fragment, no una Activity) — ver
+         TermuxActivity.handleNavShortcutIntent(). -->
+    <shortcut
+        android:shortcutId="homelab"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_module"
+        android:shortcutShortLabel="@string/action_open_homelab"
+        tools:targetApi="n_mr1">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.termux"
+            android:targetClass="com.termux.app.TermuxActivity"
+            android:name="android.shortcut.conversation">
+            <extra android:name="com.termux.app.EXTRA_SHORTCUT_NAV_ID" android:value="nav_homelab"/>
+        </intent>
+    </shortcut>
+
 </shortcuts>

@@ -40,13 +40,13 @@ import com.termux.x11.LoriePreferences
  */
 class KairosX11PreferencesActivity : LoriePreferences() {
 
-    // Fix real (humano181, bug 7): "Open Controller" en la pantalla standalone
+    // Fix real (bug 7): "Open Controller" en la pantalla standalone
     // "Configuración de X11" crasheaba con NullPointerException — LoriePreferences.
     // showInputControlsDialog() (x11-server/.../LoriePreferences.java:822-885) lee
     // xServer.cursorLocker, inputControlsView e inputControlsManager sin chequeo de null;
     // esos 3 campos `protected` solo se inicializan en MainActivity.onCreate() (el visor),
     // nunca en esta Activity standalone (mismo patrón documentado arriba para
-    // termuxActivityListener). El fix de humano174 (3 Activities sin declarar en el
+    // termuxActivityListener). El fix de (3 Activities sin declarar en el
     // manifest) no cubre este crash — es una causa distinta (NPE, no
     // ActivityNotFoundException) en el mismo diálogo. Se sobreescribe el método público
     // (no final) para no tocar el módulo x11-server protegido: si el visor no está vivo

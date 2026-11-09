@@ -24,6 +24,29 @@ object LocalModelManager {
     private const val MIN_DOWNLOAD_RATIO = 0.95
 
     /**
+     * `File.renameTo()` devuelve `false` en fallo (no lanza excepción) — hallazgo real de
+     * auditoría 2026-11-02 (`referencia/ia/OfflineLLM`): `downloadModel()`/`importFromUri()`
+     * ignoraban ese valor de retorno, así que un rename fallido (mismo filesystem casi siempre
+     * funciona, pero puede fallar bajo presión de memoria o en proveedores SAF raros) dejaba
+     * el `.part` temporal sin mover y la función devolvía igual `dest` como si el modelo ya
+     * estuviera ahí — el caller creía tener un GGUF listo que en realidad no existe. Fallback a
+     * copia+borrado (mismo criterio que el patrón bash ya documentado en
+     * `MEJORAS_PENDIENTES.md`, "Todo el movimiento usa File.renameTo() (fallback a copia+borrado
+     * solo si el rename cruza filesystem)") antes de darse por vencido.
+     */
+    private fun moveFile(tmp: File, dest: File): File {
+        if (tmp.renameTo(dest)) return dest
+        try {
+            tmp.copyTo(dest, overwrite = true)
+            tmp.delete()
+            return dest
+        } catch (e: Exception) {
+            tmp.delete()
+            throw IllegalStateException("No se pudo mover el modelo descargado a su ubicación final: ${e.message}")
+        }
+    }
+
+    /**
      * Margen de seguridad sobre el tamaño esperado para el chequeo de espacio libre — 15% extra
      * (auditoría docs/ia-local/AUDITORIA_LLAMA_CPP_2026-08-26.md, hallazgo: downloadModel() no
      * chequeaba espacio libre antes de arrancar, dejaba que un .gguf de varios GB se cortara a
@@ -265,9 +288,9 @@ object LocalModelManager {
             )
         }
 
-        tmp.renameTo(dest)
-        onProgress("Listo — ${dest.name}")
-        return dest
+        val result = moveFile(tmp, dest)
+        onProgress("Listo — ${result.name}")
+        return result
     }
 
     /**
@@ -304,8 +327,7 @@ object LocalModelManager {
             )
         }
 
-        tmp.renameTo(dest)
-        return dest
+        return moveFile(tmp, dest)
     }
 
     /**

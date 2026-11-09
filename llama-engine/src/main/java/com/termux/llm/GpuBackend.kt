@@ -25,11 +25,24 @@ enum class GpuBackend {
     VULKAN_IF_AVAILABLE;
 
     companion object {
+        /**
+         * Preferencia (clave en `kairos_llm_prefs`) que el chat activa SOLO cuando el driver de Vulkan lanzó un error
+         * en plena inferencia (p. ej. `vk::Device::createComputePipeline: ErrorUnknown` en una Adreno 642L, captura del
+         * dispositivo 2026-10-09). Mientras esté activa se usa CPU aunque la preferencia sea
+         * "Vulkan si está disponible". Se borra cuando el usuario elige un backend a mano.
+         */
+        const val PREF_VULKAN_DRIVER_FAILED = "vulkan_driver_failed"
+
         /** nGpuLayers a pasar a [LlamaEngine.InferenceParams] según la preferencia y si hay GPU real detectada. */
-        fun resolveGpuLayers(preference: GpuBackend, gpuDeviceName: String, allLayers: Int = 99): Int =
+        fun resolveGpuLayers(
+            preference: GpuBackend,
+            gpuDeviceName: String,
+            allLayers: Int = 99,
+            vulkanDriverFailed: Boolean = false,
+        ): Int =
             when (preference) {
                 CPU_ONLY -> 0
-                VULKAN_IF_AVAILABLE -> if (gpuDeviceName.isNotEmpty()) allLayers else 0
+                VULKAN_IF_AVAILABLE -> if (gpuDeviceName.isNotEmpty() && !vulkanDriverFailed) allLayers else 0
             }
     }
 }

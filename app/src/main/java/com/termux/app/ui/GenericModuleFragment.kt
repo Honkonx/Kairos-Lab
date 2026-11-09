@@ -198,7 +198,7 @@ class GenericModuleFragment : BaseModuleFragment() {
 
         // "Usar Ollama/llama-server local" — SOLO para los 3 CLIs de i-Haklab confirmados
         // con soporte real de endpoint OpenAI-compatible custom (investigación contra cada
-        // repo real, ver LocalCliProviderNative.kt): qwencode
+        // repo real, ver y LocalCliProviderNative.kt): qwencode
         // (.qwen/.env), mimocode (mimocode.jsonc provider "custom"), mistralvibe
         // (config.toml [[providers]] backend=generic). Los otros 4 candidatos del mismo
         // lote (freebuff/codebuff/minimaxcli/copilotcli) están atados a su propio backend
@@ -317,7 +317,6 @@ class GenericModuleFragment : BaseModuleFragment() {
             val json = when (moduleId) {
                 "qwencode" -> LocalCliProviderNative.configureQwenCode(baseUrl, model)
                 "mimocode" -> LocalCliProviderNative.configureMimoCode(baseUrl, model)
-                "mistralvibe" -> LocalCliProviderNative.configureMistralVibe(baseUrl, model)
                 else -> JSONObject().put("ok", false).put("error", getString(R.string.generic_module_error_no_local_provider_support))
             }
             if (!isAdded) return@Thread
@@ -388,7 +387,7 @@ class GenericModuleFragment : BaseModuleFragment() {
         // de i-Haklab (freebuff/codebuff/copilotcli/minimaxcli/mimocode/mistralvibe/
         // qwencode), solo estos 3 confirman soporte real de endpoint OpenAI-compatible
         // custom contra su repo/documentación real — ver LocalCliProviderNative.kt.
-        private val LOCAL_PROVIDER_MODULE_IDS = setOf("qwencode", "mimocode", "mistralvibe")
+        private val LOCAL_PROVIDER_MODULE_IDS = setOf("qwencode", "mimocode")
 
         fun newInstance(module: ModuleInfo): GenericModuleFragment {
             return GenericModuleFragment().apply {

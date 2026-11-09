@@ -3,21 +3,21 @@
     <item
         android:id="@+id/nav_modules"
         android:icon="@drawable/ic_modules"
-        android:title="Módulos"/>
+        android:title="@string/nav_modules"/>
     <item
         android:id="@+id/nav_chat"
         android:icon="@drawable/ic_chat"
-        android:title="Chat IA"/>
+        android:title="@string/nav_chat"/>
     <item
         android:id="@+id/nav_minipc"
         android:icon="@drawable/ic_minipc"
-        android:title="Mini PC"/>
+        android:title="@string/nav_minipc"/>
     <item
         android:id="@+id/nav_studio"
         android:icon="@drawable/studio_ic_file_code"
-        android:title="Estudio"/>
+        android:title="@string/nav_studio"/>
     <item
         android:id="@+id/nav_more"
         android:icon="@drawable/ic_more"
-        android:title="Más"/>
+        android:title="@string/nav_more"/>
 </menu>

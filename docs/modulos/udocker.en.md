@@ -1,40 +1,105 @@
-# udocker
-
+# udocker — Kairos Module
 ## Complete technical documentation
 
-**Reference document** — udocker is an optional tool that can run Docker images without root.
+udocker is a tool that runs Docker images without root. In Kairos it is a module of its own with a dedicated screen, and also an internal piece of `n8n` (udocker variant) and `entorno`.
 
-**Reference device:** Xiaomi POCO F5 · Android 15 · HyperOS 2.0 · ARM64 · 11GB RAM
 **App:** Kairos (termux-app fork) · ARM64 · Android
 
 ---
 
-## 0. Standalone module with its own screen
+## 0. Current state of the module
 
-udocker isn't just an underlying tool used by other modules — it has its own standalone module with a dedicated screen:
+### What it is and what it is for
+A rootless "Docker-style" container module on top of PRoot (udocker, execmode P2): pull Docker Hub images (`pull`), create containers, open a shell, run commands, install packages, inspect, export/save/import `.tar`. It is not real Docker (no namespaces/cgroups; see the `docker` module). It is the same engine used by `modulos/n8n.sh` (udocker variant) and `modulos/entorno.sh` (`_install_udocker()`).
 
-- **`modulos/udocker.sh`** — an independent standalone module, not just the internal piece already used by `n8n.sh`. Installs `pkg install udocker` + `udockertools` (with fixed mirrors as a fallback, since udocker's dynamic install source can fail on mobile networks/CGNAT) + forces `execmode P2` + generates wrappers under `~/scripts/udocker/` (`pull.sh`, `run.sh`, `list.sh`, `rm.sh`). Accepts `--silent`/`--force`/`--describe`.
-- **`modules.json`** has an `"id": "udocker"` entry — `script: "udocker.sh"`, no switch, terminal command `udocker`, size `~30MB`, bionic architecture, no proot required.
-- **Dedicated Fragment: `app/src/main/java/com/termux/app/ui/UdockerFragment.kt`**. A real screen with:
-  - "CONTAINERS" card — a real list; tapping one opens actions: open terminal (with an optional dialog for `-v` mounts/`-e` variables), inspect (`udocker inspect`), export to `.tar` (`udocker export`, via the system's file picker), delete (`udocker rm`).
-  - "Install distro" — a grid of tiles (Alpine/Ubuntu/Debian, real Docker Hub images) + "Other image…" for any manual reference → `udocker pull` + `udocker create --name=` + `udocker setup --execmode=P2`.
-  - "Terminal in container" — selector of already-created containers.
-  - "Import image from .tar" — `udocker import` via the system's file picker.
-  - "DOWNLOADED IMAGES" card — a list (`udocker images`); tapping one opens: inspect, save to `.tar` (`udocker save`), delete (`udocker rmi`).
-  - MAINTENANCE card (standard pattern shared with the rest of the modules).
-- Has its own registry entry (`udocker.installed=true`, etc.), like any real module.
+**Permissions**: nothing special on Android — it runs 100% in Termux user space via PRoot, with no root and no permissions beyond the generic wizard.
 
-udocker is also still used internally by `modulos/n8n.sh` (udocker variant) and `modulos/entorno.sh` — those two integrations haven't changed, they simply aren't the only way to get udocker onto the device anymore. The rest of this document (network architecture, CLI commands, troubleshooting, PRoot limitations) is real and current information about udocker's own behavior — it doesn't depend on whether it was installed via n8n/Entorno or via the standalone module.
+### Sources
+`modulos/udocker.sh` (451 lines, v1.0.0, identical copy in `app/src/main/assets/scripts/udocker.sh`), `app/src/main/assets/modules.json`, `UdockerFragment.kt` (860 lines), `ModuleDetailNavigator.kt:40`, `EntornoNative.kt`, `ProcessBuilderExt.kt`.
 
-**Permissions**: none special to Android — runs entirely in Termux user space via PRoot, without root, without any permissions beyond the app's generic setup wizard.
+### Entry in `modules.json`
+`id: "udocker"` — `script: "udocker.sh"`, `hasSwitch: false`, `terminalCommand: "udocker"`, `size: "~30MB"`, `estimate: "~2 min"`, `arch: "bionic"`, `requiresProot: false`, `requires: []`, `installMethods: ["pkg"]`, `port: ""`.
+
+### Classification: FUNCTIONAL MODULE
+Its own Fragment (`ModuleDetailNavigator.kt:40` → `UdockerFragment()`), with live lists of containers/images (`EntornoNative.udockerContainersList()`, `udocker images`), operation dialogs and background downloads with progress — not a simple install + terminal. No service/port (it runs no daemon). **Approximate UI options: ~20** (3 action buttons + 6 actions per container + 4 per image + 3 distros + "other image" + `-v`/`-e` dialog + 2 package managers + maintenance/diagnose/uninstall).
+
+### Usage from the screen
+Under **Images**, open an image and choose **Create a container and use this image** to start the name flow and create the container. The later actions are in the container's row: open the interactive shell, install packages (Alpine `apk`, Debian/Ubuntu `apt-get`), run a non-interactive command, inspect, export or delete. The downloaded image is a template; it does not run until a container is created. Work with `apk`/`apt` happens inside PRoot and may be limited by the container's capabilities; universal compatibility and real Docker privileges are not promised.
+
+### Installation (`bash udocker.sh --silent`)
+Flags: `--silent --force --describe --describe-files` (`:56-62`). Two steps: `1/2` udocker + udockertools (`:231`), `2/2` wrappers (`:346`). Fixed variables `UDOCKER_USE_PROOT_EXECUTABLE` and `UDOCKER_USE_CURL_EXECUTABLE` (`:233,242`). Checkpoint `udocker_install`. Registry: `registry_install udocker <version> execmode=P2 scripts=...` (`:434`); version extracted with an `N.N.N` regex.
+
+- **How the binary is installed:** `udocker` does not exist as a Termux apt package (comment `udocker.sh:252-255`). The script installs through **pip from the `github.com/Honkonx/udocker` fork** with `--no-cache-dir --force-reinstall` (`udocker.sh:285-286`), with a fallback to official PyPI (`:293`) that leaves udocker without the android→linux patch (`warn` at `:295`). Only the script header (`:26`), `installMethods: ["pkg"]` in `modules.json` and the `install_hint` of `--describe-files` (`:108`, "pkg install -y udocker") still say `pkg`.
+- **Patch verification:** `udocker_fork_patch_active()` (`:157-164`) runs `HostInfo().osversion() != "android"` with Termux's Python; the `~/.udocker_fork_installed` marker (`:288`) is not enough. The "already installed" short-circuit requires binary + `~/.udocker/lib/VERSION` + the 4 wrappers + active patch (`:188-192`).
+- **udockertools:** downloaded with `curl` from 2 fixed mirrors (`udocker-englib-1.2.11.tar.gz`, `:131-134`) to a per-PID temp file and installed with `UDOCKER_TARBALL=<local path> udocker install --force` (`:318-336`). If no mirror works → `error`. (The fixed mirrors prevent `udocker install`'s dynamic origin from failing on mobile networks/CGNAT.)
+- **execmode P2:** the script only creates the marker `~/.udocker_force_p2` (`:339`); the real configuration `udocker setup --execmode=P2 <container>` is applied by `run.sh` (`:399`) and `UdockerFragment.installDistro()` (`:~653`). There is no global `setup` at installation.
+- **Post-condition:** it does not use `verify_binary_installed`; the post-condition is a non-empty `$HOME/.udocker/lib/VERSION` + `udocker_fork_patch_active`. No sha256 of the tarball and no commit pin of the fork (pip installs the `HEAD` of `git+https://github.com/Honkonx/udocker.git`). The script does not install `python`, `pip` or `proot`; it assumes they are in the bootstrap. `ModuleInstalled.LIVE_CHECK_DISABLED = setOf("udocker")` disables the live-check for this module.
+- **Wrappers** in `~/scripts/udocker/`: `pull.sh`, `run.sh <name> <image> [-- cmd]`, `list.sh`, `rm.sh`.
+
+### Execution
+No start/stop or tmux session of its own. Long operations use `ManagerNativeUtils.runExec(listOf(TERMUX_UDOCKER_PATH, ...), timeout)`: `pull` up to 600 s, `create` 60 s, `setup` 20 s (`UdockerFragment.kt:620-660`). "Open terminal" launches `udocker run --interactive --tty [flags] <name> bash || ... sh` in the adapted terminal (`buildUdockerRunCommand()` `:479-483`, with `export UDOCKER_USE_PROOT_EXECUTABLE`). Commands inside the container and package installation: `runContainerCommand()` `:284` (with `--user=root --containerauth` when `asRoot`).
+
+### Files and paths
+`$PREFIX/bin/udocker` (pip), `~/.udocker/{bin,lib,doc,containers,layers,repos}`, `~/.udocker_fork_installed`, `~/.udocker_force_p2`, `~/.udocker_tarball_tmp.<pid>.tar.gz` (temporary), `~/scripts/udocker/{pull,run,list,rm}.sh`, `~/.install_udocker_checkpoint`, `~/kairos_logs/install_udocker.log`, registry (`udocker.installed=true`, `execmode=P2`, ...).
+
+### Security
+- Remote installation without verifiable integrity: `pip install git+https://github.com/Honkonx/udocker.git` (no hash or fixed commit) and the udockertools tarball from `raw.githubusercontent.com/jorge-lip/udocker-builds` / `download.a.incd.pt`, without sha256. There is no `curl | bash`.
+- Running containers as root inside PRoot (`--user=root --containerauth`) is only userspace root emulation, not real isolation; Docker Hub images are third-party code.
+- `-v` mounts and `-e` variables go through `quoteShellArg()` (`:486`) when building the terminal line; `pull`/`create` receive the name as a list argument (no shell). Inference: `setup` runs with `bash -c` interpolating `$name` (`:653`); it was not tested with names containing special characters.
+- No secret handling of its own (anonymous Docker Hub).
+
+### Issues / limitations
+1. Installation metadata/documentation is inconsistent with the code (`pkg` vs the fork's pip), see "Installation".
+2. **`udocker ps -a`**: the Fragment (header `:42`) and `EntornoNative.udockerContainers()/udockerContainersList()` call `udocker ps -a`, while `list.sh` (comment `udocker.sh:410-415`) states that `-a` is an invalid flag ("syntax error at: -a"). An unresolved internal contradiction; which one is correct was not verified on a device.
+3. No sha256 / no version pin for the fork and the tarballs.
+4. `requires: []` despite depending on python/pip3/proot.
+5. `installDistro` does `pull` without `--platform`, so it depends entirely on the fork's patch; with the fallback to official PyPI the `pull` fails with "no image found in manifest for platform (android/arm64)" (the text of the `warn` itself, `udocker.sh:295`).
+6. `rm.sh`/`pull.sh` do not set P2 themselves (only `run.sh` does).
+7. Inference: that P2 performance is acceptable for heavy workloads; not measured.
+
+### Added on
+`modulos/udocker.sh`: **2026-08-16**.
+
+---
+
+## Screen controls (`UdockerFragment.kt`)
+
+If it is not installed, `showNotInstalled()` shows an install button (`:107-118`).
+
+### "CONTAINERS" card
+
+| Control | What it does | Why |
+|---|---|---|
+| Container row (tap) | `promptContainerActions(name)` — menu: Open terminal / Install packages / Run command / Inspect / Export to .tar / Delete | udocker is used as a general container runtime, not only as an internal piece of n8n |
+| → "▶ Open terminal" | `promptRunOptions()` (optional `-v` mounts / `-e` variables) → `launchTerminalCommand("udocker run ...")` | Allows mounting a host directory and passing variables without typing the command by hand |
+| → "📦 Install packages" | Alpine: `apk`; Debian/Ubuntu: `apt-get -o APT::Sandbox::User=root update && install -y` | — |
+| → "🔍 Inspect" | `udocker inspect <container>` — JSON metadata, read-only | — |
+| → "📤 Export to .tar" | `udocker export -o <tmp> <container>` → copies to a Uri chosen through the Storage Access Framework | udocker writes to a real filesystem path, it does not know `content://` Uris — it is generated in a sandbox temp file first |
+| → "🗑 Delete container" | Confirmation → `udocker rm <container>` | Deletes the whole rootfs, irreversible — hence the explicit confirmation |
+| "📥 Install distro" | `promptInstallDistro()` — tile grid (Alpine/Ubuntu/Debian `:latest`, real Docker Hub images) + "Other image…" (any Docker Hub reference by hand) → container name → `udocker pull` + `create --name=` + `setup --execmode=P2` | `setup --execmode=P2` forces pure PRoot mode, same criterion as `modulos/udocker.sh`. Gives generic access to ANY Docker Hub image |
+| "▶ Terminal in container" | `promptTerminalInContainer()` — container picker + interactive session | — |
+| "📦 Import image from .tar" | File picker (SAF) → `promptImportImageName()` → `udocker import <tar> <repo/image:tag>` | — |
+
+### "DOWNLOADED IMAGES" card
+
+| Control | What it does | Why |
+|---|---|---|
+| Image row (tap) | `promptImageActions(image)` — menu: Create container / Inspect / Save to .tar / Delete | — |
+| → "🔍 Inspect" | `udocker inspect <image>` — read-only | Works the same on an image reference |
+| → "💾 Save to .tar" | `udocker save -o <tmp> <image>` → copies to a chosen Uri (SAF) | Format compatible with real Docker |
+| → "🗑 Delete" | Confirmation → `udocker rmi` | — |
+
+MAINTENANCE card (`addMaintenanceCard()`): update / diagnose / uninstall.
+
+**Command coverage**: the screen covers the 12 commands of the udocker project (`pull/create/run/rm/ps/images/rmi/inspect/export/save/import/setup`), checked against the official `indigo-dc/udocker` manual (`user_manual.md`).
 
 ---
 
 ## 1. What is udocker?
 
-udocker is a Python tool that lets you run Docker images without root, without a modified kernel, and without a daemon. It works by wrapping the container in a chroot-like environment using PRoot — the same engine proot-distro uses in Termux.
+udocker is a Python tool that lets you run Docker images without root, without a modified kernel and without a daemon. It works by wrapping the container in a chroot-like environment using PRoot — the same engine proot-distro uses in Termux.
 
-**It is not real Docker.** It's a user-space container emulator.
+**It is not real Docker.** It is a user-space container emulator.
 
 ### How it works internally
 
@@ -42,54 +107,54 @@ udocker is a Python tool that lets you run Docker images without root, without a
 Termux (Android)
   └── udocker (Python)
         └── PRoot (ptrace syscall interception)
-              └── Container rootfs at ~/.udocker/containers/<id>/ROOT/
+              └── Container rootfs in ~/.udocker/containers/<id>/ROOT/
                     └── n8n (Node.js process)
 ```
 
-The container **has no network namespace of its own**. It runs directly over the host's network (Termux/Android). This is the single most important difference from real Docker.
+The container **has no network namespace of its own**. It runs directly on the host network (Termux/Android). This is the most important difference from real Docker.
 
 ### Mode supported in Termux
 
-According to udocker's official documentation:
+According to the official udocker documentation:
 
 > *"udocker can be used with Termux on Android, the only mode currently supported is P using PRoot."*
 
-Only **P (PRoot)** mode works on Android. Modes F (Fakechroot), R (runc), and S (Singularity) require kernel namespaces that Android doesn't expose without root.
+Only **P (PRoot)** mode works on Android. The F (Fakechroot), R (runc) and S (Singularity) modes require kernel namespaces that Android does not expose without root.
 
 ---
 
-## 2. Networking — the key to everything
+## 2. Network and networking
 
-### udocker in PRoot mode has no network isolation
+### udocker in PRoot mode has NO network isolation
 
 Unlike real Docker, udocker with PRoot **shares the host's network stack**. This means:
 
-- The container sees `localhost` exactly the way Termux does
-- `127.0.0.1` inside the container = `127.0.0.1` on Android
-- No bridge network, no NAT, no separate namespace
+- The container sees `localhost` exactly as Termux sees it
+- `127.0.0.1` inside the container = Android's `127.0.0.1`
+- There is no bridge network, no NAT, no separate namespace
 - Ports the container exposes map directly to the host
 
-**Practical consequence:** any service running in Termux is reachable from inside the container using `localhost` or `127.0.0.1`.
+**Practical consequence:** every service running in Termux is reachable from inside the container using `localhost` or `127.0.0.1`.
 
-### Cross-layer access table
+### Access table between layers
 
 | From \ To | Termux/Android | udocker n8n | proot Debian | Ollama :11434 |
 |---------------|---------------|-------------|--------------|---------------|
-| **Termux** | — | `localhost:5678` | via proot-distro | `localhost:11434` |
-| **udocker n8n** | `localhost:XXXX` | — | N/A | `localhost:11434` |
-| **proot Debian** | `localhost:XXXX` | `localhost:5678` | — | `localhost:11434` |
-| **Android browser** | `localhost:5678` | — | — | — |
-| **PC on WiFi** | `PHONE_IP:5678` | — | — | — |
+| **Termux** | — | `localhost:5678` ✅ | via proot-distro ✅ | `localhost:11434` ✅ |
+| **udocker n8n** | `localhost:XXXX` ✅ | — | N/A | `localhost:11434` ✅ |
+| **proot Debian** | `localhost:XXXX` ✅ | `localhost:5678` ✅ | — | `localhost:11434` ✅ |
+| **Android browser** | `localhost:5678` ✅ | — | — | — |
+| **PC on WiFi** | `PHONE_IP:5678` ✅ | — | — | — |
 
 ---
 
-## 3. Cloudflare tunnel + udocker n8n
+## 3. Cloudflare tunnel + n8n udocker
 
-### Install cloudflared inside udocker or in Termux?
+### Should I install cloudflared inside udocker or in Termux?
 
-**Install in native Termux — not inside the container.**
+**Install it in native Termux — NOT inside the container.**
 
-**Reason:** Since udocker shares the host's network stack, cloudflared running in Termux can tunnel to port 5678 even though n8n is inside udocker. From cloudflared's point of view, n8n in udocker is indistinguishable from n8n in native Termux.
+**Reason:** Since udocker shares the host's network stack, cloudflared running in Termux can tunnel to port 5678 even if n8n is inside udocker. To cloudflared, n8n in udocker is indistinguishable from n8n in native Termux.
 
 ### Cloudflare + udocker setup
 
@@ -100,20 +165,20 @@ Unlike real Docker, udocker with PRoot **shares the host's network stack**. This
 cloudflared tunnel --url http://localhost:5678
 
 # Option B: fixed URL (with a Cloudflare account)
-# cloudflare.com → Zero Trust → Tunnels → Create tunnel → copy token
+# cloudflare.com → Zero Trust → Tunnels → Create tunnel → copy the token
 cloudflared tunnel --no-autoupdate run --token YOUR_TOKEN_HERE
 ```
 
-### In a tmux script (automatic startup)
+### In a tmux script (automatic start)
 
 ```bash
-# udocker's start.sh — add a cloudflared window
+# udocker start.sh — add a cloudflared window
 tmux new-window -t "n8n-udocker" -n "tunnel"
 tmux send-keys -t "n8n-udocker:tunnel" \
   "cloudflared tunnel --no-autoupdate --url http://localhost:5678" Enter
 ```
 
-### Install cloudflared in Termux if missing
+### Install cloudflared in Termux if it is missing
 
 ```bash
 pkg install cloudflared
@@ -125,21 +190,21 @@ chmod +x ~/cloudflared
 
 ---
 
-## 4. Communication between n8n (udocker) and Termux services
+## 4. n8n (udocker) ↔ Termux services communication
 
 ### 4.1 Ollama — direct access
 
-n8n inside udocker can call Ollama (running in Termux) using `localhost:11434` with no extra configuration.
+n8n inside udocker can call Ollama (running in Termux) using `localhost:11434` with no additional configuration.
 
 **In an n8n workflow:**
 - Node: HTTP Request or LangChain Ollama
 - URL: `http://localhost:11434/api/generate`
 - Body: `{"model": "llama3.2", "prompt": "Your question"}`
 
-**Important:** Ollama must listen on `0.0.0.0`, not just `127.0.0.1`.
+**Important:** Ollama must listen on `0.0.0.0`, not only on `127.0.0.1`.
 
 ```bash
-# In Termux — verify Ollama listens on all interfaces
+# In Termux — check that Ollama listens on all interfaces
 export OLLAMA_HOST=0.0.0.0
 ollama serve
 ```
@@ -159,17 +224,17 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers['Content-Length'])
         body = json.loads(self.rfile.read(length))
         
-        # Your Python logic here — SQLite, pandas, scripts, etc.
-        result = {"status": "ok", "data": process(body)}
+        # Python logic here — SQLite, pandas, scripts, etc.
+        resultado = {"status": "ok", "data": procesar(body)}
         
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.end_headers()
-        self.wfile.write(json.dumps(result).encode())
+        self.wfile.write(json.dumps(resultado).encode())
     
     def log_message(self, *args): pass  # silence logs
 
-def process(data):
+def procesar(data):
     # Your Python logic here
     return data
 
@@ -184,10 +249,10 @@ In n8n (udocker): HTTP Request to `http://localhost:8765`
 **Way 2: Shared volume (files)**
 
 ```bash
-# Directory shared between udocker AND Termux
+# Shared directory accessible from udocker AND from Termux
 mkdir -p ~/shared
 
-# udocker run with mounted volume
+# udocker run with a mounted volume
 udocker run \
   --volume=/data/data/com.termux/files/home/shared:/shared \
   n8n
@@ -200,20 +265,20 @@ udocker run \
 
 In n8n, the "Execute Command" node:
 ```bash
-# Doesn't work directly from udocker — Python isn't inside the container
+# Does not work directly from udocker — Python is not inside the container
 # Use the HTTP API (Way 1) instead
 ```
 
 ### 4.3 SQLite — direct access via volume
 
-SQLite is a file. Share the file between udocker and Termux via `--volume`.
+SQLite is a file. Share the file between udocker and Termux through `--volume`.
 
 ```bash
-# Your DB path in Termux
+# Path of your DB in Termux
 DB_PATH="/data/data/com.termux/files/home/data/stack.db"
 mkdir -p "$(dirname $DB_PATH)"
 
-# udocker with access to the DB directory
+# udocker with access to the DB's directory
 udocker run \
   --publish=5678:5678 \
   --volume=/data/data/com.termux/files/home/n8n-udocker:/home/node/.n8n \
@@ -221,41 +286,41 @@ udocker run \
   n8n
 ```
 
-Inside n8n: the SQLite node points at `/data/stack.db`
+Inside n8n: the SQLite node points to `/data/stack.db`
 
-**Critical rule (Android 15):** never use `/tmp/` — it's noexec on Android 15. Always use paths under `$HOME` (`/data/data/com.termux/files/home/`).
+**Critical rule (Android 15):** NEVER use `/tmp/` — it is noexec on Android 15. Always use paths under `$HOME` (`/data/data/com.termux/files/home/`).
 
 ---
 
-## 5. udocker limitations on Termux/Android
+## 5. udocker limitations in Termux/Android
 
 ### Limitations inherited from PRoot
 
 | Limitation | Impact on the stack |
 |-----------|---------------------|
-| No ports < 1024 | n8n uses 5678, no problem |
-| No `su` or real UID change | n8n runs as a normal user, OK |
+| No ports < 1024 | n8n uses 5678 ✅ no problem |
+| No `su` or real UID change | n8n runs as a normal user — OK |
 | No filesystem mounts | Use `--volume` instead |
-| No routing/firewall changes | Doesn't apply for normal use |
+| Cannot modify routing/firewall | Not applicable for normal use |
 | No `docker-compose` | Independent containers only |
-| No network between containers | Use `localhost` for communication |
-| No `docker exec` on a live process | Only access via volumes or HTTP |
+| No network between containers | Use `localhost` to communicate |
+| No `docker exec` into a live process | Only access via volumes or HTTP |
 
-### Limitations specific to Android 15
+### Specific limitations on Android 15
 
 - **`/tmp/` is noexec:** Never write scripts there. Use `$HOME/`
-- **Ports < 1024:** Android remaps them automatically (e.g. :80 → :2080)
-- **`read` without `/dev/tty`:** In bash scripts inside Termux, always use `read < /dev/tty`
-- **`$HOME` in `--volume`:** udocker doesn't expand `$HOME`. Use an absolute path: `/data/data/com.termux/files/home/`
+- **Ports < 1024:** Android remaps them automatically (e.g.: :80 → :2080)
+- **`read` without `/dev/tty`:** In bash scripts inside Termux always use `read < /dev/tty`
+- **`$HOME` in `--volume`:** udocker does not expand `$HOME`. Use an absolute path: `/data/data/com.termux/files/home/`
 
-### What udocker cannot do (on Android without root)
+### What udocker CANNOT do (on Android without root)
 
 - Docker Compose (requires a daemon)
 - Network between containers (bridge/overlay networking)
-- Managed Docker volumes (use manual `--volume` instead)
+- Managed Docker volumes (use manual --volume)
 - Privileged containers
 - GPU passthrough
-- `docker exec` on a live container
+- `docker exec` into a live container
 
 ---
 
@@ -265,20 +330,20 @@ Inside n8n: the SQLite node points at `/data/stack.db`
 
 | Factor | n8n in proot Debian | n8n in udocker |
 |--------|--------------------|----|
-| Install time | ~40 min (npm install) | ~15 min (pull image) |
+| Installation | ~40 min (npm install) | ~15 min (image pull) |
 | Space | ~800MB (node_modules) | ~900MB (full image) |
-| n8n version | Pinned at install time | Always `latest` on pull |
+| n8n version | Fixed at install time | Always `latest` with pull |
 | Update | `npm update -g n8n` (slow) | `udocker pull` + recreate (fast) |
 | Persistent data | `/root/.n8n` in the rootfs | `~/n8n-udocker/` in Termux home |
-| RAM overhead | ~150MB (Debian proot) | ~80MB (container only) |
+| RAM overhead | ~150MB (Debian proot) | ~80MB (only the container) |
 | Cloudflared | Installed inside the proot | In native Termux (simpler) |
 | Networking with the stack | Via proot-distro login | Direct — same localhost |
-| Ollama access | `localhost:11434` | `localhost:11434` |
+| Ollama access | `localhost:11434` ✅ | `localhost:11434` ✅ |
 | SQLite access | Inside the proot | Via --volume to ~/data/ |
 
 ### Recommendation
 
-- **udocker** → simpler install, always-updated official image, less overhead
+- **udocker** → simpler installation, always-updated official image, less overhead
 - **proot Debian** → if you need deep customization, integrated cloudflared, or the stack is already there
 
 ---
@@ -414,14 +479,11 @@ Query: SELECT * FROM eventos ORDER BY ts DESC LIMIT 10
 
 ## 8. Quick reference commands
 
-### Install and setup
+### Installation and setup
 
 ```bash
-# Install udocker
-pkg install udocker
-
-# Initialize (first time)
-udocker install
+# The udocker module is installed from the Modules tab in Kairos
+# (it installs the binary through pip from the fork, plus udockertools, and sets execmode P2)
 
 # Use Termux's proot (recommended for Android)
 export UDOCKER_USE_PROOT_EXECUTABLE=$(which proot)
@@ -430,10 +492,10 @@ export UDOCKER_USE_PROOT_EXECUTABLE=$(which proot)
 ### Image and container management
 
 ```bash
-# Download image
+# Pull an image
 udocker pull n8nio/n8n
 
-# Create named container
+# Create a named container
 udocker create --name=n8n n8nio/n8n
 
 # List containers
@@ -442,7 +504,7 @@ udocker ps
 # List images
 udocker images
 
-# Delete container
+# Delete a container
 udocker rm n8n
 
 # Container path on disk
@@ -479,7 +541,7 @@ tmux kill-session -t n8n-udocker
 # 2. Pull the new image
 udocker pull n8nio/n8n
 
-# 3. Remove the old container
+# 3. Delete the old container
 udocker rm n8n
 
 # 4. Recreate with the new image
@@ -492,7 +554,7 @@ bash ~/scripts/n8n-udocker/start.sh
 ### Backup and restore
 
 ```bash
-# Backup n8n data (workflows, credentials, etc.)
+# Backup of n8n data (workflows, credentials, etc.)
 FECHA=$(date +%Y%m%d_%H%M)
 tar -czf "/sdcard/Download/n8n_udocker_${FECHA}.tar.gz" \
   -C /data/data/com.termux/files/home/n8n-udocker .
@@ -503,15 +565,15 @@ tar -xzf /sdcard/Download/n8n_udocker_YYYYMMDD_HHMM.tar.gz \
   -C ~/n8n-udocker
 
 # Full backup including the image (for migration)
-# Containers live under ~/.udocker/containers/
+# Containers are in ~/.udocker/containers/
 tar -czf /sdcard/Download/udocker_full_backup.tar.gz \
   -C ~ .udocker/
 ```
 
-### Changing execution mode
+### Changing the execution mode
 
 ```bash
-# See current mode
+# See the current mode
 udocker setup n8n
 
 # Switch to P2 (slower but more compatible)
@@ -528,10 +590,10 @@ udocker setup --execmode=P1 n8n
 ### Error: "invalid host volume path"
 
 ```bash
-# ❌ Cause: udocker doesn't expand $HOME
+# ❌ Cause: udocker does not expand $HOME
 udocker run --volume=$HOME/data:/data n8n
 
-# ✅ Fix: always use an absolute path
+# ✅ Fix: always an absolute path
 udocker run \
   --volume=/data/data/com.termux/files/home/data:/data \
   n8n
@@ -541,15 +603,15 @@ udocker run \
 
 ```bash
 # Informational warning — not a fatal error
-# Ports < 1024 get remapped automatically
+# Ports < 1024 are remapped automatically
 # :80 → :2080, :443 → :2443
-# n8n uses :5678 — unaffected
+# n8n uses :5678 — not affected
 ```
 
-### n8n starts but can't be reached
+### n8n starts but cannot be reached
 
 ```bash
-# Verify n8n listens on all interfaces
+# Check that n8n listens on all interfaces
 udocker run --env=N8N_HOST=0.0.0.0 n8n
 
 # Check the port
@@ -559,23 +621,23 @@ ss -tlnp | grep 5678
 curl http://localhost:5678
 ```
 
-### Ollama doesn't respond from n8n
+### Ollama does not respond from n8n
 
 ```bash
-# Ollama must listen on 0.0.0.0, not 127.0.0.1
+# Ollama must listen on 0.0.0.0, not on 127.0.0.1
 OLLAMA_HOST=0.0.0.0 ollama serve
 
-# Verify
+# Check
 curl http://localhost:11434/api/tags
 ```
 
-### Python API doesn't respond from n8n
+### Python API does not respond from n8n
 
 ```bash
-# Verify the Python API listens on 0.0.0.0
+# Check that the Python API listens on 0.0.0.0
 # (in the script: HTTPServer(('0.0.0.0', 8765), Handler))
 
-# Verify it's running
+# Check that it is running
 ss -tlnp | grep 8765
 
 # Test
@@ -584,26 +646,26 @@ curl -X POST http://localhost:8765 \
   -d '{"tipo":"test"}'
 ```
 
-### Container won't start (P1 fails)
+### Container does not start (P1 fails)
 
 ```bash
-# Try with P2
+# Try P2
 udocker setup --execmode=P2 n8n
 udocker run ... n8n
 
-# Or explicitly use Termux's proot
+# Or use Termux's proot explicitly
 export UDOCKER_USE_PROOT_EXECUTABLE=$(which proot)
 udocker run ... n8n
 ```
 
-### n8n data doesn't persist
+### n8n data does not persist
 
 ```bash
-# Verify ~/n8n-udocker has correct permissions
+# Check that ~/n8n-udocker has the right permissions
 ls -la ~/n8n-udocker
 chmod 777 ~/n8n-udocker
 
-# Verify the --volume uses an absolute path
+# Check that --volume uses an absolute path
 udocker run \
   --volume=/data/data/com.termux/files/home/n8n-udocker:/home/node/.n8n \
   n8n
@@ -611,7 +673,7 @@ udocker run \
 
 ---
 
-## 10. File layout in the stack
+## 10. File structure in the stack
 
 ```
 $HOME/  (/data/data/com.termux/files/home/)
@@ -623,9 +685,9 @@ $HOME/  (/data/data/com.termux/files/home/)
 │   │       └── container.json  # Metadata
 │   └── repos/                  # Downloaded images (layers)
 │
-├── n8n-udocker/                # Persistent n8n data
+├── n8n-udocker/                # n8n persistent data
 │   ├── config.json             # n8n configuration
-│   ├── database.sqlite         # n8n's internal DB
+│   ├── database.sqlite         # n8n internal DB
 │   └── .n8n/                   # Workflows, credentials
 │
 ├── data/
@@ -646,10 +708,10 @@ $HOME/  (/data/data/com.termux/files/home/)
 
 ---
 
-## 11. Environment variables relevant to n8n in udocker
+## 11. Relevant environment variables for n8n in udocker
 
 ```bash
-# Variables passed via --env when running udocker run
+# Variables that go in --env when running udocker run
 
 N8N_HOST=0.0.0.0                    # Listen on all interfaces
 N8N_PORT=5678                        # Port
@@ -657,52 +719,22 @@ N8N_SECURE_COOKIE=false              # Needed over HTTP without HTTPS
 N8N_RUNNERS_ENABLED=true             # Enable task runners
 N8N_RUNNERS_HEARTBEAT_INTERVAL=300   # Runner timeout
 NODE_FUNCTION_ALLOW_BUILTIN=child_process,fs,path,os  # Allowed Node modules
-NODE_FUNCTION_ALLOW_EXTERNAL=*       # Allowed external modules
-WEBHOOK_URL=https://your-domain.com  # If using cloudflared with a fixed domain
-N8N_BASIC_AUTH_ACTIVE=false          # No basic auth (uses n8n's own account)
+NODE_FUNCTION_ALLOW_EXTERNAL=*       # External modules
+WEBHOOK_URL=https://your-domain.com  # If you use cloudflared with a fixed domain
+N8N_BASIC_AUTH_ACTIVE=false          # No basic auth (uses the n8n account)
 ```
 
 ---
 
 ## 12. Summary of architecture decisions
 
-| Component | Runs where | Reason |
+| Component | Where it runs | Reason |
 |-----------|-------------|-------|
 | **Ollama** | Native Termux | Needs native ARM64 hardware, no overhead |
 | **Python 3.13** | Native Termux | Direct access to SQLite and the filesystem |
 | **SQLite** | Native Termux | File shared via --volume |
 | **Claude Code** | Native Termux | CLI that needs system access |
-| **n8n** | udocker | Official image, easy updates, less RAM |
-| **cloudflared** | Native Termux | Shares network with udocker — doesn't need to be inside |
+| **n8n** | udocker | Official image, easy updating, less RAM |
+| **cloudflared** | Native Termux | Shares the network with udocker — does not need to be inside |
 | **Redis** | udocker (optional) | Small Alpine image, for n8n queue mode |
-| **PostgreSQL** | udocker (optional) | SQLite alternative for n8n if it grows |
-
-## Screen controls
-
-### "CONTAINERS" card
-
-| Control | What it does |
-|---|---|
-| Container row (tap) | Menu: Open terminal / Inspect / Export to .tar / Delete |
-| → "Open terminal" | Optional dialog for `-v` mounts/`-e` variables → opens a terminal with `udocker run ...` |
-| → "Inspect" | `udocker inspect <container>` — real JSON metadata, read-only |
-| → "Export to .tar" | `udocker export -o <tmp> <container>` → copies to a destination chosen with the system's file picker (udocker writes to a real filesystem path, it knows nothing about content URIs — a temp file in the sandbox is generated first) |
-| → "Delete container" | Confirmation → `udocker rm <container>` (deletes the entire rootfs, irreversible) |
-| "Install distro" | Grid of tiles (Alpine/Ubuntu/Debian) + "Other image…" (manual Docker Hub) → container name → `udocker pull` + `create` + `setup --execmode=P2` |
-| "Terminal in container" | Container selector + interactive session |
-| "Import image from .tar" | Opens the file picker → image name → `udocker import <tar> <repo/image:tag>` |
-
-### "DOWNLOADED IMAGES" card
-
-| Control | What it does |
-|---|---|
-| Image row (tap) | Menu: Inspect / Save to .tar / Delete |
-| → "Inspect" | `udocker inspect <image>` — read-only |
-| → "Save to .tar" | `udocker save -o <tmp> <image>` → copies to the chosen destination (format compatible with real Docker, not just udocker) |
-| → "Delete" | Confirmation → deletes the image |
-
-The screen covers udocker's real project commands (pull/create/run/rm/ps/images/rmi/inspect/export/save/import/setup), confirmed one by one against the official documentation (`indigo-dc/udocker`, `user_manual.md`). The distro installer gives generic access to any Docker Hub image, not just the ones n8n uses internally.
-
----
-
-*Technical documentation for Kairos.*
+| **PostgreSQL** | udocker (optional) | Alternative to SQLite for n8n if it grows |

@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Rama/tag a usar para tools/rootfs/ (evita el bug real de humano171: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
+        description: 'Rama/tag a usar para tools/rootfs/ (evita el bug real de: el selector "Run workflow" de GitHub queda en la rama default del repo salvo que se cambie a mano).'
         required: false
         default: 'ide'
       release_tag:

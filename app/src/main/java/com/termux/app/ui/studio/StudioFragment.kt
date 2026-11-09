@@ -242,7 +242,7 @@ class StudioFragment : Fragment(), CommandHost {
             codeEditor = binding.codeEditor,
             barRoot = binding.searchBarInclude.root
         )
-        // Bug real confirmado por ADB (2026-08-25): el
+        // Bug real confirmado por ADB (2026-08-25, ver y siguientes): el
         // botón atrás de Android dejaba de navegar en TODA la app después de visitar el
         // módulo Estudio al menos una vez, sin importar a qué pantalla se navegara después
         // (confirmado en vivo: backstack de fragments acumulado hasta la entrada #26 sin que

@@ -49,6 +49,18 @@
     <string name="qemu_image_ubuntu_aarch64_desc">Imagen cloud oficial de Ubuntu Server para ARM64. Mismo arch que este teléfono — más rápida que la variante amd64 de arriba. Pensada para cloud-init, puede pedir semilla aparte para loguear por consola.</string>
 
     <string name="qemu_card_vm_headless_title">VM HEADLESS (sin KVM — TCG software)</string>
+    <!-- Perfiles de recursos (RAM+arquitectura+resolución guardados bajo un nombre) -->
+    <string name="qemu_label_profile">Perfil guardado</string>
+    <string name="qemu_profile_none">(ninguno — elegir a mano)</string>
+    <string name="qemu_btn_save_profile">Guardar como perfil</string>
+    <string name="qemu_btn_delete_profile">Borrar perfil</string>
+    <string name="qemu_dialog_profile_name_hint">Nombre del perfil (ej. \"Liviano\", \"Pesado 1080p\")</string>
+    <string name="qemu_dialog_profile_name_title">Guardar perfil</string>
+    <string name="qemu_toast_profile_saved">Perfil \"%1$s\" guardado</string>
+    <string name="qemu_toast_profile_deleted">Perfil borrado</string>
+    <string name="qemu_toast_profile_name_required">Elegí un nombre para el perfil</string>
+    <string name="qemu_toast_profile_invalid">No se pudo guardar -- algún valor del perfil quedó fuera de rango</string>
+    <string name="qemu_toast_profile_applied">Perfil \"%1$s\" aplicado (RAM lista; arquitectura/resolución se ven resaltadas al reabrir)</string>
     <string name="qemu_vm_image_path_hint">Ruta a imagen .qcow2/.img o .iso</string>
     <string name="qemu_vm_ram_hint">RAM en MB (por defecto 512)</string>
     <string name="qemu_ram_warning_title">RAM pedida &gt; RAM libre ahora</string>

@@ -22,15 +22,17 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.termux.R
 import com.termux.app.util.kairosThemeColor
+import com.termux.app.util.startAdbPairingFlow
 
 /** Pantalla 1 del wizard — permisos de almacenamiento y notificaciones, EN ESE ORDEN
- * (pedido explícito del usuario). El botón "Continuar" queda
+ * (pedido explícito del usuario,). El botón "Continuar" queda
  * deshabilitado hasta que ambos quedan resueltos (concedido o explícitamente rechazado
  * para notificaciones — almacenamiento sí es obligatorio, Kairos lo necesita de verdad). */
 class WizardPermissionsFragment : Fragment() {
 
     private var storageStatusText: TextView? = null
     private var notifStatusText: TextView? = null
+    private var adbStatusText: TextView? = null
     private var continueButton: Button? = null
     private var notifResolved = false
     // Se pone true la primera vez que el usuario toca "Conceder" en Notificaciones y lo
@@ -71,6 +73,24 @@ class WizardPermissionsFragment : Fragment() {
         (notifRow.getChildAt(2) as Button).setOnClickListener { requestNotifPermission() }
         root.addView(notifRow)
 
+        // Depuración inalámbrica (ADB) -- opcional desde el wizard ( lote 27, meta 2:
+        // "la configuracion via adb si la dan al princpio o pedrila despues en el modulo"). Antes
+        // solo se podía configurar DESPUÉS, en Config → Permisos -- nunca bloquea "Continuar"
+        // (a diferencia de Almacenamiento), igual que Notificaciones.
+        val adbRow = buildPermissionRow(ctx, "Depuración inalámbrica (ADB) — opcional",
+            "Le da a Kairos privilegio de shell del sistema sobre este mismo teléfono. Se puede configurar ahora o más tarde, en Ajustes → Permisos.",
+            actionLabel = "Configurar")
+        adbStatusText = adbRow.getChildAt(1) as TextView
+        (adbRow.getChildAt(2) as Button).setOnClickListener {
+            startAdbPairingFlow {
+                if (isAdded) {
+                    adbStatusText?.text = "✓ Emparejado"
+                    adbStatusText?.setTextColor(requireContext().kairosThemeColor(R.attr.kairosGreen))
+                }
+            }
+        }
+        root.addView(adbRow)
+
         continueButton = Button(ctx).apply {
             text = "Continuar"
             isAllCaps = false
@@ -83,8 +103,8 @@ class WizardPermissionsFragment : Fragment() {
                 // de entrar a la pantalla de procesos fantasma — esa pantalla corre comandos
                 // pkg/adb reales y bug real reportado mostró que
                 // fallaban porque el bootstrap todavía no existía a esa altura del wizard.
-                // Idempotente, no interfiere con el bootstrap completo de la pantalla 4 —
-                // TermuxInstaller.setupBootstrapIfNeeded() además
+                // Idempotente, no interfiere con el bootstrap completo de la pantalla 4 — desde
+                //, TermuxInstaller.setupBootstrapIfNeeded además
                 // encola cualquier llamada concurrente en vez de correr 2 extracciones en
                 // paralelo (esa doble llamada, sin el guard, corrompía $PREFIX y era la causa
                 // real de "Cannot run program bash" más adelante en la pantalla 4).
@@ -121,7 +141,7 @@ class WizardPermissionsFragment : Fragment() {
         maybeEnableContinue()
     }
 
-    private fun buildPermissionRow(ctx: android.content.Context, title: String, description: String): LinearLayout {
+    private fun buildPermissionRow(ctx: android.content.Context, title: String, description: String, actionLabel: String = "Conceder"): LinearLayout {
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(14), dp(16), dp(14))
@@ -148,7 +168,7 @@ class WizardPermissionsFragment : Fragment() {
             }
         })
         row.addView(Button(ctx).apply {
-            text = "Conceder"
+            text = actionLabel
             isAllCaps = false
             setBackgroundColor(ctx.kairosThemeColor(R.attr.kairosBg3))
             setTextColor(ctx.kairosThemeColor(R.attr.kairosText))
@@ -197,7 +217,7 @@ class WizardPermissionsFragment : Fragment() {
             maybeEnableContinue()
             return
         }
-        // BUG REAL confirmado por ADB en dispositivo (Android 16/API 36):
+        // BUG REAL confirmado por ADB en dispositivo (Android 16/API 36, ver docs/humano/humanoXXX.md):
         // gradle.properties tiene targetSdkVersion=28 (< 33/Tiramisu) — con targetSdk por debajo
         // de 33, Android NUNCA muestra el diálogo runtime de POST_NOTIFICATIONS al llamar
         // requestPermissions()/ActivityResultContracts.RequestPermission(); simplemente resuelve

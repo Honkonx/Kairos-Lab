@@ -8,7 +8,6 @@ import com.termux.app.wizard.WizardActivity;
 import com.termux.app.ui.ModulesFragment;
 import com.termux.app.ui.PluginsFragment;
 import com.termux.app.ui.ChatFragment;
-import com.termux.app.ui.MonitorFragment;
 import com.termux.app.ui.FileManagerFragment;
 import com.termux.app.ui.TunnelFragment;
 import com.termux.app.ui.ConfigFragment;
@@ -28,6 +27,7 @@ import androidx.fragment.app.FragmentTransaction;
 import com.termux.shared.view.KeyboardUtils;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import android.annotation.SuppressLint;
@@ -71,6 +71,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -98,6 +99,7 @@ import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.app.terminal.TermuxSessionsListViewController;
 import com.termux.app.terminal.io.TerminalToolbarViewPager;
 import com.termux.app.terminal.TermuxTerminalViewClient;
+import com.termux.app.terminal.simple.TerminalSimpleRenderer;
 import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.logger.Logger;
@@ -244,7 +246,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private ModulesFragment mModulesFragment;
     private ChatFragment mChatFragment;
-    private MonitorFragment mMonitorFragment;
     private FileManagerFragment mFileManagerFragment;
     private TunnelFragment mTunnelFragment;
     private NubeFragment mNubeFragment;
@@ -252,11 +253,29 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private ConfigFragment mSettingsFragment;
     private StudioFragment mStudioFragment;
     private EntornoFragment mEntornoFragment;
+    // AutomationsFragment dejó de ser un tab de nivel raíz (2026-09-16, rediseño Homelab/
+    // Automatizaciones — ver docs/modulos/HOMELAB.md): su UI ahora vive embebida DENTRO de
+    // HomelabFragment (childFragmentManager, pestaña "Automatizaciones") — ya no se agrega/
+    // oculta/enruta acá, mHomelabFragment es el único punto de entrada.
     private com.termux.app.ui.HomelabFragment mHomelabFragment;
-    private com.termux.app.ui.AutomationsFragment mAutomationsFragment;
     private Fragment mCurrentFragment;
     private int mCurrentTabId;
     private View mTerminalOverlay;
+
+    /**
+     * Motor de renderizado del modo Simple de la terminal adaptada (ver
+     * MEJORAS_PENDIENTES.md "Roadmap de terminal — 2 fases", Fase 2, y
+     * terminal/simple/TerminalSimpleRenderer.kt) — capa de presentación pura sobre
+     * mTerminalView/getCurrentSession(), nunca dueña de la sesión/PTY. Se crea una sola vez, en
+     * setTerminalSimpleModeView(), igual que mTerminalView.
+     */
+    private TerminalSimpleRenderer mTerminalSimpleRenderer;
+    /** Handles (TerminalSession#mHandle) de las sesiones con modo Simple activado — por sesión,
+     *  no global, igual que mTerminalAdaptedSessionName es por pestaña. Un Set en memoria alcanza
+     *  (no persiste entre reinicios de la Activity/proceso a propósito: reabrir Kairos vuelve a
+     *  modo Adaptada clásico por default, más predecible que recordar un estado por sesión que
+     *  puede ya no aplicar si el CLI cambió). */
+    private final java.util.Set<String> mTerminalSimpleModeSessionHandles = new java.util.HashSet<>();
 
     /**
      * Modo "terminal adaptada" — activo cuando el overlay de terminal se abrió para un CLI
@@ -340,6 +359,20 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     // detalle. "public" (a diferencia de EXTRA_FOCUS_SESSION_NAME de arriba, package-private)
     // porque QuickAccessPrefs.syncShortcuts() vive en com.termux.app.util, un paquete distinto.
     public static final String EXTRA_SHORTCUT_MODULE_ID = "com.termux.app.EXTRA_SHORTCUT_MODULE_ID";
+
+    // App Shortcut ESTÁTICO (shortcuts.xml, "Homelab") — a diferencia de EXTRA_SHORTCUT_MODULE_ID
+    // (dinámico, apunta a un módulo elegido por el usuario), este navega directo a un tab fijo
+    // del BottomNavigationView por su @id, sin togglear ningún módulo (ver
+    // handleNavShortcutIntent()). Ronda 2026-09-16 "comunicación externa con Android" — antes
+    // Homelab solo era alcanzable abriendo la app y tocando el ícono "Más".
+    static final String EXTRA_SHORTCUT_NAV_ID = "com.termux.app.EXTRA_SHORTCUT_NAV_ID";
+
+    // Toque en el avatar flotante del Agente (AgentAvatarService.kt, docs/agente/DECISIONES_AGENTE_2026-10-10.md)
+    // — abre la pantalla de chat del Agente como detalle apilado, mismo camino que
+    // showMoreNavMenu() usa cuando el usuario toca "Agente" en el bottom sheet "Más". "public"
+    // porque AgentAvatarService vive en el mismo paquete pero se referencia desde un Service,
+    // no desde otra Activity — se deja público por simetría con EXTRA_SHORTCUT_MODULE_ID.
+    public static final String EXTRA_OPEN_AGENT = "com.termux.app.EXTRA_OPEN_AGENT";
 
     // Referencia débil a la instancia viva de esta Activity — sola forma de que un Service
     // sin UI (FloatingWidgetService, el widget flotante) pueda leer isSessionActive()/
@@ -429,7 +462,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         super.onCreate(savedInstanceState);
 
-        // Bug real, 4to intento (2026-08-07): revertido del
+        // Bug real, 4to intento (2026-08-07,): revertido del
         // edge-to-edge manual (setDecorFitsSystemWindows(false) + 2 listeners de padding vía
         // WindowInsetsCompat, agregados en una ronda anterior) al modelo clásico que usa
         // termux-app real y todos los forks de referencia comparados — ninguno reimplementa
@@ -441,6 +474,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // terminal en la sesión — algo que termux-app real no necesita resolver porque ahí la
         // Activity ES la terminal, sin pantallas adicionales en el mismo Window.
         KeyboardUtils.setSoftInputModeAdjustResize(this);
+
+        // Pedido explícito del usuario (2026-10-08): "ajustar lo del teclado para
+        // que solo se abra en cosas que requieran el teclado, muchas veces al entrar en config,
+        // homelab abren el teclado de Android". Cada pantalla de módulo/detalle que se abre (no los
+        // diálogos, que traen su propio teclado) arranca sin teclado ni foco en un campo de texto.
+        getSupportFragmentManager().registerFragmentLifecycleCallbacks(
+            new androidx.fragment.app.FragmentManager.FragmentLifecycleCallbacks() {
+                @Override
+                public void onFragmentViewCreated(FragmentManager fm, Fragment f, View v, Bundle savedInstanceState) {
+                    if (!(f instanceof androidx.fragment.app.DialogFragment)) hideKeyboardOutsideTerminal();
+                }
+            }, true);
 
         // Load termux shared preferences
         // This will also fail if TermuxConstants.TERMUX_PACKAGE_NAME does not equal applicationId
@@ -497,7 +542,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (savedInstanceState == null) {
             mModulesFragment = new ModulesFragment();
             mChatFragment = new ChatFragment();
-            mMonitorFragment = new MonitorFragment();
             mFileManagerFragment = new FileManagerFragment();
             mTunnelFragment = new TunnelFragment();
             mSettingsFragment = new ConfigFragment();
@@ -506,12 +550,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mStudioFragment = new StudioFragment();
             mEntornoFragment = new EntornoFragment();
             mHomelabFragment = new com.termux.app.ui.HomelabFragment();
-            mAutomationsFragment = new com.termux.app.ui.AutomationsFragment();
 
             getSupportFragmentManager().beginTransaction()
                 .add(R.id.fragment_container, mModulesFragment, "modules")
                 .add(R.id.fragment_container, mChatFragment, "chat")
-                .add(R.id.fragment_container, mMonitorFragment, "monitor")
                 .add(R.id.fragment_container, mFileManagerFragment, "files")
                 .add(R.id.fragment_container, mTunnelFragment, "tunnel")
                 .add(R.id.fragment_container, mSettingsFragment, "settings")
@@ -520,9 +562,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .add(R.id.fragment_container, mStudioFragment, "studio")
                 .add(R.id.fragment_container, mEntornoFragment, "entorno")
                 .add(R.id.fragment_container, mHomelabFragment, "homelab")
-                .add(R.id.fragment_container, mAutomationsFragment, "automations")
                 .hide(mChatFragment)
-                .hide(mMonitorFragment)
                 .hide(mFileManagerFragment)
                 .hide(mTunnelFragment)
                 .hide(mSettingsFragment)
@@ -531,7 +571,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 .hide(mStudioFragment)
                 .hide(mEntornoFragment)
                 .hide(mHomelabFragment)
-                .hide(mAutomationsFragment)
                 .commit();
 
             mCurrentFragment = mModulesFragment;
@@ -539,7 +578,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         } else {
             mModulesFragment = (ModulesFragment) getSupportFragmentManager().findFragmentByTag("modules");
             mChatFragment = (ChatFragment) getSupportFragmentManager().findFragmentByTag("chat");
-            mMonitorFragment = (MonitorFragment) getSupportFragmentManager().findFragmentByTag("monitor");
             mFileManagerFragment = (FileManagerFragment) getSupportFragmentManager().findFragmentByTag("files");
             mTunnelFragment = (TunnelFragment) getSupportFragmentManager().findFragmentByTag("tunnel");
             mSettingsFragment = (ConfigFragment) getSupportFragmentManager().findFragmentByTag("settings");
@@ -548,7 +586,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mStudioFragment = (StudioFragment) getSupportFragmentManager().findFragmentByTag("studio");
             mEntornoFragment = (EntornoFragment) getSupportFragmentManager().findFragmentByTag("entorno");
             mHomelabFragment = (com.termux.app.ui.HomelabFragment) getSupportFragmentManager().findFragmentByTag("homelab");
-            mAutomationsFragment = (com.termux.app.ui.AutomationsFragment) getSupportFragmentManager().findFragmentByTag("automations");
             // Bug real confirmado por ADB (2026-08-22 — freeze al cambiar de tema,
             // reproducido en vivo con uiautomator+logcat): esto ANTES reseteaba mCurrentFragment/
             // mCurrentTabId a Módulos sin condición, incluso cuando el usuario estaba parado en
@@ -564,14 +601,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             mCurrentFragment = mModulesFragment;
             mCurrentTabId = R.id.nav_modules;
             Fragment[] restoredFragments = {
-                mModulesFragment, mChatFragment, mMonitorFragment,
+                mModulesFragment, mChatFragment,
                 mFileManagerFragment, mTunnelFragment, mSettingsFragment, mNubeFragment,
-                mPluginsFragment, mStudioFragment, mEntornoFragment, mHomelabFragment, mAutomationsFragment
+                mPluginsFragment, mStudioFragment, mEntornoFragment, mHomelabFragment
             };
             int[] restoredTabIds = {
-                R.id.nav_modules, R.id.nav_chat, R.id.nav_monitor,
+                R.id.nav_modules, R.id.nav_chat,
                 R.id.nav_files, R.id.nav_tunnel, R.id.nav_settings, R.id.nav_nube,
-                R.id.nav_plugins, R.id.nav_studio, R.id.nav_minipc, R.id.nav_homelab, R.id.nav_automations
+                R.id.nav_plugins, R.id.nav_studio, R.id.nav_minipc, R.id.nav_homelab
             };
             for (int i = 0; i < restoredFragments.length; i++) {
                 Fragment f = restoredFragments[i];
@@ -597,7 +634,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         FloatingActionButton fab = findViewById(R.id.fab_terminal);
         fab.setOnClickListener(v -> {
-            // Bug real reproducido por ADB (2026-09-03 —
+            // Bug real reproducido por ADB (2026-09-03, ver de esta ronda —
             // "el widget de acceso rápido a las terminales abiertas... no las abre"): esto
             // forzaba mTerminalAdaptedSessionName = null incondicionalmente ANTES de que
             // existiera el badge de contexto persistente (updateFabContextBadge(),
@@ -655,6 +692,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // dispara en este caso (la Activity recién se está creando acá), así que el intent de
         // arranque también se resuelve acá.
         handleShortcutIntent(getIntent());
+        handleNavShortcutIntent(getIntent());
+        handleOpenAgentIntent(getIntent());
+        // Cold-start vía deep link externo kairos://module/<id>/start|stop (ver DeepLinkHandler).
+        com.termux.app.util.DeepLinkHandler.handle(this, getIntent());
     }
 
     @Override
@@ -689,6 +730,19 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     @Override
     public void onResume() {
+        // Defensa adicional contra FLAG_SECURE que quedó pegado de una navegación anterior (ver
+        // com.termux.app.util.ScreenSecurity -- bug real "sigue sin dejar tirar capture",
+        // reportado repetidas veces:). El fix
+        // documentado ahí (onHiddenChanged en los 6 Fragments que usan setScreenSecure) cubre el
+        // caso de cambio de tab vía hide()/show(), pero no todos los caminos de navegación
+        // interna (ej. HomelabFragment.navigateTo() empuja un detalle con replace()+
+        // addToBackStack() sobre el MISMO contenedor que hospeda esos 6 Fragments) están
+        // auditados uno por uno contra el mismo riesgo. Se limpia ACÁ, antes de super.onResume(),
+        // para que el Fragment que de verdad esté visible y resumed lo vuelva a prender él mismo
+        // dentro de SU PROPIO onResume() (que corre como parte de la cascada que super.onResume()
+        // dispara sobre los Fragments hijos) -- si ninguno de los 6 está visible ahora, queda
+        // limpio como corresponde, en vez de heredar un estado de una pantalla que ya no se ve.
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
         super.onResume();
 
         Logger.logVerbose(LOG_TAG, "onResume");
@@ -776,7 +830,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     @Override
     public void onBackPressed() {
-        // Pedido explícito del usuario (2026-09-08 — falta administrador de
+        // Pedido explícito del usuario (2026-09-08, — falta administrador de
         // archivos/navegador embebidos "sin salir de la terminal adaptada"): si el panel
         // embebido (ver showAdaptedPanel()) está abierto, atrás lo CIERRA a él (mismo criterio
         // que cerrar una pestaña de navegador con atrás), no minimiza toda la terminal — chequeo
@@ -806,7 +860,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             getSupportFragmentManager().popBackStack();
             return;
         }
-        // Bug real reportado: con backstack ya vacío (switchFragment()
+        // Bug real reportado: con backstack ya vacío (switchFragment
         // lo vacía en CADA cambio de tab, ver comentario en esa función más abajo), si el
         // usuario abrió el detalle de un módulo desde "Módulos", cambió a otro tab, y tocó
         // atrás parado en la raíz de ESE tab, no había nada que popear y la app se cerraba
@@ -814,7 +868,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // ahí (consumiendo el evento) en vez de cerrar la app; solo se cierra si ya se estaba
         // parado en Módulos sin backstack.
         if (mCurrentTabId != R.id.nav_modules) {
-            // Bug real confirmado en dispositivo (ADB): llamar
+            // Bug real confirmado en dispositivo (ADB, #4): llamar
             // switchFragment(R.id.nav_modules) ACÁ y recién después bottomNav.setSelectedItemId()
             // dejaba el contenido correcto (Módulos) pero el resaltado visual del
             // BottomNavigationView atascado en el tab anterior — switchFragment() ya deja
@@ -922,6 +976,55 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
 
         handleShortcutIntent(intent);
+        handleNavShortcutIntent(intent);
+        handleOpenAgentIntent(intent);
+        com.termux.app.util.DeepLinkHandler.handle(this, intent);
+    }
+
+    /**
+     * Resuelve {@link #EXTRA_OPEN_AGENT} — toque en el avatar flotante del Agente
+     * (AgentAvatarService.kt). Mismo mecanismo exacto que showMoreNavMenu() usa para "Agente" en
+     * el bottom sheet "Más": apila KairosAgentFragment sobre el contenido actual, con "atrás"
+     * para volver. removeExtra() evita reabrirlo de nuevo si la Activity se recrea sin que el
+     * usuario haya vuelto a tocar el avatar.
+     */
+    private void handleOpenAgentIntent(Intent intent) {
+        if (intent == null || !intent.getBooleanExtra(EXTRA_OPEN_AGENT, false)) return;
+        intent.removeExtra(EXTRA_OPEN_AGENT);
+        // Defensa contra FLAG_SECURE pegado (ver com.termux.app.util.ScreenSecurity, bug real
+        // "sigue sin dejar tirar capture") -- mismo motivo que BaseModuleFragment.navigateTo().
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+        getSupportFragmentManager().beginTransaction()
+            .replace(R.id.fragment_container, new com.termux.app.ui.KairosAgentFragment())
+            .addToBackStack(null)
+            .commit();
+    }
+
+    /**
+     * Resuelve {@link #EXTRA_SHORTCUT_NAV_ID} — un App Shortcut ESTÁTICO
+     * (`res/xml/shortcuts.xml`) que navega a un tab fijo del BottomNavigationView por su nombre
+     * de recurso (ej. "nav_homelab"), sin togglear ningún módulo. Se resuelve el id por nombre
+     * (`Resources.getIdentifier`) en vez de hardcodear el `int` en el XML — `shortcuts.xml` ya
+     * tiene la limitación documentada arriba de no poder referenciar recursos de la app vía
+     * `${applicationId}`, así que un string estable ("nav_homelab") es más robusto que arrastrar
+     * el valor numérico de `R.id` a un XML que se edita a mano.
+     */
+    private void handleNavShortcutIntent(Intent intent) {
+        if (intent == null) return;
+        String navIdName = intent.getStringExtra(EXTRA_SHORTCUT_NAV_ID);
+        if (navIdName == null || navIdName.isEmpty()) return;
+        intent.removeExtra(EXTRA_SHORTCUT_NAV_ID);
+
+        int navId = getResources().getIdentifier(navIdName, "id", getPackageName());
+        if (navId == 0) return;
+
+        // switchFragment() directo (NO bottomNav.setSelectedItemId()): a diferencia de
+        // handleShortcutIntent() (que solo navega a nav_modules, un tab real del
+        // BottomNavigationView), este handler también cubre destinos que viven detrás del ítem
+        // "Más" (ej. nav_homelab) — esos ids NO existen en el menú del propio
+        // BottomNavigationView (ver el comentario de showMoreNavMenu()/switchFragment() más
+        // abajo), así que setSelectedItemId() con ellos sería un no-op silencioso.
+        switchFragment(navId);
     }
 
     /**
@@ -984,7 +1087,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // day or night theme takes affect.
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
 
-        // Selector de tema visual Kairos (2026-08-22) — Oscuro/Señal/
+        // Selector de tema visual Kairos (2026-08-22,) — Oscuro/Señal/
         // Claro, ver com.termux.app.util.KairosThemePrefs. Debe llamarse ANTES de
         // super.onCreate() (mismo requisito que setNightMode arriba) para que ?attr/kairos*
         // resuelva contra el tema elegido desde el primer layout inflado.
@@ -1002,7 +1105,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
 
     public void addTermuxActivityRootViewGlobalLayoutListener() {
-        // Null-safe (ver comentario en onStart()) — termux-app real no
+        // Null-safe (ver comentario en onStart) — termux-app real no
         // necesita este guard porque ahí el root view existe desde onCreate().
         if (getTermuxActivityRootView() != null)
             getTermuxActivityRootView().getViewTreeObserver().addOnGlobalLayoutListener(getTermuxActivityRootView());
@@ -1415,47 +1518,67 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /**
+     * Fuente única de los colores de los temas curados (refactor DRY 2026-11-02, hallazgo real
+     * de `docs/referencias/terminal/REFERENCIA_TERMUX_STYLING.md`: antes los mismos 8 temas
+     * vivían DUPLICADOS en dos `switch` separados —
+     * `getTerminalThemePreviewColors()`/`getTerminalThemeColorsProperties()` — manteniéndolos
+     * sincronizados a mano. `colors[0..15]` son los 16 ANSI estándar (`color0`..`color15`).
+     */
+    private static final class TerminalThemeColors {
+        final String background, foreground, cursor;
+        final String[] colors;
+        TerminalThemeColors(String background, String foreground, String cursor, String... colors) {
+            this.background = background;
+            this.foreground = foreground;
+            this.cursor = cursor;
+            this.colors = colors;
+        }
+    }
+
+    private static final java.util.Map<String, TerminalThemeColors> TERMINAL_THEMES = new java.util.LinkedHashMap<>();
+    static {
+        TERMINAL_THEMES.put("Dracula", new TerminalThemeColors("#282a36", "#f8f8f2", "#f8f8f2",
+            "#000000", "#ff5555", "#50fa7b", "#f1fa8c", "#bd93f9", "#ff79c6", "#8be9fd", "#bfbfbf",
+            "#4d4d4d", "#ff6e6e", "#69ff94", "#ffffa5", "#d6acff", "#ff92df", "#a4ffff", "#ffffff"));
+        TERMINAL_THEMES.put("Nord", new TerminalThemeColors("#2e3440", "#d8dee9", "#d8dee9",
+            "#3b4252", "#bf616a", "#a3be8c", "#ebcb8b", "#81a1c1", "#b48ead", "#88c0d0", "#e5e9f0",
+            "#4c566a", "#bf616a", "#a3be8c", "#ebcb8b", "#81a1c1", "#b48ead", "#8fbcbb", "#eceff4"));
+        TERMINAL_THEMES.put("Gruvbox Dark", new TerminalThemeColors("#282828", "#ebdbb2", "#ebdbb2",
+            "#282828", "#cc241d", "#98971a", "#d79921", "#458588", "#b16286", "#689d6a", "#a89984",
+            "#928374", "#fb4934", "#b8bb26", "#fabd2f", "#83a598", "#d3869b", "#8ec07c", "#ebdbb2"));
+        TERMINAL_THEMES.put("Solarized Dark", new TerminalThemeColors("#002b36", "#839496", "#839496",
+            "#073642", "#dc322f", "#859900", "#b58900", "#268bd2", "#d33682", "#2aa198", "#eee8d5",
+            "#002b36", "#cb4b16", "#586e75", "#657b83", "#839496", "#6c71c4", "#93a1a1", "#fdf6e3"));
+        TERMINAL_THEMES.put("One Dark", new TerminalThemeColors("#282c34", "#abb2bf", "#abb2bf",
+            "#282c34", "#e06c75", "#98c379", "#e5c07b", "#61afef", "#c678dd", "#56b6c2", "#abb2bf",
+            "#5c6370", "#e06c75", "#98c379", "#e5c07b", "#61afef", "#c678dd", "#56b6c2", "#ffffff"));
+        TERMINAL_THEMES.put("Monokai", new TerminalThemeColors("#272822", "#f8f8f2", "#f8f8f2",
+            "#272822", "#f92672", "#a6e22e", "#f4bf75", "#66d9ef", "#ae81ff", "#a1efe4", "#f8f8f2",
+            "#75715e", "#f92672", "#a6e22e", "#f4bf75", "#66d9ef", "#ae81ff", "#a1efe4", "#f9f8f5"));
+        TERMINAL_THEMES.put("Tokyo Night", new TerminalThemeColors("#1a1b26", "#c0caf5", "#c0caf5",
+            "#15161e", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#a9b1d6",
+            "#414868", "#f7768e", "#9ece6a", "#e0af68", "#7aa2f7", "#bb9af7", "#7dcfff", "#c0caf5"));
+        TERMINAL_THEMES.put("Catppuccin Mocha", new TerminalThemeColors("#1e1e2e", "#cdd6f4", "#cdd6f4",
+            "#45475a", "#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7", "#94e2d5", "#bac2de",
+            "#585b70", "#f38ba8", "#a6e3a1", "#f9e2af", "#89b4fa", "#f5c2e7", "#94e2d5", "#a6adc8"));
+    }
+
+    /**
      * Colores reales de preview de un tema curado: {background, foreground, color1..color6}
      * — mismos valores hex que {@link #getTerminalThemeColorsProperties(String)} escribe a
-     * colors.properties, para que el preview sea 1:1 con lo que se aplica de verdad.
+     * colors.properties, para que el preview sea 1:1 con lo que se aplica de verdad (ambos
+     * derivan ahora de TERMINAL_THEMES, nunca se pueden desincronizar entre sí).
      */
     private static int[] getTerminalThemePreviewColors(String themeName) {
-        switch (themeName) {
-            case "Dracula":
-                return new int[]{Color.parseColor("#282a36"), Color.parseColor("#f8f8f2"),
-                    Color.parseColor("#ff5555"), Color.parseColor("#50fa7b"), Color.parseColor("#f1fa8c"),
-                    Color.parseColor("#bd93f9"), Color.parseColor("#ff79c6"), Color.parseColor("#8be9fd")};
-            case "Nord":
-                return new int[]{Color.parseColor("#2e3440"), Color.parseColor("#d8dee9"),
-                    Color.parseColor("#bf616a"), Color.parseColor("#a3be8c"), Color.parseColor("#ebcb8b"),
-                    Color.parseColor("#81a1c1"), Color.parseColor("#b48ead"), Color.parseColor("#88c0d0")};
-            case "Gruvbox Dark":
-                return new int[]{Color.parseColor("#282828"), Color.parseColor("#ebdbb2"),
-                    Color.parseColor("#cc241d"), Color.parseColor("#98971a"), Color.parseColor("#d79921"),
-                    Color.parseColor("#458588"), Color.parseColor("#b16286"), Color.parseColor("#689d6a")};
-            case "Solarized Dark":
-                return new int[]{Color.parseColor("#002b36"), Color.parseColor("#839496"),
-                    Color.parseColor("#dc322f"), Color.parseColor("#859900"), Color.parseColor("#b58900"),
-                    Color.parseColor("#268bd2"), Color.parseColor("#d33682"), Color.parseColor("#2aa198")};
-            case "One Dark":
-                return new int[]{Color.parseColor("#282c34"), Color.parseColor("#abb2bf"),
-                    Color.parseColor("#e06c75"), Color.parseColor("#98c379"), Color.parseColor("#e5c07b"),
-                    Color.parseColor("#61afef"), Color.parseColor("#c678dd"), Color.parseColor("#56b6c2")};
-            case "Monokai":
-                return new int[]{Color.parseColor("#272822"), Color.parseColor("#f8f8f2"),
-                    Color.parseColor("#f92672"), Color.parseColor("#a6e22e"), Color.parseColor("#f4bf75"),
-                    Color.parseColor("#66d9ef"), Color.parseColor("#ae81ff"), Color.parseColor("#a1efe4")};
-            case "Tokyo Night":
-                return new int[]{Color.parseColor("#1a1b26"), Color.parseColor("#c0caf5"),
-                    Color.parseColor("#f7768e"), Color.parseColor("#9ece6a"), Color.parseColor("#e0af68"),
-                    Color.parseColor("#7aa2f7"), Color.parseColor("#bb9af7"), Color.parseColor("#7dcfff")};
-            case "Catppuccin Mocha":
-                return new int[]{Color.parseColor("#1e1e2e"), Color.parseColor("#cdd6f4"),
-                    Color.parseColor("#f38ba8"), Color.parseColor("#a6e3a1"), Color.parseColor("#f9e2af"),
-                    Color.parseColor("#89b4fa"), Color.parseColor("#f5c2e7"), Color.parseColor("#94e2d5")};
-            default:
-                return new int[]{Color.BLACK, Color.WHITE, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY};
+        TerminalThemeColors t = TERMINAL_THEMES.get(themeName);
+        if (t == null) {
+            return new int[]{Color.BLACK, Color.WHITE, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY, Color.GRAY};
         }
+        return new int[]{
+            Color.parseColor(t.background), Color.parseColor(t.foreground),
+            Color.parseColor(t.colors[1]), Color.parseColor(t.colors[2]), Color.parseColor(t.colors[3]),
+            Color.parseColor(t.colors[4]), Color.parseColor(t.colors[5]), Color.parseColor(t.colors[6])
+        };
     }
 
     /**
@@ -1468,11 +1591,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void applyTerminalTheme(String themeName) {
         try {
             File colorsFile = new File(TermuxConstants.TERMUX_COLOR_PROPERTIES_FILE_PATH);
-            File colorsDir = colorsFile.getParentFile();
-            if (colorsDir != null && !colorsDir.exists()) colorsDir.mkdirs();
-            FileWriter writer = new FileWriter(colorsFile, false);
-            writer.write(getTerminalThemeColorsProperties(themeName));
-            writer.close();
+            writeFileAtomic(colorsFile, getTerminalThemeColorsProperties(themeName));
         } catch (IOException e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "No se pudo escribir colors.properties para el tema " + themeName, e);
             Logger.showToast(this, getString(R.string.error_terminal_theme_write_failed), true);
@@ -1535,60 +1654,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             .show();
     }
 
-    /** Valores reales (background/foreground/cursor/color0-15) de cada tema curado. */
+    /** Valores reales (background/foreground/cursor/color0-15) de cada tema curado, derivados de TERMINAL_THEMES. */
     private static String getTerminalThemeColorsProperties(String themeName) {
-        switch (themeName) {
-            case "Dracula":
-                return "background=#282a36\nforeground=#f8f8f2\ncursor=#f8f8f2\n" +
-                    "color0=#000000\ncolor1=#ff5555\ncolor2=#50fa7b\ncolor3=#f1fa8c\n" +
-                    "color4=#bd93f9\ncolor5=#ff79c6\ncolor6=#8be9fd\ncolor7=#bfbfbf\n" +
-                    "color8=#4d4d4d\ncolor9=#ff6e6e\ncolor10=#69ff94\ncolor11=#ffffa5\n" +
-                    "color12=#d6acff\ncolor13=#ff92df\ncolor14=#a4ffff\ncolor15=#ffffff\n";
-            case "Nord":
-                return "background=#2e3440\nforeground=#d8dee9\ncursor=#d8dee9\n" +
-                    "color0=#3b4252\ncolor1=#bf616a\ncolor2=#a3be8c\ncolor3=#ebcb8b\n" +
-                    "color4=#81a1c1\ncolor5=#b48ead\ncolor6=#88c0d0\ncolor7=#e5e9f0\n" +
-                    "color8=#4c566a\ncolor9=#bf616a\ncolor10=#a3be8c\ncolor11=#ebcb8b\n" +
-                    "color12=#81a1c1\ncolor13=#b48ead\ncolor14=#8fbcbb\ncolor15=#eceff4\n";
-            case "Gruvbox Dark":
-                return "background=#282828\nforeground=#ebdbb2\ncursor=#ebdbb2\n" +
-                    "color0=#282828\ncolor1=#cc241d\ncolor2=#98971a\ncolor3=#d79921\n" +
-                    "color4=#458588\ncolor5=#b16286\ncolor6=#689d6a\ncolor7=#a89984\n" +
-                    "color8=#928374\ncolor9=#fb4934\ncolor10=#b8bb26\ncolor11=#fabd2f\n" +
-                    "color12=#83a598\ncolor13=#d3869b\ncolor14=#8ec07c\ncolor15=#ebdbb2\n";
-            case "Solarized Dark":
-                return "background=#002b36\nforeground=#839496\ncursor=#839496\n" +
-                    "color0=#073642\ncolor1=#dc322f\ncolor2=#859900\ncolor3=#b58900\n" +
-                    "color4=#268bd2\ncolor5=#d33682\ncolor6=#2aa198\ncolor7=#eee8d5\n" +
-                    "color8=#002b36\ncolor9=#cb4b16\ncolor10=#586e75\ncolor11=#657b83\n" +
-                    "color12=#839496\ncolor13=#6c71c4\ncolor14=#93a1a1\ncolor15=#fdf6e3\n";
-            case "One Dark":
-                return "background=#282c34\nforeground=#abb2bf\ncursor=#abb2bf\n" +
-                    "color0=#282c34\ncolor1=#e06c75\ncolor2=#98c379\ncolor3=#e5c07b\n" +
-                    "color4=#61afef\ncolor5=#c678dd\ncolor6=#56b6c2\ncolor7=#abb2bf\n" +
-                    "color8=#5c6370\ncolor9=#e06c75\ncolor10=#98c379\ncolor11=#e5c07b\n" +
-                    "color12=#61afef\ncolor13=#c678dd\ncolor14=#56b6c2\ncolor15=#ffffff\n";
-            case "Monokai":
-                return "background=#272822\nforeground=#f8f8f2\ncursor=#f8f8f2\n" +
-                    "color0=#272822\ncolor1=#f92672\ncolor2=#a6e22e\ncolor3=#f4bf75\n" +
-                    "color4=#66d9ef\ncolor5=#ae81ff\ncolor6=#a1efe4\ncolor7=#f8f8f2\n" +
-                    "color8=#75715e\ncolor9=#f92672\ncolor10=#a6e22e\ncolor11=#f4bf75\n" +
-                    "color12=#66d9ef\ncolor13=#ae81ff\ncolor14=#a1efe4\ncolor15=#f9f8f5\n";
-            case "Tokyo Night":
-                return "background=#1a1b26\nforeground=#c0caf5\ncursor=#c0caf5\n" +
-                    "color0=#15161e\ncolor1=#f7768e\ncolor2=#9ece6a\ncolor3=#e0af68\n" +
-                    "color4=#7aa2f7\ncolor5=#bb9af7\ncolor6=#7dcfff\ncolor7=#a9b1d6\n" +
-                    "color8=#414868\ncolor9=#f7768e\ncolor10=#9ece6a\ncolor11=#e0af68\n" +
-                    "color12=#7aa2f7\ncolor13=#bb9af7\ncolor14=#7dcfff\ncolor15=#c0caf5\n";
-            case "Catppuccin Mocha":
-                return "background=#1e1e2e\nforeground=#cdd6f4\ncursor=#cdd6f4\n" +
-                    "color0=#45475a\ncolor1=#f38ba8\ncolor2=#a6e3a1\ncolor3=#f9e2af\n" +
-                    "color4=#89b4fa\ncolor5=#f5c2e7\ncolor6=#94e2d5\ncolor7=#bac2de\n" +
-                    "color8=#585b70\ncolor9=#f38ba8\ncolor10=#a6e3a1\ncolor11=#f9e2af\n" +
-                    "color12=#89b4fa\ncolor13=#f5c2e7\ncolor14=#94e2d5\ncolor15=#a6adc8\n";
-            default:
-                return "";
+        TerminalThemeColors t = TERMINAL_THEMES.get(themeName);
+        if (t == null) return "";
+        StringBuilder sb = new StringBuilder();
+        sb.append("background=").append(t.background).append('\n');
+        sb.append("foreground=").append(t.foreground).append('\n');
+        sb.append("cursor=").append(t.cursor).append('\n');
+        for (int i = 0; i < t.colors.length; i++) {
+            sb.append("color").append(i).append('=').append(t.colors[i]).append('\n');
         }
+        return sb.toString();
     }
 
     private void setToggleKeyboardView() {
@@ -2088,6 +2165,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void showMoreNavMenu(View anchor) {
         com.termux.app.ui.MoreBottomSheetFragment sheet = new com.termux.app.ui.MoreBottomSheetFragment();
         sheet.setOnItemSelected(itemId -> {
+            if (itemId == R.id.nav_agent) {
+                // El Agente Kairos no es una pestaña ni un módulo: se abre como detalle apilado
+                // (mismo mecanismo que ModuleDetailNavigator), con "atrás" para volver.
+                // Defensa contra FLAG_SECURE pegado -- ver handleOpenAgentIntent() más arriba.
+                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_SECURE);
+                getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, new com.termux.app.ui.KairosAgentFragment())
+                    .addToBackStack(null)
+                    .commit();
+                return kotlin.Unit.INSTANCE;
+            }
             switchFragment(itemId);
             return kotlin.Unit.INSTANCE;
         });
@@ -2097,7 +2185,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void switchFragment(int itemId) {
         Fragment target;
         if (itemId == R.id.nav_chat) target = mChatFragment;
-        else if (itemId == R.id.nav_monitor) target = mMonitorFragment;
         else if (itemId == R.id.nav_files) target = mFileManagerFragment;
         else if (itemId == R.id.nav_tunnel) target = mTunnelFragment;
         else if (itemId == R.id.nav_nube) target = mNubeFragment;
@@ -2105,19 +2192,18 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         else if (itemId == R.id.nav_studio) target = mStudioFragment;
         else if (itemId == R.id.nav_minipc) target = mEntornoFragment;
         else if (itemId == R.id.nav_homelab) target = mHomelabFragment;
-        else if (itemId == R.id.nav_automations) target = mAutomationsFragment;
         else if (itemId == R.id.nav_settings) target = mSettingsFragment;
         else target = mModulesFragment;
 
         if (target == null || target == mCurrentFragment) return;
 
-        // Log interno de Kairos, nivel NORMAL — navegación entre tabs (ver
+        // Log interno de Kairos, nivel NORMAL — navegación entre tabs (
         // ConfigFragment "Log Kairos"). Se loguea el itemId numérico, no el nombre resuelto del
         // recurso: alcanza para correlacionar eventos en el log, sin resolver getResources()
         // acá adentro de un método ya recargado.
         com.termux.app.util.KairosLogger.log(this, "Nav", "switchFragment() -> itemId=" + itemId);
 
-        // Bug real reportado (2026-08-24): tocar otro tab estando dentro
+        // Bug real reportado (2026-08-24,): tocar otro tab estando dentro
         // de un módulo no hacía nada visible hasta salir del módulo con "atrás". Causa raíz:
         // ModuleDetailNavigator.navigate()/BaseModuleFragment.navigateTo() empujan el detalle
         // del módulo con replace(R.id.fragment_container, ...) + addToBackStack(null) — el mismo
@@ -2147,6 +2233,26 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         mCurrentFragment = target;
         mCurrentTabId = itemId;
+        hideKeyboardOutsideTerminal();
+    }
+
+    /**
+     * Cierra el teclado y quita el foco de cualquier campo de texto. Se usa al entrar a una pantalla
+     * de la app (tabs, detalles de módulo) y al cerrar la terminal: el teclado solo debe aparecer
+     * cuando el usuario toca un campo. Android enfoca solo el primer EditText de una pantalla y el
+     * teclado que dejó abierta la terminal sobrevive al cambio de pantalla (sin evidencia de cuál de
+     * los dos causaba el reporte; esto cubre ambos).
+     */
+    private void hideKeyboardOutsideTerminal() {
+        final View decor = getWindow().getDecorView();
+        decor.post(() -> {
+            if (mTerminalOverlay != null && mTerminalOverlay.getVisibility() == View.VISIBLE) return;
+            View focus = getCurrentFocus();
+            if (focus instanceof EditText) focus.clearFocus();
+            android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(decor.getWindowToken(), 0);
+        });
     }
 
     /**
@@ -2170,7 +2276,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     ViewGroup.LayoutParams.MATCH_PARENT));
                 mTerminalOverlay.setVisibility(View.GONE);
 
-                // Bug real, 4to intento (2026-08-07): acá vivía un
+                // Bug real, 4to intento (2026-08-07,): acá vivía un
                 // listener manual de WindowInsetsCompat (padding a mano para status bar + IME)
                 // que ningún proyecto de referencia (ni termux-app real) necesita — revertido al
                 // mecanismo real de termux-app: asignar mTermuxActivityRootView de verdad y
@@ -2205,7 +2311,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                     // El overlay se agrega con addContentView() cuando el despacho de insets del
                     // DecorView ya ocurrió, así que sin este requestApplyInsets() el listener de
                     // arriba nunca recibía insets y no aplicaba el padding de la barra de estado
-                    // (ver comentario equivalente en TermuxActivityRootView).
                     mTermuxActivityRootView.requestApplyInsets();
                     if (mPreferences.isTerminalMarginAdjustmentEnabled())
                         addTermuxActivityRootViewGlobalLayoutListener();
@@ -2222,7 +2327,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 setTerminalQuickSettingsButtonView();
                 setCustomCommandsDrawerView();
                 setMargins();
-                // Bug real confirmado (2026-08-01):
+                // Bug real confirmado (2026-08-01, ver de esa ronda):
                 // "mTermuxActivityRootView" llegó a estar sin asignar en una ronda intermedia de
                 // esta sesión, lo que hacía que cualquier código que lo usara (ej. el mecanismo
                 // de margen de TermuxActivityRootView.onGlobalLayout()) tirara
@@ -2230,6 +2335,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 // método. Ya no aplica — el campo se asigna arriba, justo después de inflar el
                 // overlay.
                 setTerminalAdaptedBarView();
+                setTerminalSimpleModeView();
             }
 
             boolean show = mTerminalOverlay.getVisibility() != View.VISIBLE;
@@ -2294,6 +2400,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
                 findViewById(R.id.bottom_navigation).setVisibility(View.VISIBLE);
                 findViewById(R.id.fab_terminal).setVisibility(View.VISIBLE);
+                hideKeyboardOutsideTerminal();
             }
             updateFabContextBadge();
         } catch (Exception e) {
@@ -2343,7 +2450,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * abiertas... no las abre".
      */
     private String resolveFabBadgeSessionName() {
-        // Bug real reproducido por ADB (2026-09-03 — "al cerrar
+        // Bug real reproducido por ADB (2026-09-03, ver de esta ronda — "al cerrar
         // sigue el ícono"): esto confiaba en mTerminalAdaptedSessionName a ciegas — el campo se
         // setea en openTerminalWithCommand() (la última sesión nombrada abierta) pero NUNCA se
         // limpiaba cuando esa sesión terminaba, así que seguía "anunciando" un nombre de sesión
@@ -2382,9 +2489,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         View menuButton = mTerminalOverlay.findViewById(R.id.terminal_adapted_menu_button);
         View minimizeButton = mTerminalOverlay.findViewById(R.id.terminal_adapted_minimize_button);
         View closeButton = mTerminalOverlay.findViewById(R.id.terminal_adapted_close_button);
-        // Bug real reportado (2026-08-13): el sidebar de acciones
+        // Bug real reportado (2026-08-13,): el sidebar de acciones
         // rápidas (left_drawer_adapted_content, ver populateAdaptedDrawerContent()) ya existía
-        // desde antes, pero solo se podía abrir con un swipe desde el borde — sin ningún
+        // desde, pero solo se podía abrir con un swipe desde el borde — sin ningún
         // botón visible, poco descubrible. Este botón hace exactamente lo que ya hacía el swipe.
         if (menuButton != null) {
             // Estilo A (default) abre el sidebar de siempre; Estilo B abre las mismas acciones
@@ -2422,6 +2529,102 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 }
             });
         }
+    }
+
+    /**
+     * Crea mTerminalSimpleRenderer y conecta el toggle Adaptada/Simple (ver
+     * activity_termux.xml#terminal_adapted_simple_toggle) y el chip "ver salida cruda" (ver
+     * activity_termux.xml#terminal_simple_raw_chip) — se llama una sola vez, en la inflación del
+     * overlay, mismo patrón que setTerminalAdaptedBarView(). Roadmap de terminal Fase 2
+     * (MEJORAS_PENDIENTES.md) — ver terminal/simple/TerminalSimpleRenderer.kt para el motor real.
+     */
+    private void setTerminalSimpleModeView() {
+        if (mTerminalOverlay == null) return;
+        ScrollView scroll = mTerminalOverlay.findViewById(R.id.terminal_simple_scroll);
+        LinearLayout messages = mTerminalOverlay.findViewById(R.id.terminal_simple_messages);
+        TextView fallbackBanner = mTerminalOverlay.findViewById(R.id.terminal_simple_fallback_banner);
+        if (scroll == null || messages == null || fallbackBanner == null) return;
+
+        mTerminalSimpleRenderer = new TerminalSimpleRenderer(this, scroll, messages, fallbackBanner);
+
+        View toggle = mTerminalOverlay.findViewById(R.id.terminal_adapted_simple_toggle);
+        if (toggle != null) toggle.setOnClickListener(v -> toggleTerminalSimpleModeForCurrentSession());
+
+        View rawChip = mTerminalOverlay.findViewById(R.id.terminal_simple_raw_chip);
+        // El chip "ver salida cruda" siempre vuelve a modo Adaptada clásico para la sesión
+        // actual (mockup aprobado: "ver salida cruda" es la vía de escape del parser heurístico,
+        // ver TerminalSimpleRenderer.kt) — mismo toggle que el botón de la barra, nunca queda sin
+        // acción posible mientras Simple está activo.
+        if (rawChip != null) rawChip.setOnClickListener(v -> toggleTerminalSimpleModeForCurrentSession());
+    }
+
+    /**
+     * Prende/apaga el modo Simple para la sesión ACTUALMENTE activa (no global — cada pestaña
+     * conserva su propio modo, ver mTerminalSimpleModeSessionHandles). Disparado por el botón
+     * 💬/⌨ de la barra adaptada y por el chip "ver salida cruda" dentro del modo Simple.
+     */
+    private void toggleTerminalSimpleModeForCurrentSession() {
+        TerminalSession session = getCurrentSession();
+        if (session == null) return;
+        if (!mTerminalSimpleModeSessionHandles.remove(session.mHandle)) {
+            mTerminalSimpleModeSessionHandles.add(session.mHandle);
+        }
+        applyTerminalSimpleModeUi();
+    }
+
+    /**
+     * Alterna terminal_view vs terminal_simple_container según si la sesión actual tiene Simple
+     * activado — capa de presentación pura sobre la misma sesión/PTY (ver
+     * terminal/simple/TerminalSimpleRenderer.kt), nunca reemplaza ni recrea la sesión. Llamado
+     * desde applyTerminalModeUi() (cubre entrar/salir de modo adaptado Y cambiar de pestaña —
+     * openTerminalWithCommand() ya llama a applyTerminalModeUi() en ambos casos, ver el comentario
+     * de refreshAdaptedSessionTabs()) y desde toggleTerminalSimpleModeForCurrentSession().
+     */
+    private void applyTerminalSimpleModeUi() {
+        if (mTerminalOverlay == null || mTerminalView == null) return;
+        View simpleContainer = mTerminalOverlay.findViewById(R.id.terminal_simple_container);
+        MaterialButton toggle = mTerminalOverlay.findViewById(R.id.terminal_adapted_simple_toggle);
+        TextView rawChip = mTerminalOverlay.findViewById(R.id.terminal_simple_raw_chip);
+        if (simpleContainer == null) return;
+
+        TerminalSession session = getCurrentSession();
+        // Modo Simple solo tiene sentido en terminal ADAPTADA (CLI de módulo) — en terminal
+        // clásica de Termux (FAB) el toggle está oculto (ver abajo), así que esta condición
+        // nunca debería dar true ahí, pero se guarda explícitamente por las dudas.
+        boolean simpleActive = mTerminalAdaptedMode && session != null
+            && mTerminalSimpleModeSessionHandles.contains(session.mHandle);
+
+        if (toggle != null) {
+            toggle.setVisibility(mTerminalAdaptedMode ? View.VISIBLE : View.GONE);
+            toggle.setText(simpleActive ? "⌨" : "💬");
+        }
+
+        if (simpleActive) {
+            mTerminalView.setVisibility(View.GONE);
+            simpleContainer.setVisibility(View.VISIBLE);
+            if (rawChip != null) {
+                String label = mTerminalAdaptedSessionName != null ? mTerminalAdaptedSessionName : "";
+                rawChip.setText(getString(R.string.terminal_simple_raw_chip_format, label));
+            }
+            if (mTerminalSimpleRenderer != null) mTerminalSimpleRenderer.attach(session);
+        } else {
+            simpleContainer.setVisibility(View.GONE);
+            mTerminalView.setVisibility(View.VISIBLE);
+            if (mTerminalSimpleRenderer != null) mTerminalSimpleRenderer.detach();
+        }
+    }
+
+    /** Ver TermuxTerminalSessionActivityClient#onTextChanged() — forward al renderer de modo
+     *  Simple (no-op si mTerminalSimpleRenderer es null o [session] no es la sesión adjuntada). */
+    public void notifyTerminalSimpleTextChanged(TerminalSession session) {
+        if (mTerminalSimpleRenderer != null && session != null) mTerminalSimpleRenderer.refresh(session);
+    }
+
+    /** Ver TermuxTerminalViewClient#onKeyDown() — Enter con la sesión corriendo. No-op si el
+     *  modo Simple nunca se activó para esta sesión (mTerminalSimpleRenderer solo guarda estado
+     *  de sesiones que pasaron por attach() al menos una vez). */
+    public void notifyTerminalSimpleEnterPressed(TerminalSession session) {
+        if (mTerminalSimpleRenderer != null && session != null) mTerminalSimpleRenderer.onUserSubmit(session);
     }
 
     /**
@@ -2482,7 +2685,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Administrador de archivos SIN salir de la terminal adaptada, como pestaña propia — pedido
-     * explícito del usuario (2026-09-08: "falta el administrador de
+     * explícito del usuario (2026-09-08,: "falta el administrador de
      * archivos... debe ser [...] en una pestaña nueva"). Reusa `FileManagerFragment` tal cual
      * (misma pantalla que la pestaña Archivos del BottomNav) dentro del panel embebido.
      */
@@ -2493,8 +2696,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /**
-     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito del usuario (2026-09-08:
-     * "agregar una opción de accesibilidad al panel/sidebar... para ajustar
+     * "Accesibilidad" del panel/sidebar adaptado — pedido explícito del usuario (2026-09-08,
+     *: "agregar una opción de accesibilidad al panel/sidebar... para ajustar
      * si se desea navegador y administrador de archivos en pantalla o pestaña"). Un solo switch
      * compartido entre Archivos y Navegador (el usuario lo describió como un único ajuste, sin
      * distinguir entre los dos): con "pestaña" (default, ON) ambos aparecen en
@@ -2540,7 +2743,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /**
      * Navegador de propósito general SIN salir de la terminal adaptada, como pestaña propia —
-     * pedido explícito del usuario (2026-09-08: "el navegador no es poner
+     * pedido explícito del usuario (2026-09-08,: "el navegador no es poner
      * puertos, debe ser un navegador completo como tal en una pestaña nueva"). Usa
      * `TerminalBrowserFragment` (navegación libre real, barra de dirección editable — NO
      * `ModuleWebViewFragment`, que sandboxea a propósito por seguridad, ver su KDoc), precargado
@@ -2563,7 +2766,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * `terminal_adapted_panel_container` (activity_termux.xml) — cubre SOLO el área de
      * contenido (mismo `layout_below`/`layout_above` que `drawer_layout`), dejando
      * `terminal_adapted_bar` (título/☰/Minimizar/Cerrar/pestañas) siempre visible y funcional
-     * — corrección real 2026-09-08 ("falta la opción de que sean pestañas"):
+     * — corrección real 2026-09-08 (: "falta la opción de que sean pestañas"):
      * la primera versión cubría TODO el overlay, tapando la fila de pestañas mientras el panel
      * estaba activo. El título y el botón "Cerrar" de la barra existente se reusan acá (ver
      * setTerminalAdaptedBarView()) en vez de una franja propia duplicada. A diferencia del
@@ -2928,6 +3131,9 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // llama a applyTerminalModeUi() directo en ese caso, sin pasar por el show/hide de arriba)
         // para que la pestaña recién tocada quede resaltada.
         refreshAdaptedSessionTabs();
+        // Mismo criterio: cubre entrar/salir de modo adaptado Y cambiar de pestaña — cada pestaña
+        // puede tener su propio modo Adaptada/Simple (ver mTerminalSimpleModeSessionHandles).
+        applyTerminalSimpleModeUi();
     }
 
     /**
@@ -2984,6 +3190,28 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
     }
 
+    /**
+     * Escritura atómica (temp + rename) — mejora general/universal (auditoría
+     * referencia/terminal/, 2026-11-02): varios proyectos externos usan
+     * AtomicFile para esto; Kairos escribía colors.properties con FileWriter crudo, que deja el
+     * archivo truncado/corrupto si el proceso muere a mitad de escritura.
+     */
+    private static void writeFileAtomic(File target, String content) throws IOException {
+        File parent = target.getParentFile();
+        if (parent != null && !parent.exists()) parent.mkdirs();
+        File tmp = new File(parent, target.getName() + ".tmp");
+        try (FileWriter w = new FileWriter(tmp, false)) {
+            w.write(content);
+        }
+        if (!tmp.renameTo(target)) {
+            // Algunos filesystems no permiten rename sobre un destino ya existente.
+            target.delete();
+            if (!tmp.renameTo(target)) {
+                throw new IOException("No se pudo mover " + tmp + " a " + target);
+            }
+        }
+    }
+
     private static void copyFile(File source, File dest) throws IOException {
         try (java.io.FileInputStream in = new java.io.FileInputStream(source);
              java.io.FileOutputStream out = new java.io.FileOutputStream(dest)) {
@@ -2995,29 +3223,28 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     /** Paleta "Tokyo Night" (variante clásica, no Storm/Light) — valores públicos de
      *  https://github.com/enkia/tokyo-night-vscode-theme, ya validados como dirección de color
-     *  por el usuario (negro + azul + verde neón débil). */
+     * por el usuario (: negro + azul + verde neón débil). */
     private static void writeTokyoNightColorsProperties(File colorsFile) throws IOException {
-        try (FileWriter w = new FileWriter(colorsFile)) {
-            w.write("background=#1a1b26\n");
-            w.write("foreground=#c0caf5\n");
-            w.write("cursor=#c0caf5\n");
-            w.write("color0=#15161e\n");
-            w.write("color1=#f7768e\n");
-            w.write("color2=#9ece6a\n");
-            w.write("color3=#e0af68\n");
-            w.write("color4=#7aa2f7\n");
-            w.write("color5=#bb9af7\n");
-            w.write("color6=#7dcfff\n");
-            w.write("color7=#a9b1d6\n");
-            w.write("color8=#414868\n");
-            w.write("color9=#f7768e\n");
-            w.write("color10=#9ece6a\n");
-            w.write("color11=#e0af68\n");
-            w.write("color12=#7aa2f7\n");
-            w.write("color13=#bb9af7\n");
-            w.write("color14=#7dcfff\n");
-            w.write("color15=#c0caf5\n");
-        }
+        String content = "background=#1a1b26\n" +
+            "foreground=#c0caf5\n" +
+            "cursor=#c0caf5\n" +
+            "color0=#15161e\n" +
+            "color1=#f7768e\n" +
+            "color2=#9ece6a\n" +
+            "color3=#e0af68\n" +
+            "color4=#7aa2f7\n" +
+            "color5=#bb9af7\n" +
+            "color6=#7dcfff\n" +
+            "color7=#a9b1d6\n" +
+            "color8=#414868\n" +
+            "color9=#f7768e\n" +
+            "color10=#9ece6a\n" +
+            "color11=#e0af68\n" +
+            "color12=#7aa2f7\n" +
+            "color13=#bb9af7\n" +
+            "color14=#7dcfff\n" +
+            "color15=#c0caf5\n";
+        writeFileAtomic(colorsFile, content);
     }
 
     /**
@@ -3064,7 +3291,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     // Dependencias de backend IA local por módulo, para los chips de la barra adaptada (ver
-    // refreshAdaptedBarInfo() más abajo). Pedido explícito del usuario:
+    // refreshAdaptedBarInfo más abajo). Pedido explícito del usuario:
     // "si estan en opencode ver si ollama/llama esta corriendo" — mapa chico y EXTENSIBLE a
     // propósito (moduleId -> lista de moduleId de los que depende), no una solución hardcodeada
     // solo para OpenCode: cualquier CLI futuro que dependa de un backend local (Ollama,
@@ -3074,12 +3301,49 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         if (moduleId == null) return java.util.Collections.emptyList();
         switch (moduleId) {
             case "opencode": return java.util.Arrays.asList("ollama", "llamaserver");
+            // "kilo" agregado 2026-09-16: gap real señalado en
+            // docs/arquitectura/AUDITORIA_MEJORA_TERMINAL_ADAPTADA_2026-08-19.md ("extender a
+            // otros CLIs (codebuff, kilo, cursor) queda pendiente porque no está confirmado si
+            // esos soportan configuración de IA local") — confirmado con evidencia real:
+            // kilo.sh (línea ~40) documenta que Kilo Code "es un fork del motor OpenCode", y
+            // kilo.ai/docs/ai-providers/ollama confirma soporte nativo de Ollama vía baseURL
+            // (http://localhost:11434), mismo patrón que OpenCode. codebuff/cursor NO se agregan
+            // acá: Codebuff solo tiene un feature-request abierto sin implementar
+            // (github.com/CodebuffAI/freebuff/issues/678, localProvider en AgentDefinition, no
+            // disponible todavía) y el soporte de Ollama de Cursor es específico del IDE de
+            // escritorio (requiere un túnel tipo ngrok porque su backend corre sandboxeado sin
+            // ver localhost) — no hay evidencia de que cursor-agent (el CLI que instala
+            // cursor.sh) soporte el mismo mecanismo.
+            case "kilo": return java.util.Arrays.asList("ollama", "llamaserver");
             default: return java.util.Collections.emptyList();
         }
     }
 
+    // Módulos que SÍ declaran dependencias en adaptedModuleDependencies() — mismo mapa chico de
+    // arriba, mantenido ahí mismo. Lista separada en vez de recorrer todo el catálogo porque
+    // adaptedModuleDependencies() solo conoce estos IDs, no todos los módulos existentes.
+    private static final java.util.List<String> MODULES_WITH_KNOWN_DEPENDENCIES =
+        java.util.Arrays.asList("opencode", "kilo");
+
+    /**
+     * DeleteCheck (hallazgo real 1Panel, docs/mini-pc/... no, docs/referencias/vps-hosting/
+     * REFERENCIA_1PANEL.md — "agent_install.go DeleteCheck", 2026-11-02): antes de desinstalar
+     * un módulo, Kairos no avisaba si otro módulo instalado depende de él (ej. desinstalar
+     * Ollama con OpenCode todavía instalado no avisaba nada). Devuelve los moduleId que
+     * declaran [moduleId] como dependencia en adaptedModuleDependencies() — el caller
+     * (BaseModuleFragment.confirmUninstallModule()) filtra por instalados de verdad antes de
+     * avisar.
+     */
+    public static java.util.List<String> modulesDependingOn(String moduleId) {
+        java.util.List<String> result = new java.util.ArrayList<>();
+        for (String candidate : MODULES_WITH_KNOWN_DEPENDENCIES) {
+            if (adaptedModuleDependencies(candidate).contains(moduleId)) result.add(candidate);
+        }
+        return result;
+    }
+
     // Comando "listar servidores MCP" por módulo, para el atajo del drawer adaptado (ver
-    // populateAdaptedDrawerContent()) — mismo pedido explícito del usuario ("los mcp, añadir
+    // populateAdaptedDrawerContent) — mismo pedido de ("los mcp, añadir
     // opciones"). Solo se listan acá los CLIs con soporte MCP ya CONFIRMADO por otro código real
     // del proyecto: "claude mcp list" ya es un actionButton existente en ClaudeFragment.kt; para
     // "openclaw mcp ..." OpenClawNative.kt ya confirma (con cita a docs.openclaw.ai/cli/mcp) el
@@ -3223,7 +3487,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     /**
      * Pestañas reales para múltiples sesiones simultáneas visibles a la vez — Fase 1 del
      * roadmap de terminal (pedido explícito del usuario, ver MEJORAS_PENDIENTES.md "Roadmap de
-     * terminal — 2 fases"). Antes de esto, con 2+ CLIs de módulo corriendo
+     * terminal — 2 fases" y). Antes de esto, con 2+ CLIs de módulo corriendo
      * a la vez (ej. "Claude Code" y "OpenCode" abiertos juntos), cambiar de una a otra requería
      * el drawer lateral o el menú popup de ModulesFragment#showTerminalSessionsMenu() — ninguno
      * deja ver TODAS las sesiones activas de un vistazo mientras se usa la terminal.
@@ -3249,7 +3513,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
 
         java.util.List<String> sessionNames = getActiveModuleSessionNames();
-        // Pedido explícito del usuario (2026-09-08: "administrador de
+        // Pedido explícito del usuario (2026-09-08,: "administrador de
         // archivos, navegador... en una pestaña nueva") — Archivos/Navegador cuentan como
         // pestañas más, junto a las sesiones de terminal reales (ver showAdaptedPanel()).
         androidx.fragment.app.FragmentManager fm = getSupportFragmentManager();
@@ -3387,7 +3651,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             // Si un panel utilitario (Archivos/Navegador) estaba visible, tocar una pestaña de
             // sesión real vuelve a mostrar la terminal — sin esto, la sesión cambiaba "detrás"
             // del panel sin que el usuario viera el cambio (pedido explícito del usuario,
-            // 2026-09-08 — pestañas de terminal y paneles conviven en la
+            // 2026-09-08, — pestañas de terminal y paneles conviven en la
             // misma fila).
             if (isAdaptedPanelVisible()) hideAdaptedPanel();
             openTerminalWithCommand(null, sessionName);
@@ -3587,8 +3851,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 closeSurface.run();
                 showModuleLogDialog(moduleId);
             });
-            // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito del
-            // usuario: "los mcp, añadir opciones") — solo aparece para módulos
+            // Atajo a servidores MCP sin salir de la terminal adaptada (pedido explícito,
+            //: "los mcp, añadir opciones") — solo aparece para módulos
             // con soporte MCP confirmado (ver adaptedModuleMcpCommand()). Escribe el comando en
             // la MISMA sesión activa (mismo mecanismo que "Reiniciar módulo"/writeCommandOnceSessionReady
             // vía openTerminalWithCommand), no abre una sesión nueva.
@@ -3600,7 +3864,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 });
             }
         }
-        // Nueva opción de sidebar (2026-09-08: "ve qué más opciones podemos
+        // Nueva opción de sidebar (2026-09-08,: "ve qué más opciones podemos
         // meter en el sidebar/menu/panel de la terminal adaptable") — copiar todo el
         // texto+historial visible de la sesión al portapapeles, sin selección manual carácter
         // por carácter (útil para pegar la salida de un CLI en otra app/chat).
@@ -3608,7 +3872,15 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             closeSurface.run();
             copyAdaptedSessionTranscript();
         });
-        // Pedido explícito del usuario (2026-08-13): "poder
+        // "Terminal web con asistencia de IA" (patrón de 1Panel, ver
+        // docs/referencias/vps-hosting/AUDITORIA_CATEGORIA_VPS_HOSTING.md punto 8) — acción
+        // explícita (nunca intercepta el Enter real, ver KDoc de TerminalAiAssist.kt): revisa
+        // el comando TODAVÍA SIN ENVIAR que el usuario tiene tipeado en este momento.
+        addAdaptedDrawerAction(actions, "✨ Revisar comando con IA", v -> {
+            closeSurface.run();
+            reviewCurrentCommandWithAi();
+        });
+        // Pedido explícito del usuario (2026-08-13,): "poder
         // monitorear... ver las extenciones" desde la terminal adaptada. "Extensiones" son las
         // ExtraKeys (teclas extra) — el toolbar real (terminal_toolbar_view_pager) ya existe,
         // solo estaba forzado a GONE en modo adaptado (applyTerminalModeUi()); acá se hace
@@ -3635,12 +3907,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             closeSurface.run();
             showTerminalBackgroundImageDialog();
         });
-        addAdaptedDrawerAction(actions, "📊 Monitor", v -> {
+        // "Monitor" se fusionó dentro de Homelab 2026-10-30 (MonitorFragment.kt eliminado, ver
+        //) — este atajo navega a Homelab en vez de a un tab que ya no existe.
+        addAdaptedDrawerAction(actions, "🏠 Homelab", v -> {
             closeSurface.run();
             toggleTerminalOverlay();
-            switchFragment(R.id.nav_monitor);
+            switchFragment(R.id.nav_homelab);
         });
-        // Pedido explícito del usuario (2026-09-08: "falta el administrador
+        // Pedido explícito del usuario (2026-09-08,: "falta el administrador
         // de archivos, navegador... sin salir de la terminal adaptada") — a diferencia de
         // "Monitor" de arriba, estas 2 acciones NO minimizan el overlay ni navegan a otro tab:
         // abren un panel embebido (showAdaptedPanel()) que cubre solo el área de contenido, sin
@@ -3858,6 +4132,58 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         showToast(getString(R.string.msg_terminal_transcript_copied), true);
     }
 
+    /** "✨ Revisar comando con IA" (ver KDoc de TerminalAiAssist.kt) — lee el comando todavía sin
+     *  enviar de la sesión adaptada activa, lo manda al Agente a revisar, y muestra el
+     *  resultado en un diálogo con la opción de reemplazar el texto tipeado por la sugerencia
+     *  (sin presionar Enter en nombre del usuario). */
+    private void reviewCurrentCommandWithAi() {
+        TerminalSession session = findSessionByName(mTerminalAdaptedSessionName);
+        if (session == null) session = getCurrentSession();
+        if (session == null) {
+            showToast(getResources().getString(R.string.msg_custom_command_no_active_session), true);
+            return;
+        }
+        final TerminalSession finalSession = session;
+        String command = com.termux.app.util.TerminalAiAssist.INSTANCE.extractCurrentLine(session);
+        if (command == null || command.isBlank()) {
+            showToast(getString(R.string.msg_terminal_ai_review_no_command), true);
+            return;
+        }
+        showToast(getString(R.string.msg_terminal_ai_review_loading), false);
+        new Thread(() -> {
+            com.termux.app.util.TerminalAiAssist.Review review =
+                com.termux.app.util.TerminalAiAssist.INSTANCE.reviewCommand(command);
+            runOnUiThread(() -> {
+                if (!isVisible()) return;
+                if (!review.getOk()) {
+                    showToast(review.getExplanation(), true);
+                    return;
+                }
+                String suggestion = review.getSuggestion();
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.title_terminal_ai_review))
+                    .setMessage(review.getExplanation())
+                    .setNegativeButton(getString(R.string.btn_close), null);
+                if (suggestion != null && !suggestion.isBlank()) {
+                    builder.setPositiveButton(getString(R.string.btn_use_suggestion), (dialog, which) -> {
+                        // Hallazgo real de revisión automática (2026-11-05): la consulta a la IA
+                        // tarda (red real) -- entre que el usuario tocó la acción y toca "Usar
+                        // sugerencia" en el diálogo, pudo haber cambiado de sesión/la sesión
+                        // pudo haber muerto. Re-chequeo barato antes de escribir nada.
+                        TerminalSession stillActive = findSessionByName(mTerminalAdaptedSessionName);
+                        if (stillActive == null) stillActive = getCurrentSession();
+                        if (!finalSession.isRunning() || !finalSession.equals(stillActive)) {
+                            showToast(getString(R.string.msg_terminal_ai_review_session_changed), true);
+                            return;
+                        }
+                        com.termux.app.util.TerminalAiAssist.INSTANCE.applySuggestion(finalSession, command.length(), suggestion);
+                    });
+                }
+                builder.show();
+            });
+        }).start();
+    }
+
     /** Muestra/oculta el toolbar real de ExtraKeys (terminal_toolbar_view_pager) sobre el modo
      *  adaptado — normalmente GONE ahí (ver applyTerminalModeUi()) porque colisiona con la
      *  barra inferior de info del módulo; acá el usuario lo pide explícitamente por sesión. */
@@ -3958,7 +4284,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * mismo mecanismo genérico sin ninguna diferenciación).
      */
     public void openTerminalWithCommand(String command, String sessionName) {
-        // Pedido explícito del usuario (2026-08-13): toggle en
+        // Pedido explícito del usuario (2026-08-13,): toggle en
         // Ajustes ("Terminal clásica (sin UI adaptada)", ver ConfigFragment.kt) — mismo
         // SharedPreferences "kairos_prefs" que ya usan los demás toggles de esa pantalla.
         boolean classicTerminalPreferred = getSharedPreferences("kairos_prefs", MODE_PRIVATE)
@@ -4279,6 +4605,23 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     }
 
     /**
+     * "ssh"/"root" si el proceso en primer plano de la sesión sessionName es una herramienta de
+     * acceso remoto o corre con EUID 0, o null si ninguno aplica — hallazgo real de
+     * `docs/referencias/terminal/REFERENCIA_TTYX.md` ("root tint"/"ssh tint" de ttyx_). Mismo
+     * mecanismo que getForegroundAiModuleForSession() (lee /proc del shell líder de la sesión),
+     * usado por ModulesFragment para el mismo punto de color de "sesiones activas".
+     */
+    public String getSessionSecurityIndicatorForSession(String sessionName) {
+        TerminalSession session = findSessionByName(sessionName);
+        if (session == null) return null;
+        int pid = session.getPid();
+        com.termux.app.util.ForegroundProcessDetector.SessionIndicator indicator =
+            com.termux.app.util.ForegroundProcessDetector.INSTANCE.detectSessionIndicator(pid);
+        if (indicator == null) return null;
+        return indicator == com.termux.app.util.ForegroundProcessDetector.SessionIndicator.SSH ? "ssh" : "root";
+    }
+
+    /**
      * Cierra la sesión de terminal (TUI en la app, ej. "agy"/"opencode" corriendo
      * interactivo) que coincide con sessionName, si existe — no-op si no hay ninguna.
      * Bug real reportado: "Detener servidor" en un módulo con web + TUI (ej. OpenCode)
@@ -4287,7 +4630,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * Se llama desde BaseModuleFragment.stopModuleService() además del script de stop
      * normal, para que "detener" de verdad pare las dos cosas.
      */
-    // Bug real (2026-08-07): "al tocar cerrar de la terminal no
+    // Bug real (2026-08-07,): "al tocar cerrar de la terminal no
     // se cierra bien... es como si se pusiera exit pero no se tocara enter" — antes esto
     // llamaba finishIfRunning() (terminal-emulator/, protegido) directo, que manda SIGKILL
     // solo al PID del shell. El shell corre con setsid() (termux.c), líder de su propio
@@ -4341,7 +4684,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         }
     }
 
-    // Bug real confirmado en dispositivo (ADB, "las terminales se siguen
+    // Bug real confirmado en dispositivo (ADB, #5 "las terminales se siguen
     // quedando abiertas al darle cerrar sesión"): con una sesión adaptada abierta (ej. Claude
     // Code, bash PID padre + un hijo "claude" en foreground) se disparó "Cerrar sesión" y,
     // aunque el drawer se cerraba y la UI ya no mostraba la sesión, `ps` seguía mostrando AMBOS
@@ -4378,7 +4721,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     // ConfigFragment solo corría scripts de stop de módulos (ModuleController.stopAllModules)
     // y mataba el proceso entero con exitProcess(0) sin ningún delay — nunca tocaba las
     // TerminalSession abiertas, así que cualquier pty con un job en foreground (una TUI, un
-    // script) quedaba literalmente "esperando ENTER" (el mismo bug que
+    // script) quedaba literalmente "esperando ENTER" (el mismo bug de que
     // stopSessionByName() ya arregla para una sesión puntual) hasta que Android mataba el
     // proceso de golpe. A diferencia de stopSessionByName() (que espera 300ms+1500ms POR
     // sesión, pensado para cerrar una sesión sin apurar), acá la app entera se está cerrando —

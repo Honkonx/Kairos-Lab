@@ -66,6 +66,55 @@
 
             </LinearLayout>
 
+            <!-- Grupo "Personalizado (OpenAI-compatible)" — hallazgo real de
+                 docs/referencias/ia/REFERENCIA_CROSS_PLATFORM_LLM_CLIENT.md, ChatFragment.kt ya
+                 lo tenía (proveedor "custom" interno), esta pantalla y el Agente no. Oculto
+                 salvo que AiCompany.CUSTOM esté elegido. -->
+            <LinearLayout
+                android:id="@+id/custom_endpoint_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ai_custom_base_url_label"
+                    android:textColor="@color/ide_text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/custom_base_url_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:hint="@string/ai_custom_base_url_hint"
+                    android:textColor="@color/ide_text_primary"
+                    android:textColorHint="@color/ide_text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/ai_custom_model_label"
+                    android:textColor="@color/ide_text_secondary"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="4dp" />
+
+                <EditText
+                    android:id="@+id/custom_model_input"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:hint="@string/ai_custom_model_hint"
+                    android:textColor="@color/ide_text_primary"
+                    android:textColorHint="@color/ide_text_secondary" />
+
+            </LinearLayout>
+
             <!-- Aviso para la opción "Ollama / llama.cpp local" — oculto salvo que ese
                  proveedor esté elegido. -->
             <TextView

@@ -206,7 +206,7 @@ class OllamaConfigFragment : BaseModuleFragment() {
             .show()
     }
 
-    // Bug real (auditoría 2026-08-05): no se puede usar el
+    // Bug real (auditoría 2026-08-05,): no se puede usar el
     // helper genérico updateModuleService() a secas — ollama.sh exige --variant en modo silent.
     private fun updateOllama() {
         val variant = com.termux.app.data.ModuleRegistry(requireContext()).load().get("ollama.install_mode")

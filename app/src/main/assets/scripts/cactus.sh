@@ -40,15 +40,14 @@
 #    source.
 #
 #  CORRECCIÓN 2026-09-08 (causa raíz REAL confirmada empíricamente en
-#  dispositivo real): cactus-needle 2.x YA
+#  dispositivo real — ver docs/humano/ de esta ronda): cactus-needle 2.x YA
 #  NO depende de jax/jaxlib/flax/optax en absoluto (confirmado leyendo el log
 #  real de `pip install cactus-needle` en el dispositivo — solo trae
 #  huggingface_hub/click/pyyaml/etc, ningún paquete jax*). El pip install
 #  nativo en Termux SIEMPRE tiene éxito hoy, y `import needle` SIEMPRE
 #  funciona (needle/__init__.py es puro Python) — por eso el chequeo viejo
 #  "el pip install terminó y el import funciona" daba un falso positivo real
-#  (documentar/verificar la causa raíz empírica antes de dar un fix por bueno,
-#  en vez de confiar en un chequeo superficial). El bloqueo real
+#  (ver `.claude/rules/empirical-verification-before-fix.md`). El bloqueo real
 #  de Bionic sigue existiendo, pero en OTRO lugar: needle NO trae su motor
 #  nativo en el wheel — lo DESCARGA de HuggingFace (repo Cactus-Compute/
 #  needle2) recién al INSTANCIAR `Needle(...)` (needle/__init__.py `_bind()` →
@@ -154,7 +153,20 @@
 #                              la pantalla de Cactus en la app.
 #
 #  REPO: https://github.com/Honkonx/kairos-lab
-#  VERSIÓN: 1.5.0 | Septiembre 2026 (fix real: `cactus run/ai/extract` fallaba
+#  VERSIÓN: 1.5.1 | Septiembre 2026 (fix real, reporte directo del usuario:
+#  "antes al poner la tarea de decirme lo del sistema decia SoC, CPU, GPU y
+#  ahora dice distro linux" — causa raíz confirmada por lectura de código: el
+#  wrapper bin/cactus con runtime=proot (ver nota v1.5.0 abajo, es el camino
+#  que de verdad funciona hoy) hace `exec proot-distro login ... -- python3
+#  cactus_engine.py`, así que TODO el proceso — incluida la tool `system_info`
+#  (uname -a/uptime) — corre DENTRO de la distro Ubuntu glibc, reportando el
+#  userland GNU/Linux de la distro en vez del host Android/Termux real. El
+#  wrapper ahora captura uname/uptime/modelo/versión Android/SoC del HOST en
+#  bash nativo ANTES de entrar a proot y los exporta como env vars (proot
+#  preserva el entorno del proceso que lo invoca) — system_info() en
+#  cactus_engine.py los usa si están presentes, con el uname/uptime de siempre
+#  como fallback cuando runtime=pip (nativo, sin cambios ahí).)
+#  VERSIÓN ANTERIOR: 1.5.0 | Septiembre 2026 (fix real: `cactus run/ai/extract` fallaba
 #  SIEMPRE en dispositivo real con runtime=pip, confirmado por ADB — causa raíz
 #  real NO era jaxlib (ya no es dependencia de cactus-needle 2.x) sino que
 #  needle descarga su librería nativa desde HuggingFace recién al instanciar
@@ -162,8 +174,7 @@
 #  nota de arquitectura corregida más abajo. `_needle_importa_ya()` ahora
 #  instancia Needle(...) de verdad (antes solo hacía "import needle", que
 #  siempre pasaba y nunca disparaba el fallback proot-distro/glibc real —
-#  falso positivo clásico de confiar en un chequeo superficial en vez de la
-#  post-condición real).
+#  falso positivo clásico de `.claude/rules/empirical-verification-before-fix.md`).
 #  Fallback proot/glibc confirmado funcional end-to-end en dispositivo real
 #  (Ubuntu proot-distro real resuelve los SONAMEs glibc que Bionic no tiene).)
 #  VERSIÓN ANTERIOR: 1.4.0 | Agosto 2026 (cactus serve — modo servidor HTTP liviano y
@@ -197,9 +208,14 @@ SILENT=false
 FORCE=false
 DESCRIBE=false
 DESCRIBE_FILES=false
+# Motor elegido por el usuario: native (binario Android de Needle, sin proot) o proot (pip dentro de una distro glibc).
+# Si el elegido falla se prueba el otro. Sin elección explícita se prefiere native.
+_RUNTIME_REQUESTED="${KAIROS_CACTUS_RUNTIME:-}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --runtime=*) _RUNTIME_REQUESTED="${1#--runtime=}" ;;
+    --runtime|--variant) shift; _RUNTIME_REQUESTED="${1:-}" ;;
     --silent)   SILENT=true ;;
     --force)    FORCE=true ;;
     --describe) DESCRIBE=true ;;
@@ -268,7 +284,15 @@ GLIBC_DISTRO="ubuntu"
 # fallback) — así un re-run (checkpoint parcial) no vuelve a intentar pip en
 # el host cuando ya se sabe que cayó al fallback la vez anterior.
 CACTUS_RUNTIME=$(grep '^cactus\.runtime=' "$REGISTRY" 2>/dev/null | cut -d= -f2 | tail -1)
-CACTUS_RUNTIME="${CACTUS_RUNTIME:-pip}"
+CACTUS_RUNTIME="${CACTUS_RUNTIME:-native}"
+# "pip" (pip nativo en Termux) nunca puede cargar libneedle en Bionic: los registros viejos con ese valor se tratan como native.
+[ "$CACTUS_RUNTIME" = "pip" ] && CACTUS_RUNTIME="native"
+case "$_RUNTIME_REQUESTED" in native|proot) ;; *) _RUNTIME_REQUESTED="" ;; esac
+CACTUS_PREFERRED="${_RUNTIME_REQUESTED:-native}"
+CACTUS_NATIVE_DIR="$HOME/.cactus_native"
+CACTUS_NATIVE_URL="${CACTUS_NATIVE_URL:-https://huggingface.co/Cactus-Compute/needle3/resolve/main}"
+# Cambiar de motor equivale a reinstalar.
+if [ -n "$_RUNTIME_REQUESTED" ] && [ "$_RUNTIME_REQUESTED" != "$CACTUS_RUNTIME" ]; then FORCE=true; fi
 
 # ── log/warn/error/info/step compartidos ─────────────────────
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -283,6 +307,9 @@ check_done() { grep -q "^cactus_${1}=done" "$CHECKPOINT" 2>/dev/null; }
 # arriba, corrección 2026-09-08). `timeout 30` por las dudas de que la
 # descarga desde HuggingFace quede colgada (sin red, mirror caído, etc.) —
 # mismo criterio que cualquier chequeo real con red del proyecto.
+# CAUSA REAL (log del teléfono + prueba en vivo 2026-10-10): proot-distro hereda ANDROID_ROOT/ANDROID_DATA del
+# anfitrión y needle (agent/fetch.py _is_android) se cree en Android aunque corra en glibc: se niega a descargar
+# su librería. Con `env -u ANDROID_ROOT -u ANDROID_DATA` dentro de la distro carga y Needle() instancia bien.
 _NEEDLE_PROBE_PY='
 import sys
 try:
@@ -293,12 +320,44 @@ except Exception as e:
     sys.exit(1)
 '
 
+# Prueba real del motor nativo: el binario Android de Needle carga el modelo y contesta una consulta.
+_needle_native_probe() {
+  local d="$CACTUS_NATIVE_DIR"
+  [ -x "$d/needle" ] && [ -f "$d/needle3.cact" ] || return 1
+  printf '%s' '[{"name":"noop","description":"noop","parameters":{"type":"object","properties":{}}}]' > "$d/probe_tools.json"
+  timeout 60 "$d/needle" --model "$d/needle3.cact" --tools "$d/probe_tools.json" --prompt "noop" 2>/dev/null | grep -q '"success":true'
+}
+
 _needle_importa_ya() {
-  if [ "$CACTUS_RUNTIME" = "proot" ]; then
-    proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- timeout 30 python3 -c "$_NEEDLE_PROBE_PY" 2>/dev/null
-  else
-    timeout 30 python3 -c "$_NEEDLE_PROBE_PY" 2>/dev/null
+  case "$CACTUS_RUNTIME" in
+    proot) proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- env -u ANDROID_ROOT -u ANDROID_DATA timeout 30 python3 -c "$_NEEDLE_PROBE_PY" 2>/dev/null ;;
+    native) _needle_native_probe ;;
+    *) return 1 ;;
+  esac
+}
+
+# Motor nativo: binario `needle` de Android arm64 + modelo needle3.cact (HuggingFace Cactus-Compute/needle3). Sin Python
+# para el motor ni proot. Probado a mano en el teléfono 2026-10-10.
+_install_cactus_native() {
+  [ "$_ARM64" = true ] || { warn "El motor nativo es solo para arm64 (este equipo: $_ARCH)"; return 1; }
+  command -v curl &>/dev/null || pkg install -y curl || { warn "No se pudo instalar curl"; return 1; }
+  mkdir -p "$CACTUS_NATIVE_DIR"
+  info "Descargando el motor nativo de Needle (Android arm64)..."
+  curl -fsSL --retry 3 -o "$CACTUS_NATIVE_DIR/needle.part" "$CACTUS_NATIVE_URL/android-arm64/needle" || { warn "No se pudo descargar el binario needle"; return 1; }
+  info "Descargando el modelo needle3.cact (35 MB)..."
+  curl -fsSL --retry 3 -o "$CACTUS_NATIVE_DIR/needle3.cact.part" "$CACTUS_NATIVE_URL/needle3.cact" || { warn "No se pudo descargar el modelo"; return 1; }
+  mv -f "$CACTUS_NATIVE_DIR/needle.part" "$CACTUS_NATIVE_DIR/needle"
+  mv -f "$CACTUS_NATIVE_DIR/needle3.cact.part" "$CACTUS_NATIVE_DIR/needle3.cact"
+  chmod +x "$CACTUS_NATIVE_DIR/needle"
+  local previous="$CACTUS_RUNTIME"
+  CACTUS_RUNTIME="native"
+  if _needle_native_probe; then
+    log "Motor nativo de Needle funcional (sin proot)"
+    return 0
   fi
+  CACTUS_RUNTIME="$previous"
+  warn "El binario nativo se descargó pero no respondió a la prueba"
+  return 1
 }
 
 # ── Detección de arquitectura (informativa) ──
@@ -324,8 +383,8 @@ _install_cactus_glibc_fallback() {
   # (la que trae Termux hoy):
   #  1. "proot-distro list-installed" YA NO EXISTE — "Error: unknown command 'list-installed'"
   #     a stderr, silenciado por "2>/dev/null" — el chequeo viejo SIEMPRE daba falso. Mismo bug
-  #     ya encontrado y corregido antes en ciberseguridad.sh (ver comentario ahí)
-  #     — su fix ahí (y el de entorno.sh/_proot_distros(), stacks.sh/
+  #     ya encontrado y corregido antes en ciberseguridad.sh (ver comentario ahí,
+  #) — su fix ahí (y el de entorno.sh/_proot_distros, stacks.sh/
   #     _distro_is_installed()) usa "proot-distro list" a secas como fallback, pero eso choca
   #     con el bug #2 de abajo, no verificado hasta ahora en ninguno de los 3.
   #  2. "proot-distro list" (SIN "-q") solo imprime su tabla con formato cuando stdout es una
@@ -361,7 +420,7 @@ _install_cactus_glibc_fallback() {
     return 0
   fi
 
-  CACTUS_RUNTIME="pip"
+  CACTUS_RUNTIME="none"
   warn "cactus-needle tampoco carga su librería nativa dentro de $GLIBC_DISTRO — fallback fallido"
   return 1
 }
@@ -378,7 +437,7 @@ if ! $SILENT; then
 fi
 
 # ── Ya instalado ────────────────────────────────────────────
-if command -v cactus &>/dev/null && _needle_importa_ya && ! $FORCE; then
+if command -v cactus &>/dev/null && ! $FORCE && _needle_importa_ya; then
   log "cactus-needle ya instalado (runtime=$CACTUS_RUNTIME)"
   exit 0
 fi
@@ -410,54 +469,29 @@ else
   mark_done "python"
 fi
 
-# ── PASO 2 — numpy nativo (pkg) ─────────────────────────────────
-# cactus-needle depende de numpy. En Termux con Python muy reciente (3.14 al
-# momento de escribir esto) numpy suele no tener todavía wheel publicado en
-# PyPI para esa versión de Python — pip intenta compilarlo desde source y
-# falla en "Encountered error while generating package metadata" (falta el
-# toolchain BLAS/Fortran completo en Termux, no es un problema de pip en sí).
-# El paquete nativo `python-numpy` del repo de Termux trae un numpy YA
-# compilado para este dispositivo/arquitectura — instalándolo antes, cuando
-# pip resuelve la dependencia numpy de cactus-needle la encuentra ya
-# satisfecha y no intenta bajar/compilar el wheel de PyPI.
-step "PASO 2 — Instalando numpy nativo (pkg, evita compilar vía pip)"
-if check_done "numpy_pkg" && python3 -c "import numpy" 2>/dev/null; then
-  log "numpy ya instalado [checkpoint]"
-else
-  info "Ejecutando: pkg install -y python-numpy"
-  pkg_update_with_fallback
-  pkg install -y python-numpy
-  if python3 -c "import numpy" 2>/dev/null; then
-    log "numpy $(python3 -c 'import numpy; print(numpy.__version__)' 2>/dev/null) instalado (nativo)"
-    mark_done "numpy_pkg"
-  else
-    warn "python-numpy no disponible/no importó — pip intentará resolverlo igual (puede fallar en Python muy reciente)"
-  fi
-fi
+# ── PASO 2 — (numpy ya no hace falta: el motor nativo no usa Python para Needle y el de proot trae el suyo) ──
 
-# ── PASO 3 — cactus-needle (pip nativo, con fallback automático a
-#    proot-distro/glibc si el pip nativo no puede — ver nota de arquitectura
-#    arriba: jaxlib no tiene wheel compatible con Bionic libc) ─────────────
-step "PASO 3 — Instalando cactus-needle vía pip"
+# ── PASO 3 — Motor de Needle: nativo o proot, con respaldo en el otro ─────────
+# native: binario Android de Needle (sin glibc ni proot). proot: pip dentro de una distro glibc (necesita
+# quitar ANDROID_ROOT/ANDROID_DATA, ver arriba). El elegido va primero; si falla se prueba el otro.
+step "PASO 3 — Instalando el motor de Needle (elegido: $CACTUS_PREFERRED)"
 if check_done "needle_pkg" && _needle_importa_ya; then
-  log "cactus-needle ya instalado [checkpoint, runtime=$CACTUS_RUNTIME]"
+  log "Motor de Needle ya instalado [checkpoint, runtime=$CACTUS_RUNTIME]"
 else
-  # En Termux el python del sistema exige --break-system-packages (PEP 668) —
-  # mismo flag que ya usa python.sh para todos sus paquetes pip.
-  info "Ejecutando: python3 -m pip install --break-system-packages cactus-needle"
-  python3 -m pip install --break-system-packages cactus-needle
-  # "import needle" desnudo SIEMPRE tiene éxito acá (puro Python) — no prueba nada real, ver
-  # nota de arquitectura arriba (corrección 2026-09-08). _needle_importa_ya() con
-  # CACTUS_RUNTIME=pip instancia Needle(...) de verdad, que es lo único que dispara la
-  # descarga+dlopen() de la librería nativa y puede fallar por el mismatch Bionic/glibc.
-  CACTUS_RUNTIME="pip"
-  if _needle_importa_ya; then
-    log "cactus-needle $(python3 -c 'import needle; print(getattr(needle, "__version__", "2.x"))' 2>/dev/null) instalado y funcional (pip nativo)"
-  else
-    warn "cactus-needle instala e importa vía pip nativo, pero su librería nativa no carga — causa real: needle descarga desde HuggingFace un wheel manylinux (glibc) porque su detección de plataforma no reconoce Android/Bionic (ver nota de arquitectura arriba)"
-    _install_cactus_glibc_fallback || error "cactus-needle no funciona ni por pip nativo ni por el fallback proot-distro/glibc automático — revisá manualmente con 'proot-distro login $GLIBC_DISTRO' y 'python3 -m pip install cactus-needle' dentro del contenedor"
-    log "cactus-needle instalado y funcional dentro de la distro glibc '$GLIBC_DISTRO' (runtime=proot)"
-  fi
+  if [ "$CACTUS_PREFERRED" = "proot" ]; then _ORDER="proot native"; else _ORDER="native proot"; fi
+  _MOTOR_OK=false
+  for _MODE in $_ORDER; do
+    info "Probando el motor: $_MODE"
+    if [ "$_MODE" = "native" ]; then
+      _install_cactus_native && _MOTOR_OK=true
+    else
+      _install_cactus_glibc_fallback && _MOTOR_OK=true
+    fi
+    $_MOTOR_OK && break
+    warn "El motor $_MODE falló — se prueba el otro"
+  done
+  $_MOTOR_OK || error "Needle no funciona ni en modo nativo ni en proot — revisa el log de instalación"
+  log "Needle instalado y funcional (runtime=$CACTUS_RUNTIME)"
   mark_done "needle_pkg"
 fi
 
@@ -530,6 +564,77 @@ import subprocess
 import sys
 import urllib.request
 
+# needle de Python envía conteos de uso anónimos; Kairos los desactiva.
+os.environ.setdefault("NEEDLE_TELEMETRY", "0")
+NATIVE_DIR = os.path.join(os.path.expanduser("~"), ".cactus_native")
+
+
+class _NativeNeedle(object):
+    """Mismo contrato que needle.Needle (complete(texto) -> dict) pero sobre el binario Android `needle`
+    en modo --serve (POST /complete, los turnos se acumulan como una conversación). Sin libneedle ni glibc."""
+
+    def __init__(self, tools, system=None, tool_index_path=None):
+        import atexit
+        import socket
+        import tempfile
+        import time
+        run_dir = tempfile.mkdtemp(prefix="run_", dir=NATIVE_DIR)
+        tools_path = os.path.join(run_dir, "tools.json")
+        with open(tools_path, "w") as f:
+            json.dump(tools, f)
+        sock = socket.socket()
+        sock.bind(("127.0.0.1", 0))
+        self._port = sock.getsockname()[1]
+        sock.close()
+        cmd = [os.path.join(NATIVE_DIR, "needle"), "--model", os.path.join(NATIVE_DIR, "needle3.cact"),
+               "--tools", tools_path, "--serve", "--port", str(self._port)]
+        if system:
+            system_path = os.path.join(run_dir, "system.txt")
+            with open(system_path, "w") as f:
+                f.write(system)
+            cmd += ["--system", system_path]
+        if tool_index_path:
+            cmd += ["--tool-index", tool_index_path]
+        self._proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        atexit.register(self.close)
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            if self._proc.poll() is not None:
+                raise RuntimeError("el motor nativo de Needle se cerró al arrancar")
+            try:
+                socket.create_connection(("127.0.0.1", self._port), 1).close()
+                return
+            except OSError:
+                time.sleep(0.2)
+        self.close()
+        raise RuntimeError("el motor nativo de Needle no abrió su puerto")
+
+    def complete(self, text):
+        req = urllib.request.Request("http://127.0.0.1:%d/complete" % self._port,
+                                     data=json.dumps({"input": text}).encode("utf-8"),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def close(self):
+        proc = getattr(self, "_proc", None)
+        if proc and proc.poll() is None:
+            proc.terminate()
+
+
+class _NativeNeedleModule(object):
+    Needle = _NativeNeedle
+    __version__ = "3.0"
+
+
+def _needle_module():
+    """El needle de Python (runtime proot) o el adaptador sobre el binario nativo (runtime native)."""
+    if os.environ.get("CACTUS_RUNTIME") == "native":
+        return _NativeNeedleModule
+    import needle
+    return needle
+
+
 TOOLS = [
     {
         "name": "run_bash",
@@ -589,7 +694,7 @@ TOOLS = [
     },
     {
         "name": "system_info",
-        "description": "Return OS, kernel, architecture, hostname and uptime.",
+        "description": "Return OS, kernel, architecture, uptime and (when available) the real host's device model, Android version and SoC — always the physical host, never a proot distro.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -806,7 +911,7 @@ def exec_tool(name, args):
     if name == "write_file":
         path = os.path.expanduser(args.get("path", ""))
         try:
-            # Bug real encontrado 2026-08-24 (pruebas funcionales
+            # Bug real encontrado 2026-08-24 (ver pruebas funcionales
             # reales por ADB): con un nombre de archivo sin directorio (ej. "cactus_ok.txt"),
             # os.path.dirname() devuelve "" — os.makedirs("", exist_ok=True) revienta con
             # "FileNotFoundError: [Errno 2] No such file or directory: ''" en vez de escribir
@@ -828,6 +933,27 @@ def exec_tool(name, args):
         except Exception as e:
             return {"ok": False, "error": str(e)}
     if name == "system_info":
+        # Bug real confirmado 2026-09-16 (reporte directo del usuario: "antes decia SoC,
+        # CPU, GPU y ahora dice distro linux"): con CACTUS_RUNTIME=proot (fallback
+        # automatico, needle necesita glibc — ver nota de arquitectura en la cabecera de
+        # cactus.sh) este mismo proceso python3 corre DENTRO de la distro Ubuntu via
+        # proot-distro login, asi que "uname -a"/"uptime" corridos aca adentro reportaban
+        # el userland GNU/Linux de la distro en vez del host Android/Termux real. El
+        # wrapper bin/cactus (variante runtime=proot) ahora captura esos hechos en el HOST,
+        # en bash nativo, ANTES de entrar a proot, y los exporta como variables de entorno
+        # (proot preserva el entorno del proceso que lo invoca) — se usan tal cual si estan
+        # presentes. En runtime=pip (nativo, sin proot de por medio) esas variables nunca se
+        # setean, asi que se cae al uname/uptime de siempre, sin cambio de comportamiento.
+        host_uname = os.environ.get("CACTUS_HOST_UNAME")
+        host_uptime = os.environ.get("CACTUS_HOST_UPTIME")
+        if host_uname is not None or host_uptime is not None:
+            return {
+                "uname": host_uname or "",
+                "uptime": host_uptime or "",
+                "device_model": os.environ.get("CACTUS_HOST_MODEL", ""),
+                "android_version": os.environ.get("CACTUS_HOST_ANDROID_VERSION", ""),
+                "soc": os.environ.get("CACTUS_HOST_SOC", ""),
+            }
         uname = _run(["uname", "-a"])
         uptime = _run(["uptime"])
         return {"uname": uname.get("stdout", ""), "uptime": uptime.get("stdout", "")}
@@ -870,7 +996,7 @@ def _needle_run_core(query, auto=False, min_confidence=0.45, json_only=False):
     devolvia nada) para que `cactus serve` (modo HTTP, ver cmd_serve mas abajo) pueda
     reusar EXACTAMENTE la misma logica sin duplicarla, en vez de re-implementarla o
     invocar el CLI como subproceso desde si mismo."""
-    import needle as nd
+    nd = _needle_module()
 
     effective_auto = auto or json_only  # sin tty no hay forma de confirmar baja confianza
 
@@ -921,7 +1047,7 @@ def run_needle(query, auto=False, min_confidence=0.45, json_only=False):
 def _extract_core(schema_name, text):
     """Nucleo real de `extract` — extraido de run_extract() por el mismo motivo que
     _needle_run_core() arriba (reuso real desde cmd_serve, no duplicacion)."""
-    import needle as nd
+    nd = _needle_module()
 
     schema = EXTRACT_SCHEMAS.get(schema_name)
     if not schema:
@@ -1104,7 +1230,7 @@ def cmd_serve(port):
 
 
 def cmd_status():
-    import needle as nd
+    nd = _needle_module()
     info = {
         "needle": getattr(nd, "__version__", "2.x"),
         "tools": [t["name"] for t in TOOLS],
@@ -1210,13 +1336,34 @@ PYEOF
 # runtime=proot — cactus-needle corre dentro de la distro glibc '$GLIBC_DISTRO'
 # porque jaxlib no tiene wheel compatible con Bionic libc (ver cactus.sh, nota
 # de arquitectura). El motor sigue siendo el mismo archivo del host.
+#
+# Bug real (2026-09-16, reporte directo del usuario: "antes decia SoC, CPU,
+# GPU y ahora dice distro linux") — TODO el proceso python3 de abajo corre
+# DENTRO de la distro Ubuntu (proot-distro login), así que la tool
+# system_info() del motor (uname -a/uptime corridos ahí adentro) reportaba el
+# userland GNU/Linux de la distro en vez del host Android/Termux real. Se
+# capturan los hechos del HOST acá, en bash nativo, ANTES de entrar a proot, y
+# se exportan como variables de entorno — proot preserva el entorno del
+# proceso que lo invoca, así que system_info() en cactus_engine.py los ve
+# adentro de la distro sin tener que volver a ejecutar nada ahí. getprop es un
+# binario de Android (/system/bin/), no de Termux — ruta absoluta a propósito
+# (mismo motivo que EntornoNative.getSystemProperty(): applyTermuxEnv() del
+# lado Kotlin sobrescribe PATH a solo \$PREFIX/bin:\$PREFIX/sbin, sin
+# /system/bin, y ese PATH restringido es el que hereda este wrapper).
+export CACTUS_HOST_UNAME="\$(uname -a 2>/dev/null)"
+export CACTUS_HOST_UPTIME="\$(uptime 2>/dev/null)"
+export CACTUS_HOST_MODEL="\$(/system/bin/getprop ro.product.model 2>/dev/null)"
+export CACTUS_HOST_ANDROID_VERSION="\$(/system/bin/getprop ro.build.version.release 2>/dev/null)"
+export CACTUS_HOST_SOC="\$(/system/bin/getprop ro.board.platform 2>/dev/null)"
 exec proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- \\
-  python3 "$HOME/scripts/cactus/cactus_engine.py" "\$@"
+  env -u ANDROID_ROOT -u ANDROID_DATA python3 "$HOME/scripts/cactus/cactus_engine.py" "\$@"
 WRAPPER
   else
     cat > "$TERMUX_PREFIX/bin/cactus" << WRAPPER
 #!/data/data/com.termux/files/usr/bin/bash
+# runtime=native — Needle corre con su binario Android (~/.cactus_native/needle), sin proot ni glibc.
 export PATH="$TERMUX_PREFIX/bin:$TERMUX_PREFIX/sbin:\$PATH"
+export CACTUS_RUNTIME=native
 exec python3 "$HOME/scripts/cactus/cactus_engine.py" "\$@"
 WRAPPER
   fi
@@ -1284,9 +1431,9 @@ fi
 step "FINALIZANDO"
 if [ "$CACTUS_RUNTIME" = "proot" ]; then
   _VER_FINAL=$(proot-distro login "$GLIBC_DISTRO" --shared-tmp --shared-home -- \
-    python3 -c 'import needle; print(getattr(needle, "__version__", "2.x"))' 2>/dev/null || echo "2.x")
+    env -u ANDROID_ROOT -u ANDROID_DATA python3 -c 'import needle; print(getattr(needle, "__version__", "2.x"))' 2>/dev/null || echo "2.x")
 else
-  _VER_FINAL=$(python3 -c 'import needle; print(getattr(needle, "__version__", "2.x"))' 2>/dev/null || echo "2.x")
+  _VER_FINAL="3.0"
 fi
 _DATE=$(date +%Y-%m-%d)
 registry_write cactus \

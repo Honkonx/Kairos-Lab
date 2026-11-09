@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Títulos de res/menu/bottom_nav_menu.xml y more_nav_menu.xml (antes texto fijo en español,
+         auditoría 2026-10-07). -->
+    <string name="nav_modules">Módulos</string>
+    <string name="nav_chat">Chat IA</string>
+    <string name="nav_minipc">Mini PC</string>
+    <string name="nav_studio">Estudio</string>
+    <string name="nav_more">Más</string>
+    <string name="nav_monitor">Monitor</string>
+    <string name="nav_files">Archivos</string>
+    <string name="nav_tunnel">Túnel</string>
+    <string name="nav_nube">Nube</string>
+    <string name="nav_plugins">Plugins</string>
+    <string name="nav_homelab">Homelab</string>
+    <string name="nav_settings">Config</string>
+</resources>

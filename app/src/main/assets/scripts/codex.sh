@@ -16,7 +16,7 @@
 #
 #  QUÉ INSTALA:
 #    ✅ Node.js (nodejs-lts, si falta)
-#    ✅ Codex CLI — 2 variantes reales seleccionables desde la UI (ronda 2026-09-09):
+# ✅ Codex CLI — 2 variantes reales seleccionables desde la UI:
 #         · "termux" (default): @mmmbuto/codex-cli-termux (DioNanos/codex-termux — fork de
 #           solo milestones grandes de openai/codex). Si esta vía npm falla, cae AUTOMÁTICAMENTE
 #           a un binario nativo prebuilt de wallentx/codex-termux (fork completo del monorepo
@@ -73,7 +73,7 @@ fi
 
 # ── Manifiesto de instalación (--describe-files, moduledeb.sh pack) ────
 # Ver docs/arquitectura/MODULEDEB_GENERICO.md. Codex tiene 3 rutas reales posibles (ronda
-# 2026-09-09): "termux" (npm, default), "termux-fallback"
+# 2026-09-09, ver y siguientes): "termux" (npm, default), "termux-fallback"
 # (binario nativo automático cuando la vía npm falla) y "vl" (npm, opt-in del usuario). Se
 # detecta cuál quedó activa por archivos reales en vez de asumir — mismo criterio que antes.
 if $DESCRIBE_FILES; then
@@ -152,7 +152,7 @@ CODEX_CHANNEL="${VARIANT:-termux}"
 # a propósito una versión más vieja que la recomendada por el propio proyecto.
 CODEX_NORMAL_PKG="@mmmbuto/codex-cli-termux@latest"
 
-# 2026-09-09: variante "vl", opt-in del usuario, sin
+# 2026-09-09 (ver y siguientes): variante "vl", opt-in del usuario, sin
 # fallback automático (pedido explícito). Confirmado vía npm registry real: el bin del paquete
 # se llama "codex-vl" (no "codex") — ver el symlink que se crea en PASO 2 más abajo.
 CODEX_VL_PKG="@mmmbuto/codex-vl@latest"
@@ -273,7 +273,7 @@ else
     pkg_update_with_fallback
     pkg install nodejs-lts -y || error "No se pudo instalar Node.js"
     command -v node &>/dev/null || error "Node.js no disponible tras instalación"
-    # Bug real (auditoría 2026-08-05): "npm install
+    # Bug real (auditoría 2026-08-05,): "npm install
     # -g npm" sobreescribe el npm parcheado para Termux (shebang sin /usr/bin/env, que
     # acá no existe) con uno genérico del registry — "bad interpreter" en cualquier
     # npm posterior. El npm que trae nodejs-lts ya alcanza.
@@ -310,7 +310,7 @@ else
   if npm install -g "$CODEX_NORMAL_PKG"; then
     fix_npm_shebang_wrapper codex "$CODEX_NORMAL_PKG"
   fi
-  # Chequeo funcional real, no solo "existe en PATH" — ver
+  # Chequeo funcional real, no solo "existe en PATH" —,
   # verify_binary_installed() en lib.sh. Si esto falla (npm install falló O el symlink no
   # ejecuta), cae automáticamente al fallback nativo en vez de abortar — reemplaza a la vieja
   # variante --variant native (WangChengYeh/codex_android, repo abandonado, retirada esta ronda).

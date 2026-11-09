@@ -49,7 +49,7 @@ class BottomSheetInstalacion : DialogFragment() {
     // script de instalación re-ejecuta con --force para reinstalar sobre el método ya
     // elegido (ver ModuleController.installModule: sin --force es casi siempre un no-op).
     private var forceReinstall: Boolean = false
-    // Origen de instalación (2026-08-23, pedido explícito del usuario):
+    // Origen de instalación (2026-08-23, pedido explícito del usuario,):
     // "Limpia" es el flujo de siempre (ModuleController.installModule, corre el script completo
     // del módulo). "GitHub" es nuevo — busca un .deb pre-armado en GitHub Releases
     // (ModuleDebInstaller) y lo instala vía moduledeb extract/verify/apply, sin correr el
@@ -535,7 +535,7 @@ class BottomSheetInstalacion : DialogFragment() {
     /**
      * Re-habilita [button] apenas [moduleId] deja de estar instalando — contraparte del estado
      * inicial "alreadyInstalling" de [onCreateView]. Mismo guard de Fragment-adjunto (`isAdded`)
-     * que el resto del proyecto y el mismo
+     * que el resto del proyecto (`.claude/rules/kotlin-kairos-android-patterns.md`) y el mismo
      * mecanismo de poll que BaseModuleFragment.pollInstallingButtonState() (duplicado acá en vez
      * de compartido porque esta clase es un DialogFragment, no extiende BaseModuleFragment).
      */
@@ -649,7 +649,7 @@ class BottomSheetInstalacion : DialogFragment() {
             // alcanza, no hace falta proot completo — ver
             // docs/viejo/PROPUESTA_SCRIPTS_MODULOS.md). Sin selector — un solo camino.
             "n8n" -> listOf(
-                // Orden invertido 2026-08-06 (pedido explícito
+                // Orden invertido 2026-08-06 (ver pedido explícito
                 // del usuario): udocker pasa a ser la recomendada — vive en $HOME (Termux
                 // nativo puede verla/gestionarla), cloudflared corre nativo sin necesitar
                 // proot-distro (aislado, más dependencias, peor compatibilidad en algunos

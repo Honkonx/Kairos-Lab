@@ -23,6 +23,30 @@ import androidx.fragment.app.Fragment
  * Fragments sensibles nunca están resumed al mismo tiempo en una sola Activity (las
  * transacciones de FragmentManager son secuenciales), así que no hay riesgo de que el clear()
  * de un Fragment pise el set() de otro que siga visible.
+ *
+ * **Bug real encontrado y corregido 2026-11-02** (reporte del usuario
+ * "sigue sin dejar tirar capture"): el patrón de arriba (solo onResume/onPause) ASUME que
+ * salir de la pantalla dispara onPause() de verdad — pero TermuxActivity cambia de tab con
+ * `FragmentTransaction.hide()/show()` (ver TermuxActivity.java), que NO dispara onPause()/
+ * onResume() (comportamiento documentado de Android, distinto a una transacción con
+ * back-stack). Visitar UNA sola vez cualquier pantalla con `setScreenSecure(true)` en
+ * onResume() dejaba FLAG_SECURE prendido para TODA la app (es un flag de Window, no de
+ * Fragment) hasta que la Activity entera pasara a background — bloqueando capturas/grabación
+ * indefinidamente en cualquier otra pantalla, no solo en la sensible.
+ *
+ * **Patrón correcto, obligatorio para toda pantalla nueva que use setScreenSecure()**: además
+ * de onResume()/onPause(), agregar `override fun onHiddenChanged(hidden: Boolean)` con el
+ * mismo par set/clear, guardado con `isResumed` en la rama de "mostrar" (hide()/show() SÍ
+ * dispara onHiddenChanged(), a diferencia de onResume/onPause):
+ * ```kotlin
+ * override fun onHiddenChanged(hidden: Boolean) {
+ *     super.onHiddenChanged(hidden)
+ *     if (hidden) setScreenSecure(false) else if (isResumed) setScreenSecure(true)
+ * }
+ * ```
+ * Ya aplicado en las 6 pantallas reales que usaban `setScreenSecure()` a esta fecha:
+ * HomelabFragment, ConfigFragment, RemoteFragment, KairosAgentFragment, ChatFragment,
+ * LlamaServerConfigFragment.
  */
 fun Fragment.setScreenSecure(secure: Boolean) {
     val window = activity?.window ?: return

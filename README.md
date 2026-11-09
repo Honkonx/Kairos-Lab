@@ -125,6 +125,18 @@ correr programas de Windows directamente en Android.
 | [`tools/`](./tools/) | Scripts de build y empaquetado del rootfs embebido |
 | [`.github/workflows/`](./.github/workflows/) | Pipelines de CI — compilan el APK en GitHub Actions |
 
+## Descargar ⬇️
+
+Cada versión se publica en [Releases](https://github.com/Honkonx/Kairos-Lab/releases) solo para **`armv8`** (ARM64), en dos variantes:
+
+| Variante | Archivo | Cuándo elegirla |
+|---|---|---|
+| **Sin rootfs** | `Kairos_<versión>_armv8_sin-rootfs.apk` | Liviana (~100 MB). Descarga el rootfs en el primer arranque, así que tarda más en dejar el entorno listo |
+| **Con rootfs** | `Kairos_<versión>_armv8_con-rootfs.apk` | Más pesada (~1 GB, incluye los paquetes base). Deja el entorno listo más rápido |
+
+La versión actual es **beta 0.2.0**. El Release también incluye el rootfs y los paquetes `.deb` de los módulos
+(ver [`docs/paquetes_deb/`](./docs/paquetes_deb/index.md)).
+
 ## Requisitos mínimos 📋
 
 - 📱 Android 8.0 o superior (ARM64)

@@ -20,8 +20,8 @@ import java.net.URL
  *
  * Mismo patrón de registry que [RemoteManager] (una clave con un array JSON compacto en
  * `~/.android_server_registry`, protegido por [RegistryLock]) y de secreto-nunca-legible que
- * `RemoteManager` usa para claves SSH importadas: un secreto guardado nunca se vuelve a mostrar
- * en la UI una vez persistido — el token/contraseña de un servicio se
+ * `RemoteManager` usa para claves SSH importadas (ver
+ * `.claude/rules/kairos-secrets-never-revealed.md`): el token/contraseña de un servicio se
  * guarda en un archivo propio con permisos restringidos a nivel de aplicación — ninguna función
  * de este objeto expone su contenido a la UI, solo un booleano `hasSecret`. [secretFor] existe
  * únicamente para que un futuro cliente HTTP autenticado (fuera del alcance de esta ronda) lo
@@ -29,7 +29,14 @@ import java.net.URL
  */
 object HomelabManager {
 
-    enum class ServiceType { DOCKER, PIHOLE, PROXMOX, HTTP, OTHER }
+    // PORTAINER/ADGUARD/GITEA/PLEX/BESZEL agregados 2026-11-05 (hallazgo real de
+    // docs/arquitectura/INVESTIGACION_MODULOS_NUEVOS_Y_PENDIENTES_REFERENCIA_2026-11-05.md,
+    // app "Homelab" de F-Droid — 34+ servicios reconocidos de fábrica, Kairos solo tenía 5
+    // genéricos) — son puramente cosmético/clasificatorio (label + agrupación en
+    // HomelabFragment.refreshServices(), confirmado por grep: ningún chequeo de salud ni acción
+    // depende del tipo) así que agregar categorías reales no toca ninguna lógica, solo mejora
+    // el reconocimiento visual de servicios ya comunes en un homelab.
+    enum class ServiceType { DOCKER, PIHOLE, PROXMOX, PORTAINER, ADGUARD, GITEA, PLEX, BESZEL, HTTP, OTHER }
 
     data class HomelabService(
         val id: String,
@@ -174,7 +181,8 @@ object HomelabManager {
     }
 
     /** Reemplaza el token/contraseña de un servicio ya guardado — campo de reemplazo SIEMPRE
-     *  arranca vacío en la UI, nunca pre-cargado con el valor anterior. */
+     *  arranca vacío en la UI (ver `.claude/rules/kairos-secrets-never-revealed.md`), nunca
+     *  pre-cargado con el valor anterior. */
     fun replaceSecret(id: String, secret: String): ActionResult {
         if (secret.isBlank()) return ActionResult(false, error = "El token/contraseña no puede estar vacío")
         saveSecret(id, secret)
